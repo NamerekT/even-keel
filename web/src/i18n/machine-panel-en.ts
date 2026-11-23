@@ -44,7 +44,7 @@ export const machinePanelEn: Messages['machinePanel'] = {
     accountsEmpty: (name) => `"${name}" has no account`,
     hubOnly: 'signed in on the hub, not here',
     addTitle: (name) => `A new account on "${name}"`,
-    addLead: 'Whose account is it? The sign-in runs on the machine: its link and code come in the next window.',
+    addLead: 'Whose account is it? The sign-in runs on the machine: its link and code come next, and Claude asks first whether to sign in fully or on a long token.',
     addNoCli: (name) => `"${name}" has no CLI of this agent: install it there first`,
     addOffline: (name) => `"${name}" is off the link: add an account once it is back`,
     signedOut: 'not signed in',

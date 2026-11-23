@@ -3,12 +3,12 @@ import type { AccountEntry } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import type { MachineSignIn } from '../../../src/state.js'
 import { HUB_PLACE } from '../accountAdd.js'
-import { machineAddChoices, tokenAccounts, type MachineAddChoice } from '../machineAdd.js'
+import { machineAddChoices, type MachineAddChoice } from '../machineAdd.js'
 import { t } from '../i18n/index.js'
 import { CheckIcon, EvenKeelIcon, ServerIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AgentIcon } from './accountParts.js'
-import { MachineTokenDialog, type MachineTokenTarget } from './MachineTokenDialog.js'
+import { MachineClaudeSign } from './MachineClaudeSign.js'
 import './machineAccounts.css'
 
 export interface Place {
@@ -86,26 +86,19 @@ interface AgentsProps {
 
 /**
  * The agents of a new account on a machine elsewhere (BTN-1302): one whose CLI the machine lacks is off with why; the
- * pick signs in there and `MachineLoginDialog` follows it. A long token of a hub Claude subscription is the way without
- * a browser (`MachineTokenDialog`).
+ * pick signs in there and `MachineLoginDialog` follows it. Claude first asks how, as the hub does (BTN-1501): a full
+ * sign-in or a long token (`MachineClaudeSign`).
  */
 export function MachineAgents({ machine, accounts, busy, failure, back, onPick, onAdded }: AgentsProps) {
   const view = t.machinePanel.view
-  const [token, setToken] = useState<MachineTokenTarget | null>(null)
+  const [claude, setClaude] = useState<MachineAddChoice | null>(null)
   const choices = machineAddChoices(machine)
-  const claude = choices.some((choice) => choice.agent === CLAUDE && !choice.missing)
-  const tied = tokenAccounts(accounts, machine)
-  const longToken = (
-    <button
-      type="button"
-      className="button"
-      {...(tied.length === 0
-        ? { 'aria-disabled': 'true' as const }
-        : { disabled: busy, onClick: () => setToken({ machine: machine.machine, name: machine.name, ...tied[0]! }) })}
-    >
-      {t.account.machineToken}
-    </button>
-  )
+  if (claude !== null) {
+    return (
+      <MachineClaudeSign machine={machine} accounts={accounts} busy={busy} failure={failure} back={() => setClaude(null)} onFull={() => onPick(claude)} onAdded={onAdded} />
+    )
+  }
+  const pick = (choice: MachineAddChoice) => (choice.agent === CLAUDE ? setClaude(choice) : onPick(choice))
   return (
     <>
       <div className="add-package__body">
@@ -116,7 +109,7 @@ export function MachineAgents({ machine, accounts, busy, failure, back, onPick, 
               <button
                 type="button"
                 className="add-package__kind"
-                {...(choice.missing ? { 'aria-disabled': 'true' as const } : { disabled: busy, onClick: () => onPick(choice) })}
+                {...(choice.missing ? { 'aria-disabled': 'true' as const } : { disabled: busy, onClick: () => pick(choice) })}
               >
                 <span className="add-package__kind-icon">
                   <AgentIcon agent={choice.agent} />
@@ -137,22 +130,14 @@ export function MachineAgents({ machine, accounts, busy, failure, back, onPick, 
         </div>
       </div>
       {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{failure}</p>}
-      {(back !== null || claude) && (
+      {back !== null && (
         <footer className="add-package__foot">
-          {back !== null && (
-            <button type="button" className="button" disabled={busy} onClick={back}>
-              ← {t.account.back}
-            </button>
-          )}
+          <button type="button" className="button" disabled={busy} onClick={back}>
+            ← {t.account.back}
+          </button>
           <span className="add-package__spacer" />
-          {claude && (
-            <Tipped tip={tied.length === 0 ? t.addAccount.place.tokenNone(machine.name) : t.account.machineTokenTip} align="end">
-              {longToken}
-            </Tipped>
-          )}
         </footer>
       )}
-      {token !== null && <MachineTokenDialog target={token} choices={tied} onClose={() => setToken(null)} onAdded={onAdded} />}
     </>
   )
 }

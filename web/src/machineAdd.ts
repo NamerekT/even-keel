@@ -4,6 +4,7 @@ import type { JoinRequest } from '../../src/jobs/model.js'
 import { matchPath } from 'react-router'
 import { CLAUDE } from '../../src/claude/name.js'
 import { HUB_PLACE } from './accountAdd.js'
+import { accountName } from './accountName.js'
 import { paysPerToken } from './accounts.js'
 import { MACHINE_PARAM } from './machineView.js'
 import { machineGaps, machineTokens, type MachineGap } from './machineSignIn.js'
@@ -178,4 +179,19 @@ export function defaultPlace(pathname: string, search: string, machines: Machine
 export function tokenAccounts(accounts: AccountEntry[], machine: MachineSignIn): Array<{ account: string; who: string }> {
   return machineAccounts(accounts, machine).flatMap(({ entry, gap }) =>
     entry.agent !== CLAUDE || gap === null ? [] : [{ account: entry.key, who: entry.status?.email ?? entry.key }])
+}
+
+/**
+ * The hub's Claude folders on a long token a machine can be signed in on as well, without pasting it (BTN-1501): not
+ * refused, not past its last day, and not on the machine yet — `machines/sharedToken` names its folder there after the
+ * hub's.
+ */
+export function sharedTokens(accounts: AccountEntry[], machine: MachineSignIn, now: number): Array<{ from: string; who: string }> {
+  return accounts.flatMap((entry) => {
+    const token = entry.longToken
+    if (entry.agent !== CLAUDE || token === undefined || token.refusedAt !== undefined) return []
+    if (token.until !== null && Date.parse(token.until) <= now) return []
+    if (machine.accounts.some((each) => each.key === entry.key && each.agent === CLAUDE && each.longToken === true)) return []
+    return [{ from: entry.key, who: accountName(entry, accounts) }]
+  })
 }

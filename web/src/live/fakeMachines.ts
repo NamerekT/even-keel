@@ -497,6 +497,14 @@ export function fakeMachineCommand(state: EvenKeelState, name: string, body: Rec
       accounts: [...each.accounts, { key: 'token', agent: 'claude', email: hub?.status?.email ?? null, signedIn: true, longToken: true }],
     }))
   }
+  if (name === 'machines/sharedToken') {
+    const from = state.account.accounts.find((entry) => entry.key === body.from)
+    const same = state.account.accounts.find((entry) => entry.key === from?.longToken?.sameAs)
+    return change(machine, (each) => ({
+      ...each,
+      accounts: [...each.accounts, { key: String(body.from), agent: 'claude', email: same?.status?.email ?? null, signedIn: true, longToken: true }],
+    }))
+  }
   if (name === 'machines/code') {
     const active = state.account.accounts.find((entry) => entry.key === state.account.active)
     return change(machine, (each) => ({

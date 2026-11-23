@@ -47,6 +47,17 @@ export function readLongToken(dir: string): LongToken | null {
   }
 }
 
+/** A hub folder's long token itself, for a machine elsewhere signed in on the same one (BTN-1501); never logged or shown. */
+export type HubLongToken = { token: string } & TokenTie
+
+/** The token the folder runs on with whom it was said to be of; null — its `settings.json` holds none. */
+export function heldLongToken(dir: string): HubLongToken | null {
+  const token = tokenIn(dir)
+  const known = token === null ? null : readLongToken(dir)
+  if (token === null || known === null) return null
+  return { token, ...(known.sameAs !== undefined && { sameAs: known.sameAs }), ...(known.account !== undefined && { account: known.account }) }
+}
+
 function accountOf(value: unknown): TokenAccountOf | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const { account, email } = value as Record<string, unknown>

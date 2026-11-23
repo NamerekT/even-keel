@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
 import { HUB_PLACE } from './accountAdd.js'
-import { addMachineOf, defaultPlace, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsEmpty, machineAddChoices, machineAgents, machineChecks, osLabel, signInOf, takenColors, tokenAccounts, withAddMachine } from './machineAdd.js'
+import { addMachineOf, defaultPlace, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsEmpty, machineAddChoices, machineAgents, machineChecks, osLabel, sharedTokens, signInOf, takenColors, tokenAccounts, withAddMachine } from './machineAdd.js'
 
 describe('the colours machines have', () => {
   it('are those of the own machine and every joined one not revoked', () => {
@@ -173,5 +173,24 @@ describe('where "Add account" signs in (BTN-1308)', () => {
     const signedIn = machine({ accounts: [{ key: 'jane', agent: 'claude', email: 'jane.roe@example.com', signedIn: true }] })
     expect(tokenAccounts([entry(), jane, codex], signedIn)).toEqual([{ account: 'john.doe@example.com', who: 'john.doe@example.com' }])
     expect(tokenAccounts([codex], machine())).toEqual([])
+  })
+
+  it('offers the long tokens the hub runs on, but not one refused, past its last day or already there (BTN-1501)', () => {
+    const NOW = Date.parse('2026-11-23T10:00:00.000Z')
+    const token = (key: string, longToken: AccountEntry['longToken'], name: string | null = null) =>
+      entry({ key, name, status: { loggedIn: true, authMethod: 'claude.ai', email: null, orgName: null, subscriptionType: null }, longToken })
+    const accounts = [
+      entry(),
+      token('token', { until: '2027-11-01T00:00:00.000Z', sameAs: 'john.doe@example.com' }, 'Work token'),
+      token('token-2', { until: null }),
+      token('refused', { until: null, refusedAt: '2026-11-20T00:00:00.000Z' }),
+      token('old', { until: '2026-11-01T00:00:00.000Z' }),
+      token('there', { until: null }, 'Already there'),
+      entry({ key: 'codex-token', agent: 'codex', longToken: { until: null } }),
+    ]
+    const on = machine({ accounts: [{ key: 'there', agent: 'claude', email: null, signedIn: true, longToken: true }] })
+    expect(sharedTokens(accounts, on, NOW).map((each) => each.from)).toEqual(['token', 'token-2'])
+    expect(sharedTokens(accounts, on, NOW)[0]).toEqual({ from: 'token', who: 'Work token' })
+    expect(sharedTokens([entry()], on, NOW)).toEqual([])
   })
 })

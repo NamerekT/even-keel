@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { assertLongToken, LONG_TOKEN_FILE, noteTokenRefused, readLongToken, restoreLongToken, takeLongToken, tokenOver, writeLongToken } from './longToken.js'
+import { assertLongToken, heldLongToken, LONG_TOKEN_FILE, noteTokenRefused, readLongToken, restoreLongToken, takeLongToken, tokenOver, writeLongToken } from './longToken.js'
 
 const TOKEN = 'sk-ant-oat01-fake-fake-fake-fake-fake'
 const NOW = new Date('2026-11-15T10:00:00.000Z')
@@ -42,6 +42,15 @@ describe('a long token of an account folder', () => {
     writeFileSync(join(dir, 'settings.json'), JSON.stringify({ env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN } }))
     expect(readLongToken(dir)).toEqual({ until: null })
     expect(tokenOver({ until: null }, NOW)).toBe(false)
+  })
+
+  it('gives the token itself with whom it was said to be of, for a machine on the same one (BTN-1501)', () => {
+    expect(heldLongToken(dir)).toBeNull()
+    writeLongToken(dir, TOKEN, NOW, { sameAs: 'full', account: { account: 'uuid-1', email: null } })
+    expect(heldLongToken(dir)).toEqual({ token: TOKEN, sameAs: 'full', account: { account: 'uuid-1', email: null } })
+    writeFileSync(join(dir, 'settings.json'), JSON.stringify({ env: { CLAUDE_CODE_OAUTH_TOKEN: TOKEN } }))
+    rmSync(join(dir, LONG_TOKEN_FILE))
+    expect(heldLongToken(dir)).toEqual({ token: TOKEN })
   })
 
   it('is over once refused or past its last day, and a new token starts over', () => {

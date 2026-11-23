@@ -138,3 +138,28 @@
 .machine-add__agent {
   display: grid;
 }
+
+/* Claude on a machine (BTN-1501): the hub's long tokens, a button each, before the field of a new one. */
+.machine-sign__shared {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.machine-sign__same {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.machine-sign__same svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.machine-sign__same span {
+  overflow-wrap: anywhere;
+  text-align: start;
+}

@@ -1,4 +1,5 @@
 import { basename, posix, win32 } from 'node:path'
+import type { HubLongToken } from '../account/longToken.js'
 import type { TokenAccountOf } from '../account/model.js'
 import type { HubCertificate } from '../link/cert.js'
 import type { HubStore } from '../link/hub-store.js'
@@ -88,6 +89,8 @@ export interface MachineNetworkOptions {
   takeOverOwn?: (project: string, owner: string) => Promise<void>
   /** The claude.ai account of a hub's Claude folder with a full sign-in; `undefined` — none known (BTN-1002). */
   hubAccount?: (key: string) => TokenAccountOf | undefined
+  /** The long token of a hub's Claude folder with whom it was said to be of; `undefined` — the folder runs on none (BTN-1501). */
+  hubLongToken?: (key: string) => HubLongToken | undefined
   /** Whether a machine on the link polls the claude.ai account; absent — the sign-ins carry no `sessionsOnly` (BTN-1266). */
   polled?: (account: string) => boolean
   /** The account's long-token windows differ from its full sign-in's poll; absent — no `limitsDiffer` (BTN-1267). */

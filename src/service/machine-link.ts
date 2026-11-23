@@ -1,4 +1,6 @@
 import { hostname } from 'node:os'
+import { heldLongToken } from '../account/longToken.js'
+import { CLAUDE } from '../claude/name.js'
 import { chainOrder } from '../chain/order.js'
 import type { CliSourceName } from '../agent/cli-state.js'
 import type { LaunchEntry } from '../chain/dispatcher.js'
@@ -382,6 +384,10 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     hubAccount: (key) => {
       const tie = remote.facts()?.identities?.[key]
       return tie === undefined ? undefined : { account: tie.account, email: tie.email }
+    },
+    hubLongToken: (key) => {
+      const home = machine.homes.find(key)
+      return home?.agent === CLAUDE ? (heldLongToken(home.dir) ?? undefined) : undefined
     },
     log,
   })

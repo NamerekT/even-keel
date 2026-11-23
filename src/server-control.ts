@@ -288,6 +288,8 @@ export interface ServerDeps {
     cancel(machine: string): Promise<void>
     /** A long token on a machine elsewhere (BTN-1002), tied to the claude.ai account of the hub's folder `account`. */
     token(machine: string, account: string, token: string, name?: string): Promise<void>
+    /** The long token the hub's folder `from` runs on, on a machine elsewhere (BTN-1501): the page never holds it. */
+    sharedToken(machine: string, from: string): Promise<void>
   }
   /** The section "Machines" of a project's settings (BTN-1271): its pool, "Connect" as a job of steps, a machine turned on or off. */
   pool?: {

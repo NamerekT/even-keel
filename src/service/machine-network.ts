@@ -270,6 +270,21 @@ export class MachineNetwork {
     await control.addLongToken(name, token, null, of)
   }
 
+  /**
+   * The machine signed in on the long token the hub's folder `from` runs on (BTN-1501), in a folder of the same name:
+   * the page names only the folder, the token goes from the hub's folder into the command's payload as `token`'s does.
+   * Tied to the account the hub's folder was said to be of — its full sign-in `sameAs`, else the account its token file
+   * names; neither — none, and the machine finds its folder by that name (BTN-1512).
+   */
+  async sharedToken(machine: string, from: string): Promise<void> {
+    const held = this.options.hubLongToken?.(from)
+    if (held === undefined) throw fail('account.unknown', { key: from })
+    const of = (held.sameAs === undefined ? undefined : this.options.hubAccount?.(held.sameAs)) ?? held.account ?? null
+    const control = await this.accountsOf(machine)
+    this.options.log(`machines: the long token of the hub's folder ${from} is added on machine ${machine}`)
+    await control.addLongToken(from, held.token, null, of)
+  }
+
   /** The code the person got on the sign-in page, for the machine's CLI waiting for it; it is not logged. */
   async code(machine: string, code: string): Promise<void> {
     await (await this.accountsOf(machine)).code(code)

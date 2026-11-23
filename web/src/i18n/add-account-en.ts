@@ -255,9 +255,16 @@ export const addAccount = {
     legend: 'Where it signs in',
     hubName: 'Hub',
     hub: 'The hub: every way of signing in',
-    machine: 'Signs in there, through a browser',
+    machine: 'Signs in there: through a browser or on a long token',
     offline: 'Off the link',
     next: 'Next',
     tokenNone: (name: string) => `A long token is tied to a hub Claude subscription not signed in on "${name}": there is none`,
+  },
+  onMachine: {
+    shared: 'A token the hub already has',
+    sharedNote: 'The hub hands the machine the token it keeps, one short turn there checks it. Nothing to issue or paste.',
+    same: (who: string) => `The same token as ${who}`,
+    fresh: 'A new token',
+    signIn: 'Sign in',
   },
 }

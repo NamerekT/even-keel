@@ -14,6 +14,52 @@ import { AgentIcon } from './accountParts.js'
 /** Needs a terminal of its own: without one it prints nothing, so the page does not drive it (BTN-1005). */
 const SETUP_TOKEN = 'claude setup-token'
 
+/**
+ * The two cards of a Claude subscription's sign-in (BTN-1005), on the hub and on a machine elsewhere alike (BTN-1501):
+ * the full sign-in with what it gives, the long token with only what it lacks — less when `tied` to an account whose
+ * full sign-in hands it the limits.
+ */
+export function SignWays({ sign, tied, onSign }: { sign: Sign; tied: boolean; onSign: (sign: Sign) => void }) {
+  const group = useId()
+  const words = t.addAccount.sign
+  const lines: Record<Sign, { plus: string[]; minus: string[] }> = {
+    full: { plus: words.full.lines, minus: [words.full.honest] },
+    token: { plus: [], minus: tied ? words.token.sameLines : words.token.lines },
+  }
+  return (
+    <fieldset className="add-package__field">
+      <legend className="add-package__label add-package__legend">{words.legend}</legend>
+      <div className="account-add__ways">
+        {SIGNS.map((each) => (
+          <label key={each} className="account-add__way">
+            <input type="radio" name={group} value={each} checked={each === sign} onChange={() => onSign(each)} />
+            <span className="account-add__way-icon">{each === 'full' ? <AgentIcon agent="claude" /> : <KeyIcon />}</span>
+            <span className="account-add__way-title">
+              {words[each].title}
+              <HelpTip text={words[each].tip} align="start" />
+            </span>
+            <span className="account-add__way-check">
+              <CheckIcon />
+            </span>
+            <span className="account-add__way-gets account-add__way-lines">
+              {lines[each].plus.map((line) => (
+                <span key={line} className="account-add__way-line account-add__way-line--plus">
+                  {line}
+                </span>
+              ))}
+              {lines[each].minus.map((line) => (
+                <span key={line} className="account-add__way-line account-add__way-line--minus">
+                  {line}
+                </span>
+              ))}
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
 interface Props {
   draft: Draft
   onDraft: (draft: Draft) => void
@@ -28,46 +74,12 @@ interface Props {
  * what it lacks; for the token — the command that issues it, the field to paste it and the account it is of.
  */
 export function SignFields({ draft, onDraft, choices, accounts, failure }: Props) {
-  const group = useId()
   const words = t.addAccount.sign
   const sign: Sign = draft.sign ?? 'full'
   const same = choices.find((entry) => entry.key === draft.sameAs)
-  const lines: Record<Sign, { plus: string[]; minus: string[] }> = {
-    full: { plus: words.full.lines, minus: [words.full.honest] },
-    token: { plus: [], minus: same === undefined ? words.token.lines : words.token.sameLines },
-  }
   return (
     <>
-      <fieldset className="add-package__field">
-        <legend className="add-package__label add-package__legend">{words.legend}</legend>
-        <div className="account-add__ways">
-          {SIGNS.map((each) => (
-            <label key={each} className="account-add__way">
-              <input type="radio" name={group} value={each} checked={each === sign} onChange={() => onDraft({ ...draft, sign: each })} />
-              <span className="account-add__way-icon">{each === 'full' ? <AgentIcon agent="claude" /> : <KeyIcon />}</span>
-              <span className="account-add__way-title">
-                {words[each].title}
-                <HelpTip text={words[each].tip} align="start" />
-              </span>
-              <span className="account-add__way-check">
-                <CheckIcon />
-              </span>
-              <span className="account-add__way-gets account-add__way-lines">
-                {lines[each].plus.map((line) => (
-                  <span key={line} className="account-add__way-line account-add__way-line--plus">
-                    {line}
-                  </span>
-                ))}
-                {lines[each].minus.map((line) => (
-                  <span key={line} className="account-add__way-line account-add__way-line--minus">
-                    {line}
-                  </span>
-                ))}
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <SignWays sign={sign} tied={same !== undefined} onSign={(each) => onDraft({ ...draft, sign: each })} />
       {sign === 'token' && (
         <>
           {same === undefined && <p className="notice notice--warn">{words.resets}</p>}

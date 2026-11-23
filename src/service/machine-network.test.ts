@@ -65,6 +65,11 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       projectSettings: (project) => (project === ABC ? { beforeStart: [], check: [], afterGreen: ['npm run deploy'] } : undefined),
       servers: (project) => (project === ABC ? [{ package: 'files', server: 'files', command: 'files-mcp', args: [] }] : []),
       hubAccount: (key) => (key === 'hub-folder' ? { account: 'uuid-1', email: 'john.doe@example.com' } : undefined),
+      hubLongToken: (key) => ({
+        'hub-token': { token: 'sk-ant-oat01-hub-hub-hub-hub-hub-hub', sameAs: 'hub-folder' },
+        'bare-token': { token: 'sk-ant-oat01-bare-bare-bare-bare-bare' },
+        'told-token': { token: 'sk-ant-oat01-told-told-told-told-told', account: { account: 'uuid-2', email: 'jane.roe@example.com' } },
+      } as Record<string, { token: string; sameAs?: string; account?: { account: string; email: string | null } }>)[key],
       log,
     })
     closing.push(async () => {
@@ -462,6 +467,16 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await network.token(joined.machine, 'hub-folder', 'sk-ant-oat01-fake-fake-fake-fake-fake', 'Laptop')
     expect(sent('account.addLongToken')).toEqual([{ args: ['Laptop', 'sk-ant-oat01-fake-fake-fake-fake-fake', null, { account: 'uuid-1', email: 'john.doe@example.com' }] }])
     await expect(network.token(joined.machine, 'nowhere', 'sk-ant-oat01-fake-fake-fake-fake-fake')).rejects.toThrow(/nowhere/)
+    // The hub's own long token (BTN-1501): the page names only the folder, the hub reads the token and ties it.
+    await network.sharedToken(joined.machine, 'hub-token')
+    await network.sharedToken(joined.machine, 'bare-token')
+    await network.sharedToken(joined.machine, 'told-token')
+    expect(sent('account.addLongToken').slice(1)).toEqual([
+      { args: ['hub-token', 'sk-ant-oat01-hub-hub-hub-hub-hub-hub', null, { account: 'uuid-1', email: 'john.doe@example.com' }] },
+      { args: ['bare-token', 'sk-ant-oat01-bare-bare-bare-bare-bare', null, null] },
+      { args: ['told-token', 'sk-ant-oat01-told-told-told-told-told', null, { account: 'uuid-2', email: 'jane.roe@example.com' }] },
+    ])
+    await expect(network.sharedToken(joined.machine, 'hub-folder')).rejects.toThrow(/hub-folder/)
     expect(lines.join(' ')).not.toContain('sk-ant-oat01')
     await expect(network.login(OWN, 'claude')).rejects.toThrow(/no such machine/)
   })
