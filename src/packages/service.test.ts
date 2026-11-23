@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { packageSettings, type ServerEntry } from './model.js'
 import { installPinned, type NpxSpec } from './npm.js'
 import { Packages, type PackagesDeps } from './service.js'
+import { cleanFixture, fixture, fixtureDir } from './service.fixture.js'
 import { loadPackages, savePackages } from './store.js'
 import { PackageHub } from './hub.js'
 import { routeOf } from './launch.js'
@@ -25,42 +25,10 @@ vi.mock('./npm.js', async (importOriginal) => {
   }
 })
 
-let dir: string | undefined
 afterEach(() => {
-  if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
-  dir = undefined
+  cleanFixture()
   vi.mocked(installPinned).mockClear()
 })
-
-function fixture() {
-  dir = mkdtempSync(join(tmpdir(), 'even-keel-package-settings-'))
-  const home = dir
-  const put = (path: string, value: unknown) => {
-    const file = join(home, path)
-    mkdirSync(dirname(file), { recursive: true })
-    writeFileSync(file, JSON.stringify(value))
-  }
-  const plugin = (version: string, toolsets: string, server: ServerEntry = { command: 'example-server' }) => {
-    put('own/.claude-plugin/marketplace.json', { name: 'example', plugins: [{ name: 'tools', source: './plugin' }] })
-    put('own/plugin/.claude-plugin/plugin.json', { name: 'tools', version })
-    put('own/plugin/.mcp.json', { mcpServers: { tools: { ...server, env: { TOOLSETS: toolsets, MODE: 'fast' } } } })
-  }
-  plugin('1.0.0', 'workitems,milestones')
-  const file = join(home, 'state/packages.json')
-  savePackages(file, {
-    packages: { 'tools@example': { kind: 'plugin', plugin: { name: 'tools', marketplace: 'example' }, default: true, settings: {}, installs: [] } },
-    projects: {}, pins: {},
-  })
-  const deps = {
-    file, cache: join(home, 'state/packages'), envFile: join(home, '.env'), repos: { project: home },
-    globalDir: join(home, 'global'), ownDir: join(home, 'own'), skillsDir: join(home, 'skills'),
-    skillRoots: () => [], claudeConfigs: () => [], rules: { aliases: {}, trackers: [] }, tracker: () => undefined,
-    agentOf: () => 'claude', updateMarketplace: async () => {}, addMarketplace: async () => {},
-    baseEnv: () => ({}), poolOf: () => ({}), port: 0, log: (line: string) => void lines.push(line), onChange: () => {},
-  }
-  const lines: string[] = []
-  return { packages: new Packages(deps), deps, file, cache: deps.cache, plugin, lines, reload: () => new Packages(deps) }
-}
 
 describe('hub server routes', () => {
   it('lets a machine use hub routes without reading the hub credentials or resolving their local keys', async () => {
@@ -204,61 +172,6 @@ describe('pinned servers across plugin updates', () => {
     const { home } = await updated(npx('1.0.0'), (cache, id) => rmSync(join(cache, 'tools@example', id, 'servers'), { recursive: true, force: true }))
     expect(installPinned).toHaveBeenCalledTimes(2)
     expect(vi.mocked(installPinned).mock.calls[1]![3]).toBe(home)
-  })
-})
-
-describe('installs whose folders are gone: a state folder restored on another host', () => {
-  const npx = (version: string): ServerEntry => ({ command: 'npx', args: ['-y', `example-mcp@${version}`] })
-  const settled = async (packages: Packages) => {
-    for (let waited = 0; packages.installingOf('project').length > 0; waited += 10) {
-      if (waited > 10_000) throw new Error('still installing')
-      await new Promise((done) => setTimeout(done, 10))
-    }
-  }
-
-  it('installs each anew at the start under its id and versions, and leaves one with its folder alone', async () => {
-    const { packages, deps, file, cache, plugin, lines, reload } = fixture()
-    plugin('1.0.0', 'all', npx('1.0.0'))
-    await packages.install('tools@example')
-    const before = loadPackages(file)!.packages['tools@example']!.installs[0]!
-    rmSync(cache, { recursive: true, force: true })
-    vi.mocked(installPinned).mockClear()
-    // The hub's own machine: the hub's gateway runs the server from this very install, so it is installed all the same.
-    const moved = new Packages({ ...deps, hub: false, hubServers: () => [routeOf('project', 'tools@example', before.id, 'tools')] })
-    await moved.start()
-    await settled(moved)
-    const home = join(cache, 'tools@example', before.id, 'servers', 'tools')
-    expect(vi.mocked(installPinned)).toHaveBeenCalledTimes(1)
-    expect(vi.mocked(installPinned).mock.calls[0]!.slice(2, 4)).toEqual(['1.0.0', home])
-    const after = loadPackages(file)!.packages['tools@example']!.installs
-    expect(after.map((each) => each.id)).toEqual([before.id])
-    expect(after[0]!.servers.tools!.entry.args).toEqual([join(home, 'node_modules', 'example-mcp', 'index.js')])
-    expect(existsSync(join(cache, 'tools@example', before.id, 'plugin', '.claude-plugin', 'plugin.json'))).toBe(true)
-    expect(lines).toContain(`packages: tools@example ${before.id} lost its folder: installing it again`)
-    await moved.close()
-
-    vi.mocked(installPinned).mockClear()
-    const again = reload()
-    await again.start()
-    await settled(again)
-    expect(vi.mocked(installPinned)).not.toHaveBeenCalled()
-    await again.close()
-  })
-
-  it('leaves one for Update when this host lacks its plugin at that version', async () => {
-    const { packages, file, cache, deps, plugin, lines, reload } = fixture()
-    plugin('1.0.0', 'all', npx('1.0.0'))
-    await packages.install('tools@example')
-    const id = loadPackages(file)!.packages['tools@example']!.installs[0]!.id
-    rmSync(cache, { recursive: true, force: true })
-    rmSync(deps.ownDir, { recursive: true, force: true })
-    vi.mocked(installPinned).mockClear()
-    const moved = reload()
-    await moved.start()
-    await settled(moved)
-    expect(vi.mocked(installPinned)).not.toHaveBeenCalled()
-    expect(lines.some((line) => line.startsWith(`packages: tools@example ${id} lost its folder, and its marketplace has`))).toBe(true)
-    await moved.close()
   })
 })
 
@@ -473,11 +386,11 @@ describe('Check all and the Update a row shows (EKR-127)', () => {
 
   it('fetches each fetched marketplace of an installed plugin once, installs nothing and shows the newer version at once', async () => {
     const { deps, file } = fixture()
-    remote(dir!, '1.0.0')
+    remote(fixtureDir(), '1.0.0')
     const stored = loadPackages(file)!
     stored.packages['web@remote'] = { kind: 'plugin', plugin: { name: 'web', marketplace: 'remote' }, default: true, settings: {}, installs: [] }
     savePackages(file, stored)
-    const updateMarketplace = vi.fn(async (_marketplace: string) => remote(dir!, '1.1.0'))
+    const updateMarketplace = vi.fn(async (_marketplace: string) => remote(fixtureDir(), '1.1.0'))
     const packages = new Packages({ ...deps, updateMarketplace })
     await packages.install('tools@example')
     await packages.install('web@remote')
@@ -491,7 +404,7 @@ describe('Check all and the Update a row shows (EKR-127)', () => {
 
   it('tries every marketplace and names the first that failed', async () => {
     const { deps, file } = fixture()
-    remote(dir!, '1.0.0')
+    remote(fixtureDir(), '1.0.0')
     const stored = loadPackages(file)!
     stored.packages['web@remote'] = { kind: 'plugin', plugin: { name: 'web', marketplace: 'remote' }, default: true, settings: {}, installs: [] }
     savePackages(file, stored)
@@ -728,9 +641,9 @@ describe('the built-in agent-bridge package (BTN-986)', () => {
 describe("a machine elsewhere follows the hub's catalog (BTN-1299)", () => {
   const npx = (version: string): ServerEntry => ({ command: 'npx', args: ['-y', `example-mcp@${version}`] })
   const tick = () => new Promise((done) => setTimeout(done, 5))
-  const fileOf = (name: string) => join(dir!, name, 'packages.json')
+  const fileOf = (name: string) => join(fixtureDir(), name, 'packages.json')
   const machineOf = (deps: PackagesDeps, name = 'machine') =>
-    new Packages({ ...deps, hub: false, hubServers: () => [], file: fileOf(name), cache: join(dir!, name, 'packages'), tracker: () => ({ server: 'tools', required: true }) })
+    new Packages({ ...deps, hub: false, hubServers: () => [], file: fileOf(name), cache: join(fixtureDir(), name, 'packages'), tracker: () => ({ server: 'tools', required: true }) })
   const settled = async (machine: Packages) => {
     for (let waited = 0; machine.installingOf('project').length > 0; waited += 10) {
       if (waited > 10_000) throw new Error('still installing')
@@ -751,7 +664,7 @@ describe("a machine elsewhere follows the hub's catalog (BTN-1299)", () => {
     const mine = loadPackages(fileOf('machine'))!
     expect(mine.packages['tools@example']!.installs.map((each) => each.id)).toEqual([theirs.id])
     expect(mine.projects).toEqual({ project: { on: ['tools@example'], off: [], settings: {} } })
-    expect(existsSync(join(dir!, 'machine', 'packages', 'tools@example', theirs.id))).toBe(true)
+    expect(existsSync(join(fixtureDir(), 'machine', 'packages', 'tools@example', theirs.id))).toBe(true)
     expect(machine.trackerMissing('project')).toBeUndefined()
     expect(machine.unready('project')).toEqual([])
     await Promise.all([machine.close(), hub.close()])
@@ -792,13 +705,13 @@ describe("a machine elsewhere follows the hub's catalog (BTN-1299)", () => {
     const machine = machineOf(deps)
     machine.follow(hub.catalogFor(['project'], []))
     await settled(machine)
-    expect(vi.mocked(installPinned)).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ name: 'example-mcp' }), '1.0.0', join(dir!, 'machine', 'packages', 'tools@example', id, 'servers', 'tools'), false)
+    expect(vi.mocked(installPinned)).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ name: 'example-mcp' }), '1.0.0', join(fixtureDir(), 'machine', 'packages', 'tools@example', id, 'servers', 'tools'), false)
     expect(loadPackages(fileOf('machine'))!.packages['tools@example']!.settings).toEqual({ MODE: 'slow' })
 
     vi.mocked(installPinned).mockClear()
     const onHub = hub.catalogFor(['project'], [routeOf('project', 'tools@example', id, 'tools')])
     expect(onHub.packages['tools@example']!.settings).toEqual({})
-    const other = new Packages({ ...deps, hub: false, hubServers: () => [routeOf('project', 'tools@example', id, 'tools')], file: fileOf('other'), cache: join(dir!, 'other', 'packages') })
+    const other = new Packages({ ...deps, hub: false, hubServers: () => [routeOf('project', 'tools@example', id, 'tools')], file: fileOf('other'), cache: join(fixtureDir(), 'other', 'packages') })
     other.follow(onHub)
     await settled(other)
     expect(vi.mocked(installPinned)).not.toHaveBeenCalled()
