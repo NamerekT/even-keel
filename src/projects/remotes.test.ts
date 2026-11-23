@@ -109,4 +109,24 @@ describe('ProjectRemotes', () => {
     expect(remotes.urls.ABC).toEqual([{ name: 'origin', url: 'https://github.com/octo-org/app.git' }])
     expect(await remotes.apply({ ABC: 'D:\\work\\app' })).toBe(false)
   })
+
+  it('settles once every read under way has kept its remotes, and at once with none (BTN-1551)', async () => {
+    let answer = (_: { code: number; out: string }) => {}
+    let asked = () => {}
+    const asking = new Promise<void>((resolve) => (asked = resolve))
+    const remotes = new ProjectRemotes(() => {
+      asked()
+      return new Promise((resolve) => (answer = resolve))
+    })
+    await remotes.settled()
+    void remotes.apply({ ABC: 'D:\\work\\app' })
+    let settled = false
+    const waiting = remotes.settled().then(() => (settled = true))
+    await asking
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(settled).toBe(false)
+    answer({ code: 0, out: 'remote.origin.url https://github.com/octo-org/app.git\n' })
+    await waiting
+    expect(remotes.urls.ABC).toEqual([{ name: 'origin', url: 'https://github.com/octo-org/app.git' }])
+  })
 })

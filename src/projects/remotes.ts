@@ -94,11 +94,28 @@ export class ProjectRemotes {
   urls: Record<string, Remote[]> = {}
   /** The `repositoryIds` of each project; a project not read yet is missing. */
   repositories: Record<string, string[]> = {}
+  private reading = new Set<Promise<boolean>>()
 
   constructor(private readonly git: Git) {}
 
   /** Reads the remotes of `projects` (folder by key); true when they changed. */
-  async apply(projects: Record<string, string>): Promise<boolean> {
+  apply(projects: Record<string, string>): Promise<boolean> {
+    const read = this.read(projects)
+    this.reading.add(read)
+    const done = () => void this.reading.delete(read)
+    read.then(done, done)
+    return read
+  }
+
+  /**
+   * Resolves once every read under way has kept what it found: until the first one does, a project's `urls` is
+   * missing and PR mode's check before a launch lets it through (BTN-1551).
+   */
+  async settled(): Promise<void> {
+    await Promise.allSettled([...this.reading])
+  }
+
+  private async read(projects: Record<string, string>): Promise<boolean> {
     const entries = await Promise.all(
       Object.entries(projects).map(async ([key, repo]) => [key, repo, await remotesIn(this.git, repo).catch(() => [])] as const),
     )

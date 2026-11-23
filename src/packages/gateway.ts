@@ -163,9 +163,6 @@ export class McpGateway {
     if (held !== undefined) {
       this.server = held
       this.port = port
-      // A turn of the event loop, as a fresh listen takes: ready within the start's own turn, the e2e chains start
-      // before the service has read the remotes and the CI (BTN-1551).
-      await new Promise((resolve) => setImmediate(resolve))
       return
     }
     const server = createServer(handler)

@@ -388,6 +388,9 @@ export class Harness {
     await this.until(() => keys.every(read), 'the accounts read')
     // The gateway listens in the background: a halt before it does closes nothing, and the next start finds its port held.
     await this.until(() => this.log.slice(booted).some((line) => line.startsWith('mcp gateway: ')), 'the MCP gateway up', { step: 100 })
+    // The service reads the CIs and the remotes in the background; a test reads its main's CI right after a start (BTN-1551).
+    await this.until(() => service.ciWatches.found, 'the CI watches read')
+    await service.remotes.settled()
   }
 
   private async halt(): Promise<void> {

@@ -211,11 +211,16 @@ export function assembleSWITCHES(ctx: Pick<ServiceContext, 'configStore'>): Part
 
 /**
  * Start and Resume admit a chain by the own machine's mirror at once: a change of its accounts told within the
- * machine's settle window has not reached the mirror yet, so they catch up with the machine first (BTN-1550).
+ * machine's settle window has not reached the mirror yet, so they catch up with the machine first (BTN-1550). PR mode's
+ * check before a launch lets a project through until its remotes are read, which the service's start and a config
+ * change do in the background, so they wait for that read too (BTN-1551).
  */
-const caughtUp = (ctx: Pick<ServiceContext, 'machineLink'>): Promise<void> => ctx.machineLink.port.catchUp?.() ?? Promise.resolve()
+const caughtUp = async (ctx: Pick<ServiceContext, 'machineLink' | 'remotes'>): Promise<void> => {
+  await ctx.machineLink.port.catchUp?.()
+  await ctx.remotes.settled()
+}
 
-export function assembleStartChain(ctx: Pick<ServiceContext, 'branches' | 'dispatcher' | 'machineLink'>) {
+export function assembleStartChain(ctx: Pick<ServiceContext, 'branches' | 'dispatcher' | 'machineLink' | 'remotes'>) {
   return async (project: string) => {
     await ctx.branches.refresh(project)
     await caughtUp(ctx)
@@ -223,7 +228,7 @@ export function assembleStartChain(ctx: Pick<ServiceContext, 'branches' | 'dispa
   }
 }
 
-export function assembleChainControl(ctx: Pick<ServiceContext, 'dispatcher' | 'startChain' | 'SWITCHES' | 'machineLink'>): ChainControl {
+export function assembleChainControl(ctx: Pick<ServiceContext, 'dispatcher' | 'startChain' | 'SWITCHES' | 'machineLink' | 'remotes'>): ChainControl {
   const own: Partial<ChainControl> = {
     start: ctx.startChain,
     resume: async (project) => {

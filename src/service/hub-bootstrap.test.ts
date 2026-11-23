@@ -13,6 +13,7 @@ function hub() {
     branches: { refresh: async () => void order.push('branches') },
     dispatcher,
     machineLink: { port: { catchUp: async () => void order.push('catchUp') } },
+    remotes: { settled: async () => void order.push('remotes') },
     SWITCHES: {},
   }
   const startChain = assembleStartChain(ctx as never)
@@ -21,16 +22,16 @@ function hub() {
 }
 
 describe('the chain control of the hub', () => {
-  it('catches up with the own machine before Start admits the chain', async () => {
+  it('catches up with the own machine and the remotes being read before Start admits the chain', async () => {
     const { order, control } = hub()
     await control.start('ABC')
-    expect(order).toEqual(['branches', 'catchUp', 'start ABC'])
+    expect(order).toEqual(['branches', 'catchUp', 'remotes', 'start ABC'])
   })
 
-  it('catches up with the own machine before Resume admits the chain', async () => {
+  it('catches up with the own machine and the remotes being read before Resume admits the chain', async () => {
     const { order, control } = hub()
     await control.resume('ABC')
-    expect(order).toEqual(['catchUp', 'resume ABC'])
+    expect(order).toEqual(['catchUp', 'remotes', 'resume ABC'])
   })
 
   it('leaves the other commands to the dispatcher as they are', () => {
