@@ -16,6 +16,8 @@ import { parseRoute } from './launch.js'
 import type { ServerEntry } from './model.js'
 
 const IDLE_MS = 30 * 60_000
+/** The CLI's fetch (Bun) cuts a stream after ~5 min with no bytes: a comment keeps a bridge's GET stream alive (BTN-1543). */
+const STREAM_PING_MS = 30_000
 const READY_TIMEOUT_MS = 60_000
 const READY_POLL_MS = 200
 const READY_TRY_MS = 1_000
@@ -74,6 +76,13 @@ export interface GatewayDeps {
   tasks?: LocalMcp
   /** Even Keel's own memory server (BTN-1029): package routes to it, answered only while the gateway is the hub's. */
   memory?: LocalMcp
+  /** For tests: how often a bridge's GET streams get a keep-alive comment and how long a bridge lives with no request and no stream. */
+  bridgeTiming?: BridgeTiming
+}
+
+interface BridgeTiming {
+  pingMs: number
+  idleMs: number
 }
 
 /** An MCP server answered in the gateway itself: a reply to one JSON-RPC message, `null` for none. */
@@ -376,7 +385,7 @@ export class McpGateway {
     if (bridge === undefined) {
       if (typeof id === 'string' || !messages.some((each) => each?.method === 'initialize')) return void res.writeHead(typeof id === 'string' ? 404 : 400).end()
       const session = randomUUID()
-      bridge = new Bridge(this.spawn(target, {}, label), () => this.bridges.delete(session))
+      bridge = new Bridge(this.spawn(target, {}, label), () => this.bridges.delete(session), this.deps.bridgeTiming ?? { pingMs: STREAM_PING_MS, idleMs: IDLE_MS })
       this.bridges.set(session, bridge)
       res.setHeader('mcp-session-id', session)
     }
@@ -448,11 +457,13 @@ class Bridge {
   private readonly waiting = new Map<string, (reply: unknown) => void>()
   private readonly streams = new Set<ServerResponse>()
   private timer: NodeJS.Timeout | undefined
+  private ping: NodeJS.Timeout | undefined
   private exited: Promise<void> | undefined
 
   constructor(
     private readonly child: ChildProcess,
     private readonly gone: () => void,
+    private readonly timing: BridgeTiming,
   ) {
     child.stdout?.on('data', (chunk: Buffer) => this.read(chunk.toString('utf8')))
     child.on('exit', () => this.close())
@@ -481,18 +492,32 @@ class Bridge {
     return Promise.all(replies)
   }
 
-  /** Messages of the server that answer no request go to the session's GET stream. */
+  /**
+   * Messages of the server that answer no request go to the session's GET stream. An open stream is a live session: the
+   * bridge does not close idle while one is open, and each gets a keep-alive comment so the client does not cut it.
+   */
   stream(res: ServerResponse): void {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
     res.flushHeaders()
     this.streams.add(res)
-    res.on('close', () => this.streams.delete(res))
+    clearTimeout(this.timer)
+    this.ping ??= setInterval(() => {
+      for (const each of this.streams) each.write(': keep-alive\n\n')
+    }, this.timing.pingMs).unref()
+    res.on('close', () => {
+      this.streams.delete(res)
+      if (this.streams.size > 0) return
+      clearInterval(this.ping)
+      this.ping = undefined
+      if (this.exited === undefined) this.touch()
+    })
   }
 
   close(): Promise<void> {
     if (this.exited !== undefined) return this.exited
     this.exited = stopProcess(this.child)
     clearTimeout(this.timer)
+    clearInterval(this.ping)
     for (const reply of this.waiting.values()) reply(undefined)
     this.waiting.clear()
     for (const each of this.streams) each.end()
@@ -524,7 +549,8 @@ class Bridge {
 
   private touch(): void {
     clearTimeout(this.timer)
-    this.timer = setTimeout(() => this.close(), IDLE_MS).unref()
+    if (this.streams.size > 0) return
+    this.timer = setTimeout(() => this.close(), this.timing.idleMs).unref()
   }
 }
 

@@ -317,6 +317,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 286 | [The newest CLI release in a container](unverified/platforms.md#the-newest-cli-release-in-a-container-btn-1539) | Docker installs, and hosts whose npm global folder is not writable, that pick the CLI version Latest | the window still shows `npm install -g`, Latest does not download, or a new release never arrives; switch the provider to Checked | — |
 | 287 | [A hub's long token reused on a machine elsewhere](unverified/machines.md#a-hubs-long-token-reused-on-a-machine-elsewhere-btn-1501) | hubs with a Claude account on a long token that sign a machine in with "The same token as" | the machine's check turn is refused, or one of the two folders gets refused later; issue a separate token for the machine | — |
 | 288 | [The badge's first stats read a minute after a start](unverified/page.md#the-badges-first-stats-read-a-minute-after-a-start-btn-1531) | projects that publish a badge with stats fields from an external Tally | after a restart the log still has `badge: … not read (error: timeout expired)` in the first minute; nothing to do, the retry a minute later reads the numbers | — |
+| 289 | [A bridge's GET stream kept alive by a comment](unverified/packages.md#a-bridges-get-stream-kept-alive-by-a-comment-btn-1543) | Claude chain sessions with a bridged stdio server, such as Playwright | the stream is still cut every ~6 minutes and the CLI starts a new bridge every ~18; nothing to do, the session reconnects | BTN-1545 |
 
 ### Waiting for the event / not checked by choice
 

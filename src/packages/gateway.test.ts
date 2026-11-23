@@ -127,8 +127,8 @@ describe('McpGateway', () => {
     gateway = upstream = undefined
   })
 
-  const start = async (target: GatewayTarget | null) => {
-    gateway = new McpGateway({ resolve: () => target, baseEnv: () => ({ PATH: process.env.PATH, ...TEMP }), log: () => {} })
+  const start = async (target: GatewayTarget | null, bridgeTiming?: { pingMs: number; idleMs: number }) => {
+    gateway = new McpGateway({ resolve: () => target, baseEnv: () => ({ PATH: process.env.PATH, ...TEMP }), log: () => {}, bridgeTiming })
     await gateway.listen(0)
     return `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
   }
@@ -232,6 +232,35 @@ describe('McpGateway', () => {
     expect(await (await post(url, [{ jsonrpc: '2.0', id: 'a', method: 'tools/list' }], session)).json()).toMatchObject([{ id: 'a', result: { method: 'tools/list' } }])
     expect((await fetch(url, { method: 'DELETE', headers: { 'mcp-session-id': session } })).status).toBe(200)
     expect((await post(url, { jsonrpc: '2.0', id: 2, method: 'tools/list' }, session)).status).toBe(404)
+  })
+
+  const openSession = async (url: string) => (await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).headers.get('mcp-session-id')!
+  const openStream = async (url: string, session: string) => {
+    const abort = new AbortController()
+    const response = await fetch(url, { headers: { accept: 'text/event-stream', 'mcp-session-id': session }, signal: abort.signal })
+    expect(response.status).toBe(200)
+    return { reader: response.body!.getReader(), abort }
+  }
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  it('keeps a bridged session’s GET stream alive with an SSE comment, or the client cuts it idle (BTN-1543)', async () => {
+    const url = await start({ entry: { command: 'node', args: ['-e', ECHO] }, npm: null, env: {} }, { pingMs: 50, idleMs: 60_000 })
+    const { reader, abort } = await openStream(url, await openSession(url))
+    const chunk = await Promise.race([reader.read(), wait(2000).then(() => undefined)])
+    expect(new TextDecoder().decode(chunk?.value)).toBe(': keep-alive\n\n')
+    abort.abort()
+  })
+
+  it('does not close a bridge idle while its session holds a GET stream open, and does once the stream is gone (BTN-1543)', async () => {
+    const url = await start({ entry: { command: 'node', args: ['-e', ECHO] }, npm: null, env: {} }, { pingMs: 60_000, idleMs: 150 })
+    const session = await openSession(url)
+    const { abort } = await openStream(url, session)
+    await wait(400)
+    expect((await post(url, { jsonrpc: '2.0', id: 2, method: 'tools/list' }, session)).status).toBe(200)
+    await wait(400)
+    abort.abort()
+    await wait(400)
+    expect((await post(url, { jsonrpc: '2.0', id: 3, method: 'tools/list' }, session)).status).toBe(404)
   })
 
   it('wants an initialize to open a bridged session', async () => {
