@@ -290,3 +290,11 @@ To check (BTN-1522), with a release candidate that has BTN-1516: a hub on Checke
 Assumed: the machine's service runs git as the same user its sessions commit as, so `git config --global` there is the author of their commits; the container's `HOME` (`machine-home`) keeps it across a recreate. If not, the window saves and the facts say the name, while a session's commit still fails on "Author identity unknown", or the facts stay "not set"; set it by hand with `docker compose exec machine git config --global user.name …`.
 
 To check, on the `docker-rc` bench with a release candidate that has BTN-1503: a machine in Docker without a git name, its page's "Set name and e-mail" — the window holds the hub's author; save, and GIT NAME / GIT E-MAIL show it without a reconnect; "Commit author" in the project's machine settings shows the same; recreate the container and see it kept; a task merged on the machine carries that author.
+
+## A state database restored on another host (BTN-1278)
+
+`docs/machines.md`, "One process"; `docs/packages.md`, "The file and the cache". Covered by `src/storage/database-machine-tasks.test.ts` (the pools pass to the new own machine, the tasks stay with the old) and `src/packages/service.test.ts` ("installs whose folders are gone"). An offline run in a Linux container on a copy of the workstation's state (2026-11-23) saw a project's chain go to the new machine and pause only on its missing account, and each lost install whose plugin version the host had start its npm install again; npm itself had no network there.
+
+Assumed: a backup of `state/even-keel/` restored on another host with `packages.json`'s paths moved and `config-import` setting each project's `repo` keeps every project running there: the new own machine takes the old one's pools, and each current install is installed again for that host's system at its versions. If not, a project's chain waits on "no machine" or its sessions' servers exit at once in the gateway's log; put the projects into the new machine's pool and press Update on the packages by hand.
+
+To check, at the move of the production hub to the server: the projects run on the server's own machine with no hand edit of the pools; the gateway's log has no "exited with 1" after the installs; an install left for Update (its marketplace moved on, or the host lacks it) installs on Update.

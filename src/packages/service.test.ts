@@ -207,6 +207,61 @@ describe('pinned servers across plugin updates', () => {
   })
 })
 
+describe('installs whose folders are gone: a state folder restored on another host', () => {
+  const npx = (version: string): ServerEntry => ({ command: 'npx', args: ['-y', `example-mcp@${version}`] })
+  const settled = async (packages: Packages) => {
+    for (let waited = 0; packages.installingOf('project').length > 0; waited += 10) {
+      if (waited > 10_000) throw new Error('still installing')
+      await new Promise((done) => setTimeout(done, 10))
+    }
+  }
+
+  it('installs each anew at the start under its id and versions, and leaves one with its folder alone', async () => {
+    const { packages, deps, file, cache, plugin, lines, reload } = fixture()
+    plugin('1.0.0', 'all', npx('1.0.0'))
+    await packages.install('tools@example')
+    const before = loadPackages(file)!.packages['tools@example']!.installs[0]!
+    rmSync(cache, { recursive: true, force: true })
+    vi.mocked(installPinned).mockClear()
+    // The hub's own machine: the hub's gateway runs the server from this very install, so it is installed all the same.
+    const moved = new Packages({ ...deps, hub: false, hubServers: () => [routeOf('project', 'tools@example', before.id, 'tools')] })
+    await moved.start()
+    await settled(moved)
+    const home = join(cache, 'tools@example', before.id, 'servers', 'tools')
+    expect(vi.mocked(installPinned)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(installPinned).mock.calls[0]!.slice(2, 4)).toEqual(['1.0.0', home])
+    const after = loadPackages(file)!.packages['tools@example']!.installs
+    expect(after.map((each) => each.id)).toEqual([before.id])
+    expect(after[0]!.servers.tools!.entry.args).toEqual([join(home, 'node_modules', 'example-mcp', 'index.js')])
+    expect(existsSync(join(cache, 'tools@example', before.id, 'plugin', '.claude-plugin', 'plugin.json'))).toBe(true)
+    expect(lines).toContain(`packages: tools@example ${before.id} lost its folder: installing it again`)
+    await moved.close()
+
+    vi.mocked(installPinned).mockClear()
+    const again = reload()
+    await again.start()
+    await settled(again)
+    expect(vi.mocked(installPinned)).not.toHaveBeenCalled()
+    await again.close()
+  })
+
+  it('leaves one for Update when this host lacks its plugin at that version', async () => {
+    const { packages, file, cache, deps, plugin, lines, reload } = fixture()
+    plugin('1.0.0', 'all', npx('1.0.0'))
+    await packages.install('tools@example')
+    const id = loadPackages(file)!.packages['tools@example']!.installs[0]!.id
+    rmSync(cache, { recursive: true, force: true })
+    rmSync(deps.ownDir, { recursive: true, force: true })
+    vi.mocked(installPinned).mockClear()
+    const moved = reload()
+    await moved.start()
+    await settled(moved)
+    expect(vi.mocked(installPinned)).not.toHaveBeenCalled()
+    expect(lines.some((line) => line.startsWith(`packages: tools@example ${id} lost its folder, and its marketplace has`))).toBe(true)
+    await moved.close()
+  })
+})
+
 describe('package settings across updates', () => {
   it('takes new defaults without storing them and keeps explicit package and project values after restart', async () => {
     const { packages, file, plugin, reload } = fixture()

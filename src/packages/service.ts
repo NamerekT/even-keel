@@ -131,7 +131,7 @@ export class Packages {
     })
   }
 
-  /** Listens, installs every package with no install yet and reads the repositories' `.mcp.json` to offer. */
+  /** Listens, installs every package with no install yet and again every install whose folder is gone, and reads the repositories' `.mcp.json` to offer. */
   async start(): Promise<void> {
     try {
       await this.gateway.listen(this.deps.port)
@@ -149,6 +149,8 @@ export class Packages {
     }
     for (const [name, record] of Object.entries(this.file.packages)) if (record.removed !== true && record.installs.length === 0) void this.install(name).catch(() => {})
     this.ownCurrent()
+    // After the newer versions: one installed anew needs no copy of the old.
+    this.installs.restoreLost()
     this.ownTimer ??= setInterval(() => this.ownCurrent(), AVAILABLE_MS)
     this.ownTimer.unref()
     await this.readImports()

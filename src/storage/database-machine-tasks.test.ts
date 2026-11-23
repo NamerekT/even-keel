@@ -101,6 +101,38 @@ describe('step 52: the machines of a project and the machine of a task (BTN-1216
     }
   })
 
+  it('hands the pools of the replaced own machine to the new one, its tasks left for a person to move', async () => {
+    const db = await PGlite.create()
+    const first = await openMachineDatabase(undefined)
+    const second = await openMachineDatabase(undefined)
+    try {
+      await db.exec(fixture(52))
+      await db.exec(STEPS.slice(50).join('\n'))
+      const { hub, store } = hubOf(db)
+      const old = await ownMachine({ hub, hubStore: store, db, machineDb: first, name: 'This computer' })
+      await db.query('delete from project_machines')
+      await db.query(`insert into project_machines (project_id, machine_id, enabled, settings, after_green) values ($1, $2, true, '{"commands":["make"]}', 'abc123'), ($3, $2, false, null, null)`, [ABC, old.machine, XYZ])
+      await db.query(`insert into project_machines (project_id, machine_id) values ($1, 'another-machine')`, [ABC])
+      await db.query('update machine_tasks set machine_id = $1', [old.machine])
+      // The state database restored on another host: its machine's folder is not there.
+      const fresh = await ownMachine({ hub, hubStore: store, db, machineDb: second, name: 'This computer' })
+      const { rows } = await db.query<{ project_id: string; machine_id: string; enabled: boolean; settings: unknown; after_green: string | null }>(
+        'select project_id, machine_id, enabled, settings, after_green from project_machines order by project_id, machine_id',
+      )
+      expect(rows).toEqual(
+        [
+          { project_id: ABC, machine_id: fresh.machine, enabled: true, settings: '{"commands":["make"]}', after_green: 'abc123' },
+          { project_id: ABC, machine_id: 'another-machine', enabled: true, settings: null, after_green: null },
+          { project_id: XYZ, machine_id: fresh.machine, enabled: false, settings: null, after_green: null },
+        ].sort((a, b) => a.project_id.localeCompare(b.project_id) || a.machine_id.localeCompare(b.machine_id)),
+      )
+      const assignments = await Assignments.open({ db, writes: new Writes(() => {}), order: () => [] })
+      expect(assignments.machineOf(ABC, 'ABC-2')).toBe(old.machine)
+    } finally {
+      await Promise.all([db.close(), first.close(), second.close()])
+    }
+  })
+
   it('keeps the machine of a task until its place is cleaned up and names the tasks in the order of the chain', async () => {
     const db = await PGlite.create()
     try {

@@ -32,6 +32,8 @@ export class Installs {
   /** On a machine elsewhere: the hub's current install of each package it follows (BTN-1299), and the last failure of one. */
   private followed = new Map<string, PackageInstall>()
   private readonly followFailed = new Map<string, { id: string; at: number }>()
+  /** `<package>/<install>` of the lost installs tried again since the start (`restoreLost`). */
+  private readonly restoreTried = new Set<string>()
 
   constructor(private readonly host: InstallHost) {}
 
@@ -132,13 +134,92 @@ export class Installs {
     if (theirs === undefined || this.installing.has(name) || (failed?.id === theirs.id && Date.now() - failed.at < FOLLOW_RETRY_MS)) return
     const record = this.host.file().packages[name]
     if (record === undefined || record.removed === true || record.installs.some((each) => each.id === theirs.id)) return
+    this.deps.log(`packages: installing ${name} ${theirs.version ?? theirs.id} as the hub has it`)
+    this.installAs(name, record, theirs, {
+      leaveToHub: true,
+      place: (installs, install) => {
+        const placed = [...installs.filter((each) => each.id !== theirs.id), install]
+        // The hub may have moved to an install this machine has while this one ran: that one stays current.
+        const latest = this.followed.get(name)
+        const at = latest === undefined ? -1 : placed.findIndex((each) => each.id === latest.id)
+        if (at >= 0) placed.push(...placed.splice(at, 1))
+        return placed
+      },
+      settled: (error) => {
+        if (error === undefined) this.followFailed.delete(name)
+        else {
+          this.followFailed.set(name, { id: theirs.id, at: Date.now() })
+          this.deps.log(`packages: ${name} not installed as the hub has it: ${error.message}`)
+        }
+        this.materialize(name)
+      },
+    })
+  }
+
+  /**
+   * Installs whose folder is gone, as after a state folder restored on another host (the folders hold npm installs
+   * built for the old one's system): each is installed again in its place, under its id and at its npm versions.
+   * Tried once per install while the service runs; `name` — only that package's.
+   */
+  restoreLost(name?: string): void {
+    for (const [each, record] of Object.entries(this.host.file().packages)) {
+      if ((name !== undefined && each !== name) || record.removed === true || this.installing.has(each)) continue
+      const found = this.pluginFound(record)
+      let lost: PackageInstall | undefined
+      for (const install of record.installs) {
+        if (this.restoreTried.has(`${each}/${install.id}`) || !this.folderLost(each, record, install)) continue
+        this.restoreTried.add(`${each}/${install.id}`)
+        if (found === undefined || found === install.version) {
+          lost = install
+          break
+        }
+        this.deps.log(`packages: ${each} ${install.id} lost its folder, and its marketplace has ${found ?? 'no version'} instead of ${install.version}: left for Update`)
+      }
+      if (lost === undefined) continue
+      const target = lost
+      this.deps.log(`packages: ${each} ${lost.id} lost its folder: installing it again`)
+      this.installAs(each, record, lost, {
+        place: (installs, install) => installs.map((old) => (old.id === target.id ? install : old)),
+        settled: (error) => {
+          if (error !== undefined) this.deps.log(`packages: ${each} ${target.id} not installed again: ${error.message}`)
+          this.restoreLost(each)
+        },
+      })
+    }
+  }
+
+  /** The version of the package's plugin in its marketplace now; `undefined` — no plugin, `null` — none found. */
+  private pluginFound(record: PackageRecord): string | null | undefined {
+    if (record.plugin === undefined) return undefined
+    try {
+      return pluginVersion(locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.host.local()).dir)
+    } catch {
+      return null
+    }
+  }
+
+  private folderLost(name: string, record: PackageRecord, install: PackageInstall): boolean {
+    if (record.plugin !== undefined && !existsSync(pluginDir(this.deps.cache, name, install.id))) return true
+    return Object.entries(install.servers).some(([server, { npm }]) => npm !== null && !existsSync(join(this.deps.cache, name, install.id, 'servers', server)))
+  }
+
+  /**
+   * `theirs` installed here under its id, at its npm versions; `place` puts it into the record's installs. `leaveToHub` —
+   * a server the hub runs for every project here keeps the hub's entry and gets no npm install.
+   */
+  private installAs(
+    name: string,
+    record: PackageRecord,
+    theirs: PackageInstall,
+    how: { leaveToHub?: boolean; place: (installs: PackageInstall[], install: PackageInstall) => PackageInstall[]; settled: (error?: Error) => void },
+  ): void {
     const home = join(this.deps.cache, name, theirs.id)
     this.installing.add(name)
     this.errors.delete(name)
     this.deps.onChange()
     const started = Date.now()
     const seconds = () => Math.round((Date.now() - started) / 1000)
-    this.deps.log(`packages: installing ${name} ${theirs.version ?? theirs.id} as the hub has it`)
+    let failure: Error | undefined
     void (async () => {
       try {
         const { entries, version, extras } = this.sources(name, record, theirs.id)
@@ -148,7 +229,7 @@ export class Installs {
         for (const [server, their] of Object.entries(theirs.servers)) {
           const entry = entries[server] ?? their.entry
           const spec = parseNpx(entry)
-          const onHub = projects.length > 0 && projects.every((project) => hub.has(routeOf(project, name, theirs.id, server)))
+          const onHub = how.leaveToHub === true && projects.length > 0 && projects.every((project) => hub.has(routeOf(project, name, theirs.id, server)))
           if (onHub) servers[server] = their
           else if (their.npm === null || spec === null) servers[server] = { entry, npm: null }
           else servers[server] = await this.installServer(name, entry, spec, their.npm.version, join(home, 'servers', server), theirs.scripts === true, seconds)
@@ -159,24 +240,18 @@ export class Installs {
           return
         }
         const install: PackageInstall = { id: theirs.id, version: version ?? theirs.version, at: new Date().toISOString(), servers, extras, ...(theirs.scripts === true ? { scripts: true as const } : {}) }
-        now.installs = [...now.installs.filter((each) => each.id !== theirs.id), install]
-        // The hub may have moved to an install this machine has while this one ran: that one stays current.
-        const latest = this.followed.get(name)
-        const at = latest === undefined ? -1 : now.installs.findIndex((each) => each.id === latest.id)
-        if (at >= 0) now.installs.push(...now.installs.splice(at, 1))
-        this.followFailed.delete(name)
+        now.installs = how.place(now.installs, install)
         this.host.prune()
         this.host.save()
         this.deps.log(`packages: ${name} ${install.version ?? install.id} installed in ${seconds()} s`)
       } catch (error) {
         rmSync(home, { recursive: true, force: true })
         this.errors.set(name, noticeOf(error))
-        this.followFailed.set(name, { id: theirs.id, at: Date.now() })
-        this.deps.log(`packages: ${name} not installed as the hub has it: ${(error as Error).message}`)
+        failure = error as Error
       } finally {
         this.installing.delete(name)
         this.deps.onChange()
-        this.materialize(name)
+        how.settled(failure)
       }
     })()
   }

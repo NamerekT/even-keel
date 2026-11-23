@@ -25,7 +25,8 @@ export interface OwnMachineDeps {
  * The machine this installation itself is (`docs/machines.md`, "One process"): made at the first start of a version
  * that has machines, found again at every later one. The hub's database names it (`machines.own`) and keeps the hash
  * of its secret, the machine's database keeps the token; when the two no longer agree — one of the folders was
- * restored or removed — a new machine is made and the old one revoked.
+ * restored or removed — a new machine is made and the old one revoked. The old one's place in the projects' pools
+ * goes to the new one; the tasks it held stay with it, for a person to move (BTN-1270).
  */
 export async function ownMachine(deps: OwnMachineDeps): Promise<ConnectionToken> {
   const { hub, hubStore, db, machineDb } = deps
@@ -39,6 +40,8 @@ export async function ownMachine(deps: OwnMachineDeps): Promise<ConnectionToken>
   const issued = await hub.issue(deps.name, LOCAL_HUB, '')
   const token = parseToken(issued)
   if (token === undefined) throw new Error('link: the token of the own machine could not be read back')
+  // A state database restored on another host, or beside a lost machine folder: the projects keep running here.
+  if (typeof named === 'string') await db.query('update project_machines set machine_id = $2 where machine_id = $1', [named, token.machine])
   for (const old of new Set([named, kept?.machine])) if (typeof old === 'string') await hub.revoke(old)
   await storeToken(machineDb, issued)
   await setStateValue(db, 'machines.own', token.machine)
