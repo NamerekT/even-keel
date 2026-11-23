@@ -183,7 +183,7 @@ function ChatCardButton({ chat, now, narrow, onOpen }: { chat: ChatCard; now: Da
         <time dateTime={chat.lastAt}>{formatStamp(chat.lastAt, now)}</time>
       </span>
       <span className="chat-card__meta">
-        <AccountTag account={chat.account} agent={chat.agent} />
+        <AccountTag account={chat.account} agent={chat.agent} muted={tone === 'idle'} />
         <span className="tag" title={modelTagTip(chat) ?? undefined}>
           {modelText(chat.model, t.chats.defaultModel, chat.modelTitle)}
           <EffortBars effort={chat.effort} spaced className="chat-card__effort" />

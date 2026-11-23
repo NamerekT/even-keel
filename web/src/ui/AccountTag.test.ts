@@ -23,6 +23,14 @@ describe('AccountTag', () => {
     expect(render('copilot')).toContain('>john.doe</span>')
   })
 
+  it('mutes the pill but keeps the account colour for its dot', () => {
+    live.state = { account: fakeAccount('codex', false, FAKE_LIMITS) }
+    const muted = renderToStaticMarkup(createElement(AccountTag, { account: 'john.doe@example.com', agent: 'codex', muted: true }))
+    expect(muted).toContain('class="account-tag account-tag--muted"')
+    expect(muted).toContain('--series:var(--series-')
+    expect(renderToStaticMarkup(createElement(AccountTag, { account: 'john.doe@example.com', agent: 'codex' }))).toContain('class="account-tag"')
+  })
+
   it('keeps missing and not yet loaded account data renderable', () => {
     live.state = undefined
     expect(renderToStaticMarkup(createElement(AccountTag, { account: null, agent: 'codex' }))).toBe('')

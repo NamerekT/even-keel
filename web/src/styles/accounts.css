@@ -178,6 +178,12 @@
   white-space: nowrap;
 }
 
+.account-tag--muted {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--fg-muted);
+}
+
 .account-tag__name {
   min-width: 0;
   overflow: hidden;
