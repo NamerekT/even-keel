@@ -54,6 +54,7 @@ export class MachineNetwork {
   private pools = new Map<string, string[]>()
   private machineNames: Record<string, string> = {}
   private colorsById: Record<string, string> = {}
+  private paletteById: Record<string, string> = {}
   /** By machine and project, the connect job's step that shows a clone's progress there. */
   private readonly clones = new Map<string, (progress: CloneProgress) => void>()
   /** By machine off the link, when this hub saw it go (BTN-1051): kept in memory only. */
@@ -129,6 +130,11 @@ export class MachineNetwork {
     return this.colorsById
   }
 
+  /** The palette's colour of each machine by its place, as if none had picked its own (BTN-1515). */
+  paletteColors(): Record<string, string> {
+    return this.paletteById
+  }
+
   /** When the machine went off the link while this hub ran; `undefined` — it is on it, or was not seen since the start. */
   offlineSince(machine: string): number | undefined {
     return this.hub.connected(machine) ? undefined : this.wentOff.get(machine)
@@ -155,6 +161,7 @@ export class MachineNetwork {
     this.revokedIds = new Set(machines.filter((record) => record.revokedAt !== null).map((record) => record.id))
     this.machineNames = Object.fromEntries(machines.map((record) => [record.id, record.name]))
     this.colorsById = machineColors(machines)
+    this.paletteById = machineColors(machines.map(({ id }) => ({ id })))
     const { rows } = await this.options.db.query<{ project_id: string; machine_id: string }>('select project_id, machine_id from project_machines where enabled order by machine_id')
     const pools = new Map<string, string[]>()
     for (const row of rows) pools.set(row.project_id, [...(pools.get(row.project_id) ?? []), row.machine_id])

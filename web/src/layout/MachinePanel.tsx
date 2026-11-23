@@ -9,7 +9,7 @@ import { HelpChip } from '../pages/HelpPanel.js'
 import { projectOfPath } from '../state.js'
 import { ServerIcon, SlidersIcon } from '../ui/icons.js'
 import { useOpenAddMachine } from './AddMachineDialog.js'
-import { useMachineFilter } from './MachineFilter.js'
+import { useMachineFilter, useMachineStripColor } from './MachineFilter.js'
 import { useNow } from './useNow.js'
 import './machinePanel.css'
 
@@ -47,10 +47,10 @@ export function MachineBlock() {
   )
 }
 
-/** The machine's colour along the header's bottom while its view is shown, fading down into the page. */
+/** The machine's colour along the header's bottom while its view or its page is shown, fading down into the page. */
 export function MachineStrip() {
-  const { selected } = useMachineFilter()
-  return selected === null ? null : <div className="machine-strip" style={colorOf(selected)} aria-hidden="true" />
+  const color = useMachineStripColor()
+  return color === null ? null : <div className="machine-strip" style={{ '--machine': color } as CSSProperties} aria-hidden="true" />
 }
 
 /** The machines panel under the header, over the right column; closed by Escape and a press outside it. */

@@ -39,6 +39,7 @@ function deps(patch: Partial<MachinePageDeps> = {}): MachinePageDeps {
     setParallel: vi.fn(),
     folders: async () => [{ project: 'p1', folder: '/home/example/projects/p1', enabled: true }],
     colors: () => ({ own: '#6f8f7f', srv: '#123456' }),
+    paletteColors: () => ({ own: '#6f8f7f', srv: '#a08060' }),
     taken: () => [],
     setCapacity: vi.fn(async () => {}),
     setColor: vi.fn(async () => {}),
@@ -52,7 +53,7 @@ function deps(patch: Partial<MachinePageDeps> = {}): MachinePageDeps {
 describe('the page of a machine (BTN-1272)', () => {
   it('shows a machine elsewhere: its report, capacity, colour, pool with its packages, accounts with limits and live sessions', async () => {
     const page = await machinePageControl(deps()).view('srv')
-    expect(page).toMatchObject({ id: 'srv', own: false, online: true, about: ABOUT, capacity: 2, color: '#123456', picked: true, missing: ['codex'] })
+    expect(page).toMatchObject({ id: 'srv', own: false, online: true, about: ABOUT, capacity: 2, color: '#123456', picked: true, paletteColor: '#a08060', missing: ['codex'] })
     expect(page.projects).toEqual([{ project: 'p1', folder: '/home/example/projects/p1', enabled: true, packagesBlocked: true, packagesPause: null }])
     expect(page.accounts).toEqual([expect.objectContaining({ key: 'main', email: 'john.doe@example.com', signedIn: true, limits: expect.objectContaining({ fiveHour: expect.objectContaining({ usedPercentage: 40 }) }) })])
     expect(page.sessions.map((each) => each.task)).toEqual(['ABC-1'])
@@ -60,7 +61,7 @@ describe('the page of a machine (BTN-1272)', () => {
 
   it("shows the own machine on the link, with `parallel` as its capacity, its report read here and the palette's colour", async () => {
     const page = await machinePageControl(deps()).view('own')
-    expect(page).toMatchObject({ own: true, online: true, capacity: 3, color: '#6f8f7f', picked: false, about: { host: 'own-host' } })
+    expect(page).toMatchObject({ own: true, online: true, capacity: 3, color: '#6f8f7f', picked: false, paletteColor: '#6f8f7f', about: { host: 'own-host' } })
   })
 
   it('refuses a revoked or unknown machine', async () => {

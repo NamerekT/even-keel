@@ -229,6 +229,7 @@ export class FakeNetwork {
       color: this.colorsOf(names)[id]!,
       picked: color !== null,
       palette: [...MACHINE_PALETTE],
+      paletteColor: machineColors(Object.keys(names).map((each) => ({ id: each })))[id]!,
       capacity: this.capacities.get(id) ?? (own ? state.chain.parallel : 1),
       projects,
       accounts: own

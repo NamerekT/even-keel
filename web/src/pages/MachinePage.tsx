@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import type { EvenKeelState, MachinePage as MachinePageView } from '../../../src/state.js'
 import { formatAgo } from '../format.js'
@@ -9,6 +9,7 @@ import { useOpenAdd } from '../layout/AddAccountDialog.js'
 import { SessionsOnly } from '../layout/MachineSignIns.js'
 import { MachineTokenDialog, type MachineTokenTarget } from '../layout/MachineTokenDialog.js'
 import { useNow } from '../layout/useNow.js'
+import { usePaintMachineStrip } from '../layout/MachineFilter.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountColors, nearAccountColor } from '../machineColor.js'
@@ -56,24 +57,33 @@ function ContainerSteps({ version }: { version: string }) {
   )
 }
 
-/** The machine's page, read again at each `machines` event, every `REREAD_MS` and after `reload`; `null` while read, `false` — none. */
-function useMachinePage(machine: string): { page: MachinePageView | null | false; reload: () => void } {
+/**
+ * The machine's page, read again at each `machines` event, every `REREAD_MS` and at `reload`, whose promise ends
+ * once that read has landed; `null` while read, `false` — none.
+ */
+function useMachinePage(machine: string): { page: MachinePageView | null | false; reload: () => Promise<void> } {
   const { read, onMachines } = useLive()
   const [page, setPage] = useState<MachinePageView | null | false>(null)
-  const [asked, setAsked] = useState(0)
+  const loader = useRef<() => Promise<void>>(async () => {})
   useEffect(() => {
     let live = true
-    const load = () => void read<MachinePageView>('machines/view', { machine }).then((next) => live && setPage(next), () => live && setPage(false))
-    load()
-    const off = onMachines(load)
-    const timer = setInterval(load, REREAD_MS)
+    const load = () =>
+      read<MachinePageView>('machines/view', { machine }).then(
+        (next) => void (live && setPage(next)),
+        () => void (live && setPage(false)),
+      )
+    loader.current = load
+    void load()
+    const off = onMachines(() => void load())
+    const timer = setInterval(() => void load(), REREAD_MS)
     return () => {
       live = false
       off()
       clearInterval(timer)
     }
-  }, [machine, asked])
-  return { page, reload: () => setAsked((count) => count + 1) }
+  }, [machine])
+  const reload = useCallback(() => loader.current(), [])
+  return { page, reload }
 }
 
 /** `/machines/<id>` (BTN-1272): one machine of the hub, the own one or one elsewhere — its report, settings, pool and work. */
@@ -92,11 +102,15 @@ export function MachinePage({ state }: { state: EvenKeelState }) {
   )
 }
 
-function MachineView({ state, page, reload }: { state: EvenKeelState; page: MachinePageView; reload: () => void }) {
+function MachineView({ state, page, reload }: { state: EvenKeelState; page: MachinePageView; reload: () => Promise<void> }) {
   const now = useNow(CLOCK_MS)
   const navigate = useNavigate()
   const { send, sending, failure } = useCommand()
   const [revoking, setRevoking] = useState(false)
+  // A colour being applied, shown before the server's answer (BTN-1515); null — the saved one.
+  const [painting, setPainting] = useState<string | null>(null)
+  const shown = painting ?? page.color
+  usePaintMachineStrip(shown)
   const text = t.machinePage
   const revoke = async () => {
     if (await send('machines/revoke', { machine: page.id })) navigate('/')
@@ -109,7 +123,7 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
     <div className="machine-page__body">
       <PageHead
         className="machine-page__head"
-        title={<span className="machine-page__title" style={{ '--machine': page.color } as CSSProperties}>{page.name}</span>}
+        title={<span className="machine-page__title" style={{ '--machine': shown } as CSSProperties}>{page.name}</span>}
         actions={more.length > 0 ? <MoreMenu items={more} label={text.more} /> : undefined}
       >
         <span className={`chip machine-page__state${page.online ? ' machine-page__state--online' : ''}`}>{page.online ? text.online : text.offline}</span>
@@ -138,7 +152,7 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
       ))}
       <div className="machine-page__grid">
         <div className="machine-page__column">
-          <SettingsCard page={page} reload={reload} />
+          <SettingsCard page={page} reload={reload} show={setPainting} />
           <ReportCard state={state} page={page} now={now} reload={reload} />
         </div>
         <div className="machine-page__column">
@@ -163,8 +177,12 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
   )
 }
 
-/** The capacity and the colour: the capacity saved by its button, a colour applied at a click. */
-function SettingsCard({ page, reload }: { page: MachinePageView; reload: () => void }) {
+/**
+ * The capacity and the colour: the capacity saved by its button, a colour applied at a click. The colour is `show`n
+ * at once — at a click, at each step of the picker's drag — and dropped once the page read after the answer has
+ * landed, or back to the saved one when the server refuses.
+ */
+function SettingsCard({ page, reload, show }: { page: MachinePageView; reload: () => Promise<void>; show: (color: string | null) => void }) {
   const text = t.machinePage
   const { send, sending, failure } = useCommand()
   const [capacity, setCapacity] = useState(String(page.capacity))
@@ -177,15 +195,29 @@ function SettingsCard({ page, reload }: { page: MachinePageView; reload: () => v
   useEffect(() => setDrawn(page.color), [page.color])
   useEffect(() => {
     if (drawn === page.color) return
-    const timer = setTimeout(() => void paint(drawn), PICK_REST_MS)
+    const timer = setTimeout(() => void paint(drawn, drawn), PICK_REST_MS)
     return () => clearTimeout(timer)
   }, [drawn])
   const near = useMemo(() => nearAccountColor(drawn, accountColors()), [drawn])
+  // Each colour asked for, so an answer to an older one never drops a newer one shown.
+  const attempt = useRef(0)
   const save = async () => {
-    if (await send('machines/capacity', { machine: page.id, capacity: value })) reload()
+    if (await send('machines/capacity', { machine: page.id, capacity: value })) void reload()
   }
-  const paint = async (color: string | null) => {
-    if (await send('machines/color', { machine: page.id, color })) reload()
+  const paint = async (color: string | null, seen: string) => {
+    const mine = ++attempt.current
+    const saved = page.color
+    show(seen)
+    const done = await send('machines/color', { machine: page.id, color })
+    if (done) await reload()
+    if (attempt.current !== mine) return
+    show(null)
+    if (!done) setDrawn(saved)
+  }
+  const drag = (color: string) => {
+    attempt.current++
+    setDrawn(color)
+    show(color === page.color ? null : color)
   }
   return (
     <Card title={text.settings} titleId="machine-settings">
@@ -231,7 +263,7 @@ function SettingsCard({ page, reload }: { page: MachinePageView; reload: () => v
               aria-label={text.swatch(color)}
               aria-pressed={page.picked && page.color === color}
               disabled={sending}
-              onClick={() => void paint(color)}
+              onClick={() => void paint(color, color)}
             />
           ))}
           <Tipped tip={text.colorOwn} inline>
@@ -242,12 +274,12 @@ function SettingsCard({ page, reload }: { page: MachinePageView; reload: () => v
               value={drawn}
               aria-label={text.colorOwn}
               disabled={sending}
-              onChange={(event) => setDrawn(event.target.value)}
+              onChange={(event) => drag(event.target.value)}
             />
           </Tipped>
           {page.picked && (
             <Tipped tip={text.colorPaletteHint} inline>
-              <button type="button" className="button button--small" disabled={sending} onClick={() => void paint(null)}>
+              <button type="button" className="button button--small" disabled={sending} onClick={() => void paint(null, page.paletteColor)}>
                 {text.colorPalette}
               </button>
             </Tipped>

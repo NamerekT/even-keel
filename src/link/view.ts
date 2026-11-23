@@ -236,6 +236,8 @@ export interface MachinePage {
   color: string
   picked: boolean
   palette: string[]
+  /** The palette's colour by its place among the hub's machines: what "The palette's colour" gives back, shown before the answer (BTN-1515). */
+  paletteColor: string
   /** How many of the hub's tasks it runs at once. */
   capacity: number
   projects: MachineProject[]

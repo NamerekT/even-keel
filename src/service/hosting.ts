@@ -283,6 +283,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     setParallel: (count) => ctx.configStore.saveParallel(count),
     folders: (machine) => network.foldersOf(machine),
     colors: () => network.colors(),
+    paletteColors: () => network.paletteColors(),
     taken: (machine) => network.takenOn(machine),
     setCapacity: (machine, capacity) => network.setCapacity(machine, capacity),
     setColor: (machine, color) => network.setColor(machine, color),

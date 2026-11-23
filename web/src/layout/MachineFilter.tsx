@@ -25,6 +25,23 @@ const Context = createContext<MachineFilter>(NONE)
 
 export const useMachineFilter = (): MachineFilter => useContext(Context)
 
+type StripPaint = { color: string | null; paint: (color: string | null) => void }
+const StripContext = createContext<StripPaint>({ color: null, paint: () => {} })
+
+/** The colour of the strip under the header: a machine's page paints its own, a page with the panel the picked machine's. */
+export function useMachineStripColor(): string | null {
+  const { selected } = useMachineFilter()
+  const { color } = useContext(StripContext)
+  return color ?? selected?.color ?? null
+}
+
+/** A machine's page (BTN-1515): the strip takes `color` at each render it changes in, and drops it when the page goes. */
+export function usePaintMachineStrip(color: string): void {
+  const { paint } = useContext(StripContext)
+  useEffect(() => paint(color), [color, paint])
+  useEffect(() => () => paint(null), [paint])
+}
+
 /**
  * The machine chosen in the header (BTN-1051): global, in the address as `?machine=<id>`. A link that drops the
  * parameter on a page with the panel gets it back; "All machines" clears it.
@@ -62,7 +79,13 @@ export function MachineFilterProvider({ children }: { children: ReactNode }) {
   const shown = several && panelPage && cards.length > 1
   const selected = shown ? (cards.find((card) => card.id === param) ?? null) : null
   const value = useMemo(() => ({ cards, shown, selected, open: open && shown, setOpen, select }), [cards, shown, selected, open, select])
-  return <Context.Provider value={value}>{children}</Context.Provider>
+  const [painted, paint] = useState<string | null>(null)
+  const strip = useMemo(() => ({ color: painted, paint }), [painted])
+  return (
+    <Context.Provider value={value}>
+      <StripContext.Provider value={strip}>{children}</StripContext.Provider>
+    </Context.Provider>
+  )
 }
 
 /** The machines' cards, read again at each `machines` event and every `REREAD_MS` while the hub has several. */

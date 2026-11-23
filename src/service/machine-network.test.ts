@@ -134,6 +134,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await network.setColor(LAPTOP, ' #8A8F5C ')
     await network.setColor(OWN, '#123456')
     expect(network.colors()).toEqual({ [OWN]: '#123456', [LAPTOP]: '#8a8f5c' })
+    expect(network.paletteColors()).toEqual({ [OWN]: MACHINE_PALETTE[0], [LAPTOP]: MACHINE_PALETTE[1] })
     await network.setColor(OWN, null)
     expect(network.colors()[OWN]).toBe(MACHINE_PALETTE[0])
     await expect(network.setColor(LAPTOP, 'teal')).rejects.toMatchObject({ notice: { code: 'request.required' } })

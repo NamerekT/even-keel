@@ -65,6 +65,8 @@ export interface MachinePageDeps {
   setParallel: (count: number) => void
   folders: (machine: string) => Promise<Array<{ project: string; folder: string; enabled: boolean }>>
   colors: () => Record<string, string>
+  /** Each machine's palette colour by its place, picked or not. */
+  paletteColors: () => Record<string, string>
   taken: (machine: string) => TakenFolder[]
   setCapacity: (machine: string, capacity: number) => Promise<void>
   setColor: (machine: string, color: string | null) => Promise<void>
@@ -109,6 +111,7 @@ export function machinePageControl(deps: MachinePageDeps) {
         color,
         picked: record.color !== undefined && record.color !== null,
         palette: [...MACHINE_PALETTE],
+        paletteColor: deps.paletteColors()[record.id] ?? MACHINE_PALETTE[0]!,
         capacity: own ? deps.parallel() : (record.capacity ?? 1),
         projects: (await deps.folders(record.id)).map((row) => ({
           ...row,
