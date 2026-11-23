@@ -570,6 +570,8 @@ export const cardEN: Messages['card'] = {
         save: 'Save',
         saveTip: 'Ctrl+Enter saves, Esc leaves the editor',
         saveTipFiles: 'Ctrl+Enter saves, Esc leaves the editor. Paste a picture with Ctrl+V or drop it here',
+        attachTitle: 'Attach to the description',
+        saveTipTouch: 'Save keeps the description, Cancel leaves the editor. Attach a picture or a file with +',
         uploading: (name: string) => `Uploading ${name}…`,
         uploadWait: 'Files are still uploading: saving opens once their links replace the placeholders',
         drop: 'Drop to attach the files to the task',

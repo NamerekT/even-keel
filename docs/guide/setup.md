@@ -260,7 +260,7 @@ The same package and plugin work for a project on Huly, GitHub, Linear, Jira, Gi
 
 #### Attachments and edits
 
-A screenshot or any file pasted (Ctrl+V) or dropped into a task's description while you edit it becomes the task's attachment: a picture shows in the text, every file is listed under **Attachments** in the card, and the task's session gets their paths to open.
+A screenshot or any file pasted (Ctrl+V), dropped into a task's description while you edit it or picked with the `+` under it (on a phone it offers Camera, Photos and Files, as the chat's) becomes the task's attachment: a picture shows in the text, every file is listed under **Attachments** in the card, and the task's session gets their paths to open.
 
 The files lie next to the state database, in `state/even-keel/files`, and `npm run storage -- backup` copies them.
 

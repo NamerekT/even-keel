@@ -10,7 +10,9 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Tipped } from '../ui/Tipped.js'
 import { descriptionExtensions, editorMarkdown, htmlToMarkdown, previewLoss, toDoc, type PreviewLoss } from './descriptionDoc.js'
 import { meaningfulHtml } from './descriptionPaste.js'
+import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { takenFiles } from './chatFiles.js'
+import { AttachButton } from './ComposerFiles.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { useFileDrop } from './useFileDrop.js'
 import { useUploads } from './useUploads.js'
@@ -53,6 +55,7 @@ export function DescriptionEditor({ start, text, revision, busy, failure, limit,
   const [look, setLook] = useState<Look>(() => (previewLoss(text) === null ? storedLook() : 'markdown'))
   const [asking, setAsking] = useState(false)
   const field = useRef<HTMLTextAreaElement>(null)
+  const coarse = useCoarsePointer()
   const uploads = useUploads({ text, limit, onText, onUpload, field })
   const drop = useFileDrop(true, (files) => attach(files))
   const checked = useDeferredValue(text)
@@ -73,7 +76,7 @@ export function DescriptionEditor({ start, text, revision, busy, failure, limit,
   const save = () => {
     if (!busy && uploads.pending === 0) onSave()
   }
-  // The visual editor has no pictures: a file pasted or dropped there opens the Markdown, the mark goes at its end.
+  // The visual editor has no pictures: a file pasted, dropped or picked with the "+" there opens the Markdown, the mark goes at its end.
   const attach = (files: File[]) => {
     if (look === 'markdown') return uploads.start(files, field.current)
     setLook('markdown')
@@ -143,14 +146,18 @@ export function DescriptionEditor({ start, text, revision, busy, failure, limit,
         )}
         {failure !== null && <p className="notice notice--error description__note">{say(failure)}</p>}
         <div className="description__foot">
-          <span className="description__hint">{uploads.pending > 0 ? t.card.edit.describe.uploadWait : t.card.edit.describe.saveTipFiles}</span>
-          <span className="description__spacer" />
-          <button type="button" className="button" disabled={busy} onClick={leave}>
-            {t.card.edit.cancel}
-          </button>
-          <button type="button" className="button button--primary" disabled={busy || uploads.pending > 0} aria-busy={busy || uploads.pending > 0} onClick={save}>
-            {t.card.edit.describe.save}
-          </button>
+          <AttachButton className="description__attach" title={t.card.edit.describe.attachTitle} sending={busy} onAttach={attach} />
+          <span className="description__hint description__hint--grow">
+            {uploads.pending > 0 ? t.card.edit.describe.uploadWait : coarse ? t.card.edit.describe.saveTipTouch : t.card.edit.describe.saveTipFiles}
+          </span>
+          <span className="description__actions">
+            <button type="button" className="button" disabled={busy} onClick={leave}>
+              {t.card.edit.cancel}
+            </button>
+            <button type="button" className="button button--primary" disabled={busy || uploads.pending > 0} aria-busy={busy || uploads.pending > 0} onClick={save}>
+              {t.card.edit.describe.save}
+            </button>
+          </span>
         </div>
       </div>
       {asking && (

@@ -37,15 +37,27 @@ function FileInput({ source, label, disabled, onFiles }: { source: AttachSource;
  * The "+" of the chat field. With a mouse it opens the file picker at once; on a touch screen it opens a sheet of
  * Camera, Photos and Files, since a plain file input there offers the camera and the file manager but no gallery,
  * and Paste where the browser can read the clipboard: a phone keyboard's clipboard panel pastes no picture into a textarea.
+ * `className` is the look of the field it stands in and `title` the sheet's: the chat's, or the description editor's (BTN-1533).
  */
-export function AttachButton({ sending, onAttach }: { sending: boolean; onAttach: (files: File[]) => void }) {
+export function AttachButton({
+  sending,
+  onAttach,
+  className = 'chat__icon',
+  title = t.session.chat.attachMenu.title,
+}: {
+  sending: boolean
+  onAttach: (files: File[]) => void
+  className?: string
+  title?: string
+}) {
   const coarse = useCoarsePointer()
   const [menu, setMenu] = useState(false)
   const files = ATTACH_SOURCES.find((source) => source.id === 'files')!
+  const look = `${className} chat__attach${sending ? ' chat__attach--off' : ''}`
   if (!coarse) {
     return (
       <Tipped inline align="start" tip={t.session.chat.attach}>
-        <label className={`chat__icon chat__attach${sending ? ' chat__attach--off' : ''}`}>
+        <label className={look}>
           <PlusIcon />
           <FileInput source={files} label={t.session.chat.attach} disabled={sending} onFiles={onAttach} />
         </label>
@@ -56,7 +68,7 @@ export function AttachButton({ sending, onAttach }: { sending: boolean; onAttach
     <>
       <button
         type="button"
-        className={`chat__icon chat__attach${sending ? ' chat__attach--off' : ''}`}
+        className={look}
         aria-label={t.session.chat.attach}
         aria-haspopup="dialog"
         disabled={sending}
@@ -66,6 +78,7 @@ export function AttachButton({ sending, onAttach }: { sending: boolean; onAttach
       </button>
       {menu && (
         <AttachSheet
+          title={title}
           onClose={() => setMenu(false)}
           onPick={(picked) => {
             setMenu(false)
@@ -77,7 +90,7 @@ export function AttachButton({ sending, onAttach }: { sending: boolean; onAttach
   )
 }
 
-function AttachSheet({ onPick, onClose }: { onPick: (files: File[]) => void; onClose: () => void }) {
+function AttachSheet({ title, onPick, onClose }: { title: string; onPick: (files: File[]) => void; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const heading = useId()
   const backdrop = useBackdropClose(dialog, onClose)
@@ -97,12 +110,16 @@ function AttachSheet({ onPick, onClose }: { onPick: (files: File[]) => void; onC
         event.preventDefault()
         onClose()
       }}
+      // The sheet is a React child of the field: its Escape must not also leave the description editor or close the card.
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') event.stopPropagation()
+      }}
       {...backdrop}
     >
       <div className="attach-sheet__frame">
         <header className="attach-sheet__head">
           <h2 id={heading} className="attach-sheet__title">
-            {text.title}
+            {title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
             <CloseIcon />

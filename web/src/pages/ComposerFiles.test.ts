@@ -116,6 +116,24 @@ it('says so in the sheet when the clipboard holds no picture or the browser refu
   expect(host.querySelector('dialog')).not.toBeNull()
 })
 
+it('keeps the Escape of the sheet to the sheet: the editor or card around the "+" does not see it', async () => {
+  coarse = true
+  const outer = vi.fn()
+  const button = createElement(AttachButton, { sending: false, onAttach: vi.fn() })
+  await act(async () => root.render(createElement('div', { onKeyDown: outer }, button)))
+  await act(async () => host.querySelector<HTMLButtonElement>('.chat__attach')!.click())
+  const sheet = host.querySelector('dialog.attach-sheet')!
+  await act(async () => sheet.querySelector('.panel__close')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  expect(outer).not.toHaveBeenCalled()
+  await act(async () => sheet.querySelector('.panel__close')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true })))
+  expect(outer).toHaveBeenCalledTimes(1)
+})
+
+it('takes the look of the field it stands in', async () => {
+  await act(async () => root.render(createElement(AttachButton, { sending: true, onAttach: vi.fn(), className: 'description__attach' })))
+  expect(host.querySelector('label')!.className).toBe('description__attach chat__attach chat__attach--off')
+})
+
 it('shows pictures as thumbnails, other files by extension, and frees the URL of a removed picture', async () => {
   const shot = new File(['x'], 'shot.png', { type: 'image/png' })
   const doc = new File(['x'], 'report.pdf', { type: 'application/pdf' })
