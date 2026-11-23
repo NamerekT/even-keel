@@ -107,6 +107,14 @@ describe('the hub ↔ machine link', () => {
     expect(credentialed).toHaveLength(1)
   })
 
+  it('asks the hub for the skills of its install of the skills package; null for one it lacks, undefined while it is away (BTN-1565)', async () => {
+    const { end, wire } = await started()
+    expect(await end.skills('held')).toEqual({ version: '1.0.0+0000abcd', files: [{ path: 'example/SKILL.md', data: Buffer.from('# Example\n').toString('base64') }] })
+    expect(await end.skills('gone')).toBeNull()
+    wire.down = true
+    expect(await end.skills('held')).toBeUndefined()
+  })
+
   it('numbers the commands per machine and runs them in order', async () => {
     const { hub, id, ran, hubStore } = await started()
     expect(await hub.send(id, { type: 'example.first' })).toBe(1)

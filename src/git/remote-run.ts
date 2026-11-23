@@ -163,9 +163,12 @@ export function cloner(git: RemoteGit = runRemoteGit): Clone {
     })
     if (run.missing === true) throw fail('git.missing', {})
     if (run.stopped === true) throw fail('git.cloneStopped', {})
+    if (branch !== null && NO_REMOTE_BRANCH.test(run.out)) throw new NoticeError(notice('git.noRemoteBranch', { remote, branch }, { detail: run.out }))
     if (run.code !== 0) throw new NoticeError(cloneFailure(run.out, remote, reach))
   }
 }
+
+const NO_REMOTE_BRANCH = /remote branch .+ not found in upstream/i
 
 export interface RestoreRequest {
   /** The clone's address: the LFS files come from it, and a refusal names it. */

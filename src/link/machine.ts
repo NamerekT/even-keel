@@ -4,7 +4,7 @@ import type { Consent, MachineStore } from './machine-store.js'
 import {
   API_VERSION, ASSIGN_COMMAND, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, TAKEN_EVENT, TooLarge, isRefusal,
   type AssignPayload, type Command, type FolderTaken, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type HubHello, type MachineAbout, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
-  type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type VersionRefusal, type CredentialsAnswer, type CredentialsPost,
+  type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type VersionRefusal, type CredentialsAnswer, type CredentialsPost, type SkillsAnswer, type SkillsPost,
 } from './protocol.js'
 import type { GitCredential } from '../git/credentials.js'
 
@@ -24,6 +24,7 @@ export interface HubTransport {
   hook(post: HookPost): Promise<HookAnswer | Refusal>
   tally(post: TallyPost): Promise<TallyAnswer | Refusal>
   credentials(post: CredentialsPost): Promise<CredentialsAnswer | Refusal>
+  skills(post: SkillsPost): Promise<SkillsAnswer | Refusal>
 }
 
 export type LinkState = 'offline' | 'connecting' | 'online'
@@ -206,6 +207,15 @@ export class MachineEnd {
   async credentials(project: string, urls: readonly string[]): Promise<GitCredential[]> {
     const answer = await this.ask('a request for git credentials', (connection) => this.options.transport.credentials({ connection, project, urls: [...urls] }))
     return answer?.credentials ?? []
+  }
+
+  /**
+   * The skills of the hub's install `install` of the user's skills package (BTN-1565); `null` — the hub holds none of
+   * it, `undefined` — the hub is not reachable now.
+   */
+  async skills(install: string): Promise<SkillsAnswer['skills'] | undefined> {
+    const answer = await this.ask(`a request for the skills of ${install}`, (connection) => this.options.transport.skills({ connection, install }))
+    return answer?.skills
   }
 
   /** Rows of the machine's Tally collector (BTN-1280); `false` — the hub did not take them now, as `undefined` of `mcp`. */

@@ -95,6 +95,52 @@ export function wrapSkills(marketDir: string, skills: readonly { name: string; d
   return version
 }
 
+/** A file of a wrapped skill: its path under the plugin's `skills/` with `/` separators, its bytes as base64. */
+export interface SkillFile {
+  path: string
+  data: string
+}
+
+/** The skills of an install of `my-skills`: its version and every file. */
+export interface SkillsCopy {
+  version: string | null
+  files: SkillFile[]
+}
+
+/** Every file of the skills of a plugin folder (an install's copy of `my-skills`), as the hub gives them to a machine. */
+export function skillFilesOf(plugin: string): SkillFile[] {
+  const root = join(plugin, 'skills')
+  return filesOf(root).map((file) => ({ path: relative(root, file).replaceAll('\\', '/'), data: readFileSync(file).toString('base64') }))
+}
+
+/**
+ * The hub's skills written as this marketplace's plugin (BTN-1565), the way `wrapSkills` writes the user's own: a
+ * machine elsewhere has no `state/skills/` of the hub's. A path that climbs out of its skill throws before anything is
+ * written. Returns the version, the hub's when the files are whole.
+ */
+export function takeSkills(marketDir: string, files: readonly SkillFile[]): string {
+  const incoming = join(marketDir, 'incoming')
+  const names = new Set<string>()
+  const placed = files.map(({ path, data }) => {
+    const parts = path.split('/')
+    if (parts.length < 2 || parts.some((part) => part === '' || part === '.' || part === '..' || part.includes('\\') || part.includes(':'))) {
+      throw new Error(`not a path of a skill: ${path}`)
+    }
+    names.add(parts[0]!)
+    return { file: join(incoming, ...parts), data }
+  })
+  rmSync(incoming, { recursive: true, force: true })
+  try {
+    for (const { file, data } of placed) {
+      mkdirSync(join(file, '..'), { recursive: true })
+      writeFileSync(file, Buffer.from(data, 'base64'))
+    }
+    return wrapSkills(marketDir, [...names].map((name) => ({ name, dir: join(incoming, name) })))
+  } finally {
+    rmSync(incoming, { recursive: true, force: true })
+  }
+}
+
 /** The plugin's skills from their folders again; a skill whose folder is gone keeps its copy. */
 export function rewrapSkills(marketDir: string, roots: readonly SkillRoot[]): void {
   const names = wrappedSkills(marketDir)

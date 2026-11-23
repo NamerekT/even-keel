@@ -1,7 +1,9 @@
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { runGit } from '../git/run.js'
 import type { Git, GitResult } from '../git/types.js'
 import { NoticeError } from '../notice/notice.js'
 import { checkFolderStep, cloneTarget, probeFolder, throwOf, type FolderCheckDeps, type FolderSpec } from './folder-check.js'
@@ -18,6 +20,7 @@ function gitOf(answers: Record<string, GitResult>, calls: string[][] = []): Git 
 
 const REMOTES = 'config --get-regexp ^remote\\..*\\.url$'
 const ok = (out = ''): GitResult => ({ code: 0, out })
+const ON_TRUNK = { 'symbolic-ref --quiet --short HEAD': ok('trunk\n') }
 
 const idle: FolderCheckDeps['packages'] = { installingOf: () => [], unready: () => [], trackerMissing: () => undefined, localStdio: () => [] }
 
@@ -45,7 +48,7 @@ describe('checkFolderStep', () => {
     expect(await checkFolderStep(depsOf(gitOf({})), 'remote', unknown)).toMatchObject({ code: 'pool.folderNoRemote', params: { folder: '/work/abc' } })
     const remotes = { [REMOTES]: ok('remote.backup.url https://forge.example.com/team/copy.git\nremote.origin.url https://forge.example.com/team/abc.git\n') }
     expect(await checkFolderStep(depsOf(gitOf(remotes)), 'remote', unknown)).toBeNull()
-    const tracked = gitOf({ ...remotes, 'rev-parse --verify --quiet refs/remotes/origin/trunk': ok('abc\n') })
+    const tracked = gitOf({ ...remotes, ...ON_TRUNK, 'rev-parse --verify --quiet refs/remotes/origin/trunk': ok('abc\n') })
     expect(await checkFolderStep(depsOf(tracked), 'branch', unknown)).toBeNull()
     const calls: string[][] = []
     const pushed = gitOf({ ...remotes, 'rev-parse --verify --quiet refs/remotes/origin/trunk': ok('abc\n'), 'push --dry-run --porcelain origin refs/remotes/origin/trunk:refs/heads/trunk': ok() }, calls)
@@ -57,10 +60,49 @@ describe('checkFolderStep', () => {
   it('branch: a local or a remote-tracking branch of the project remote passes', async () => {
     const remotes = { [REMOTES]: ok('remote.up.url https://forge.example.com/team/abc\n') }
     expect(await checkFolderStep(depsOf(gitOf(remotes)), 'branch', spec)).toMatchObject({ code: 'pool.noBranch', params: { branch: 'trunk' } })
-    const tracked = gitOf({ ...remotes, 'rev-parse --verify --quiet refs/remotes/up/trunk': ok('abc\n') })
+    const tracked = gitOf({ ...remotes, ...ON_TRUNK, 'rev-parse --verify --quiet refs/remotes/up/trunk': ok('abc\n') })
     expect(await checkFolderStep(depsOf(tracked), 'branch', spec)).toBeNull()
-    const local = gitOf({ 'rev-parse --verify --quiet refs/heads/trunk': ok('abc\n') })
+    const local = gitOf({ ...ON_TRUNK, 'rev-parse --verify --quiet refs/heads/trunk': ok('abc\n') })
     expect(await checkFolderStep(depsOf(local), 'branch', spec)).toBeNull()
+  })
+
+  describe('branch: a checkout off the main branch (BTN-1566)', () => {
+    let root: string | undefined
+    afterEach(() => {
+      if (root !== undefined) rmSync(root, { recursive: true, force: true })
+      root = undefined
+    })
+
+    const sh = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', env: { ...process.env, LANG: 'C', LC_ALL: 'C' } }).trim()
+
+    /** A clone of a repository whose default branch is main, with dev on its remote only. */
+    function cloneOnMain(): { folder: string; check: FolderSpec } {
+      root = mkdtempSync(join(tmpdir(), 'folder-branch-'))
+      const source = join(root, 'source')
+      mkdirSync(source)
+      sh(source, 'init', '-q', '-b', 'main')
+      writeFileSync(join(source, 'readme.md'), 'first\n')
+      sh(source, 'add', '.')
+      sh(source, '-c', 'user.name=John Doe', '-c', 'user.email=john@example.com', 'commit', '-q', '-m', 'first')
+      sh(source, 'branch', 'dev')
+      const folder = join(root, 'clone')
+      sh(root, 'clone', '-q', '--', source, folder)
+      return { folder, check: { ...spec, folder, remotes: [source], branch: 'dev' } }
+    }
+
+    it('switches a clean checkout onto the main branch, tracking the remote one', async () => {
+      const { folder, check } = cloneOnMain()
+      expect(await checkFolderStep(depsOf(runGit), 'branch', check)).toBeNull()
+      expect(sh(folder, 'symbolic-ref', '--short', 'HEAD')).toBe('dev')
+      expect(sh(folder, 'rev-parse', '--abbrev-ref', 'dev@{upstream}')).toBe('origin/dev')
+    })
+
+    it('refuses a checkout with uncommitted changes and leaves it where it stands', async () => {
+      const { folder, check } = cloneOnMain()
+      writeFileSync(join(folder, 'readme.md'), 'changed\n')
+      expect(await checkFolderStep(depsOf(runGit), 'branch', check)).toMatchObject({ code: 'pool.dirtyBranch', params: { folder, branch: 'dev', current: 'main' } })
+      expect(sh(folder, 'symbolic-ref', '--short', 'HEAD')).toBe('main')
+    })
   })
 
   describe('trust', () => {

@@ -24,6 +24,8 @@ export function wireMachinePackages(ctx: MachineContext): Packages {
       { dir: join(process.env.CODEX_HOME ?? join(homedir(), '.codex'), 'skills'), from: CODEX },
       { dir: join(homedir(), '.agents', 'skills'), from: CODEX },
     ],
+    // A machine on the network (`planFirst`) has none of the hub's `state/skills/`: its skills package is the hub's (BTN-1565).
+    ...(ctx.planFirst === true && { skillsFromHub: (install: string) => ctx.tell.skills(install) }),
     claudeConfigs: ctx.claudeConfigs,
     rules: trackerKeyRules(),
     tracker: (project) => ctx.brief.tracker(project),

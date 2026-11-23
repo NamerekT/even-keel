@@ -16,8 +16,8 @@ import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginK
 import { repoImports, seedCatalog, SERVER_NAME } from './repo-reads.js'
 import { pageSettings } from './settings.js'
 import { availablePlugins, builtInPackage, FETCHED, knowsMarketplace, locatePlugin, ownMarketplace, ownPackage, pluginOffer, readJson, serversIn, TASKS_PLUGIN } from './plugins.js'
-import { readsOwnSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, type SkillRoot } from './skills.js'
-import { ownSkills, rewrap, wrapChosen, wrapsSkills } from './skills-package.js'
+import { readsOwnSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, type SkillRoot, type SkillsCopy } from './skills.js'
+import { installedSkills, ownSkills, rewrap, wrapChosen, wrapsSkills, type SkillsPlace } from './skills-package.js'
 import { loadPackages, savePackages } from './store.js'
 import { heldPackages } from './held.js'
 import { hubRoutes, packageTarget } from './hub.js'
@@ -49,6 +49,7 @@ export interface PackagesDeps {
   skillsDir: string
   /** The user's skills folders, Claude Code's first: what the page offers to wrap. */
   skillRoots: () => SkillRoot[]
+  skillsFromHub?: SkillsPlace['skillsFromHub']
   /** `.claude.json` files sessions read: their user scope servers seed the catalog. */
   claudeConfigs: () => string[]
   rules: KeyRules
@@ -200,6 +201,11 @@ export class Packages {
   /** The hub's catalog for a machine elsewhere serving `projects` (BTN-1299); `hubRoutes` — the hub's `hubServers()`. */
   catalogFor(projects: string[], hubRoutes: readonly string[]): CatalogBrief {
     return catalogFor(this.file, projects, hubRoutes)
+  }
+
+  /** The skills of this hub's install of the user's skills package, asked by a machine elsewhere (BTN-1565). */
+  skillsOf(install: string): SkillsCopy | null {
+    return installedSkills(this.deps.cache, install)
   }
 
   /**

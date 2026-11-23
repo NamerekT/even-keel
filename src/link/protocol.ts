@@ -3,10 +3,11 @@
  * opens the connection: the hub's commands come down one stream as frames, the machine's events go up as posts.
  */
 import type { GitCredential } from '../git/credentials.js'
+import type { SkillsCopy } from '../packages/skills.js'
 import type { MachineAbout } from './view.js'
 
 /** The version both ends name in the handshake; another one is refused before anything else is said. */
-export const API_VERSION = 18
+export const API_VERSION = 19
 
 /** The pulse of both directions; two missed ones break the connection. */
 export const HEARTBEAT_MS = 20_000
@@ -24,6 +25,7 @@ export const MCP_PATH = '/link/mcp'
 export const HOOK_PATH = '/link/hook'
 export const TALLY_PATH = '/link/tally'
 export const CREDENTIALS_PATH = '/link/credentials'
+export const SKILLS_PATH = '/link/skills'
 /** The one post of a connection string: it is exchanged for the machine's own secret (BTN-1242). */
 export const JOIN_PATH = '/link/join'
 
@@ -237,6 +239,20 @@ export interface CredentialsPost {
 /** Only for a project in the machine's pool; a remote with no profile is left out. */
 export interface CredentialsAnswer {
   credentials: GitCredential[]
+}
+
+/**
+ * A machine elsewhere installs the hub's install `install` of the user's skills package (BTN-1565): its marketplace is
+ * the hub's `state/skills/`, which the machine lacks, so it asks the hub for the skills that install holds.
+ */
+export interface SkillsPost {
+  connection: string
+  install: string
+}
+
+/** `null` — the hub holds no files of that install. */
+export interface SkillsAnswer {
+  skills: SkillsCopy | null
 }
 
 /** The events a machine writes about the link itself. */

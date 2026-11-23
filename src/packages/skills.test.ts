@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { availablePlugins, locatePlugin, pluginVersion } from './plugins.js'
-import { chosenSkills, listSkills, rewrapSkills, skillsChanged, skillsVersion, SKILLS_MARKETPLACE, SKILLS_PLUGIN, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
+import { chosenSkills, listSkills, rewrapSkills, skillFilesOf, skillsChanged, skillsVersion, SKILLS_MARKETPLACE, SKILLS_PLUGIN, takeSkills, wrappedSkills, wrapSkills, type SkillRoot } from './skills.js'
 
 let dir: string | undefined
 afterEach(() => {
@@ -119,5 +119,31 @@ describe('chosenSkills', () => {
   it('leaves out a name neither the folders nor the plugin hold', () => {
     const { roots, market } = folders()
     expect(chosenSkills(market, roots, ['review', 'missing']).map((each) => each.name)).toEqual(['review'])
+  })
+})
+
+describe('a machine elsewhere takes the hub’s skills (BTN-1565)', () => {
+  it('writes the files of the hub’s plugin as its own marketplace, at the hub’s version', () => {
+    const { roots, market, claude } = folders()
+    mkdirSync(join(claude, 'review', 'refs'), { recursive: true })
+    writeFileSync(join(claude, 'review', 'refs', 'list.bin'), Buffer.from([0, 1, 2, 255]))
+    const hubs = join(dir!, 'hub', 'skills')
+    const version = wrapSkills(hubs, chosenSkills(hubs, roots, ['review', 'notes']))
+    const files = skillFilesOf(join(hubs, 'plugin'))
+    expect(files.map((each) => each.path)).toEqual(['notes/SKILL.md', 'review/SKILL.md', 'review/refs/list.bin'])
+    expect(takeSkills(market, files)).toBe(version)
+    expect(wrappedSkills(market).sort()).toEqual(['notes', 'review'])
+    expect(readFileSync(join(market, 'plugin', 'skills', 'review', 'refs', 'list.bin'))).toEqual(Buffer.from([0, 1, 2, 255]))
+    expect(locatePlugin(join(dir!, 'no-config'), SKILLS_PLUGIN, SKILLS_MARKETPLACE, [market]).dir).toBe(join(market, 'plugin'))
+    expect(readdirSync(market).sort()).toEqual(['.claude-plugin', 'plugin'])
+  })
+
+  it('writes nothing for a path out of its skill', () => {
+    const { market } = folders()
+    const data = Buffer.from('x').toString('base64')
+    for (const path of ['../escape/SKILL.md', 'review/../../escape', 'SKILL.md', '/abs/SKILL.md', 'review\\..\\x', 'C:/x/SKILL.md']) {
+      expect(() => takeSkills(market, [{ path: 'notes/SKILL.md', data }, { path, data }])).toThrow(/not a path of a skill/)
+    }
+    expect(wrappedSkills(market)).toEqual([])
   })
 })

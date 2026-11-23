@@ -373,6 +373,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       hook: (machine, request) => hubHooks.relay(machine, request),
       tally: (machine, rows) => machineTally.take(machine, rows),
       credentials: gitCredentialsOf,
+      skills: (_machine, install) => ({ skills: ctx.packages.skillsOf(install) }),
       write: (machine, write) => hubMcp.write(machine, write),
     },
     takeOverOwn: async (project, owner) => {

@@ -273,6 +273,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     transcript: (sessionId) => void end.emit(TRANSCRIPT_EVENT, { sessionId }).catch(() => {}),
     changed: () => runner.changed(),
     credentials: (project, urls) => end.credentials(project, urls),
+    skills: (install) => end.skills(install),
   })
   machine.mailbox.persistWith(async (change) => {
     await records.mailbox(change)

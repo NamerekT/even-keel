@@ -213,6 +213,10 @@ export const noticesRu: NoticeTexts = {
   'pool.folderNoRemote': (p) => `У репозитория в ${p.folder} на машине нет remote: машина в другом месте получает работу только через него — добавьте его там и нажмите «Повторить»`,
   'pool.otherRemote': (p) => `Репозиторий в ${p.folder} — не этого проекта: ни один его remote не ${p.remote}`,
   'pool.noBranch': (p) => `В репозитории ${p.folder} нет ветки ${p.branch}: получите её там (git fetch) и нажмите «Повторить»`,
+  'pool.dirtyBranch': (p) =>
+    `Репозиторий в ${p.folder} стоит ${p.current === null ? 'на отсоединённом HEAD' : `на ${p.current}`}, а не на основной ветке проекта ${p.branch}, и в нём есть незакоммиченные изменения: закоммитьте или отложите их там и нажмите «Повторить» — Even Keel переключит его сам`,
+  'pool.switchFailed': (p) =>
+    `Репозиторий в ${p.folder} не перешёл ${p.current === null ? '' : `с ${p.current} `}на основную ветку проекта ${p.branch}: переключите его там руками и нажмите «Повторить»`,
   'pool.untrusted': (p) => `Claude Code на машине не доверяет ${p.folder}: запустите там claude в этой папке один раз, примите диалог и нажмите «Повторить»`,
   'pool.packagesInstalling': (p) => `Пакеты проекта на машине ещё ставятся (${p.names}): нажмите «Повторить» через минуту`,
   'pool.packagesUnready': (p) => `Пакеты проекта на машине не готовы (${p.names}): откройте пакеты проекта, доведите их и нажмите «Повторить»`,
@@ -240,6 +244,8 @@ export const noticesRu: NoticeTexts = {
   'git.remoteFailed': (p) => `git не прочитал ${p.remote}`,
   'git.remoteShape': () => 'это не адрес git: нужен вида https://example.com/owner/repo.git или git@example.com:owner/repo.git',
   'git.cloneStopped': () => 'клонирование отменено',
+  'git.noRemoteBranch': (p) =>
+    `в ${p.remote} нет ветки ${p.branch} — основной ветки проекта: запушьте её туда или укажите нужную в «Основная ветка» проекта и нажмите «Повторить»`,
   'git.cloneBroken': (p) =>
     `связь оборвалась ${p.percent === undefined ? 'посреди клонирования' : `на ${p.percent}% клонирования`}: проверьте сеть и нажмите «Повторить», клонирование начнётся заново`,
   'git.lfsMissing': (p) => `на сервере нет LFS-файла ${p.path}: его не залили. Выполните это в клоне, где он есть, и нажмите «Повторить»`,
@@ -626,6 +632,8 @@ export const noticesRu: NoticeTexts = {
   'packages.lost': (p) => `файлов ${p.name} ${p.version} на этом хосте нет; нажмите «Установить» у пакета в каталоге`,
   'packages.lostMarketplace': (p) =>
     `файлов ${p.name} ${p.version} на этом хосте нет, а Claude Code здесь не знает его маркетплейса ${p.marketplace}; добавьте его и нажмите «Установить» у пакета в каталоге`,
+  'packages.skillsAway': (p) => `навыки ${p.name} ${p.version} эта машина берёт у своего хаба, а хаб сейчас недоступен; новая попытка через 10 минут`,
+  'packages.skillsNotOnHub': (p) => `у хаба нет файлов его установки ${p.version} пакета ${p.name}; нажмите «Установить» или «Обновить» у пакета в каталоге хаба`,
   'packages.noSkills': () => 'выберите хотя бы один навык',
   'packages.unknownSkill': (p) => `навыка ${p.name} нет ни в ~/.claude/skills, ни в папке навыков Codex`,
   'packages.npmFailed': (p) => `npm не смог установить ${p.spec}`,

@@ -185,6 +185,10 @@ export const en = {
   'pool.folderNoRemote': (p: { folder: string }) => `The repository in ${p.folder} on the machine has no remote: a machine elsewhere gets its work only through one, so add one there, then Retry`,
   'pool.otherRemote': (p: { folder: string; remote: string }) => `The repository in ${p.folder} is not this project's: none of its remotes is ${p.remote}`,
   'pool.noBranch': (p: { folder: string; branch: string }) => `The repository in ${p.folder} has no branch ${p.branch}: fetch it there (git fetch), then Retry`,
+  'pool.dirtyBranch': (p: { folder: string; branch: string; current: string | null }) =>
+    `The repository in ${p.folder} stands ${p.current === null ? 'on a detached HEAD' : `on ${p.current}`}, not on the project's main branch ${p.branch}, and has uncommitted changes: commit them or put them aside there, then Retry, and Even Keel switches it`,
+  'pool.switchFailed': (p: { folder: string; branch: string; current: string | null }) =>
+    `The repository in ${p.folder} could not go ${p.current === null ? '' : `from ${p.current} `}to the project's main branch ${p.branch}: switch it there by hand, then Retry`,
   'pool.untrusted': (p: { folder: string }) => `Claude Code on the machine does not trust ${p.folder}: start claude in that folder there once, accept the dialog, then Retry`,
   'pool.packagesInstalling': (p: { names: string }) => `The project's packages are still installing on the machine (${p.names}): Retry in a minute`,
   'pool.packagesUnready': (p: { names: string }) => `The project's packages are not ready on the machine (${p.names}): open the project packages and finish them, then Retry`,
@@ -212,6 +216,8 @@ export const en = {
   'git.remoteFailed': (p: { remote: string }) => `git could not read ${p.remote}`,
   'git.remoteShape': () => 'this is not a git address: paste one like https://example.com/owner/repo.git or git@example.com:owner/repo.git',
   'git.cloneStopped': () => 'the clone was cancelled',
+  'git.noRemoteBranch': (p: { remote: string; branch: string }) =>
+    `${p.remote} has no branch ${p.branch}, the project's main branch: push it there, or set the right one in the project's "Main branch", then Retry`,
   'git.cloneBroken': (p: { percent?: number }) =>
     `the connection broke off ${p.percent === undefined ? 'during the clone' : `at ${p.percent}% of the clone`}: check the network and press Retry, the clone starts over`,
   'git.lfsMissing': (p: { path: string; remote: string; command: string }) =>
@@ -609,6 +615,10 @@ export const en = {
     `packages: the files of ${p.name} ${p.version} are gone on this host; press Install at the package in the catalog`,
   'packages.lostMarketplace': (p: { name: string; version: string; marketplace: string }) =>
     `packages: the files of ${p.name} ${p.version} are gone on this host, and Claude Code here lacks its marketplace ${p.marketplace}; add it, then press Install at the package in the catalog`,
+  'packages.skillsAway': (p: { name: string; version: string }) =>
+    `packages: this machine takes the skills of ${p.name} ${p.version} from its hub, and the hub is not reachable now; it is tried again in 10 minutes`,
+  'packages.skillsNotOnHub': (p: { name: string; version: string }) =>
+    `packages: the hub holds no files of its install ${p.version} of ${p.name}; press Install or Update at the package in the hub's catalog`,
   'packages.noSkills': () => 'packages: choose at least one skill',
   'packages.unknownSkill': (p: { name: string }) => `packages: there is no skill ${p.name} in ~/.claude/skills or the Codex skills folder`,
   'packages.npmFailed': (p: { spec: string }) => `packages: npm could not install ${p.spec}`,

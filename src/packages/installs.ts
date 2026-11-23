@@ -6,13 +6,14 @@ import { current, type InstalledServer, type PackageInstall, type PackageRecord,
 import { copyPinned, dependencyChanges, installPinned, lockOf, parseNpx, resolveVersion, type NpxSpec } from './npm.js'
 import { hasExtras, locatePlugin, pluginServers, pluginVersion } from './plugins.js'
 import type { PackagesDeps } from './service.js'
+import { pluginOf, SKILLS_PACKAGE, takeSkills } from './skills.js'
 
 /** How long a hub's install that failed here waits before a brief tries it again. */
 const FOLLOW_RETRY_MS = 10 * 60_000
 
 /** What the installs take from `Packages`. */
 export interface InstallHost {
-  deps: Pick<PackagesDeps, 'cache' | 'globalDir' | 'hubServers' | 'repos' | 'log' | 'onChange'>
+  deps: Pick<PackagesDeps, 'cache' | 'globalDir' | 'hubServers' | 'repos' | 'log' | 'onChange' | 'skillsDir' | 'skillsFromHub'>
   file: () => PackagesFile
   /** Even Keel's checkout, then the user's wrapped skills. */
   local: () => string[]
@@ -172,7 +173,7 @@ export class Installs {
       for (const install of record.installs) {
         if (this.restoreTried.has(`${each}/${install.id}`) || !this.folderLost(each, record, install)) continue
         this.restoreTried.add(`${each}/${install.id}`)
-        if (found === undefined || found === install.version) {
+        if (found === undefined || found === install.version || this.fromHub(each)) {
           lost = install
           break
         }
@@ -212,7 +213,32 @@ export class Installs {
     if (record === undefined || this.installing.has(name)) return undefined
     const hub = new Set(this.deps.hubServers?.() ?? [])
     if (!this.folderLost(name, record, install, (server) => hub.has(routeOf(project, name, install.id, server)))) return undefined
-    return record.plugin !== undefined && this.pluginFound(record) === null ? { marketplace: record.plugin.marketplace } : {}
+    return record.plugin !== undefined && !this.fromHub(name) && this.pluginFound(record) === null ? { marketplace: record.plugin.marketplace } : {}
+  }
+
+  /** The user's skills package on a machine elsewhere: its marketplace is the hub's `state/skills/`, its files come from the hub. */
+  private fromHub(name: string): boolean {
+    return name === SKILLS_PACKAGE && this.deps.skillsFromHub !== undefined
+  }
+
+  /**
+   * The skills of the hub's install `theirs` written into this machine's `state/skills/` (BTN-1565), so the install
+   * copies them from there as from any marketplace; nothing is asked when that folder already holds its version.
+   */
+  private async takeFromHub(theirs: PackageInstall): Promise<void> {
+    const plugin = pluginOf(this.deps.skillsDir)
+    if (theirs.version !== null && pluginVersion(plugin) === theirs.version) return
+    const copy = await this.deps.skillsFromHub!(theirs.id)
+    const version = theirs.version ?? theirs.id
+    if (copy === undefined) throw fail('packages.skillsAway', { name: SKILLS_PACKAGE, version })
+    if (copy === null) throw fail('packages.skillsNotOnHub', { name: SKILLS_PACKAGE, version })
+    let taken: string
+    try {
+      taken = takeSkills(this.deps.skillsDir, copy.files)
+    } catch (error) {
+      throw fail('packages.copyFailed', { name: SKILLS_PACKAGE }, { detail: (error as Error).message }, { cause: error })
+    }
+    this.deps.log(`packages: ${SKILLS_PACKAGE}: ${copy.files.length} files of the hub's ${version} written into its marketplace here${copy.version !== null && taken !== copy.version ? `, which makes them ${taken}` : ''}`)
   }
 
   /** `lostIn` for any of the projects. */
@@ -244,6 +270,7 @@ export class Installs {
     let failure: Error | undefined
     void (async () => {
       try {
+        if (this.fromHub(name)) await this.takeFromHub(theirs)
         const { entries, version, extras } = this.sources(name, record, theirs.id)
         const hub = new Set(this.deps.hubServers?.() ?? [])
         const projects = Object.keys(this.deps.repos)
