@@ -20,6 +20,8 @@ export interface ProfilesControl {
   setDefault(id: string): void
   /** Turns the profile off or on (BTN-830); off is refused while a chain runs on it. */
   setDisabled(id: string, disabled: boolean): void
+  /** Gives the profile to sessions started by hand or keeps it from them (BTN-1498). */
+  setHandSessions(id: string, on: boolean): void
   /** The chain rules of the profile's projects; refused when one of them would clash. */
   setRules(id: string, rules: ProfileRules): void
   /** `null` — the project runs on its tracker's default profile. */

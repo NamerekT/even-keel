@@ -491,6 +491,52 @@ describe('Profiles', { timeout: 60_000 }, () => {
     })
   })
 
+  describe('a profile kept from sessions started by hand (BTN-1498)', () => {
+    it('takes the default\'s values out of the sessions, keeps them out after a restart and puts them back when on', async () => {
+      writeFileSync(settingsFile, JSON.stringify({ env: { OTHER: 'x', FAKE_URL: 'https://fake.example.com', FAKE_TOKEN: 'abc' } }))
+      const profiles = make({ profiles: [profile('p1', 'abc', true)], links: {} })
+      profiles.setHandSessions('p1', false)
+      await writes.settled()
+      expect(sessionEnv()).toEqual({ OTHER: 'x' })
+      expect(expired).toBe(1)
+      expect((await readProfiles(db)).profiles[0]!.handSessions).toBe(false)
+      expect(profiles.view().profiles[0]!.handSessions).toBe(false)
+      const restarted = make(await readProfiles(db))
+      restarted.start()
+      restarted.stop()
+      expect(sessionEnv()).toEqual({ OTHER: 'x' })
+      restarted.setHandSessions('p1', true)
+      expect(restarted.current().profiles[0]!.handSessions).toBeUndefined()
+      expect(sessionEnv()).toEqual({ OTHER: 'x', FAKE_URL: 'https://fake.example.com', FAKE_TOKEN: 'abc' })
+      expect(() => restarted.setHandSessions('missing', false)).toThrow(NoticeError)
+    })
+
+    it('decides at the start: the values written before go, a value set by hand stays', () => {
+      writeFileSync(settingsFile, JSON.stringify({ env: { OTHER: 'x', FAKE_URL: 'https://fake.example.com', FAKE_TOKEN: 'by-hand' } }))
+      const profiles = make({ profiles: [{ ...profile('p1', 'abc', true), handSessions: false }], links: {} })
+      profiles.start()
+      profiles.stop()
+      expect(sessionEnv()).toEqual({ OTHER: 'x', FAKE_TOKEN: 'by-hand' })
+      expect(expired).toBe(1)
+    })
+
+    it('matters only for the default: a profile kept back writes nothing until it becomes the default, then clears its kind', async () => {
+      const profiles = make({ profiles: [profile('p1', 'abc', true), profile('p2', 'org', false)], links: {} }, { projects: () => ({}) })
+      profiles.setHandSessions('p2', false)
+      expect(sessionEnv()).toEqual({ OTHER: 'x' })
+      profiles.start()
+      profiles.stop()
+      expect(sessionEnv()).toMatchObject({ FAKE_TOKEN: 'abc' })
+      profiles.setDefault('p2')
+      expect(sessionEnv()).toEqual({ OTHER: 'x' })
+      await profiles.save({ id: 'p2', kind: 'fake', name: 'Renamed', values: {} })
+      expect(profiles.current().profiles[1]).toMatchObject({ name: 'Renamed', handSessions: false })
+      expect(sessionEnv()).toEqual({ OTHER: 'x' })
+      profiles.remove('p2')
+      expect(sessionEnv()).toMatchObject({ FAKE_TOKEN: 'abc' })
+    })
+  })
+
   describe('a turned-off profile (BTN-830)', () => {
     it('is stored and shown off, its host is not checked, and it names the projects on it', async () => {
       const account = vi.fn(fake.account as ProfileKind['account'])

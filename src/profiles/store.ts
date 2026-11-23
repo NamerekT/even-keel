@@ -18,6 +18,7 @@ interface ProfileRow {
   mcp_oauth: string
   moves: string
   disabled: boolean
+  hand_sessions: boolean
 }
 
 /** The profiles in their order and each project's and feed's profile, in one statement. */
@@ -47,6 +48,7 @@ export async function readProfiles(db: Queryable): Promise<ProfileSet> {
         // A grant of a kind that lost MCP OAuth (Linear, GitHub: BTN-604) is dropped; the next save clears its row.
         ...(row.mcp_oauth === 'null' || MCP_OAUTH[row.kind] === undefined ? {} : { mcpOAuth: JSON.parse(row.mcp_oauth) as TrackerProfile['mcpOAuth'] }),
         ...(row.disabled ? { disabled: true as const } : {}),
+        ...(row.hand_sessions === false ? { handSessions: false as const } : {}),
       }
     }),
     links: Object.fromEntries(links.map((link) => [link.id, link.profile_id])),
@@ -74,6 +76,7 @@ export function saveProfiles(db: Db, { profiles, links, feeds = {} }: ProfileSet
     mcp_oauth: JSON.stringify(profile.mcpOAuth ?? null),
     moves: JSON.stringify(profile.moves ?? {}),
     disabled: profile.disabled === true,
+    hand_sessions: profile.handSessions !== false,
   }))
   return inTransaction(db, async (tx) => {
     await tx.query('update projects set profile_id = ($1::json ->> id) where profile_id is distinct from ($1::json ->> id)', [JSON.stringify(links)])
@@ -86,7 +89,8 @@ export function saveProfiles(db: Db, { profiles, links, feeds = {} }: ProfileSet
       `insert into tracker_profiles select * from json_populate_recordset(null::tracker_profiles, $1)
        on conflict (id) do update set kind = excluded.kind, name = excluded.name, credentials = excluded.credentials,
          is_default = excluded.is_default, login = excluded.login, expires_at = excluded.expires_at, position = excluded.position,
-         rules = excluded.rules, mcp_oauth = excluded.mcp_oauth, moves = excluded.moves, disabled = excluded.disabled`,
+         rules = excluded.rules, mcp_oauth = excluded.mcp_oauth, moves = excluded.moves, disabled = excluded.disabled,
+         hand_sessions = excluded.hand_sessions`,
       [JSON.stringify(rows)],
     )
   })

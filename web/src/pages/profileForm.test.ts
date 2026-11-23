@@ -25,6 +25,7 @@ function stored(set: string[]): ProfileView {
     name: 'Huly · example',
     isDefault: true,
     disabled: false,
+    handSessions: true,
     fields: HULY.fields.map(({ name, secret }) => ({ name, secret, set: set.includes(name), value: null })),
     login: null,
     expiresAt: null,

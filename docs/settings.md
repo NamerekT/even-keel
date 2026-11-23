@@ -340,7 +340,8 @@ a blank key keeps the saved one). Nothing of it goes into the drafts of the grou
   variable is in it any more: both CI tokens are profiles'. `secrets/set`, `secrets/remove` and `secrets/update` (several
   at once, `null` removing one) refuse a name that is not in it.
 - **Places** — the default profile of each tracker goes to the `env` of the global `settings.json` (sessions started by
-  hand read it there, the tracker plugin with them); a Forgejo profile does not; Tally's, the page token and the badge secret only to `.env`. `.env` is edited one line at a
+  hand read it there, the tracker plugin with them), unless it is hidden from them ("Hide from hand sessions" on its
+  row, BTN-1498: its kind's variables are taken out and stay out after a restart); a Forgejo profile does not; Tally's, the page token and the badge secret only to `.env`. `.env` is edited one line at a
   time (`upsertEnv`, `removeEnv`), comments and order kept, then `EnvFile.reload` applies it (BTN-130). A written key
   reaches new sessions at their start; a removed one marks the global folder's daemon stale (`DaemonRefresh.expire`,
   `docs/accounts.md`) and the "Trackers and CI" tab says so while live sessions hold its stop (`sessionsPending`).

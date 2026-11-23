@@ -145,6 +145,7 @@ export class Profiles {
         name: profile.name,
         isDefault: profile.isDefault,
         disabled: profile.disabled === true,
+        handSessions: profile.handSessions !== false,
         fields: (this.deps.kinds[profile.kind]?.variables ?? Object.keys(profile.values)).map((name) => {
           const value = profile.values[name] || null
           return { name, secret: isSecret(name), set: value !== null, value: isSecret(name) ? null : value }
@@ -211,6 +212,7 @@ export class Profiles {
       expiresAt: account.expiresAt,
       ...(oauth === undefined ? {} : { mcpOAuth: oauth }),
       ...(stored?.disabled ? { disabled: true as const } : {}),
+      ...(stored?.handSessions === false ? { handSessions: false as const } : {}),
     }
     const profiles = stored === undefined ? [...this.set.profiles, profile] : this.set.profiles.map((each) => (each.id === profile.id ? profile : each))
     this.checks.set(profile.id, { state: 'ok', error: null, at: this.now() })
@@ -277,6 +279,20 @@ export class Profiles {
     this.deps.log(`profiles: ${profile.name} turned ${disabled ? 'off' : 'on'}`)
     this.replace({ ...this.set, profiles: this.set.profiles.map((each) => (each.id === id ? updated : each)) }, null)
     if (!disabled && this.running) void this.recheck(id)
+  }
+
+  /**
+   * Gives the profile to sessions started by hand or keeps it from them (BTN-1498): as its kind's default, its kind's
+   * variables of the global `settings.json` are written again — its values, or none.
+   */
+  setHandSessions(id: string, on: boolean): void {
+    const profile = this.profile(id)
+    if (profile === undefined) throw fail('profiles.unknown', {})
+    if ((profile.handSessions !== false) === on) return
+    const { handSessions: _, ...rest } = profile
+    const updated: TrackerProfile = on ? rest : { ...rest, handSessions: false }
+    this.deps.log(`profiles: ${profile.name} ${on ? 'given to' : 'kept from'} sessions started by hand`)
+    this.replace({ ...this.set, profiles: this.set.profiles.map((each) => (each.id === id ? updated : each)) }, profile.isDefault ? profile.kind : null)
   }
 
   /** The turned-off profile the project or feed runs on, if it does (BTN-830). */
@@ -470,25 +486,34 @@ export class Profiles {
     this.deps.onChange(set)
   }
 
-  /** A CI's kind is left out: its token is the service's alone (`sessionBase` keeps it from the sessions too). */
+  /**
+   * A CI's kind is left out: its token is the service's alone (`sessionBase` keeps it from the sessions too). A default
+   * kept from sessions started by hand (BTN-1498) takes its kind's variables out, as no default does.
+   */
   private writeSessionEnv(kind: string): void {
     const adapter = this.deps.kinds[kind]
     if (adapter?.projects === undefined) return
-    const values = defaultProfile(this.set, kind)?.values ?? {}
+    const values = handProfile(this.set, kind)?.values ?? {}
     this.editSessionEnv(adapter, (text) => adapter.variables.reduce((after, name) => withSessionEnv(after, name, values[name] ?? null), text))
   }
 
   /**
    * A default profile stored before its values went into the sessions' settings (BTN-476) reaches them only here (BTN-1167):
-   * a variable missing there is added, one already there stays as it is, even when set by hand.
+   * a variable missing there is added, one already there stays as it is, even when set by hand. A default kept from
+   * sessions started by hand (BTN-1498) takes out the variables that still hold its values, so they do not come back.
    */
   private fillSessionEnv(): void {
     for (const [kind, adapter] of Object.entries(this.deps.kinds)) {
-      const values = adapter.projects === undefined ? undefined : defaultProfile(this.set, kind)?.values
-      if (values === undefined) continue
+      const profile = adapter.projects === undefined ? undefined : defaultProfile(this.set, kind)
+      if (profile === undefined) continue
+      const values = profile.values
+      const kept = profile.handSessions === false
       this.editSessionEnv(adapter, (text) => {
         const env = sessionEnvOf(text)
-        return adapter.variables.reduce((after, name) => (Object.hasOwn(env, name) || !values[name] ? after : withSessionEnv(after, name, values[name])), text)
+        return adapter.variables.reduce((after, name) => {
+          if (kept) return values[name] && env[name] === values[name] ? withSessionEnv(after, name, null) : after
+          return Object.hasOwn(env, name) || !values[name] ? after : withSessionEnv(after, name, values[name])
+        }, text)
       })
     }
   }
@@ -528,6 +553,12 @@ export class Profiles {
 /** `profiles.disabled` of a turned-off profile, with its id for the page's "Turn on" (BTN-830); none for no profile. */
 export function disabledNotice(profile: TrackerProfile | undefined, project?: string): Notice | undefined {
   return profile === undefined ? undefined : notice('profiles.disabled', { profile: profile.name, id: profile.id, ...(project === undefined ? {} : { project }) })
+}
+
+/** The kind's default, unless it is kept from sessions started by hand (BTN-1498). */
+function handProfile(set: ProfileSet, kind: string): TrackerProfile | undefined {
+  const profile = defaultProfile(set, kind)
+  return profile?.handSessions === false ? undefined : profile
 }
 
 const keysOf = (projects: [string, { key: string }][]): string => projects.map(([, project]) => project.key).join(', ')

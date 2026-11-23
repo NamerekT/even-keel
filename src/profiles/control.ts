@@ -23,6 +23,7 @@ export function profilesControl(profiles: Profiles, checkLink: (project: string)
     },
     setDefault: (id) => profiles.setDefault(id),
     setDisabled: (id, disabled) => profiles.setDisabled(id, disabled),
+    setHandSessions: (id, on) => profiles.setHandSessions(id, on),
     setRules: (id, rules) => {
       profiles.setRules(id, rules)
       console.log(`page: the chain rules of the profile ${profiles.current().profiles.find((profile) => profile.id === id)?.name} are saved`)

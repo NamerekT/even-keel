@@ -93,7 +93,8 @@ function fields(kind: string, values: Record<string, string>): ProfileField[] {
 /**
  * The profiles: Huly by default for the fake projects, a GitHub profile whose token runs out in 5 days and does not reach
  * the Actions of ABC's `github` remote, and a Forgejo profile ABC's and DEMO's `origin` CI takes. `?profiles=` — `none`:
- * no profiles, `refused`: Huly refuses its token, `all`: a Linear profile too, `github`: the GitHub and the Forgejo one only, `many`: ten tracker profiles.
+ * no profiles, `refused`: Huly refuses its token, `all`: a Linear profile too, `github`: the GitHub and the Forgejo one only, `many`: ten tracker profiles,
+ * `kept`: Huly kept from sessions started by hand (BTN-1498).
  */
 export function fakeProfiles(mode: string | null): ProfilesView {
   if (mode === 'none') return { profiles: [], kinds: KINDS }
@@ -103,6 +104,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     name: 'example',
     isDefault: true,
     disabled: false,
+    handSessions: mode !== 'kept',
     fields: fields('huly', { HULY_URL: 'https://huly.example.com', HULY_WORKSPACE: 'example', HULY_TOKEN: '' }),
     login: 'john.doe@example.com',
     expiresAt: null,
@@ -124,6 +126,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     name: 'octo-org',
     isDefault: true,
     disabled: false,
+    handSessions: true,
     fields: fields('github', { GITHUB_TOKEN: '' }),
     login: 'johndoe',
     expiresAt: new Date(Date.now() + 5 * DAY_MS).toISOString(),
@@ -142,6 +145,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     name: 'git.example.com',
     isDefault: true,
     disabled: false,
+    handSessions: true,
     fields: fields('forgejo', { FORGEJO_URL: 'https://git.example.com', FORGEJO_TOKEN: '' }),
     login: 'johndoe',
     expiresAt: null,
@@ -163,6 +167,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     name: 'example',
     isDefault: true,
     disabled: false,
+    handSessions: true,
     fields: fields('linear', { LINEAR_TOKEN: '' }),
     login: 'John Doe',
     expiresAt: null,
@@ -179,7 +184,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
   const gitlab: ProfileView = {
     id: '3f0c2b9e-0000-4000-8000-000000000005', kind: 'gitlab',
     name: mode === 'gitlab-long' ? 'Example organization / Platform / Shared services / Development account' : 'example',
-    isDefault: true, disabled: false, fields: fields('gitlab', { GITLAB_URL: 'https://gitlab.example.com', GITLAB_TOKEN: '' }),
+    isDefault: true, disabled: false, handSessions: true, fields: fields('gitlab', { GITLAB_URL: 'https://gitlab.example.com', GITLAB_TOKEN: '' }),
     login: 'johndoe', expiresAt: new Date(Date.now() + 60 * DAY_MS).toISOString(),
     check: mode === 'gitlab-refused' ? { state: 'refused', error: notice('profiles.refused', { tracker: 'GitLab' }), at: ago(3) } : { state: 'ok', error: null, at: ago(3) },
     projects: [], ci: [{ project: 'ABC', remote: 'origin' }], hiddenCi: [], deniedPulls: [], rules: {}, moves: {}, projectIds: [],
@@ -188,7 +193,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
   if (mode?.startsWith('gitlab')) return { profiles: [gitlab], kinds: KINDS }
   const jira: ProfileView = {
     id: '3f0c2b9e-0000-4000-8000-000000000007', kind: 'jira', name: 'example',
-    isDefault: true, disabled: false, fields: fields('jira', { JIRA_URL: 'https://example.atlassian.net', JIRA_EMAIL: 'john.doe@example.com', JIRA_TOKEN: '' }),
+    isDefault: true, disabled: false, handSessions: true, fields: fields('jira', { JIRA_URL: 'https://example.atlassian.net', JIRA_EMAIL: 'john.doe@example.com', JIRA_TOKEN: '' }),
     login: 'john.doe@example.com', expiresAt: null,
     check: mode === 'jira-refused' ? { state: 'refused', error: notice('profiles.refused', { tracker: 'Jira' }), at: ago(3) } : { state: 'ok', error: null, at: ago(3) },
     projects: [], ci: [], hiddenCi: [], deniedPulls: [], rules: {}, moves: {}, projectIds: [],
@@ -231,6 +236,9 @@ export function fakeProfilesCommand(state: EvenKeelState, name: string, body: Re
       return disabled ? { ...rest, disabled: true, health: { state: 'off', lastOkAt: null, error: null } } : { ...rest, health: { state: 'live', lastOkAt: ago(0), error: null }, liveSince: ago(0) }
     })
     return { ...state, trackers, profiles: { ...view, profiles: view.profiles.map((each) => (each.id === id ? { ...each, disabled } : each)) } }
+  }
+  if (name === 'profiles/handSessions' && profile !== undefined) {
+    return { ...state, profiles: { ...view, profiles: view.profiles.map((each) => (each.id === id ? { ...each, handSessions: body.on === true } : each)) } }
   }
   if (name === 'profiles/default' && profile !== undefined) {
     const profiles = view.profiles.map((each) => (each.kind === profile.kind ? { ...each, isDefault: each.id === id } : each))
@@ -312,6 +320,7 @@ export function fakeSaved(state: EvenKeelState, id: string, body: Record<string,
     name: String(body.name),
     isDefault: stored?.isDefault ?? !view.profiles.some((each) => each.kind === kind),
     disabled: stored?.disabled ?? false,
+    handSessions: stored?.handSessions ?? true,
     fields: stored?.fields.map((field) => (field.name in values ? { ...field, set: true, value: field.secret ? null : values[field.name]! } : field)) ?? fields(kind, values),
     login: kind === 'huly' ? (values.HULY_EMAIL ?? 'john.doe@example.com') : 'johndoe',
     expiresAt: kind === 'github' ? new Date(Date.now() + 30 * DAY_MS).toISOString() : null,

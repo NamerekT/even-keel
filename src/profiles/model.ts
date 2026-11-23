@@ -41,6 +41,11 @@ export interface TrackerProfile {
    * is turned on again. Sessions started by hand still get a default profile's values from the global `settings.json`.
    */
   disabled?: true
+  /**
+   * Kept from sessions started by hand (BTN-1498): as its kind's default, its values are not written into the global
+   * `settings.json` and its kind's variables are taken out of it. The service, the gateway and chain sessions use it as before.
+   */
+  handSessions?: false
 }
 
 export interface ProfileSet {

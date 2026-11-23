@@ -110,7 +110,8 @@ const LAMPS: Record<ProfileView['check']['state'], string> = {
  * A row, quiet while all is well: a lamp, the name and whether it is the default. Colour only on what needs a look —
  * a refusal, a near expiry, hidden CI, a refused pull request. Whom it signs in as and its projects open on pointing at
  * the name, and the remotes whose CI takes it when there are any; a CI's profile (`tracker` off) always names them.
- * The switch at the right end turns it off (BTN-830): the row is dimmed and its sign-in errors are not shown.
+ * The switch at the right end turns it off (BTN-830): the row is dimmed and its sign-in errors are not shown. A tracker's
+ * profile can be hidden from sessions started by hand (BTN-1498): the row then says so.
  */
 function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileView; tracker: boolean; onEdit: () => void; onRules: () => void }) {
   const { send, sending, failure } = useCommand()
@@ -146,7 +147,12 @@ function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileVie
           {profile.name}
         </Tipped>
         {profile.isDefault && <span className="profile-row__quiet">{t.profiles.isDefault}</span>}
-        {off && <span className="profile-row__state">{t.profiles.off}</span>}
+        {tracker && !profile.handSessions && (
+          <Tipped tip={t.profiles.handTip} focusable inline>
+            <span className="profile-row__quiet">{t.profiles.handKept}</span>
+          </Tipped>
+        )}
+        {off &&<span className="profile-row__state">{t.profiles.off}</span>}
         {!off && state !== 'ok' && <span className={`profile-row__state profile-row__state--${state}`}>{t.profiles.states[state]}</span>}
         {days !== null &&
           (days <= EXPIRY_WARN_DAYS ? (
@@ -183,6 +189,18 @@ function ProfileRow({ profile, tracker, onEdit, onRules }: { profile: ProfileVie
           <button type="button" className="profile-row__action" disabled={sending} onClick={() => void send('profiles/default', { id: profile.id })}>
             {t.profiles.makeDefault}
           </button>
+        )}
+        {tracker && (
+          <Tipped tip={t.profiles.handTip} inline>
+            <button
+              type="button"
+              className="profile-row__action"
+              disabled={sending}
+              onClick={() => void send('profiles/handSessions', { id: profile.id, on: !profile.handSessions })}
+            >
+              {profile.handSessions ? t.profiles.handOff : t.profiles.handOn}
+            </button>
+          </Tipped>
         )}
         <button
           type="button"

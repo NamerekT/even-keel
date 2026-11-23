@@ -64,13 +64,18 @@
   color: var(--error-fg);
 }
 
+/* A narrow row wraps whole actions rather than breaking a word inside one (BTN-1498). */
 .profile-row__actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: 2px;
   margin-left: auto;
 }
 
 .profile-row__action {
+  white-space: nowrap;
   font: inherit;
   font-size: var(--text-13);
   padding: 3px 8px;

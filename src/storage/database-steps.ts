@@ -939,4 +939,9 @@ export const STEPS: readonly string[] = [
   create index builtin_tasks_parent on builtin_tasks (parent_id);
   create index builtin_relations_to on builtin_relations (to_id);
   `,
+  // A tracker profile kept from sessions started by hand (BTN-1498, `docs/trackers.md`): as its kind's default, its
+  // values stay out of the global settings.json; `true` on every row before it — each was given to them.
+  `
+  alter table tracker_profiles add column hand_sessions boolean not null default true;
+  `,
 ]

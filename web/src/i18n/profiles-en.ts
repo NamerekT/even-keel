@@ -2,7 +2,7 @@ import type { Messages } from './ru.js'
 
 export const profilesEn: Messages['profiles'] = {
     title: 'Tracker and CI profiles',
-    hint: "A project runs on a profile of its tracker. The default tracker profile also goes to sessions started by hand (the env of ~/.claude/settings.json) and to the GitHub Actions CI of other trackers' projects. A Forgejo CI takes the Forgejo profile on its remote's host, a GitLab CI the GitLab profile of its server.",
+    hint: "A project runs on a profile of its tracker. The default tracker profile also goes to sessions started by hand (the env of ~/.claude/settings.json), unless hidden from them, and to the GitHub Actions CI of other trackers' projects. A Forgejo CI takes the Forgejo profile on its remote's host, a GitLab CI the GitLab profile of its server.",
     builtin: 'Built-in',
     builtinNote: 'needs no account or connection',
     builtinTip: "The tasks live in Even Keel's own database: no account, key or profile.",
@@ -17,7 +17,12 @@ export const profilesEn: Messages['profiles'] = {
     off: 'off',
     switchLabel: (name) => `Profile ${name} is on`,
     switchTip:
-      "A turned-off profile: Even Keel does not reach its host — its projects' tasks are not read, no CI is polled with its token, no chain starts on it. Sessions started by hand still get its values from the env of the global settings.json.",
+      "A turned-off profile: Even Keel does not reach its host — its projects' tasks are not read, no CI is polled with its token, no chain starts on it. Sessions started by hand still get its values from the env of the global settings.json, unless it is hidden from them.",
+    handOff: 'Hide from hand sessions',
+    handOn: 'Give to hand sessions',
+    handKept: 'hidden from hand sessions',
+    handTip:
+      "A tracker's default profile writes its keys, the password too, into the env of the global settings.json, and every session started by hand gets them. A hidden profile takes them out of it, and they do not come back after a restart; chains, the MCP gateway and the service run on it as before.",
     states: { unchecked: 'not checked', checking: 'checking', ok: 'signed in', refused: 'refused', unreachable: 'no answer' },
     expires: (days) => (days <= 0 ? 'token expired' : `expires in ${days} d`),
     login: (login) => `Signed in as ${login}`,

@@ -321,6 +321,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 290 | [A machine's page after a sign-in there](unverified/machines.md#a-machines-page-after-a-sign-in-there-btn-1520) | hubs with a machine elsewhere | "Accounts" says "checking the sign-in…" up to 15 s after a sign-in on the machine; nothing to do | — |
 | 291 | [A machine turned off in a pool still reaches the project's hub servers](unverified/machines.md#a-machine-turned-off-in-a-pool-still-reaches-the-projects-hub-servers-btn-1517) | hubs with a machine elsewhere, or the own machine, turned off in a project's pool | the log still has `a server of a project outside its pool: refused`, or the packages of a connection read not ready; nothing to do, the refusal is harmless | — |
 | 292 | [A Forgejo repository with Actions turned off](unverified/ci.md#a-forgejo-repository-with-actions-turned-off-btn-1500) | projects with a Forgejo remote whose repository has Actions off and a checkout with `.github/workflows` | the profile still shows "CI hidden" for those projects; nothing to do, the warning is harmless | — |
+| 293 | [A tracker profile hidden from sessions started by hand](unverified/trackers.md#a-tracker-profile-hidden-from-sessions-started-by-hand-btn-1498) | installations that hide a default tracker profile from sessions started by hand | its keys stay in an account folder's `settings.json` or come back after a restart; remove them there by hand | — |
 
 ### Waiting for the event / not checked by choice
 

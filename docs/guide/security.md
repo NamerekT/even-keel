@@ -65,7 +65,9 @@ label you put on yourself ([the chain](chain.md#which-tasks-enter-the-chain)).
   Even Keel's gateway, but a file the user can read the session can read too. That includes each tracker's default
   profile: for sessions you start by hand Even Keel writes its keys in plain text into the `env` of `settings.json` in
   every account folder, the chain session's own among them, and keeps them only out of its environment, not out of the
-  file.
+  file. A profile your hand sessions do not need — a tracker they reach through Even Keel's `tasks` server — can be
+  kept out of that file: "Hide from hand sessions" on its row in Settings → Trackers and CI takes its keys out, and
+  Even Keel keeps using the profile.
 - **It does not ask before a tool call.**
   - Claude Code runs in `auto` mode: Claude's own classifier decides each call. A call an `ask` rule of your settings
     holds, or one the classifier keeps refusing, comes to you as a question on the page.

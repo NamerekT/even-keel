@@ -745,6 +745,8 @@ export interface ProfileView {
   isDefault: boolean
   /** Turned off (BTN-830): the service reaches nothing of its host; its projects' chains do not start. */
   disabled: boolean
+  /** As its kind's default, its values go into the `settings.json` of sessions started by hand (BTN-1498). */
+  handSessions: boolean
   /** The kind's variables, each with what the profile holds. */
   fields: ProfileField[]
   login: string | null
