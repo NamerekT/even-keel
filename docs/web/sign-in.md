@@ -27,8 +27,8 @@ A blocked service (a broken config) has no book: there the cookie holds the key 
 
 `accessRoute` (`src/access/routes.ts`) answers `/api/auth/*`; an error is 400 `{ error, notice }` with an `auth.*` code.
 
-- Open to a visit: `GET state` (`AuthState`: signed in, key set, a passkey made on this request's host name, this device), `POST key { key }`, `POST passkey/options`, `POST passkey { response }`.
-- Only signed in (else 401 `auth.signInFirst`): `POST passkey/register/options`, `POST passkey/register { response }`, `POST passkey/remove { id }`, `POST devices` (`DevicesView`; a POST as the page's other queries), `POST devices/revoke { id }`, `POST devices/revoke-others`, `POST sign-out`.
+- Open to a visit: `GET state` (`AuthState`: signed in, key set, a passkey made on this request's host name, this device), `POST key { key }`, `POST passkey/options`, `POST passkey { response }`, `POST invite/open { link }` and `POST invite/wait` (`JoinView`, [Invitations](#invitations)).
+- Only signed in (else 401 `auth.signInFirst`): `POST passkey/register/options`, `POST passkey/register { response }`, `POST passkey/remove { id }`, `POST devices` (`DevicesView`; a POST as the page's other queries), `POST devices/revoke { id }`, `POST devices/revoke-others`, `POST invites/create` (`InviteMade`), `POST invites/admit|decline|cancel { id }`, `POST sign-out`.
 
 A sign-in sets the cookie (`HttpOnly`, `SameSite=Strict`, a year) and revokes the token the browser held before, so one browser is one row.
 
@@ -46,6 +46,19 @@ A browser answers `NotAllowedError` both when the person closes its dialog and w
 
 The owner key is `EVEN_KEEL_TOKEN` in the hub's `.env` (the "Owner key" row of the group, `PageToken`). A token signed in with it keeps the key's mark (`key_mark`, an HMAC of the key, never the key): when the key changes, live, `AccessBook.keyIs` revokes every token signed in with another key; passkey sign-ins stay. Whoever can open the `.env` on the server can always sign in: there is no reset by mail.
 
+## Invitations
+
+A new device can sign in without the key: a device signed in invites it (BTN-1655, `InviteDesk` in `src/access/invites.ts`), as a Tailscale invitation does. "Invite a device" at the bottom of the "Devices" card posts `invites/create` and opens `InviteDialog`: the QR (`QrCode`, `web/src/ui/Qr.tsx`, drawn on the page by `uqr`, no network) and the link `<page origin>/invite#<secret>` with a copy button, a countdown, and "Waiting for the link to be opened". The secret is in the fragment, so loading the page never sends it to the server or a proxy's log; the origin is the one the dialog's page is open by, and on a loopback name the dialog warns that another device cannot open it.
+
+- **Table** `device_invites` (step 82): the link and the claim only as SHA-256; `waiting` (unopened) → `opened` (claimed, with the digits) → `admitted` / `declined` / `cancelled` → `used` (the token collected). An expired one is dropped from the table a day later. The same step adds `access_tokens.invite_id`: the device's row is tagged "by invitation".
+- **Open.** `invite/open { link }` from the new device: the first browser to open a live link claims it — a claim secret in the cookie `even-keel-invite` (`HttpOnly`, `SameSite=Strict`, `Path=/api/auth/invite/`, never on screen) — and two random digits (00–99) are drawn. The same browser opening it again gets its own claim back; any other gets `used` and the owner hears nothing, so a link cannot be flooded with requests. A wrong, expired or cancelled-before-opening link is one answer, `gone`.
+- **Wait.** `invite/wait` is a long request: it answers at once when the invitation is decided, else after `WAIT_MS` (25 s) with `waiting`, and the page asks again. `admitted` comes with the device's own token in the sign-in cookie, the same as after the key; only the claiming browser can collect it, since the claim is the cookie, not the link or the digits.
+- **Decide.** The dialog and the card read "Sign-in and devices" anew on the event `devices` of the stream (`InviteDesk.changed` → `EventHub.broadcast`, `LiveSource.onDevices`), so "Waiting…" turns into "<device> opened the link at <time>", the digits large, "Let in" and "Decline". "Let in" is for a person who saw the same digits on the new device: a link that leaked and was opened first by someone else shows other digits. Any device signed in can decide. A closed dialog leaves the invitation as a row of the "Devices" card with "Let in" and "Decline" once opened, and "Cancel"; nothing else on the page tells about it, so it is never approved by habit.
+- **Limits.** A link lives `INVITE_MS` (10 minutes), is used once and dies on cancel; at most `MAX_INVITES` (5) wait at once (`auth.invitesFull`). The open routes take `INVITE_CALLS` (30) calls a minute per address (`RateLimit`, `src/access/rate.ts`), the next is 429 `auth.inviteSlowDown`.
+- **Without the key** there is no "Invite a device" button and `invites/create` answers `auth.noKey`: such a hub asks nobody to sign in yet.
+- **The new device** (`web/src/pages/InviteJoin.tsx`, drawn by `main.tsx` on `/invite` before the page) shows the digits and "Waiting for approval where the link was made", then its own screen for each end — declined, expired, cancelled, used by another device, gone — or, let in, the passkey offer of the key's sign-in and the page. A browser signed in already does not take the link: the screen says so and leads to the page, since the link may be meant for another device.
+- The sign-in screen says under the key field where to get an invitation, with a link to the guide.
+
 ## Revoking
 
 `AccessBook` keeps the live tokens in memory, so the guard stays synchronous, and writes every change through. A revoke — "Sign out" of a device, "Sign out everywhere but here", a new key, a sign-in over an old token — closes the open event streams of those devices (`EventHub.closeTagged`, each stream tagged by its device's token id), and the page loads the sign-in screen.
@@ -54,9 +67,11 @@ A stream the service ended after its 200 is reopened by the browser itself, and 
 
 ## dev:fake
 
-`/?signIn` draws the screen (`?signIn=nokey` — no owner key on the hub, `?signIn=elsewhere` — passkeys made only on other names): the key is `owner-key`, a passkey always passes without the browser's dialog (`?signIn=nopasskeys` — refused at once, as by a browser without passkeys), and signing in drops the parameter. The settings group reads `web/src/live/fakeAuth.ts`: three passkeys on two names and three devices, two of them "Chrome on Windows", this browser one of them; its band follows the fake `EVEN_KEEL_TOKEN`.
+`/?signIn` draws the screen (`?signIn=nokey` — no owner key on the hub, `?signIn=elsewhere` — passkeys made only on other names): the key is `owner-key`, a passkey always passes without the browser's dialog (`?signIn=nopasskeys` — refused at once, as by a browser without passkeys), and signing in drops the parameter. The settings group reads `web/src/live/fakeAuth.ts`: three passkeys on two names and four devices, two of them "Chrome on Windows", one by invitation, this browser one of them; its band follows the fake `EVEN_KEEL_TOKEN`. `&invites` starts with two invitations waiting, one opened; an invitation made in the dialog is opened by a fake phone 3 s later, digits 47. `/invite` is a browser signed in already, `/invite?signIn` the new device: let in 3 s after opening, or `&invite=declined|expired|cancelled|waiting|used|gone`.
 
 ```sh
 npm run shot -- '/?signIn&lang=ru' .sign-in__card --size 390x844
 npm run shot -- '/settings?lang=ru' --click '.settings-nav__item:has-text("Вход и устройства")' --wait '.sign-ins'
+npm run shot -- '/settings?lang=ru&invites' --click '.settings-nav__item:has-text("Вход и устройства")' --click 'button:has-text("Пригласить устройство")' --wait '.invite__qr'
+npm run shot -- '/invite?signIn&invite=waiting&lang=ru#fake' .sign-in__card --wait '.sign-in__digits' --size 390x844
 ```

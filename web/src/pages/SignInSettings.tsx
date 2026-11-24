@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
-import type { DevicesView, DeviceView } from '../../../src/access/view.js'
+import type { DevicesView, DeviceView, InviteMade } from '../../../src/access/view.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
-import { formatAgo, formatFullTime, formatStamp } from '../format.js'
-import { t } from '../i18n/index.js'
+import { formatAgo, formatClock, formatFullTime, formatStamp } from '../format.js'
+import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { Band } from '../ui/blocks.js'
 import { PlusIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
+import { InviteDialog } from './InviteDialog.js'
 import { addPasskey, openedByIp, passkeysWork, type AuthPost } from './passkey.js'
 import { PageToken } from './SettingsSecrets.js'
 import { FieldNote, Section } from './settingsParts.js'
@@ -18,6 +19,7 @@ import './signInSettings.css'
 /** How a device signed in: the key, or a passkey with the name it lives on, so two browsers of one kind tell apart. */
 function methodOf(device: DeviceView): string {
   if (device.byKey) return t.signIn.byKey
+  if (device.byInvite) return t.signIn.byInvite
   return device.passkeyHost === null ? t.signIn.byPasskey : t.signIn.byPasskeyAt(device.passkeyHost)
 }
 
@@ -28,12 +30,17 @@ const KEY_GUIDE = 'https://github.com/NamerekT/even-keel/blob/main/docs/guide/se
  * their "Sign out", and the owner key. Each change is sent at once, no draft.
  */
 export function SignInSettings({ state }: { state: EvenKeelState }) {
-  const { read, query } = useLive()
+  const { read, query, onDevices } = useLive()
   const [view, setView] = useState<DevicesView | null>(null)
   const [asked, setAsked] = useState(0)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<Notice | null>(null)
-  const now = useNow(30_000)
+  const [made, setMade] = useState<InviteMade | null>(null)
+  const [inviteFailure, setInviteFailure] = useState<Notice | null>(null)
+  const now = useNow(view?.invites.length ? 1000 : 30_000)
+
+  // A device signed in or out, an invitation opened or decided elsewhere: the service says so on the event stream.
+  useEffect(() => onDevices(() => setAsked((count) => count + 1)), [onDevices])
 
   useEffect(() => {
     let live = true
@@ -62,6 +69,37 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
   const signOut = () => act(() => post('auth/sign-out', {}), () => location.reload())
   const add = async () => {
     if ((await addPasskey(post)) === 'unsupported') throw new Error(t.signIn.unsupported)
+  }
+  const invite = () => act(async () => setMade(await post<InviteMade>('auth/invites/create', {})))
+  /** A decision taken on a row; the dialog of the same invitation closes with it. */
+  const decide = (name: 'admit' | 'decline' | 'cancel', id: string, close = false) =>
+    act(
+      () => post(`auth/invites/${name}`, { id }),
+      () => {
+        if (close) setMade(null)
+        setAsked((count) => count + 1)
+      },
+    )
+  /** A decision taken in the dialog closes it; a refusal stays in it. */
+  const inDialog = async (name: 'admit' | 'decline' | 'cancel') => {
+    if (made === null) return
+    setInviteFailure(null)
+    try {
+      await post(`auth/invites/${name}`, { id: made.id })
+      setMade(null)
+      setAsked((count) => count + 1)
+    } catch (error) {
+      setInviteFailure(noticeOf(error))
+    }
+  }
+  const again = async () => {
+    setInviteFailure(null)
+    try {
+      setMade(await post<InviteMade>('auth/invites/create', {}))
+      setAsked((count) => count + 1)
+    } catch (error) {
+      setInviteFailure(noticeOf(error))
+    }
   }
 
   return (
@@ -158,16 +196,57 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
                   })}
                 </ul>
               )}
-              {view.current !== null && (
+              {view.invites.length > 0 && (
+                <ul className="sign-ins">
+                  {view.invites.map((each) => (
+                    <li key={each.id} className="sign-ins__row">
+                      <span className="sign-ins__main">
+                        <span className="sign-ins__name">
+                          {t.signIn.inviteRow}
+                          <span className="tag sign-ins__way">{each.opened === null ? t.signIn.inviteUnopened : each.opened.device}</span>
+                        </span>
+                        <span className="sign-ins__when">{t.signIn.inviteLeft(formatClock(Date.parse(each.expiresAt) - now.getTime()))}</span>
+                      </span>
+                      <span className="sign-ins__side">
+                        {each.opened !== null && (
+                          <>
+                            <Tipped tip={t.signIn.inviteDigits} inline>
+                              <span className="sign-ins__digits">{each.opened.digits}</span>
+                            </Tipped>
+                            <button type="button" className="button button--small" disabled={busy} onClick={() => void decide('admit', each.id, made?.id === each.id)}>
+                              {t.signIn.inviteAdmit}
+                            </button>
+                            <button type="button" className="button button--small" disabled={busy} onClick={() => void decide('decline', each.id, made?.id === each.id)}>
+                              {t.signIn.inviteDecline}
+                            </button>
+                          </>
+                        )}
+                        <button type="button" className="button button--small" disabled={busy} onClick={() => void decide('cancel', each.id, made?.id === each.id)}>
+                          {t.signIn.inviteCancel}
+                        </button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {(view.current !== null || view.keySet) && (
                 <div className="sign-ins__actions">
-                  {view.devices.length > 1 && (
+                  {view.keySet && (
+                    <button type="button" className="button" disabled={busy} onClick={() => void invite()}>
+                      <PlusIcon />
+                      {t.signIn.invite}
+                    </button>
+                  )}
+                  {view.current !== null && view.devices.length > 1 && (
                     <button type="button" className="button" disabled={busy} onClick={() => void act(() => post('auth/devices/revoke-others', {}))}>
                       {t.signIn.signOutOthers}
                     </button>
                   )}
-                  <button type="button" className="button" disabled={busy} onClick={() => void signOut()}>
-                    {t.signIn.signOut}
-                  </button>
+                  {view.current !== null && (
+                    <button type="button" className="button" disabled={busy} onClick={() => void signOut()}>
+                      {t.signIn.signOut}
+                    </button>
+                  )}
                 </div>
               )}
             </Section>
@@ -175,6 +254,22 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
         )}
       </Loading>
       <FieldNote error={failure} />
+      {made !== null && (
+        <InviteDialog
+          made={made}
+          invite={view?.invites.find((each) => each.id === made.id)}
+          busy={busy}
+          failure={inviteFailure === null ? null : say(inviteFailure)}
+          onAdmit={() => void inDialog('admit')}
+          onDecline={() => void inDialog('decline')}
+          onCancel={() => void inDialog('cancel')}
+          onAgain={() => void again()}
+          onClose={() => {
+            setMade(null)
+            setInviteFailure(null)
+          }}
+        />
+      )}
       <Section title={t.signIn.ownerKey}>
         <PageToken state={state} />
       </Section>

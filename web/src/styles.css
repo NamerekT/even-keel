@@ -140,6 +140,10 @@
   --viewer-link: #b9cbff;
   --viewer-control: rgb(0 0 0 / 0.55);
   --viewer-glass: rgb(255 255 255 / 0.18);
+
+  /* A QR code stays black on white in both themes: a phone's camera reads an inverted one badly. */
+  --qr-bg: #ffffff;
+  --qr-fg: #000000;
 }
 
 :root[data-theme='dark'] {

@@ -13,6 +13,7 @@ const live = {
   state: { liveMachines: ['hub', 'laptop'] },
   read: () => Promise.resolve(cards),
   onMachines: () => () => {},
+  onDevices: () => () => {},
 }
 vi.mock('../live/context.js', () => ({ useLive: () => live }))
 

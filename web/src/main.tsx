@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import { isLanguage } from '../../src/language.js'
@@ -17,6 +17,7 @@ import { LiveConnection, type AttachedFile, type LiveSource, type QueryOptions }
 import { LiveProvider } from './live/context.js'
 import { fitsKeepalive } from './pages/cardDrafts.js'
 import type { AuthPost } from './pages/passkey.js'
+import { InviteJoin } from './pages/InviteJoin.js'
 import { SignIn } from './pages/SignIn.js'
 import { pageIdle, reloadOnMissingChunk, watchBuild } from './live/reload.js'
 import { watchTheme } from './theme.js'
@@ -146,20 +147,49 @@ async function createSource(): Promise<LiveSource> {
 /** The sign-in screen instead of the page while this browser is not in (`docs/web/sign-in.md`); `false` — go on to the page. */
 async function signInShown(): Promise<boolean> {
   const fake = import.meta.env.MODE === 'fake'
+  if (location.pathname === INVITE_PATH) {
+    const join = fake ? await fakeJoin() : await realJoin()
+    if (join === null) return false
+    render(fake, <InviteJoin {...join} />)
+    return true
+  }
   const asked = fake ? await fakeSignIn() : await realSignIn()
   if (asked === null) return false
-  // The configured language is behind the sign-in: the browser's, or `dev:fake`'s `?lang=`.
-  const wanted = fake ? new URLSearchParams(location.search).get('lang') : null
-  setLanguage(pickLanguage(wanted !== null && isLanguage(wanted) ? wanted : null, navigator.languages))
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <SignIn {...asked} />
-    </StrictMode>,
-  )
+  render(fake, <SignIn {...asked} />)
   return true
 }
 
+function render(fake: boolean, screen: ReactNode): void {
+  // The configured language is behind the sign-in: the browser's, or `dev:fake`'s `?lang=`.
+  const wanted = fake ? new URLSearchParams(location.search).get('lang') : null
+  setLanguage(pickLanguage(wanted !== null && isLanguage(wanted) ? wanted : null, navigator.languages))
+  createRoot(document.getElementById('root')!).render(<StrictMode>{screen}</StrictMode>)
+}
+
 type SignInProps = Parameters<typeof SignIn>[0]
+type JoinProps = Parameters<typeof InviteJoin>[0]
+
+/** The new device's door of an invitation (BTN-1655): `/invite#<secret>`, the secret never sent with the page's load. */
+const INVITE_PATH = '/invite'
+
+async function realJoin(): Promise<JoinProps | null> {
+  const response = await fetch('/api/auth/state', { cache: 'no-store' }).catch(() => null)
+  if (response === null || !response.ok) return null
+  const state = (await response.json()) as AuthState
+  const post: AuthPost = async <T,>(name: string, body: object) => (await sendQuery(name, body)) as T
+  return { signedIn: state.signedIn, link: location.hash.slice(1), post, entered: () => location.replace('/') }
+}
+
+/** `dev:fake`'s `/invite`: signed in already, or with `?signIn` a new device (`?invite=` picks the outcome, `fakeAuth.ts`). */
+async function fakeJoin(): Promise<JoinProps> {
+  const { fakeSignInPost } = await import('./live/fakeAuth.js')
+  const post: AuthPost = async <T,>(name: string, body: object) => {
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    return (await fakeSignInPost(name, body as Record<string, unknown>)) as T
+  }
+  const search = new URLSearchParams(location.search)
+  return { signedIn: !search.has('signIn'), link: location.hash.slice(1), post, entered: () => location.replace('/') }
+}
 
 async function realSignIn(): Promise<SignInProps | null> {
   const response = await fetch('/api/auth/state', { cache: 'no-store' }).catch(() => null)

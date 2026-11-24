@@ -3,8 +3,11 @@ import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import { FakeAuthenticator } from './access/authenticator.fixture.js'
 import { AccessBook } from './access/book.js'
+import { InviteDesk } from './access/invites.js'
 import { PasskeyDesk } from './access/passkeys.js'
-import type { DevicesView } from './access/view.js'
+import { RateLimit } from './access/rate.js'
+import { INVITE_CALLS, INVITE_COOKIE } from './access/routes.js'
+import type { DevicesView, InviteMade } from './access/view.js'
 import { EventHub } from './events.js'
 import { guardHosts, TOKEN_COOKIE } from './guard.js'
 import { createEvenKeelServer, type ServerDeps } from './server.js'
@@ -31,7 +34,8 @@ async function hubOf() {
   const db = await memoryDatabase()
   const hub = new EventHub()
   const book = await AccessBook.load(db, { revoked: (ids) => hub.closeTagged(ids) })
-  const access = { book, passkeys: new PasskeyDesk(db, book.person), key: () => KEY }
+  const invites = new InviteDesk(db, book, { log: () => {}, waitMs: 50, changed: () => hub.broadcast('devices', { changedAt: Date.now() }) })
+  const access = { book, passkeys: new PasskeyDesk(db, book.person), invites, inviteRate: new RateLimit(INVITE_CALLS, 60_000), key: () => KEY }
   const deps = {
     hub,
     getState: () => ({ fake: true }),
@@ -42,9 +46,9 @@ async function hubOf() {
   servers.push(server)
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const port = (server.address() as AddressInfo).port
-  const send = (path: string, options: { method?: string; cookie?: string; body?: unknown; host?: string } = {}) =>
+  const send = (path: string, options: { method?: string; cookie?: string; body?: unknown; host?: string; from?: string; agent?: string } = {}) =>
     new Promise<Answer>((resolve, reject) => {
-      const headers: Record<string, string> = { host: options.host ?? HOST, 'user-agent': AGENT, 'x-forwarded-for': '100.64.0.9' }
+      const headers: Record<string, string> = { host: options.host ?? HOST, 'user-agent': options.agent ?? AGENT, 'x-forwarded-for': options.from ?? '100.64.0.9' }
       if (options.cookie !== undefined) headers.cookie = options.cookie
       if (options.body !== undefined) Object.assign(headers, { 'content-type': 'application/json', origin: ORIGIN })
       const req = request({ port, host: '127.0.0.1', path, method: options.method ?? (options.body === undefined ? 'GET' : 'POST'), agent: false, headers }, (res) => {
@@ -145,5 +149,62 @@ describe('the sign-in through a proxy on this machine', () => {
     const out = await send('/api/auth/sign-out', { cookie, body: {} })
     expect([out.headers['set-cookie']].flat()[0]).toMatch(/Max-Age=0/)
     expect((await send('/api/state', { cookie })).status).toBe(401)
+  })
+})
+
+describe('an invitation of a new device through the routes (BTN-1655)', () => {
+  const ANDROID = 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
+  const claimCookieOf = (answer: Answer) => {
+    const line = [answer.headers['set-cookie'] ?? []].flat().find((each) => each.startsWith(`${INVITE_COOKIE}=`))
+    expect(line).toMatch(/Path=\/api\/auth\/invite\/; HttpOnly; SameSite=Strict/)
+    return line!.split(';')[0]!
+  }
+
+  it('lets the new device in after "Let in": its claim cookie collects a device token of its own', async () => {
+    const { send } = await hubOf()
+    const owner = cookieOf(await send('/api/auth/key', { body: { key: KEY } }))
+    expect((await send('/api/auth/invites/create', { body: {} })).status).toBe(401)
+    const made = JSON.parse((await send('/api/auth/invites/create', { cookie: owner, body: {} })).body) as InviteMade
+    const opened = await send('/api/auth/invite/open', { body: { link: made.secret }, agent: ANDROID, from: '100.64.0.12' })
+    expect(JSON.parse(opened.body)).toEqual({ state: 'waiting', digits: expect.stringMatching(/^\d\d$/), expiresAt: made.expiresAt })
+    const claim = claimCookieOf(opened)
+    const view = JSON.parse((await send('/api/auth/devices', { cookie: owner, body: {} })).body) as DevicesView
+    expect(view.invites).toMatchObject([{ id: made.id, opened: { device: 'Chrome on Android', from: '100.64.0.12', digits: JSON.parse(opened.body).digits } }])
+    expect(JSON.parse((await send('/api/auth/invite/wait', { cookie: claim, body: {} })).body)).toMatchObject({ state: 'waiting' })
+    expect((await send('/api/auth/invites/admit', { cookie: owner, body: { id: made.id } })).status).toBe(200)
+    // The link alone, with no claim, gets nothing.
+    const stranger = await send('/api/auth/invite/wait', { body: {} })
+    expect(JSON.parse(stranger.body)).toEqual({ state: 'gone' })
+    expect(stranger.headers['set-cookie']).toBeUndefined()
+    const admitted = await send('/api/auth/invite/wait', { cookie: claim, body: {} })
+    expect(JSON.parse(admitted.body)).toEqual({ state: 'admitted', device: 'Chrome on Android' })
+    const device = cookieOf(admitted)
+    expect((await send('/api/state', { cookie: device })).status).toBe(200)
+    const after = JSON.parse((await send('/api/auth/devices', { cookie: owner, body: {} })).body) as DevicesView
+    expect(after.devices.map((each) => [each.device, each.byInvite])).toEqual([
+      ['Safari on iPhone', false],
+      ['Chrome on Android', true],
+    ])
+    expect(after.invites).toEqual([])
+  })
+
+  it('answers a wrong link "gone", as an expired one, and a link another browser opened first "used"', async () => {
+    const { send } = await hubOf()
+    const owner = cookieOf(await send('/api/auth/key', { body: { key: KEY } }))
+    const made = JSON.parse((await send('/api/auth/invites/create', { cookie: owner, body: {} })).body) as InviteMade
+    expect(JSON.parse((await send('/api/auth/invite/open', { body: { link: 'no-such-link' } })).body)).toEqual({ state: 'gone' })
+    expect(JSON.parse((await send('/api/auth/invite/open', { body: {} })).body)).toEqual({ state: 'gone' })
+    await send('/api/auth/invite/open', { body: { link: made.secret } })
+    expect(JSON.parse((await send('/api/auth/invite/open', { body: { link: made.secret }, from: '198.51.100.20' })).body)).toEqual({ state: 'used' })
+  })
+
+  it('refuses an address past the rate limit of the open routes, and only that address', async () => {
+    const { send } = await hubOf()
+    for (let count = 0; count < INVITE_CALLS; count++) expect((await send('/api/auth/invite/open', { body: { link: 'guess' }, from: '198.51.100.20' })).status).toBe(200)
+    const refused = await send('/api/auth/invite/open', { body: { link: 'guess' }, from: '198.51.100.20' })
+    expect(refused.status).toBe(429)
+    expect(JSON.parse(refused.body).notice.code).toBe('auth.inviteSlowDown')
+    expect((await send('/api/auth/invite/wait', { body: {}, from: '198.51.100.20' })).status).toBe(429)
+    expect((await send('/api/auth/invite/open', { body: { link: 'guess' }, from: '198.51.100.21' })).status).toBe(200)
   })
 })
