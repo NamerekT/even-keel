@@ -35,6 +35,8 @@ export const ciEn = {
   same: 'same commit',
   sameTitle: 'Ran the same commit to the same end as the CI above. Click to open',
   tasks: 'Tasks of the push',
+  sync: 'sync',
+  more: (count: number) => `+${count}`,
   fixTask: 'fix of main',
   fixTaskTitle: 'The row of this fix in the chain archive',
   hold: {
@@ -60,7 +62,7 @@ export const ciEn = {
   },
   by: { chain: 'pushed by the chain', hand: 'pushed by hand' },
   pushedBy: { chain: 'by the chain', hand: 'by hand' },
-  facts: { status: 'Status', event: 'Event', by: 'Pushed', runs: 'Runs' },
+  facts: { status: 'Status', event: 'Event', by: 'Pushed', runs: 'Runs', commits: 'Commits' },
   jobs: 'Jobs',
   noJobs: 'No jobs yet',
   stepsOnPage: 'Steps are on the run page',

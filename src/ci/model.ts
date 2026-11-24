@@ -139,6 +139,11 @@ export interface CiView {
   pushed: { commit: string; at: string } | null
   /** Set by the service for the page: who holds the runner (`busyRunner`); absent — nobody. */
   busy?: BusyRunner
+  /**
+   * The subjects of the commits each push of the history brought since the previous push, merges left out (BTN-1586), by
+   * the push's commit; a push without a key — unknown, its line keeps the top commit's title.
+   */
+  brought?: Record<string, string[]>
 }
 
 /** A run or a push that sits this long without a runner means the CI does not take work. */
@@ -277,4 +282,36 @@ const TASK_ID = /\[([A-Z][A-Z0-9]*-\d+)\]/g
 
 export function taskIdsOf(subjects: string[]): string[] {
   return [...new Set(subjects.flatMap((subject) => [...subject.matchAll(TASK_ID)].map((match) => match[1]!)))]
+}
+
+/** What a push brought to its branch: the task ids of all its commits, and the subjects of those that are no merges. */
+export interface Brought {
+  tasks: string[]
+  subjects: string[]
+}
+
+/** Reads `git log --format=%P%x09%s`: a commit with more than one parent is a merge. */
+export function broughtOf(lines: string[]): Brought {
+  const commits = lines.flatMap((line) => {
+    const tab = line.indexOf('\t')
+    return tab < 0 ? [] : [{ merge: line.slice(0, tab).trim().includes(' '), subject: line.slice(tab + 1) }]
+  })
+  return { tasks: taskIdsOf(commits.map((each) => each.subject)), subjects: commits.filter((each) => !each.merge).map((each) => each.subject) }
+}
+
+/**
+ * What a push's line says (BTN-1586): the tasks its commits name, else its first commit and how many more, `sync` for a
+ * push of merges alone; the top commit's title when what it brought is unknown — no previous push, a commit not fetched.
+ */
+export type PushLabel =
+  | { kind: 'tasks'; keys: string[] }
+  | { kind: 'commit'; subject: string; more: number }
+  | { kind: 'sync' }
+  | { kind: 'title'; title: string }
+
+export function pushLabel(title: string, subjects: string[] | undefined): PushLabel {
+  if (subjects === undefined) return { kind: 'title', title }
+  if (subjects.length === 0) return { kind: 'sync' }
+  const keys = taskIdsOf(subjects)
+  return keys.length > 0 ? { kind: 'tasks', keys } : { kind: 'commit', subject: subjects[0]!, more: subjects.length - 1 }
 }

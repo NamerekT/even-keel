@@ -1,7 +1,7 @@
 import { remoteHead } from '../git/remote-head.js'
 import type { Git } from '../git/types.js'
 import { englishOf, fail, notice, noticeOf, sameNotice } from '../notice/notice.js'
-import { currentRunOf, failedKey, failedUntaken, isFinished, mediansOf, pushesOf, pushKey, runOfJobs, taskIdsOf, type CiJob, type CiRun, type CiSource, type CiView, type CurrentRun, type WorkflowRun } from './model.js'
+import { broughtOf, currentRunOf, failedKey, failedUntaken, isFinished, mediansOf, pushesOf, pushKey, runOfJobs, type CiJob, type CiRun, type CiSource, type CiView, type CurrentRun, type WorkflowRun } from './model.js'
 import type { CiTarget } from './remote.js'
 import { readFailure, type FailedRun } from './report.js'
 import { CI_TITLES } from './verdict.js'
@@ -48,7 +48,8 @@ export class CiWatch {
   private branch: string | undefined
   private polledAt = -Infinity
   private wantedAt = -Infinity
-  private tasksOf: { push: string; tasks: string[] } | null = null
+  /** What each push brought, by its `git log` range, kept for the ranges of the last poll's history. */
+  private brought = new Map<string, PushBrought>()
   /** The jobs of each failed run, read once to tell a run no runner took (BTN-761); by `failedKey`. */
   private readonly failedJobs = new Map<string, CiJob[]>()
   /** The failed runs whose jobs could not be read, logged once each. */
@@ -70,6 +71,7 @@ export class CiWatch {
       checkedAt: null,
       current: null,
       history: [],
+      brought: {},
       medians: {},
       pushed: null,
     }
@@ -127,10 +129,10 @@ export class CiWatch {
         this.branch = branch
         this.head = undefined
         this.polledAt = -Infinity
-        this.tasksOf = null
+        this.brought.clear()
         this.failedJobs.clear()
         this.push = null
-        this.view = { ...this.view, checkedAt: null, current: null, history: [], medians: {}, pushed: null }
+        this.view = { ...this.view, checkedAt: null, current: null, history: [], brought: {}, medians: {}, pushed: null }
       }
       const pushed = await this.readHead(now, branch)
       const counted = this.counted()
@@ -213,13 +215,15 @@ export class CiWatch {
     try {
       const read = await source.runs(HISTORY, branch)
       const run = currentRunOf(read)
-      const current = run === null ? null : await this.currentOf(source, run, read)
+      const brought = await this.readBrought(read)
+      const current = run === null ? null : await this.currentOf(source, run, read, brought)
       // A run of the push its jobs showed at work (BTN-1576) is at work in the history too.
       const taken = read.map((each) => current?.runs.find((other) => other.run.id === each.id)?.run ?? each)
       const runs = await this.markUntaken(source, taken, current)
       const marked = (each: WorkflowRun) => ({ ...each, run: runs.find((other) => other.id === each.run.id) ?? each.run })
       this.view.current = current === null ? null : { ...current, runs: current.runs.map(marked) }
       this.view.history = runs
+      this.view.brought = Object.fromEntries([...brought].flatMap(([commit, each]) => (each.subjects === null ? [] : [[commit, each.subjects]])))
       this.view.medians = mediansOf(runs, now)
       const pushed = this.push
       if (pushed !== null && runs.some((each) => each.commit === pushed.commit || Date.parse(each.createdAt) >= Date.parse(pushed.at))) {
@@ -244,7 +248,7 @@ export class CiWatch {
   }
 
   /** The push of `run` with each workflow's jobs; a finished run's jobs are read again only once it ends anew. */
-  private async currentOf(source: CiSource, run: CiRun, runs: CiRun[]): Promise<CurrentRun> {
+  private async currentOf(source: CiSource, run: CiRun, runs: CiRun[], brought: Map<string, PushBrought>): Promise<CurrentRun> {
     const push = pushesOf(runs).find((each) => each.key === pushKey(run))!
     const shown = new Map((this.view.current?.runs ?? []).map((each) => [each.run.id, each]))
     const workflows: WorkflowRun[] = []
@@ -254,8 +258,8 @@ export class CiWatch {
       const jobs = same ? known.jobs : await source.jobs(each)
       workflows.push({ run: runOfJobs(each, jobs), jobs })
     }
-    if (this.tasksOf?.push !== push.key) this.tasksOf = { push: push.key, tasks: push.manual ? [] : await this.tasksFor(push.runs[0]!, runs) }
-    return { commit: push.commit, title: push.title, manual: push.manual, tasks: this.tasksOf.tasks, runs: workflows }
+    const tasks = push.manual ? [] : (brought.get(push.commit)?.tasks ?? [])
+    return { commit: push.commit, title: push.title, manual: push.manual, tasks, runs: workflows }
   }
 
   /**
@@ -293,11 +297,38 @@ export class CiWatch {
     }
   }
 
-  /** The ids in the subjects of the commits since the commit of the previous run. */
-  private async tasksFor(run: CiRun, runs: CiRun[]): Promise<string[]> {
-    const previous = runs.slice(runs.indexOf(run) + 1).find((each) => each.commit !== run.commit)
-    const range = previous === undefined ? ['-1', run.commit] : [`-${TASK_COMMITS}`, `${previous.commit}..${run.commit}`]
-    const log = await this.deps.git(this.deps.repo, ['log', '--format=%s', ...range])
-    return log.code === 0 ? taskIdsOf(log.out.split('\n')) : []
+  /**
+   * What each push of the history brought since the previous push of another commit, by the push's commit: a run by hand
+   * is no push and brings nothing. Each range is read from git once; the oldest push has only its own commit's tasks.
+   */
+  private async readBrought(runs: CiRun[]): Promise<Map<string, PushBrought>> {
+    const pushes = pushesOf(runs).filter((push) => !push.manual)
+    const read = new Map<string, PushBrought>()
+    const ranges = new Map<string, PushBrought>()
+    for (const [index, push] of pushes.entries()) {
+      if (read.has(push.commit)) continue
+      const previous = pushes.slice(index + 1).find((each) => each.commit !== push.commit)
+      const range = previous === undefined ? ['-1', push.commit] : [`-${TASK_COMMITS}`, `${previous.commit}..${push.commit}`]
+      const key = range.join(' ')
+      const brought = this.brought.get(key) ?? (await this.readRange(range, previous !== undefined))
+      // A range git could not read is asked again at the next poll: the commits may be fetched by then.
+      if (brought !== null) ranges.set(key, brought)
+      read.set(push.commit, brought ?? { tasks: [], subjects: null })
+    }
+    this.brought = ranges
+    return read
   }
+
+  private async readRange(range: string[], known: boolean): Promise<PushBrought | null> {
+    const log = await this.deps.git(this.deps.repo, ['log', '--format=%P%x09%s', ...range])
+    if (log.code !== 0) return null
+    const brought = broughtOf(log.out.split('\n'))
+    return { tasks: brought.tasks, subjects: known ? brought.subjects : null }
+  }
+}
+
+/** `subjects` `null` — unknown: no previous push to count from, or git does not have the commits. */
+interface PushBrought {
+  tasks: string[]
+  subjects: string[] | null
 }

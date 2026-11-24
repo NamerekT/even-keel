@@ -35,6 +35,8 @@ export const ciRu = {
   same: 'тот же коммит',
   sameTitle: 'Прогнал тот же коммит с тем же итогом, что CI выше. Нажмите, чтобы раскрыть',
   tasks: 'Задачи пуша',
+  sync: 'синхронизация',
+  more: (count: number) => `+${count}`,
   fixTask: 'починка main',
   fixTaskTitle: 'Строка этой починки в архиве цепочки',
   hold: {
@@ -59,7 +61,7 @@ export const ciRu = {
   },
   by: { chain: 'пуш цепочки', hand: 'пуш вручную' },
   pushedBy: { chain: 'цепочкой', hand: 'вручную' },
-  facts: { status: 'Статус', event: 'Запуск', by: 'Запушен', runs: 'Прогоны' },
+  facts: { status: 'Статус', event: 'Запуск', by: 'Запушен', runs: 'Прогоны', commits: 'Коммиты' },
   jobs: 'Задачи прогона',
   noJobs: 'Задач прогона пока нет',
   stepsOnPage: 'Шаги — на странице прогона',

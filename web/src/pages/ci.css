@@ -229,6 +229,7 @@
 
 .ci__all:focus-visible,
 .ci__open:focus-visible,
+.ci__stretch:focus-visible,
 .ci__key:focus-visible,
 .ci__fix:focus-visible {
   outline: 2px solid var(--accent);
@@ -475,11 +476,47 @@
 }
 
 .ci__run {
+  position: relative;
   display: flex;
   align-items: baseline;
   gap: 8px;
   color: var(--fg);
   text-decoration: none;
+}
+
+/* The run's link over its whole line or row; a task key and a workflow dot sit above it (BTN-1586). */
+.ci__stretch {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-small);
+}
+
+.ci__key--over,
+.ci__past .ci__dots {
+  position: relative;
+}
+
+/* A push of merges alone, and the count of commits after the first one's subject. */
+.ci__sync,
+.ci__more-commits {
+  color: var(--fg-muted);
+}
+
+.ci__brought {
+  display: flex;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.ci__subject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ci__more-commits {
+  flex: none;
 }
 
 .ci__run:hover .ci__title {
@@ -637,6 +674,7 @@ a.ci__key:hover {
 }
 
 .ci__past {
+  position: relative;
   display: grid;
   grid-template-columns: 8px auto minmax(0, 1fr) auto auto 7em;
   align-items: center;
