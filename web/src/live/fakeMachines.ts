@@ -2,6 +2,7 @@ import { fail, notice } from '../../../src/notice/notice.js'
 import { REQUEST_MS } from '../../../src/link/protocol.js'
 import { installCommand } from '../../../src/agent/install-command.js'
 import { FAKE_INSTALL_OUTPUT } from './fakeCliCopies.js'
+import { FakeMachineAccounts } from './fakeMachineAccounts.js'
 import { MACHINE_PALETTE, machineColors } from '../../../src/link/colors.js'
 import { JOIN_KIND, type JoinRequest } from '../../../src/jobs/model.js'
 import type { FolderProbe } from '../../../src/link/view.js'
@@ -134,6 +135,8 @@ export class FakeNetwork {
   private readonly memory = new Map<string, NonNullable<MachinePage['memory']>>()
   /** With `?machines=taken` (BTN-1262), the laptop's first project's folder is held by a gone machine's mark until taken over. */
   private held: boolean
+  /** What the row menus of the machines' views changed there (BTN-1584). */
+  readonly accounts = new FakeMachineAccounts(() => this.changed())
 
   /** Each machine of `names` with its colour, the picked one or the palette's by its place. */
   colorsOf(names: Record<string, string>): Record<string, string> {
@@ -181,10 +184,15 @@ export class FakeNetwork {
         agents: this.agentsOf(state, id, id === own),
         limitedUntil: id === 'machine-2' && this.mode === 'limit' ? { claude: until.toISOString() } : {},
         projects: pooled,
-        ...this.cardAccounts(state, id, id === own, until),
+        ...this.editedAccounts(this.cardAccounts(state, id, id === own, until), id, id === own),
         ...(report !== undefined && report.api !== undefined && report.api !== FAKE_API && { otherBuild: report.evenKeel }),
       }
     })
+  }
+
+  /** A machine elsewhere's accounts with its row menus' changes; the own one's are the hub's. */
+  private editedAccounts(held: Pick<MachineCard, 'accounts' | 'active'>, id: string, own: boolean): Pick<MachineCard, 'accounts' | 'active' | 'apps'> {
+    return own ? held : { ...held, ...this.accounts.apply(id, held.accounts) }
   }
 
   /** The laptop's git has no name (`?machines=nocli` — it has), until the page's window sets one (BTN-1503). */

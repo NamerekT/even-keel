@@ -53,6 +53,7 @@ export const machinePanelEn: Messages['machinePanel'] = {
     checkedNote: 'The hub’s sessions of this agent move to the checked copy too.',
     checkedComing: (name) => `The hub runs the checked copy: "${name}" downloads it itself.`,
     addOffline: (name) => `"${name}" is off the link: add an account once it is back`,
+    accountsOffline: (name) => `"${name}" is off the link: its accounts can be changed once it is back`,
     signedOut: 'not signed in',
     settingsTitle: (name) => `"${name}" in the project`,
     settingsHint: "The settings of the picked machine in this project. The project's other settings are the same for every machine: they are behind the button below.",

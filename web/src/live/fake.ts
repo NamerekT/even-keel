@@ -722,6 +722,12 @@ export function createFakeSource(search: string): LiveSource {
         chatMail()
         return
       }
+      const edited = network.accounts.command(state, network.cards(state), name, body, (hub, args) => fakeCommand(state, hub, args, launches))
+      if (edited !== undefined) {
+        current = { ...current, state: edited }
+        notify()
+        return
+      }
       if (network.command(name, body)) {
         // A colour or the own machine's capacity is the state's too: the chain's tags and the shared settings (BTN-1272).
         if (name === 'machines/color' && state.machineNames !== undefined) current = { ...current, state: { ...state, machineColors: network.colorsOf(state.machineNames) } }

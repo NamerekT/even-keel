@@ -393,7 +393,7 @@ export class MachineNetwork {
     return answer
   }
 
-  private async accountsOf(machine: string): Promise<MachineServices['account']> {
+  async accountsOf(machine: string): Promise<MachineServices['account']> {
     return (await this.servicesOf(machine)).account
   }
 

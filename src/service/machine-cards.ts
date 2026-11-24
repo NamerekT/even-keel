@@ -47,6 +47,8 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
       limits: isOwn ? entry.limits : mirror!.page.limits(entry.key),
       ...(entry.sessions !== undefined && entry.sessions.length > 0 && { sessions: entry.sessions }),
       ...(entry.transport !== undefined && { transport: entry.transport }),
+      ...(entry.removing && { removing: true as const }),
+      ...(entry.apiKey && { apiKey: true as const }),
     }))
     const online = isOwn || deps.online(record.id)
     const ownGit = isOwn ? deps.ownGit() : null
@@ -67,6 +69,7 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
       ...limitedOf(accounts.filter((account) => account.signedIn), now),
       accounts,
       active: panel?.active || null,
+      ...(!isOwn && mirror?.page.panel()?.apps !== undefined && { apps: mirror.page.panel()!.apps }),
       projects: (await deps.folders(record.id)).map((row) => {
         const project = facts?.projects[row.project]
         const pause = project?.packagesPause
