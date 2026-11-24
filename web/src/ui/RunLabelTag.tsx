@@ -16,6 +16,8 @@ export function EffortBars({ effort, spaced, className }: { effort: string | nul
 /** What a task's sessions run on (`state.runs`): the provider, the model without its route, the effort as a bar scale. */
 export function RunLabelTag({ run, as: Tag = 'span' }: { run: TaskRun; as?: 'span' | 'li' }) {
   const { provider, model, effort } = runView(run)
+  // A run of machines alone (BTN-1623) has nothing to label here: its machines are the machine tag.
+  if (provider === null && effortLevel(effort) === null) return null
   return (
     <Tag className="tag run-label" title={taskRunText(run)}>
       {provider !== null && <span className="run-label__provider">{provider}{model !== null && ' | '}</span>}

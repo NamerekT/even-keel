@@ -35,8 +35,8 @@ describe('a machine elsewhere end to end', { timeout: scaled(180_000) }, () => {
     return (read.packages[TASKS]?.installs ?? []).map((install) => install.id)
   }
 
-  /** The hub with the tasks package and one task, the machine joined, connected and the project's only machine. */
-  async function connected(prepared?: () => void): Promise<string> {
+  /** The hub with the tasks package and one task, the machine joined, connected and, unless `keepOwn`, the project's only machine. */
+  async function connected(prepared?: () => void, keepOwn = false): Promise<string> {
     run.forge = true
     run.project.tracker = 'builtin'
     run.agent.script('ABC-1', commitAndMerge('ABC-1.txt'))
@@ -61,7 +61,7 @@ describe('a machine elsewhere end to end', { timeout: scaled(180_000) }, () => {
       return rows.some((row) => row.id === machine && row.enabled)
     }, 'the machine connected', { step: 500 })
     const own = rows.find((row) => row.own)!
-    await run.post('machines/enable', { project: PROJECT_ID, machine: own.id, enabled: false })
+    if (!keepOwn) await run.post('machines/enable', { project: PROJECT_ID, machine: own.id, enabled: false })
 
     expect(existsSync(join(elsewhere.checkout, '.git'))).toBe(true)
     expect(installsOf(join(elsewhere.dir, 'state', 'packages.json'))).toEqual(hubInstalls)
@@ -99,6 +99,17 @@ describe('a machine elsewhere end to end', { timeout: scaled(180_000) }, () => {
 
     const launches = run.agent.calls.filter((call) => call.kind === 'launch')
     expect(launches.map(({ task, provider, model }) => ({ task, provider, model }))).toEqual([{ task: 'ABC-1', provider: 'claude', model: 'haiku' }])
+  })
+
+  it("gives a task pinned to the machine elsewhere to that machine while the hub's own machine is free (BTN-1623)", async () => {
+    const machine = await connected(undefined, true)
+    await run.post('task/run', { task: 'ABC-1', machines: [machine] })
+    await run.startChain(PROJECT_ID)
+    await done()
+
+    const launches = run.agent.calls.filter((call) => call.kind === 'launch')
+    expect(launches.map((call) => call.task)).toEqual(['ABC-1'])
+    expect(launches[0]!.cwd.startsWith(elsewhere.checkout + sep) || launches[0]!.cwd.startsWith(`${elsewhere.checkout}/`)).toBe(true)
   })
 
   it("reads the transcript and the checkpoint of a session elsewhere on that machine, not in the hub's own folders (BTN-1574)", async () => {
