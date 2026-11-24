@@ -39,6 +39,7 @@ import { ChainArchive } from './ChainArchive.js'
 import { Divider, HiddenCount, SubtasksChip } from './ChainDivider.js'
 import { Forge } from './Forge.js'
 import type { Arrival } from './useArrival.js'
+import { useLockedEntry } from './useLockedEntry.js'
 import { useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
 import { useChainMotion, useSwitched } from './useChainMotion.js'
 import { useArchivePages } from './useArchivePages.js'
@@ -61,6 +62,8 @@ interface Props {
   links: (task: string) => TaskLinks
   /** The "Move to Todo" button of a locked blocker, `null` for none. */
   ready: (block: ChainBlock) => ReadyButton | null
+  /** The ghost and the arrival of a locked blocker its button puts into the chain, as `useArrival` gives them; none — no ghost. */
+  entry?: Entry
   /** The task has the "To the backlog" button. */
   unready: (block: ChainBlock) => boolean
   onCard: (task: string) => void
@@ -72,6 +75,12 @@ interface Props {
   rowSearch?: string
   /** The machine the chain is filtered to; `undefined` — all machines. A switch of it is no motion of the chain (BTN-1577). */
   machine?: string
+}
+
+export interface Entry {
+  point: (task: string | null) => void
+  move: (task: string, title: string, locked: boolean) => void
+  settle: (task: string) => void
 }
 
 export interface Adding {
@@ -93,8 +102,11 @@ interface Relatives {
 type Relation = 'dragged' | 'blocker' | 'dependent'
 
 export function ChainList(props: Props) {
-  const { project, chain, scale, focus, ghost: aimed, arrival, incoming, links, ready, unready, onCard, adding = null, switcher, rowSearch, machine } = props
+  const { project, chain, scale, focus, ghost: aimed, arrival, incoming, links, ready, entry, unready, onCard, adding = null, switcher, rowSearch, machine } = props
   const { ghost, leaving } = useLingering(aimed, chain)
+  /** The ghost is a locked blocker's: its row stays in the chain beside it and its button is under the cursor. */
+  const lockedAim = aimed !== null && chain.some((block) => block.id === aimed.id && block.locked)
+  const stands = (block: ChainBlock) => block.id === ghost?.id && !block.locked && !block.open
   const [archivePages, setArchivePages] = useState(0)
   const [revealed, setRevealed] = useState(0)
   /** The presses of each milestone's "N more" button, by milestone; a fold of the milestone forgets them. */
@@ -123,7 +135,7 @@ export function ChainList(props: Props) {
   const settled = milestoneView(archive.visible, revealed, arrival?.id ?? focus, empty).sections.length
   // A ghost or an arrival behind a milestone's button stays there: only the address's focus opens the page (BTN-1188).
   const pages = view.sections.map((section) =>
-    milestonePage(section.blocks, more.get(pageKey(section)) ?? 0, { keeps: staysInView, counts: (block) => block.id !== ghost?.id, focus }),
+    milestonePage(section.blocks, more.get(pageKey(section)) ?? 0, { keeps: staysInView, counts: (block) => !stands(block), focus }),
   )
   const rows = pages.map((page) => [...page.head, ...page.kept])
   const blocks = rows.flat()
@@ -144,7 +156,7 @@ export function ChainList(props: Props) {
   const glide = useRef<(motion: Motion<ChainBlock>) => void>(() => {})
   const motion = useChainMotion(chainView, ordered, shown, incoming, grouped, (each) => glide.current(each))
   const switched = useSwitched(chainView)
-  const real = blocks.filter((block) => block.id !== ghost?.id)
+  const real = blocks.filter((block) => !stands(block))
   const tiers = tiersOf(real.map((block) => ({ ...block, live: blockMetered(block) })))
   // The ghost takes the size the task will have where it lands, so the swap for the real block does not jump.
   const ghostTier = ghost === null ? 'far' : (tiersOf(blocks.map((block) => ({ ...block, live: blockMetered(block) }))).get(ghost.id) ?? 'far')
@@ -155,9 +167,19 @@ export function ChainList(props: Props) {
 
   const keep = arrival === null ? 0 : view.revealed
   useEffect(() => setRevealed((current) => Math.max(current, keep)), [keep])
+  // A run that comes in above the open milestones — a task without one landing among them — does not fold the last of them (BTN-1642).
+  const lastShown = useRef<string | null | undefined>(undefined)
+  const tail = view.sections.at(-1)?.milestone
+  const following = view.next?.milestone
+  useEffect(() => {
+    if (following !== undefined && following !== null && following === lastShown.current) setRevealed(view.revealed + 1)
+    else lastShown.current = tail
+  }, [tail, following, view.revealed])
 
-  const coming = aimed?.id ?? arrival?.id ?? null
-  const ghosted = aimed !== null
+  // A locked blocker's ghost is not scrolled to: that would take its button from under the cursor; its landing is.
+  const ghosted = aimed !== null && !lockedAim
+  const coming = (ghosted ? aimed.id : null) ?? arrival?.id ?? null
+  const lockedEntry = useLockedEntry(listRef, lockedAim ? aimed.id : null, arrival !== null && !arrival.flying ? arrival.id : null)
   useEffect(() => {
     if (coming === null) return
     const timer = setTimeout(() => {
@@ -175,6 +197,7 @@ export function ChainList(props: Props) {
     unfocus(archiveView(ordered, 0, '').visible)
   }
   const foldMilestones = (kept: number) => {
+    lastShown.current = undefined
     setRevealed(kept)
     const folded = view.sections.slice(view.fixed + kept).map(pageKey)
     setMore((current) => new Map([...current].filter(([key]) => !folded.includes(key))))
@@ -243,8 +266,8 @@ export function ChainList(props: Props) {
                     archived={copies.get(block.id)?.archived === true}
                     beat={copies.get(block.id)?.beat ?? 0}
                   />
-                ) : block.id === ghost?.id ? (
-                  <GhostBlock key={block.id} block={block} tier={ghostTier} leaving={leaving} />
+                ) : stands(block) ? (
+                  <GhostBlock key={`ghost:${block.id}`} block={block} tier={ghostTier} leaving={leaving} />
                 ) : (
                   <Block
                     key={block.id}
@@ -270,7 +293,19 @@ export function ChainList(props: Props) {
                     onDismiss={sending ? undefined : () => void send('chain/dismiss', { project, task: block.id })}
                     onReassign={sending ? undefined : () => void send('chain/reassign', { project, task: block.id })}
                     ready={block.locked ? ready(block) : null}
-                    onReady={sending ? undefined : () => void send('task/ready', { task: block.id })}
+                    onReady={sending ? undefined : () => {
+                      if (entry !== undefined) {
+                        lockedEntry.press(block.id)
+                        // The button goes with the lock: the press holds the ghost till the landing, the pointer no longer.
+                        entry.point(null)
+                        entry.move(block.id, block.title ?? block.id, true)
+                      }
+                      void send('task/ready', { task: block.id }).then(() => entry?.settle(block.id))
+                    }}
+                    onAim={entry === undefined ? undefined : (on) => {
+                      lockedEntry.aim(on ? block.id : null)
+                      entry.point(on ? block.id : null)
+                    }}
                     onUnready={!unready(block) ? null : sending ? undefined : () => void send('task/unready', { task: block.id })}
                     onCard={onCard}
                   />
@@ -344,9 +379,9 @@ function openCount(section: Section<ChainBlock>, ghost: Ghost | null): number {
   return section.blocks.filter((block) => !block.locked && block.id !== ghost?.id && !isOwnName(block.id)).length
 }
 
-/** The chain with a stand-in for the ghost at its landing place, unless the task is in the chain already. */
+/** The chain with a stand-in for the ghost at its landing place, unless the task is in the chain already other than as a locked blocker. */
 function withGhost(blocks: ChainBlock[], ghost: Ghost | null): ChainBlock[] {
-  if (ghost === null || blocks.some((block) => block.id === ghost.id)) return blocks
+  if (ghost === null || blocks.some((block) => block.id === ghost.id && !block.locked)) return blocks
   const stand: ChainBlock = {
     id: ghost.id,
     title: ghost.title,
@@ -371,7 +406,9 @@ function withGhost(blocks: ChainBlock[], ghost: Ghost | null): ChainBlock[] {
     limit: null,
     start: null,
   }
-  const index = landingIndex(blocks, ghost.before)
+  const index = landingIndex(blocks, ghost.before, ghost.id)
+  // A locked blocker's stand joins the section of the task it stands before, as the locked rows do: its own milestone would split that section.
+  if (blocks.some((block) => block.id === ghost.id)) stand.milestone = blocks[index]?.milestone ?? ghost.milestone
   return [...blocks.slice(0, index), stand, ...blocks.slice(index)]
 }
 
@@ -467,13 +504,15 @@ interface BlockProps {
   onReassign: (() => void) | undefined
   ready: ReadyButton | null
   onReady: (() => void) | undefined
+  /** The pointer or the focus comes to the "Into the chain" button (`true`) or leaves it; `undefined` — no ghost to show. */
+  onAim: ((on: boolean) => void) | undefined
   /** "To the backlog"; `null` — the row has no such button, `undefined` — it is off while a command is on its way. */
   onUnready: (() => void) | null | undefined
   onCard: (task: string) => void
 }
 
 function Block(props: BlockProps) {
-  const { project, block, search, number, waits, links, scale, tier, rails, kin, marks, grouped, still, focused, movable, relation, arrival, offset, onHover, onDismiss, onReassign, ready, onReady, onUnready, onCard } =
+  const { project, block, search, number, waits, links, scale, tier, rails, kin, marks, grouped, still, focused, movable, relation, arrival, offset, onHover, onDismiss, onReassign, ready, onReady, onAim, onUnready, onCard } =
     props
   const { state } = useLive()
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
@@ -514,6 +553,10 @@ function Block(props: BlockProps) {
       title={ready.refused === null ? t.card.ready : t.chain.readyRefused(say(ready.refused))}
       draggable={false}
       onClick={onReady}
+      onMouseEnter={onAim && (() => onAim(true))}
+      onMouseLeave={onAim && (() => onAim(false))}
+      onFocus={onAim && (() => onAim(true))}
+      onBlur={onAim && (() => onAim(false))}
     >
       <IntoChainIcon />
     </button>

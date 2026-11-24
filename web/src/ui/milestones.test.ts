@@ -38,6 +38,11 @@ describe('milestoneView', () => {
     expect(milestoneView(chain, 0, 'X-1').revealed).toBe(0)
   })
 
+  it('reveals up to the later of two rows of one key: a locked blocker and its ghost (BTN-1642)', () => {
+    const view = milestoneView([...chain.slice(0, 4), block('A-9', 'v0.2', false), block('A-9', null, false), block('A-6', 'v0.3')], 0, 'A-9')
+    expect(view.sections.map((section) => section.milestone)).toEqual(['v0.1', 'v0.2', null])
+  })
+
   it('splits closed tasks of a milestone from its open ones when another milestone comes between', () => {
     const view = milestoneView([block('A-1', 'v0.2', false), block('A-2', 'v0.1', false), block('A-3', 'v0.2')], 0)
     expect(ids(view)).toEqual([

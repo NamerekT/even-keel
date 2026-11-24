@@ -15,6 +15,8 @@ interface Moving {
   since: number
   /** The command has been answered: without the task in the chain by now there is nothing to wait for. */
   settled: boolean
+  /** A locked blocker of the chain (BTN-1642): its own row moves to the place, no copy flies from the backlog. */
+  locked: boolean
 }
 
 export interface Arrival {
@@ -26,7 +28,8 @@ export interface Arrival {
 /**
  * A backlog task's way into the chain: a ghost where it would stand while its button is pointed at or pressed,
  * then its row sliding out of the backlog, a copy entering from behind the side column to the block it became, and a mark on that block.
- * On a narrow screen the panel covers the chain, so it is closed instead of the flight.
+ * On a narrow screen the panel covers the chain, so it is closed instead of the flight. A locked blocker of the chain
+ * has the same ghost and mark; its own row moves to the place instead of a flight (BTN-1642).
  */
 export function useArrival(state: EvenKeelState, project: string, blocks: ChainBlock[], closePanel: () => void) {
   const [aimed, setAimed] = useState<string | null>(null)
@@ -42,9 +45,9 @@ export function useArrival(state: EvenKeelState, project: string, blocks: ChainB
       if (moving.settled) setMoving(null)
       return
     }
-    const narrow = isNarrow()
+    const narrow = !moving.locked && isNarrow()
     if (narrow) closePanel()
-    if (narrow || stillMotion()) setLanded(moving.id)
+    if (moving.locked || narrow || stillMotion()) setLanded(moving.id)
     else setFlight(moving)
     setMoving(null)
   }, [moving, arrived, closePanel])
@@ -73,13 +76,14 @@ export function useArrival(state: EvenKeelState, project: string, blocks: ChainB
     arrival,
     flight,
     /** The backlog row that slides out: it stays hidden until the task arrives or the press comes to nothing. */
-    leaving: moving?.id ?? null,
+    leaving: moving !== null && !moving.locked ? moving.id : null,
     /** The task on its way from the backlog: its own flight marks it, the chain's entry motion must not. */
     incoming: moving?.id ?? flight?.id ?? landed,
     point: setAimed,
-    move: (id: string, title: string) => {
+    /** `locked` — the task is a locked blocker of the chain, not a backlog row. */
+    move: (id: string, title: string, locked = false) => {
       setLanded(null)
-      setMoving({ id, title, since: performance.now(), settled: false })
+      setMoving({ id, title, since: performance.now(), settled: false, locked })
     },
     settle: (id: string) => setMoving((current) => (current?.id === id ? { ...current, settled: true } : current)),
     land: (id: string) => {

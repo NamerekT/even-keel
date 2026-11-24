@@ -34,7 +34,8 @@ export function milestoneView<T extends { id: string; milestone: string | null; 
   }
   for (const name of empty.names) runs.splice(emptyIndex(runs, name, empty.order), 0, { milestone: name, blocks: [] })
   const current = runs.findIndex((run) => run.milestone !== null && run.blocks.some((block) => block.open))
-  const focused = runs.findIndex((run) => run.blocks.some((block) => block.id === focus))
+  // The last: a locked blocker's ghost shares its key with the locked row, and either may come first (BTN-1642).
+  const focused = runs.findLastIndex((run) => run.blocks.some((block) => block.id === focus))
   const reveal = current < 0 ? 0 : Math.max(revealed, focused - current)
   const shown = current < 0 ? runs.length : Math.min(runs.length, current + 1 + reveal)
   return {

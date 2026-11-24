@@ -3,7 +3,7 @@ import { isOpen, type Task } from '../tracker/model.js'
 import type { ChainState, DispatcherDeps, ProjectOrder } from './model.js'
 import { milestoneSequence, withMilestoneOrder, type SequencedMilestone } from './milestone-sequence.js'
 import { activeMilestone, milestoneCandidate, type ChainView } from './milestones.js'
-import { chainOrder, waitingBlockers, withFresh } from './order.js'
+import { ancestorsOf, chainOrder, waitingBlockers, withFresh, withWaiting } from './order.js'
 import type { Reviews } from './reviews.js'
 import { admits, changedAfterEntry, isActive, isTerminal, missingLabel, requiredOn, type ChainRules } from './rules.js'
 
@@ -167,7 +167,7 @@ export class TaskLists {
   }
 
   /** The manual order with the chain's new tasks put in and the gone ones dropped; `undefined` — there is none or nothing changes. */
-  private placed(project: string, tasks: Task[]): string[] | undefined {
+  private placed(project: string, tasks: Task[], waiting: Task[] = this.waiting.get(project) ?? []): string[] | undefined {
     const stored = this.state.orders[project]
     if (stored === undefined) return undefined
     const open = new Set(tasks.map((task) => task.id))
@@ -178,7 +178,17 @@ export class TaskLists {
     const preferred = this.preferred(project, kept)!.filter((id) => open.has(id))
     const running = new Set(this.runningOf(project))
     const pinned = preferred.findIndex((id) => !running.has(id))
-    const base = withFresh(tasks, preferred, fresh, pinned < 0 ? preferred.length : pinned)
+    // A new task that holds another, even through a blocker still locked — a locked blocker put "Into the chain" — keeps
+    // the place it stood at locked, as `withWaiting` shows it (BTN-1642).
+    const locked = waiting.filter((task) => !open.has(task.id))
+    const all = [...tasks, ...locked]
+    const holding = new Set(all.flatMap((task) => [...task.blockedBy, ...ancestorsOf(task)]))
+    const holds = fresh.filter((id) => holding.has(id))
+    const ranked = withFresh(tasks, preferred, fresh.filter((id) => !holding.has(id)), pinned < 0 ? preferred.length : pinned)
+    const blockers = new Map(all.map((task) => [task.id, task.blockedBy]))
+    const ancestors = new Map(all.map((task) => [task.id, ancestorsOf(task)]))
+    const shown = new Set(locked.map((task) => task.id))
+    const base = withWaiting(ranked, [...holds, ...shown], blockers, ancestors).filter((id) => !shown.has(id))
     try {
       return chainOrder(tasks, base)
     } catch {
@@ -223,7 +233,8 @@ export class TaskLists {
       const candidate = milestoneCandidate(task, donor, planned)
       const tasks = [...chain, candidate]
       try {
-        const order = chainOrder(tasks, this.preferred(project, this.placed(project, tasks) ?? this.state.orders[project]))
+        const rest = blockers.filter((each) => each.id !== task.id)
+        const order = chainOrder(tasks, this.preferred(project, this.placed(project, tasks, rest) ?? this.state.orders[project]))
         landing[task.id] = order[order.indexOf(task.id) + 1] ?? null
         if (candidate !== task) landingMilestones[task.id] = candidate.milestone!
       } catch (error) {

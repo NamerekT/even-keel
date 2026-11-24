@@ -3,11 +3,17 @@ interface Item {
   locked: boolean
 }
 
-/** Where in the list a task that will stand right before `before` goes: ahead of the locked blockers shown in front of that task; the end for `null` or a task the list lacks. */
-export function landingIndex(blocks: Item[], before: string | null): number {
+/**
+ * Where in the list a task that will stand right before `before` goes: ahead of the locked blockers shown in front of that
+ * task, or right under `own`, the locked row of the task itself, when it is one of them; the end for `null` or a task the list lacks.
+ */
+export function landingIndex(blocks: Item[], before: string | null, own?: string): number {
   let index = before === null ? -1 : blocks.findIndex((block) => block.id === before)
   if (index < 0) return blocks.length
-  while (index > 0 && blocks[index - 1]!.locked) index--
+  while (index > 0 && blocks[index - 1]!.locked) {
+    if (blocks[index - 1]!.id === own) return index
+    index--
+  }
   return index
 }
 

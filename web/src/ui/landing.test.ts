@@ -14,6 +14,14 @@ describe('landingIndex', () => {
     expect(landingIndex(blocks, 'ABC-2')).toBe(1)
   })
 
+  it('puts a locked blocker of that task right under its own locked row, so the rows above it stay put (BTN-1642)', () => {
+    const blocks = [block('ABC-1'), block('ABC-8', true), block('ABC-9', true), block('ABC-2'), block('ABC-3')]
+    expect(landingIndex(blocks, 'ABC-2', 'ABC-8')).toBe(2)
+    expect(landingIndex(blocks, 'ABC-2', 'ABC-9')).toBe(3)
+    expect(landingIndex(blocks, 'ABC-3', 'ABC-9')).toBe(4)
+    expect(landingIndex(blocks, 'ABC-1', 'ABC-9')).toBe(0)
+  })
+
   it('goes to the end for no task or a task the list lacks', () => {
     const blocks = [block('ABC-1'), block('ABC-2')]
     expect(landingIndex(blocks, null)).toBe(2)
