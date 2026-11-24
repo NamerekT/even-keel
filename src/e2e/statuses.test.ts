@@ -90,6 +90,49 @@ describe('the statuses of the tracker', { timeout: scaled(60_000) }, () => {
     expect(run.log).toContain('Board: closed ABC-1, all its subtasks are closed')
   })
 
+  it('stops the session that split its task once its turn ends, the parent open and its worktree kept (BTN-1652)', async () => {
+    run.board.add('ABC-1')
+    const gate = new Gate()
+    run.agent.script('ABC-1', async (turn) => {
+      run.board.child('ABC-2', 'ABC-1')
+      run.board.tasks.get('ABC-2')!.status = BACKLOG
+      await turn.park(gate)
+      return { say: 'split into ABC-2' }
+    })
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => launches().length === 1, 'ABC-1 launched')
+    const [first] = launches()
+    const stops = () => run.agent.calls.filter((call) => call.kind === 'stop' && call.sessionId === first!.sessionId)
+
+    // Mid-turn the session of the split task is left alone.
+    await run.pass(60_000)
+    expect(stops()).toEqual([])
+    gate.open()
+    await run.until(() => stops().length === 1, 'the parent session stopped')
+    await run.pass(60_000)
+    expect(stops()).toHaveLength(1)
+    expect(run.board.status('ABC-1')).toBe('Todo')
+    expect(existsSync(first!.cwd)).toBe(true)
+    expect(run.log).toContain(`chain: ABC-1 became a parent, its session ${first!.sessionId} is stopped`)
+  })
+
+  it('leaves the session that split its task while it waits on its question (BTN-1652)', async () => {
+    run.board.add('ABC-1')
+    run.agent.script('ABC-1', async () => {
+      run.board.child('ABC-2', 'ABC-1')
+      run.board.tasks.get('ABC-2')!.status = BACKLOG
+      return { ask: 'Split this way?' }
+    })
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => launches().length === 1, 'ABC-1 launched')
+    await run.until(() => !run.service.dispatcher.state.active.some((each) => each.current?.task === 'ABC-1'), 'ABC-1 left the chain')
+    await run.pass(120_000)
+    expect(run.agent.calls.filter((call) => call.kind === 'stop')).toEqual([])
+    expect(existsSync(launches()[0]!.cwd)).toBe(true)
+  })
+
   it('orders the open subtask of a parent that blocks tasks before them and runs it first (BTN-1235)', async () => {
     run.board.add('ABC-1')
     run.board.child('ABC-9', 'ABC-1')

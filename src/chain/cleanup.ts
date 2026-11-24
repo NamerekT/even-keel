@@ -41,6 +41,10 @@ const retryable = (error: Notice): boolean => transientFailure(error) !== null |
 export class Cleanups {
   /** The project's released tasks the tracker says are done, awaiting their cleanup. */
   readonly done = new Map<string, Set<string>>()
+  /** The project's released tasks the tracker says got subtasks and are still open, whose resting session is stopped (BTN-1652). */
+  readonly parents = new Map<string, Set<string>>()
+  /** The sessions of parents already stopped, in memory: one is stopped once, whatever the snapshot shows meanwhile. */
+  private readonly stoppedParents = new Set<string>()
   /**
    * By project and machine (`retryKey`). In memory: the chain goes on meanwhile, the next cleanup's sync on the same
    * machine takes the place of one awaiting its try, and after a restart the sync of the next done task there pushes
@@ -65,12 +69,15 @@ export class Cleanups {
     const shelved = this.state.shelved[project]?.filter((each) => released.includes(each.task)) ?? []
     if (shelved.length === 0) delete this.state.shelved[project]
     else this.state.shelved[project] = shelved
-    const done = this.done.get(project)
-    for (const id of done ?? []) if (!released.includes(id)) done!.delete(id)
+    for (const map of [this.done, this.parents]) {
+      const ids = map.get(project)
+      for (const id of ids ?? []) if (!released.includes(id)) ids!.delete(id)
+    }
   }
 
   async sweep(): Promise<void> {
     await this.retrySyncs()
+    await this.stopParents()
     for (const [project, done] of this.done) {
       for (const task of done) {
         if (this.working(project, task) || !(await this.closeUp(project, task))) continue
@@ -88,6 +95,33 @@ export class Cleanups {
   working(project: string, task: string): boolean {
     if (!this.deps.machine.sessionsRead(task)) return !this.revokedHolder(project, task)
     return this.deps.machine.busy(task) && !this.deps.machine.shell(task)
+  }
+
+  /**
+   * A task that left the chain as a parent waits for its subtasks, hours or days, and its window only reads the
+   * transcript (BTN-1041): its session is stopped through the agent once its turn is over and it waits on no question
+   * (invariant 1, exception 14). The worktree and the branch stay for the cleanup after Done.
+   */
+  private async stopParents(): Promise<void> {
+    for (const [project, parents] of this.parents) {
+      for (const task of parents) {
+        if (this.working(project, task) || this.deps.machine.asked(task) !== null) continue
+        const live = this.deps.machine.liveSession(task)
+        if (live === undefined || this.stoppedParents.has(live)) continue
+        // A session started in the parent's folder by hand is not the chain's.
+        const launched = this.deps.machine.lastSession?.(project, task)
+        if (launched !== undefined && launched !== live) continue
+        const session = this.deps.machine.handoff(task)
+        if (session?.sessionId !== live) continue
+        this.stoppedParents.add(live)
+        try {
+          await this.deps.machine.stop(session)
+          this.deps.log(`chain: ${task} became a parent, its session ${live} is stopped`)
+        } catch (error) {
+          this.deps.log(`chain: ${task} became a parent, the stop of its session ${live} failed: ${englishOf(noticeOf(error))}`)
+        }
+      }
+    }
   }
 
   private revokedHolder(project: string, task: string): boolean {

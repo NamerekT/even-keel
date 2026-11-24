@@ -41,7 +41,7 @@ A task with an open blocker waits, and the blocker may be a task of another proj
 
 ### Tasks with subtasks
 
-A task with subtasks never runs itself — its subtasks do, and Even Keel closes it once they are all closed and at least one is done; one whose subtasks were all cancelled is left to you.
+A task with subtasks never runs itself — its subtasks do, and Even Keel closes it once they are all closed and at least one is done; one whose subtasks were all cancelled is left to you. When a session splits its task, Even Keel stops that session once its turn is over and it asks nothing: the transcript and the worktree stay until the parent is done, and the session can be resumed by hand.
 
 Once a project has such a task, a switch at the top of its list shows the parents instead of the chain: each with its closed subtasks counted, its card and its sessions to read (they are not answered from there); a press on a family's coloured rail in the chain opens its parent there.
 

@@ -205,6 +205,8 @@ export class Dispatcher {
       return status !== undefined && (isDone(rules(id), status) || !isTerminal(rules(id), status))
     })
     this.cleanups.done.set(project, new Set(kept.filter((id) => statuses.has(id) && isDone(rules(id), statuses.get(id)!))))
+    const parents = tasks.filter((task) => task.subtasks > 0 && kept.includes(task.id) && !isTerminal(rules(task.id), task.status))
+    this.cleanups.parents.set(project, new Set(parents.map((task) => task.id)))
     if (kept.length !== this.released(project).length) {
       this.cleanups.keepReleased(project, kept)
       this.deps.save(this.state)
@@ -351,7 +353,7 @@ export class Dispatcher {
   }
 
   private byProject(): Map<string, unknown>[] {
-    return [...this.lists.maps(), this.cleanups.done]
+    return [...this.lists.maps(), this.cleanups.done, this.cleanups.parents]
   }
 
   skip(project: string, task: string): void {
