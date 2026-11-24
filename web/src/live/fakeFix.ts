@@ -13,7 +13,7 @@ export function withFix(state: EvenKeelState, project: string, fixing: SessionVi
   if (active === undefined || held == null || held.sessionId === null) return state
   const fix = fixName(project)
   const episodes = state.fixes[project] ?? []
-  const episode = { id: fixEpisodeId(project, episodes.length + 1), red: RED, at, end: null }
+  const episode = { id: fixEpisodeId(fix,episodes.length + 1), red: RED, at, end: null }
   const interrupted = { task: held.task, sessionId: held.sessionId, since: held.since, at, commit: RED }
   const leading = { ...active, current: { task: fix, sessionId: fixing.sessionId, since: at }, ...(!aside && { interrupted }) }
   const stopped = (view: SessionView): SessionView => ({ ...view, lamp: 'finished', remoteUrl: null, remoteOff: 'no-bridge' })

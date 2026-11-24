@@ -97,6 +97,11 @@ export interface ChainBlock {
   stranded?: { machine: string; pushed: boolean | null }
   /** A red main stopped the task's session; it goes on once main is fixed. */
   interrupted?: true
+  /**
+   * The current task of a paused lane whose session does not run, as the one a red after the fix gave back (BTN-1617):
+   * it is not under way, and stands under the running group.
+   */
+  halted?: true
   /** The fix of a red main leads the chain and this task is next: its live session takes no answer from the chat until the fix lands. */
   aside?: true
   /** The chain is stopped and the task's session lives on: the chat still answers it. */
@@ -578,6 +583,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       ...(pinWait !== undefined && pins !== undefined && { pinWait: { why: pinWait, machines: pins.map((pin) => state.machineNames?.[pin] ?? pin) } }),
       ...(stranded !== undefined && { stranded: { machine: state.machineNames?.[stranded.machine] ?? stranded.machine, pushed: stranded.pushed } }),
       ...(id === active?.interrupted?.task && { interrupted: true as const }),
+      ...(lane?.paused === true && lamp === 'stopped' && { halted: true as const }),
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
       ...(active === undefined && session !== null && session.lamp !== 'finished' && { loose: true as const }),
       ...(reviews.has(id) && { review: reviews.get(id)! }),

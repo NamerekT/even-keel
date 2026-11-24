@@ -10,7 +10,7 @@ export interface Frame<T> {
   /** Closed tasks of the whole chain, the archived ones included. */
   closed: ReadonlySet<string>
   current: string | null
-  /** The tasks every lane holds. */
+  /** The tasks the lanes run now (`underWay`): a paused lane's task whose session stands is not among them. */
   running: ReadonlySet<string>
   /** The lane tasks that share the frame "Under way" (`runningGroup`); empty under two. */
   grouped: ReadonlySet<string>

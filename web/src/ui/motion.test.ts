@@ -179,6 +179,47 @@ describe('motionOf: the running group (BTN-1613)', () => {
   })
 })
 
+describe('motionOf: a fix of main in the running group (BTN-1617)', () => {
+  const group = frame('Z:done A:working D:working B', 'A', { running: ['A', 'D'], grouped: ['A', 'D'] })
+  const fixing = frame('Z:done F:working D:working A:stopped B', 'F', { running: ['F', 'D'], grouped: ['F', 'D'] })
+
+  it('lets the task a red main stopped out of the group and the fix in', () => {
+    const motion = motionOf(group, fixing, none)!
+    expect(motion.parted).toEqual(['A'])
+    expect(motion.entered).toEqual(['F'])
+    expect(motion.joined).toEqual(['F'])
+    expect(motion.taken).toBeNull()
+    expect(motion.delays).toEqual({ part: 0, enter: BEAT_MS, take: 2 * BEAT_MS })
+    expect(moveDelay(motion, 'A')).toBe(STEP_MS)
+  })
+
+  it('lets the fix that landed out and the interrupted task back in', () => {
+    const landed = frame('Z:done F:fixed A:working D:working B', 'A', { running: ['A', 'D'], grouped: ['A', 'D'], closed: ['F'] })
+    const motion = motionOf(fixing, landed, none)!
+    expect(motion.parted).toEqual(['F'])
+    expect(motion.joined).toEqual(['A'])
+    expect([motion.merged, motion.alone, motion.taken]).toEqual([[], [], null])
+  })
+
+  const red = frame('Z:done F:fixed D:working A:stopped B', 'A', { running: ['D'], closed: ['F'] })
+
+  it('leaves the task a red after the fix gave back out of the group, the other lane alone', () => {
+    const motion = motionOf(fixing, red, none)!
+    expect(motion.parted).toEqual(['F'])
+    expect(motion.alone).toEqual(['D'])
+    expect(motion.joined).toEqual([])
+    // The paused chain's current task gets its own frame drawn, as on one machine.
+    expect(motion.taken).toBe('A')
+  })
+
+  it('lets the task a red after the fix gave back join the group once its lane runs it again', () => {
+    const resumed = frame('Z:done F:fixed A:working D:working B', 'A', { running: ['A', 'D'], grouped: ['A', 'D'], closed: ['F'] })
+    const motion = motionOf(red, resumed, none)!
+    expect(motion.joined).toEqual(['A'])
+    expect(motion.merged).toEqual(['D'])
+  })
+})
+
 describe('placeLeaving', () => {
   const block = (id: string) => ({ id, lamp: 'ahead' as BlockLamp })
 

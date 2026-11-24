@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChainBlock } from '../state.js'
-import { pinnedHead, withOrder } from './chainOrder.js'
+import { inOrder, pinnedHead, underWayFirst, withOrder } from './chainOrder.js'
 import { reorderable } from '../pages/useChainDrag.js'
 import { moveItem } from './drag.js'
 import { clampDrop, dropBounds } from './reorder.js'
@@ -75,6 +75,43 @@ describe('a drop above the running lanes (BTN-1611)', () => {
     expect(bounds.min).toBe(2)
     const to = clampDrop(bounds, 1, from)
     expect(ids(withOrder(chain, moveItem(order, from, to)))).toEqual(['A-1', 'A-2', 'A-3', 'A-5', 'A-4'])
+  })
+})
+
+describe('underWayFirst (BTN-1617)', () => {
+  const closed = block('A-1', { open: false })
+
+  it('puts the fix and the task of another lane above the task the fix interrupted, the queue after it', () => {
+    const chain = [closed, block('A-FIX.3', { current: true }), block('A-2', { interrupted: true }), block('A-5', { current: true }), block('A-7')]
+    expect(ids(underWayFirst(chain))).toEqual(['A-1', 'A-FIX.3', 'A-5', 'A-2', 'A-7'])
+  })
+
+  it('leads the group with the fix where a drop put another lane first', () => {
+    const chain = [closed, block('A-5', { current: true }), block('A-FIX.3', { current: true }), block('A-2', { interrupted: true }), block('A-7')]
+    expect(ids(underWayFirst(chain))).toEqual(['A-1', 'A-FIX.3', 'A-5', 'A-2', 'A-7'])
+  })
+
+  it('keeps the interrupted task under the fix on one lane', () => {
+    const chain = [closed, block('A-FIX.3', { current: true }), block('A-2', { interrupted: true }), block('A-7')]
+    expect(ids(underWayFirst(chain))).toEqual(ids(chain))
+  })
+
+  it('moves an asked carry and the task a red after the fix gave back under the running ones', () => {
+    const asked = [block('A-2', { current: true }), block('EKR-CARRY.12'), block('A-5', { current: true }), block('A-7')]
+    expect(ids(underWayFirst(asked))).toEqual(['A-2', 'A-5', 'EKR-CARRY.12', 'A-7'])
+    const halted = [block('A-2', { current: true, halted: true }), block('A-5', { current: true }), block('A-7')]
+    expect(ids(underWayFirst(halted))).toEqual(['A-5', 'A-2', 'A-7'])
+  })
+
+  it('lays a drop preview out the same way, so a drop lands below the interrupted task', () => {
+    const chain = underWayFirst([closed, block('A-FIX.3', { current: true }), block('A-2', { interrupted: true }), block('A-5', { current: true }), block('A-7'), block('A-8')])
+    const open = chain.filter(inOrder)
+    expect(ids(open)).toEqual(['A-5', 'A-2', 'A-7', 'A-8'])
+    const order = ids(open)
+    const from = order.indexOf('A-8')
+    const bounds = dropBounds(order, new Map(open.map((each) => [each.id, each.after])), from, pinnedHead(open))
+    const to = clampDrop(bounds, 0, from)
+    expect(ids(withOrder(chain, moveItem(order, from, to)))).toEqual(['A-1', 'A-FIX.3', 'A-5', 'A-2', 'A-8', 'A-7'])
   })
 })
 

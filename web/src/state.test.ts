@@ -1077,6 +1077,17 @@ describe('chainBlocks', () => {
       ])
     })
 
+    it('marks the task a red after the fix gave back to the paused chain with its stopped session: it stands, not under way', () => {
+      const halted = (lamp: SessionView['lamp'], paused: boolean) =>
+        chainBlocks(stateOf({ tasks, sessions: [view('ABC-2', lamp, null)], chain: chain({ active: running('ABC-2', paused), projects: order }) }), 'ABC').find(
+          (block) => block.id === 'ABC-2',
+        )?.halted
+      expect(halted('finished', true)).toBe(true)
+      expect(halted('finished', false)).toBeUndefined()
+      expect(halted('error', true)).toBeUndefined()
+      expect(halted('waiting', true)).toBeUndefined()
+    })
+
     it('marks the task whose live session is set aside until it lands: the one the chain takes next', () => {
       const aside = (state: EvenKeelState) => chainBlocks(state, 'ABC').filter((block) => block.aside).map((block) => block.id)
       const sessions = [view('ABC-FIX', 'working', null), view('ABC-2', 'waiting', null), view('ABC-3', 'waiting', null)]
