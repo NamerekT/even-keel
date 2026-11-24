@@ -66,7 +66,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await Promise.all(relays.map((each) => each.close()))
-  rmSync(root, { recursive: true, force: true })
+  rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
 })
 
 describe('MemoryRelay', { timeout: 120_000 }, () => {

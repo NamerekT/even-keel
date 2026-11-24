@@ -51,7 +51,8 @@ describe('MemoryHub (BTN-1646)', { timeout: 120_000 }, () => {
   })
   afterEach(() => {
     hub.stop()
-    rmSync(root, { recursive: true, force: true })
+    // A git child of a sync stopped mid-run may still hold the folder on Windows for a moment.
+    rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
   })
 
   it("makes the project's repository and puts its records and hand files into it with the first sync", async () => {
