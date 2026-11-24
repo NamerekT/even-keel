@@ -23,6 +23,7 @@ import type { TranscriptEntry } from './stream.js'
 import type { Turn } from './turns.js'
 import { cleanText } from './compact.js'
 import type { HandoffRow } from './handoffs.js'
+import { REFRESH_LIMIT_SHARES } from './limit-shares-stored.js'
 import { migrate, pgDb, type Migration } from './migrations.js'
 import { REPAIR_GLOBAL_RULE_SNAPSHOTS } from './rule-repair.js'
 import { TASK_MOVES, type TaskMove } from './task-moves.js'
@@ -498,9 +499,9 @@ export class TallyDb implements Store {
     })
   }
 
-  /** Even Keel's keep-warm pings (BTN-1413): the new ones are added, those Tally holds stay as they are. */
-  async syncWarmPings(pings: StoredWarmPing[]): Promise<void> {
-    await this.client.query(
+  /** Even Keel's keep-warm pings (BTN-1413): the new ones are added, those Tally holds stay as they are; the count of new ones. */
+  async syncWarmPings(pings: StoredWarmPing[]): Promise<number> {
+    const result = await this.client.query(
       `insert into warm_pings (session_id, at, machine, account, task, project_id, model, input, cache_write_5m, cache_write_1h, cache_read, output)
        select session_id, at, machine, account, task, project_id, model, input, cache_write_5m, cache_write_1h, cache_read, output
        from jsonb_to_recordset($1::jsonb) as x(session_id text, at timestamptz, machine text, account text, task text, project_id text, model text,
@@ -511,6 +512,12 @@ export class TallyDb implements Store {
         input: ping.input, cache_write_5m: ping.cacheWrite5m, cache_write_1h: ping.cacheWrite1h, cache_read: ping.cacheRead, output: ping.output,
       })))],
     )
+    return result.rowCount ?? 0
+  }
+
+  /** The stored limit shares computed anew from every row (BTN-1658); reads go on over the previous ones meanwhile. */
+  async refreshLimitShares(): Promise<void> {
+    await this.client.query(REFRESH_LIMIT_SHARES)
   }
 
   /** The catalogue's prices, each of one exact `<provider>/<model>`: they replace the catalogue's earlier rows. */

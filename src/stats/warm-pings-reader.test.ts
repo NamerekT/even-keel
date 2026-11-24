@@ -1,6 +1,7 @@
 import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import { SESSION_FOLDERS } from '../../tally/src/db.js'
+import { REFRESH_LIMIT_SHARES } from '../../tally/src/limit-shares-stored.js'
 import { migrate, pgliteDb } from '../../tally/src/migrations.js'
 import { parseConfig } from '../config.js'
 import { StatsReader } from './reader.js'
@@ -45,6 +46,7 @@ beforeAll(async () => {
     ('a', '7d', '2026-11-03T10:00:00Z', 10, '2026-11-08T10:00:00Z', 'statusline'),
     ('a', '7d', '2026-11-03T13:00:00Z', 13, '2026-11-08T10:00:00Z', 'statusline')`)
   await db.exec(SESSION_FOLDERS)
+  await db.exec(REFRESH_LIMIT_SHARES)
   reader = new StatsReader({ host: 'localhost', port: 1, database: 'tally', user: 'reader', password: 'fake' },
     () => ({ ABC: 'C:/abc' }), () => parseConfig({ projects: [] }).stats)
 }, 30_000)
