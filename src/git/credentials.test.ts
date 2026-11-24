@@ -155,6 +155,8 @@ describe('credentialEnv with git itself', () => {
       const child = execFile('git', ['-C', cwd, ...args], { env: { ...isolated, ...env }, windowsHide: true }, (error, stdout, stderr) =>
         resolve({ code: error === null ? 0 : typeof error.code === 'number' ? error.code : -1, out: `${stdout}${stderr}` }),
       )
+      // A command that reads no input (config --get) may exit before the write: EPIPE there is not a failure.
+      child.stdin?.on('error', () => {})
       child.stdin?.end(input ?? '')
     })
   let isolated: NodeJS.ProcessEnv
