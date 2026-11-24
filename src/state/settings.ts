@@ -249,6 +249,8 @@ export interface SharedForm {
   allowedHosts: string[]
   /** The name machines reach the hub by; `null` — the hub does not listen for machines. */
   machinesAddress: string | null
+  /** The remote repository the project memory is mirrored to (BTN-1649); `null` — no mirror. */
+  memoryMirror: string | null
   context: ContextScale
   stats: StatsConfig
   /** The switches of `updates`; the closed version is written by the toast, not the form. */

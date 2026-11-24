@@ -42,6 +42,7 @@ const ACCOUNTS: NoticeFix = { to: 'accounts' }
 const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'storage.backupFailed': { to: 'shared', tab: 'backup' },
   'storage.backupCheckFailed': { to: 'shared', tab: 'backup' },
+  'memory.mirrorPrivate': { to: 'shared', tab: 'backup' },
   'agent.copyMissing': { to: 'shared', tab: 'models' },
   'agent.copyFailed': { to: 'shared', tab: 'models' },
   'machines.copyMissing': { to: 'shared', tab: 'models' },
@@ -125,7 +126,7 @@ const SHARED_TABS: Record<Exclude<SharedTab, 'trackers'>, readonly string[]> = {
   sessions: ['hiddenSkills', 'context', 'contextHandoffs', 'checkpointTokens', 'checkpointShares', 'cacheTtl', 'keepWarm'],
   ci: ['ci', 'landingHold'],
   page: ['language', 'allowedHosts', 'attachmentLimit'],
-  backup: ['backupDir', 'backupKeep', 'backup'],
+  backup: ['backupDir', 'backupKeep', 'backup', 'memoryMirror'],
   stats: ['stats'],
 }
 

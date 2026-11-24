@@ -186,6 +186,11 @@ export function createFakeSource(search: string): LiveSource {
   }
   if (current.state !== null) current.state.updates = fakeUpdates(params)
   if (current.state !== null) current.state.backup = fakeBackup(params.get('backup'))
+  if (params.get('memoryMirror') === 'on' && current.state !== null) {
+    const address = 'ssh://git@git.example.com/john-doe/even-keel-memory.git'
+    current.state.memoryMirror = notice('memory.mirrorPrivate', { address })
+    current.state.config.shared.memoryMirror = address
+  }
   if (params.get('cli') === 'unchecked' && current.state !== null) {
     const unchecked = (agent: string, title: string, installed: string, checked: string) => ({
       agent,

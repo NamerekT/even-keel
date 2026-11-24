@@ -37,6 +37,18 @@ Free-text lines of the hub's `MEMORY.md` that are no record's do not reach chain
 - **A move to another host**: `state/even-keel` carries `memory/` (the backup copies it too). A repository that is missing is made empty, and the working copy's sync pushes its whole history into it; the transfer is not repeated, since its mark moved with the database.
 - **The memory tools** work in the project's first folder between its syncs (`within`); without a working copy (git failed for it) they work in the folder directly.
 
+## The mirror (BTN-1649)
+
+So that the memory outlives the hub, `RemoteMirror` (`src/memory/git/remote-mirror.ts`, built by `MemoryHub`) copies the hub's repositories to one remote repository, the setting `memoryMirror` (`docs/settings.md`; `null` — no mirror, the default).
+
+- **One repository, a branch per project.** A project's `main` goes into the branch `refs/heads/<project id>`, named by its GUID like its repository on the hub; the mirror's own `main` is never written. One remote to make and to sign in to, whatever the number of projects.
+- **When.** After every successful push of a working copy into the project's repository (`MemorySync`'s `pushed` dependency, `MemoryHub.pushed`), and for every project at the first `apply()` (the service's start) and at every new address. A push into the hub's repository that does not go through the hub's own working copy — a machine's, BTN-1648 — must call `MemoryHub.pushed(project)` too. Pushes of one project run one at a time and the calls meanwhile share the next; no session and no sync waits for them.
+- **Never forced.** A branch with commits the hub's repository lacks (another hub pushed there, a hand commit) is left as it is with one log line; the mirror follows the hub only forward.
+- **Failure.** A failed push is logged once per distinct failure (`memory: <id> cannot push to the mirror, tried again at its next push: …`) and `memory: <id> reached the mirror again` when one goes through; the next push carries what was missed, there is no timer of its own.
+- **Credentials stay out of the settings.** The check refuses an address with a password in it (`config.memoryMirrorPassword`); git signs in by an SSH key or its credential helper, and the push runs with `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never`, so it fails instead of waiting for a prompt nobody answers.
+- **Privacy.** Even Keel cannot tell whether the remote is private: while the setting is set the state carries `memoryMirror` (notice `memory.mirrorPrivate`), and the page shows the banner `MemoryMirrorBanner` until the user dismisses it for that address, with a button to the setting.
+- **Restoring** a lost hub: clone the mirror's branch of a project into `state/even-keel/memory/<id>.git` as a bare repository (`git clone --bare --branch <id> <mirror>` and rename the branch to `main`), or point a memory folder's working copy at it.
+
 ## The memory repository (BTN-1558)
 
 The project memory moves from the records into git: a bare repository per project and a working copy in each machine's memory folder. `MemorySync` (`src/memory/git/sync.ts`, BTN-1645) keeps one working copy in step with its bare repository and serves the hub and the machines alike; the remote is a parameter (a path or any address git takes), so the hub's repositories and the link's transport are not its concern. The hub's copies run since BTN-1646; the machines' come with BTN-1648.
