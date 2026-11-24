@@ -57,7 +57,7 @@ with places as materialized (
 ), base as (
   select * from project_base
 ), seven as (
-  select message_id, sum(share) as share from limit_shares where span = '7d' group by message_id
+  select message_id, sum(share) as share from limit_shares_stored where span = '7d' group by message_id
 )`
 
 /**

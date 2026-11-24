@@ -21,6 +21,7 @@ import { closedStates } from './closed-tasks.js'
 import { parseConfig, unpricedToLog, type DbSettings } from './config.js'
 import { TallyDb } from './db.js'
 import { refreshHandoffs } from './handoffs.js'
+import { refreshShares } from './limit-shares-stored.js'
 import { taskMoves, type TaskMove } from './task-moves.js'
 import { chatSessions, type ChatSession } from './chat-sessions.js'
 import { warmPings } from './warm-pings.js'
@@ -124,7 +125,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     const relabeled = await db.syncLaunches(launches)
     await db.syncTaskSources(tasked.sources)
     if (keySpends !== undefined) await db.syncKeySpends(keySpends)
-    if (pings !== undefined) await db.syncWarmPings(pings)
+    const pinged = pings === undefined ? 0 : await db.syncWarmPings(pings)
     // A built-in task read whole is not given the archive's older state on top.
     const readWhole = new Set(builtin.map((task) => task.task))
     await db.syncClosedTasks(closedStates(closed.filter((each) => !readWhole.has(each.task)), journal))
@@ -161,13 +162,14 @@ export async function collect(settings: DbSettings, root: string, home: string, 
       const where = catalogue === undefined ? 'no OpenCode account holds a models.dev catalogue' : "OpenCode's models.dev catalogue has none either"
       log(`tally: no price for ${unpriced.join(', ')} — add them to tally.config.json (${where})`)
     }
+    const shares = await refreshShares(db, { lines, snapshots, pings: pinged })
 
     const seconds = ((Date.now() - started) / 1000).toFixed(1)
     log(
       `tally: ${paths.length} files (${rollouts.length} Codex, ${openCode.length} OpenCode, ${copilot.length} Copilot),${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
         `${relabeled} sessions relabeled, ${cataloguePriced.length} catalogue prices, ${keySpends?.length ?? 'no'} key spends, ${pings?.length ?? 'no'} keep-warm pings,${prompted} prompts, ${handoffs} handoffs, ${snapshots} limit snapshots,` +
         `${ruleFiles.length} rule files (${versions} new versions, ${history} from git, ${changes} new changes), ${imported} imported rule sets, ` +
-        `${signed.sessions} sessions signed (${signed.spans} spans), ${turned} sessions split into turns, ${stepped} into steps, ${tasks} Huly tasks, ${builtin.length} built-in tasks, ${moves.length} moved tasks, ${chats.length} chat sessions, ${reports} time reports, ${classified} spans classified, ${seconds} s`,
+        `${signed.sessions} sessions signed (${signed.spans} spans), ${turned} sessions split into turns, ${stepped} into steps, ${tasks} Huly tasks, ${builtin.length} built-in tasks, ${moves.length} moved tasks, ${chats.length} chat sessions, ${reports} time reports, ${classified} spans classified, ${shares}, ${seconds} s`,
     )
     return failed > 0 ? 1 : 0
   } finally {

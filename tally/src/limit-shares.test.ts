@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { REFRESH_LIMIT_SHARES } from './limit-shares-stored.js'
 import { migrate, pgliteDb } from './migrations.js'
 
 // limit_shares in one pass (BTN-1351) against its first body in schema.sql, the join of every response with every
@@ -51,46 +52,57 @@ interface Share {
   share: string | null
 }
 
+async function migrated(): Promise<PGlite> {
+  const db = await PGlite.create()
+  await db.exec(`set timezone = 'UTC'`)
+  await migrate(pgliteDb(db))
+  await db.exec(`insert into model_prices (model, input, output, cache_read, cache_write_5m, cache_write_1h) values ('priced', 1, 1, 1, 1, 1)`)
+  return db
+}
+
+async function fill(db: PGlite, snapshots: Snapshot[], messages: Message[]): Promise<void> {
+  for (const [account, span, observedAt, used, resetsAt] of snapshots) {
+    await db.query('insert into limit_snapshots (account, span, observed_at, used_percentage, resets_at, source) values ($1, $2, $3, $4, $5, $6)', [
+      account,
+      span,
+      observedAt,
+      used,
+      resetsAt,
+      'statusline',
+    ])
+  }
+  for (const [id, account, model, input, at] of messages) {
+    await db.query(
+      `insert into messages (message_id, session_id, account, task, model, at, input, cache_write_5m, cache_write_1h, cache_read, output)
+       values ($1, $1, $2, 'ABC-1', $3, $4, $5, 0, 0, 0, 0)`,
+      [id, account, model, at, input * 1_000_000],
+    )
+  }
+}
+
+async function sharesOf(db: PGlite, from: string): Promise<Share[]> {
+  const { rows } = await db.query<{ message_id: string; account: string; span: string; since: Date; till: Date; share: number | string | null }>(
+    `select message_id, account, span, since, till, share from ${from} order by message_id, span, till`,
+  )
+  return rows.map((row) => ({
+    key: `${row.message_id} ${row.account} ${row.span} ${row.since.toISOString()}–${row.till.toISOString()}`,
+    share: row.share === null ? null : Number(row.share).toFixed(9),
+  }))
+}
+
 describe('limit_shares in one pass', () => {
   let db: PGlite
 
   beforeAll(async () => {
-    db = await PGlite.create()
-    await db.exec(`set timezone = 'UTC'`)
-    await migrate(pgliteDb(db))
-    await db.exec(`insert into model_prices (model, input, output, cache_read, cache_write_5m, cache_write_1h) values ('priced', 1, 1, 1, 1, 1)`)
-    for (const [account, span, observedAt, used, resetsAt] of snapshots) {
-      await db.query('insert into limit_snapshots (account, span, observed_at, used_percentage, resets_at, source) values ($1, $2, $3, $4, $5, $6)', [
-        account,
-        span,
-        observedAt,
-        used,
-        resetsAt,
-        'statusline',
-      ])
-    }
-    for (const [id, account, model, input, at] of messages) {
-      await db.query(
-        `insert into messages (message_id, session_id, account, task, model, at, input, cache_write_5m, cache_write_1h, cache_read, output)
-         values ($1, $1, $2, 'ABC-1', $3, $4, $5, 0, 0, 0, 0)`,
-        [id, account, model, at, input * 1_000_000],
-      )
-    }
+    db = await migrated()
+    await fill(db, snapshots, messages)
   }, 30_000)
 
   afterAll(async () => {
     await db?.close()
   })
 
-  async function shares(from: string): Promise<Share[]> {
-    const { rows } = await db.query<{ message_id: string; account: string; span: string; since: Date; till: Date; share: number | string | null }>(
-      `select message_id, account, span, since, till, share from ${from} order by message_id, span, till`,
-    )
-    return rows.map((row) => ({
-      key: `${row.message_id} ${row.account} ${row.span} ${row.since.toISOString()}–${row.till.toISOString()}`,
-      share: row.share === null ? null : Number(row.share).toFixed(9),
-    }))
-  }
+  const shares = (from: string) => sharesOf(db, from)
 
   it('gives every response the same shares as the join of every response with every interval', async () => {
     const { rows } = await db.query<{ body: string }>(`select pg_get_viewdef('limit_shares') as body`)
@@ -127,5 +139,52 @@ describe('limit_shares in one pass', () => {
       'task text',
       'share double precision',
     ])
+  })
+})
+
+// The shares stored (BTN-1658): a materialized view of limit_shares that a run refreshes whole after writing rows.
+describe('limit_shares_stored', () => {
+  let db: PGlite
+
+  beforeAll(async () => {
+    db = await migrated()
+    await fill(db, snapshots, messages)
+  }, 30_000)
+
+  afterAll(async () => {
+    await db?.close()
+  })
+
+  it('keeps the rows it was refreshed with until the next refresh, then those of limit_shares row for row', async () => {
+    expect(await sharesOf(db, 'limit_shares_stored')).toEqual([])
+    await db.exec(REFRESH_LIMIT_SHARES)
+    const stored = await sharesOf(db, 'limit_shares_stored')
+    expect(stored).toEqual(await sharesOf(db, 'limit_shares'))
+    expect(new Set(stored.map((row) => row.key.split(' ').slice(1, 3).join(' ')))).toEqual(new Set(['a 5h', 'a 7d', 'b 5h']))
+  })
+
+  it('takes a late response and a new snapshot in at the next refresh', async () => {
+    // b, 7d: a response inside (10:00, 10:20] that came late, and a's 5h window grows by 2 more by 17:30.
+    await fill(db, [['a', '5h', `${day}17:30:00Z`, 6, `${day}20:00:00Z`]], [['b-late', 'b', 'priced', 2, `${day}10:10:00Z`]])
+    const before = await sharesOf(db, 'limit_shares_stored')
+    expect(before.some((row) => row.key.startsWith('b-late') || row.key.startsWith('a-after'))).toBe(false)
+    await db.exec(REFRESH_LIMIT_SHARES)
+    const stored = await sharesOf(db, 'limit_shares_stored')
+    expect(stored).toEqual(await sharesOf(db, 'limit_shares'))
+    const late = stored.filter((row) => row.key.startsWith('b-late') || row.key.startsWith('a-after'))
+    expect(late.map((row) => [row.key.split(' ').slice(0, 3).join(' '), row.share])).toEqual([
+      ['a-after a 5h', (2).toFixed(9)],
+      ['b-late b 5h', (1).toFixed(9)],
+      ['b-late b 7d', (1).toFixed(9)],
+    ])
+  })
+
+  it('has the columns of limit_shares in their order and types', async () => {
+    const columns = async (table: string) =>
+      (await db.query<{ attname: string; type: string }>(
+        `select attname, format_type(atttypid, atttypmod) as type from pg_attribute where attrelid = $1::regclass and attnum > 0 order by attnum`,
+        [table],
+      )).rows
+    expect(await columns('limit_shares_stored')).toEqual(await columns('limit_shares'))
   })
 })

@@ -17,6 +17,8 @@ export interface MachineTallyOptions {
  */
 export class MachineTally {
   private queue: Promise<unknown> = Promise.resolve()
+  private stale = false
+  private refreshing: Promise<void> | undefined
 
   constructor(private readonly options: MachineTallyOptions) {}
 
@@ -24,6 +26,43 @@ export class MachineTally {
     const next = this.queue.then(() => this.write(machine, rows))
     this.queue = next.catch(() => {})
     return next
+  }
+
+  /** Resolves once the posts taken so far are written and the limit shares they called for refreshed. */
+  async settled(): Promise<void> {
+    await this.queue
+    await this.refreshing
+  }
+
+  /**
+   * The stored limit shares refreshed after a post with responses (BTN-1658), past its answer: a refresh takes seconds
+   * and a machine's catch-up sends post after post. Posts during a refresh call for one more after it, not one each.
+   */
+  private refreshSoon(): void {
+    this.stale = true
+    this.refreshing ??= this.refreshWhileStale()
+  }
+
+  private async refreshWhileStale(): Promise<void> {
+    while (this.stale) {
+      this.stale = false
+      await this.refreshOnce()
+    }
+    this.refreshing = undefined
+  }
+
+  private async refreshOnce(): Promise<void> {
+    let db: TallyDb | undefined
+    try {
+      const settings = await this.options.writer()
+      if (settings === null) return
+      db = await TallyDb.connect(settings)
+      await db.refreshLimitShares()
+    } catch (error) {
+      this.options.log(`tally: the limit shares were not refreshed after a machine's rows: ${(error as Error).message}`)
+    } finally {
+      await db?.close().catch(() => {})
+    }
   }
 
   private async write(machine: string, rows: unknown): Promise<TallyAnswer> {
@@ -40,6 +79,7 @@ export class MachineTally {
       const version = await db.version()
       if (version !== TALLY_SCHEMA_VERSION) return { taken: false }
       await db.writeMachine(machine, rows)
+      if (rows.messages.length > 0) this.refreshSoon()
       return { taken: true }
     } catch (error) {
       log(`tally: the rows of machine ${machine} were not written: ${(error as Error).message}`)
