@@ -506,8 +506,9 @@ export class MainCheck {
     this.afterRuns.set(project, { commit: push.commit, since })
     this.hooks.save()
     this.log(`afterGreen: ${project}: running the commands after ${shortCommit(push.commit)}`)
+    // Another machine of the pool may have pushed the commit: the own checkout's main is brought up to it first (BTN-1597).
     void this.machine
-      .runAfterGreen(project, push.commit)
+      .runAfterGreen(project, push.commit, true)
       .catch((error: unknown): AfterGreenRun => ({ state: 'skipped', reason: noticeOf(error) }))
       .then((run) => this.afterGreenEnded(project, push, run))
   }

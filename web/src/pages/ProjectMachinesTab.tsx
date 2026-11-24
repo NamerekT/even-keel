@@ -20,17 +20,24 @@ import './projectMachines.css'
 /** The section "Machines" is shown only where the hub has a machine elsewhere: with one, there is nothing to pick. */
 export const poolShown = (state: EvenKeelState | null): boolean => severalMachines(state)
 
-/** A machine's commands after a green main as tags after their caption; whose they are — the machine's or the project's — is the tip. */
-export function AfterGreen({ commands, own }: { commands: string[]; own: boolean }) {
+/**
+ * A machine's commands after a green main as tags after their caption; whose they are — the machine's or the project's —
+ * is the tip. `off` — the machine turned them off (BTN-1597): one tag says so.
+ */
+export function AfterGreen({ commands, own, off = false }: { commands: string[]; own: boolean; off?: boolean }) {
   return (
-    <Tipped tip={own ? t.pool.afterGreenOwn : t.pool.afterGreenProject} inline align="start">
+    <Tipped tip={off ? t.pool.afterGreenOffTip : own ? t.pool.afterGreenOwn : t.pool.afterGreenProject} inline align="start">
       <span className="pool__after">
         {t.pool.afterGreen}
-        {commands.map((command, index) => (
-          <bdi key={index} className="tag" dir="ltr">
-            {command}
-          </bdi>
-        ))}
+        {off ? (
+          <span className="tag">{t.pool.afterGreenOff}</span>
+        ) : (
+          commands.map((command, index) => (
+            <bdi key={index} className="tag" dir="ltr">
+              {command}
+            </bdi>
+          ))
+        )}
       </span>
     </Tipped>
   )
@@ -103,7 +110,11 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
                           {machine.folder}
                         </bdi>
                       </Tipped>
-                      {machine.afterGreen.length > 0 && <AfterGreen commands={machine.afterGreen} own={machine.settings.afterGreen !== undefined} />}
+                      {machine.settings.afterGreenOff === true ? (
+                        <AfterGreen commands={[]} own off />
+                      ) : (
+                        machine.afterGreen.length > 0 && <AfterGreen commands={machine.afterGreen} own={machine.settings.afterGreen !== undefined} />
+                      )}
                     </span>
                     {slot > 0 && (
                       <Tipped tip={t.pool.slotsTip} inline>

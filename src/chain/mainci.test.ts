@@ -295,19 +295,29 @@ describe('mainCheckDeps', () => {
     expect([...moved.checks, ...elsewhere.checks, ...detached.checks]).toEqual([])
   })
 
-  it('brings its main up to the green commit first on a machine elsewhere, never in the own checkout (BTN-994)', async () => {
+  it('brings its main up to the green commit first when told to (BTN-994, BTN-1597)', async () => {
     const repo = 'D:/repos/abc'
     const heads = { [`${repo} HEAD`]: 'c1' }
     const forwarded: string[] = []
     const forward = async (project: string, commit: string) => {
       forwarded.push(`${project}@${commit}`)
       heads[`${repo} HEAD`] = commit
+      return 'forwarded' as const
     }
     const { deps } = setup(all([]), [], heads, null, 'main', { forward })
     expect(await deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: notice('afterGreen.pastCommit', { head: 'c1' }) })
     expect(forwarded).toEqual([])
     expect(await deps.runAfterGreen('ABC', 'c2', true)).toEqual({ state: 'done' })
     expect(forwarded).toEqual(['ABC@c2'])
+  })
+
+  it('names why main stayed behind the green commit when the fast-forward could not go', async () => {
+    const repo = 'D:/repos/abc'
+    for (const why of ['dirty', 'merging', 'notFastForward'] as const) {
+      const { deps, checks } = setup(all([]), [], { [`${repo} HEAD`]: 'c1abcdef12' }, null, 'main', { forward: async () => why })
+      expect(await deps.runAfterGreen('ABC', 'c2', true)).toEqual({ state: 'skipped', reason: notice('afterGreen.notForwarded', { head: 'c1abcde', why }) })
+      expect(checks).toEqual([])
+    }
   })
 })
 

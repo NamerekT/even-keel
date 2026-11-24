@@ -45,6 +45,12 @@ describe('the machine screens glue no facts with a dot (BTN-1381)', () => {
     expect(markup.match(/class="tag"/g)).toHaveLength(2)
   })
 
+  it('says by one tag that a machine runs no commands after green (BTN-1597)', () => {
+    const markup = html(createElement(AfterGreen, { commands: [], own: true, off: true }))
+    expect(markup.match(/class="tag"/g)).toHaveLength(1)
+    expect(markup).toContain(t.pool.afterGreenOff)
+  })
+
   it('marks a machine off the link by a lamp in the pick, not by a word after a dot', () => {
     const option = machineOption({ id: 'm-1', name: 'Example laptop', online: false })
     expect(option.label).toBe('Example laptop')

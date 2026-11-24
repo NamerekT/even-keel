@@ -16,6 +16,7 @@ function setup(online: Set<string> = new Set(['server', 'laptop', 'desktop'])) {
     [HUB, { commands: ['npm run build'], ran: null as string | null }],
   ])
   const runs: string[] = []
+  const lines: string[] = []
   const held = new Map<string, () => void>()
   let green: string | undefined
   const port = (machine: string) => ({
@@ -33,9 +34,10 @@ function setup(online: Set<string> = new Set(['server', 'laptop', 'desktop'])) {
     ready: (machine) => online.has(machine),
     port,
     green: () => green,
-    log: () => {},
+    name: (machine) => (machine === 'server' ? 'Build server' : machine),
+    log: (line) => void lines.push(line),
   })
-  return { pool, runs, rows, held, online, setGreen: (commit: string) => (green = commit) }
+  return { pool, runs, rows, held, online, lines, setGreen: (commit: string) => (green = commit) }
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
@@ -86,5 +88,12 @@ describe('the commands after a green main on the machines of the pool (BTN-994)'
     pool.back('server')
     await pool.idle()
     expect(runs).toEqual(['server ABC@b forward'])
+  })
+
+  it('names the machine in the log by the name the hub gave it (BTN-1597)', async () => {
+    const { pool, lines } = setup(new Set(['server']))
+    pool.green('ABC', A)
+    await pool.idle()
+    expect(lines).toEqual(['afterGreen: ABC: machine "Build server" runs the commands after aaaaaaa', 'afterGreen: ABC: machine "Build server" is done with the commands after aaaaaaa'])
   })
 })

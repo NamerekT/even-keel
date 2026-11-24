@@ -15,6 +15,8 @@ export interface PoolAfterGreenDeps {
   port: (machine: string) => Pick<MachinePort, 'runAfterGreen'> | undefined
   /** The last green commit of the project's main with the guard on; `undefined` — none. */
   green: (project: string) => string | undefined
+  /** The name the hub gave the machine, for the log (BTN-1597). */
+  name: (machine: string) => string
   log: (message: string) => void
 }
 
@@ -60,7 +62,7 @@ export class PoolAfterGreen {
       if (commit === undefined) continue
       const [row] = await this.deps.pool(project, machine)
       if (row === undefined || row.commands.length === 0 || row.ran === commit) continue
-      this.deps.log(`afterGreen: ${project}: machine ${machine} is back and catches up on ${shortCommit(commit)}`)
+      this.deps.log(`afterGreen: ${project}: machine ${this.named(machine)} is back and catches up on ${shortCommit(commit)}`)
       this.run(project, machine, commit)
     }
   }
@@ -85,16 +87,21 @@ export class PoolAfterGreen {
     const short = shortCommit(commit)
     const port = this.deps.port(machine)
     if (port === undefined) return
+    const named = this.named(machine)
     try {
       await this.deps.mark(project, machine, commit)
-      this.deps.log(`afterGreen: ${project}: machine ${machine} runs the commands after ${short}`)
+      this.deps.log(`afterGreen: ${project}: machine ${named} runs the commands after ${short}`)
       const run = await port.runAfterGreen(project, commit, true)
-      if (run.state === 'done') this.deps.log(`afterGreen: ${project}: machine ${machine} is done with the commands after ${short}`)
-      else if (run.state === 'skipped') this.deps.log(`afterGreen: ${project}: machine ${machine} skipped them after ${short}: ${englishOf(run.reason)}`)
-      else this.deps.log(`afterGreen: ${project}: machine ${machine}: ${run.failure.command} after ${short} exited with ${run.failure.code}`)
+      if (run.state === 'done') this.deps.log(`afterGreen: ${project}: machine ${named} is done with the commands after ${short}`)
+      else if (run.state === 'skipped') this.deps.log(`afterGreen: ${project}: machine ${named} skipped them after ${short}: ${englishOf(run.reason)}`)
+      else this.deps.log(`afterGreen: ${project}: machine ${named}: ${run.failure.command} after ${short} exited with ${run.failure.code}`)
     } catch (error) {
-      this.deps.log(`afterGreen: ${project}: machine ${machine} did not run the commands after ${short}: ${error instanceof Error ? error.message : String(error)}`)
+      this.deps.log(`afterGreen: ${project}: machine ${named} did not run the commands after ${short}: ${error instanceof Error ? error.message : String(error)}`)
     }
+  }
+
+  private named(machine: string): string {
+    return JSON.stringify(this.deps.name(machine))
   }
 
   private track(work: Promise<void>): void {

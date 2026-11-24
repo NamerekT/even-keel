@@ -7,7 +7,7 @@ import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useMachineFilter } from '../layout/MachineFilter.js'
-import { machineBacklog, machineChain } from '../machineView.js'
+import { machineBacklog, machineChain, severalMachines } from '../machineView.js'
 import { isNarrow, useNarrow } from '../layout/useNarrow.js'
 import { useWide } from '../layout/useWide.js'
 import { useCommand } from '../live/useCommand.js'
@@ -356,6 +356,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
               fix={ciAt.fix}
               main={state.mainCi[key]}
               wait={activeChain(state.chain, key)?.ciWait}
+              {...(severalMachines(state) && state.ownMachine !== undefined && state.machineNames?.[state.ownMachine] !== undefined && { machine: state.machineNames[state.ownMachine] })}
               onClose={close}
             />
           )}

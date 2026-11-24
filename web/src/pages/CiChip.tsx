@@ -99,6 +99,8 @@ interface Extras {
   afterGreen: NonNullable<MainCiView['afterGreen']> | null
   /** The chain waits for the after-green commands: their row says so, not a line of its own. */
   held: boolean
+  /** The name of the hub's machine they ran on, where the hub has several (BTN-1597). */
+  machine?: string
 }
 
 const NO_EXTRAS: Extras = { hold: null, afterGreen: null, held: false }
@@ -111,6 +113,7 @@ export function CiPanel({
   fix,
   main,
   wait,
+  machine,
   onClose,
 }: {
   views: CiView[]
@@ -121,6 +124,8 @@ export function CiPanel({
   main: MainCiView | undefined
   /** The project's chain's wait on main, if it waits. */
   wait: ActiveChain['ciWait']
+  /** The name of the hub's own machine, where the hub has several: the after-green row names it (BTN-1597). */
+  machine?: string
   onClose: () => void
 }) {
   const episode = fixes.find((each) => each.id === fix)
@@ -138,6 +143,7 @@ export function CiPanel({
     hold: hold !== null && hold.kind !== 'after' && place?.index === index ? { hold, at: place.at } : null,
     afterGreen: index === 0 ? (main?.afterGreen ?? null) : null,
     held: hold?.kind === 'after',
+    ...(machine !== undefined && { machine }),
   })
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
@@ -256,7 +262,7 @@ function Hold({ hold, commit, now }: { hold: ChainHold; commit: string | null; n
  * The last run of the project's `commands.afterGreen` (BTN-829): a dot, the label, how it went and, once over, when at
  * the right. That the next task waits for the running commands is the tip's, marked by an "i" after the text.
  */
-export function AfterGreen({ run, held, now }: { run: NonNullable<MainCiView['afterGreen']>; held: boolean; now: Date }) {
+export function AfterGreen({ run, held, now, machine }: { run: NonNullable<MainCiView['afterGreen']>; held: boolean; now: Date; machine?: string }) {
   const commit = short(run.commit)
   const end = run.running ? undefined : run.end
   const look = run.running ? 'running' : end === undefined ? 'notTaken' : end.state === 'done' ? 'success' : end.state === 'failed' ? 'failure' : 'notTaken'
@@ -286,6 +292,8 @@ export function AfterGreen({ run, held, now }: { run: NonNullable<MainCiView['af
       <span className={`ci-status-dot ci-status-dot--${look}`} aria-label={t.ci.status[look]} role="img" />
       <span className="ci__label">{t.ci.after.label}</span>
       <span className="ci__after-text">
+        {machine !== undefined && <span className="tag ci__after-machine">{machine}</span>}
+        {machine !== undefined && ' '}
         {text}
         {waits && (
           <span className="ci__after-mark">
@@ -374,7 +382,7 @@ function CiBody({ view, now, urls, fixes, extras }: { view: CiView; now: Date; u
       ))}
       {hold('pushed')}
       {view.current !== null && <Push current={view.current} medians={view.medians} busy={view.busy} now={now} urls={urls} fixes={fixes} hold={hold('push')} />}
-      {extras.afterGreen !== null && <AfterGreen run={extras.afterGreen} held={extras.held} now={now} />}
+      {extras.afterGreen !== null && <AfterGreen run={extras.afterGreen} held={extras.held} now={now} {...(extras.machine !== undefined && { machine: extras.machine })} />}
       {view.history.length > 0 ? (
         <History runs={view.history} medians={view.medians} now={now} marked={fixes.marked} pushes={fixes.pushes} />
       ) : (

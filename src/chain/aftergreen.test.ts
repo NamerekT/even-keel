@@ -28,6 +28,8 @@ describe('Dispatcher and the commands after a green main', () => {
     await dispatcher.idle()
 
     expect(ci.ran).toEqual(['ABC@bbbbbbbbbb'])
+    // Another machine of the pool may have pushed the commit: the own checkout is brought up to it first (BTN-1597).
+    expect(ci.forwards).toEqual([true])
     expect(dispatcher.state.ci.ABC).toMatchObject({ green: 'bbbbbbbbbb', afterGreen: 'bbbbbbbbbb', afterGreenRun: { commit: 'bbbbbbbbbb' } })
     expect(saved.some((state) => state.ci.ABC?.afterGreen === 'bbbbbbbbbb' && state.active[0]?.ciWait?.after !== true)).toBe(true)
     expect(launched).toEqual(['ABC/ABC-1'])

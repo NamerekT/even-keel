@@ -476,6 +476,10 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await network.markAfterGreen(ABC, laptop, 'd'.repeat(40))
     expect(await network.afterGreenPool(ABC, laptop)).toEqual([{ machine: laptop, commands: ['./deploy.sh'], ran: 'd'.repeat(40) }])
     expect(await network.projectsOf(laptop)).toEqual([ABC])
+    // "Do not run" the project's commands after a green main (BTN-1597): the machine is left out of the runs.
+    await network.setSettings(ABC, laptop, { afterGreenOff: true })
+    expect((await network.pool(ABC)).machines.find((machine) => machine.id === laptop)).toMatchObject({ settings: { afterGreenOff: true }, afterGreen: [] })
+    expect(await network.afterGreenPool(ABC, laptop)).toEqual([{ machine: laptop, commands: [], ran: 'd'.repeat(40) }])
     await network.setSettings(ABC, laptop, {})
     expect((await network.pool(ABC)).machines.find((machine) => machine.id === laptop)).toMatchObject({ settings: {}, afterGreen: ['npm run deploy'] })
     // "Copy from": the sample's row of the hub's machine has values of its own, which the laptop takes at its place.

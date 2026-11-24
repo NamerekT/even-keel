@@ -314,6 +314,12 @@ export const en = {
   'afterGreen.offBranch': (p: { branch: string; on: string | null }) =>
     p.on === null ? `the main checkout is on no branch, not on ${p.branch}` : `the main checkout is on ${p.on}, not on ${p.branch}`,
   'afterGreen.pastCommit': (p: { head: string }) => `the main checkout is at ${p.head}, past the green commit`,
+  'afterGreen.notForwarded': (p: { head: string; why: 'dirty' | 'merging' | 'notFastForward' }) =>
+    p.why === 'dirty'
+      ? `the main checkout has uncommitted changes and stays at ${p.head}, not at the green commit`
+      : p.why === 'merging'
+        ? `a merge is under way in the main checkout, at ${p.head}, so it is not brought up to the green commit`
+        : `the main checkout at ${p.head} has commits the green one lacks, so it cannot be brought up to it`,
   'afterGreen.failed': (p: { command: string; code: number; commit: string }) =>
     `"${p.command}" after the green main at ${p.commit} exited with code ${p.code}; main stays green, the service log has the output`,
 

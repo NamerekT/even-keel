@@ -83,6 +83,7 @@ export const machinePanelEn: Messages['machinePanel'] = {
       hint: "This machine's commands in the project in place of the project's. A blank field is the project's commands, shown in it in grey.",
       lists: { beforeStart: 'Commands before the start', check: 'Check commands', afterGreen: 'Commands after a green main' },
       listHint: "One a line. A filled list replaces the project's whole list on this machine; a blank one runs the project's.",
+      afterGreenOff: 'Run no commands after a green main on this machine',
       none: 'the project has none',
       servers: 'Package servers on the machine',
       serversHint: "The command and arguments of the project's stdio package servers on this machine — another path to the program or a folder, say. A blank field is the catalog's.",

@@ -21,4 +21,13 @@ describe("a machine's own values in the project (BTN-994)", () => {
     draft.servers['git\u0000git'] = { command: '', args: '--root\n/srv/example\n' }
     expect(settingsOf(draft, SERVERS)).toEqual({ afterGreen: ['npm run deploy'], servers: { git: { git: { args: ['--root', '/srv/example'] } } } })
   })
+
+  it('saves "do not run" the commands after a green main without the list it hides (BTN-1597)', () => {
+    const draft = draftOf({ afterGreenOff: true }, SERVERS)
+    expect(draft.afterGreenOff).toBe(true)
+    draft.lists.afterGreen = './deploy.sh'
+    expect(settingsOf(draft, SERVERS)).toEqual({ afterGreenOff: true })
+    draft.afterGreenOff = false
+    expect(settingsOf(draft, SERVERS)).toEqual({ afterGreen: ['./deploy.sh'] })
+  })
 })
