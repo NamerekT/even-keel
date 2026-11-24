@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { canceled, done, fakeMachines, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState } from './dispatcher.js'
 import type { HandoffSession } from './relay.js'
-import { englishOf, notice, textNotice } from '../notice/notice.js'
+import type { FinishOutcome } from '../git/types.js'
+import { englishOf, fail, notice, textNotice } from '../notice/notice.js'
 
 const kept = notice('cleanup.worktreeKept', { path: 'C:\\abc\\.claude\\worktrees\\abc-1' })
 
@@ -478,6 +479,52 @@ describe('Dispatcher finishing a task it let go of', () => {
     dispatcher.check()
     await dispatcher.idle()
     expect(finished).toEqual(['ABC/ABC-1'])
+  })
+
+  it("keeps a released done task whose machine is away for its cleanup there, with no warning (BTN-1627)", async () => {
+    let away = false
+    const finish = (): FinishOutcome => {
+      if (away) throw fail('machine.away', { command: 'finish', task: 'ABC-1' })
+      return { warnings: [], syncError: null }
+    }
+    const { dispatcher, finished } = setup({ finish })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.skip('ABC', 'ABC-1')
+    await dispatcher.idle()
+
+    away = true
+    dispatcher.setReleased('ABC', [task('ABC-1', done)])
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.released('ABC')).toEqual(['ABC-1'])
+    expect(dispatcher.state.leftovers).toEqual({})
+
+    away = false
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1', 'ABC/ABC-1'])
+    expect(dispatcher.released('ABC')).toEqual([])
+  })
+
+  it("cleans up after a released done task of a revoked machine, its sessions never to be read (BTN-1627)", async () => {
+    const gone = new Set<string>()
+    const { machines } = fakeMachines({ own: 1, pc: 1 }, { held: { 'ABC-1': 'pc' }, gone, width: { ABC: 2 } })
+    const unread = new Set<string>()
+    const { dispatcher, finished } = setup({ unread, machines })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.skip('ABC', 'ABC-1')
+    await dispatcher.idle()
+
+    gone.add('pc')
+    unread.add('ABC-1')
+    dispatcher.setReleased('ABC', [task('ABC-1', done)])
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.released('ABC')).toEqual([])
   })
 
   it('cleans up after a released done task whose session runs only its background command', async () => {

@@ -136,10 +136,26 @@ describe('machinePool', () => {
     expect(calls).toEqual([])
   })
 
-  it('names the machine a cleanup ran on, the own one for a task whose machine is gone (BTN-995)', async () => {
+  it('names the machine a cleanup ran on, the own one for a task with no machine (BTN-995)', async () => {
     const { pool } = poolOf()
-    expect((await pool.finish('p', 'A-3')).machine).toBe('own')
+    expect((await pool.finish('p', 'A-1')).machine).toBe('server')
     expect((await pool.finish('p', 'A-2')).machine).toBe('own')
+  })
+
+  it('never cleans up on the own machine after a task whose machine is off the link: the cleanup waits for it (BTN-1627)', async () => {
+    const released: string[] = []
+    const { pool, calls } = poolOf({ release: (_project, task) => void released.push(task) })
+    await expect(pool.finish('p', 'A-3')).rejects.toMatchObject({ notice: { code: 'machine.away', params: { command: 'finish', task: 'A-3' } } })
+    expect(calls).toEqual([])
+    expect(released).toEqual([])
+  })
+
+  it("lets go of a revoked machine's task with no cleanup anywhere: its folder and branch stayed there (BTN-1627)", async () => {
+    const released: string[] = []
+    const { pool, calls } = poolOf({ gone: (machine) => machine === 'gone', release: (_project, task) => void released.push(task) })
+    expect(await pool.finish('p', 'A-3')).toEqual({ warnings: [], syncError: expect.objectContaining({ code: 'cleanup.machineGone' }), machine: 'gone' })
+    expect(calls).toEqual([])
+    expect(released).toEqual(['A-3'])
   })
 
   it('gives a cleanup cut off by the machine leaving the link as a sync to try again there (BTN-995)', async () => {

@@ -1,5 +1,5 @@
 import type { HandoffSession } from '../chain/relay.js'
-import { fail, noticeOf } from '../notice/notice.js'
+import { fail, notice, noticeOf } from '../notice/notice.js'
 import type { MovesPort } from './move-call.js'
 import type { MachinePort } from './port.js'
 
@@ -11,6 +11,10 @@ export interface PoolDeps {
   /** The machine the task went to (`machine_tasks`); `undefined` — none. */
   machineOf: (project: string, task: string) => string | undefined
   projectOf: (task: string) => string | undefined
+  /** The machine was revoked: it never comes back. Absent — none is. */
+  gone?: (machine: string) => boolean
+  /** The task leaves its machine with no cleanup there (`machine_tasks` and `task_moves`): its machine was revoked. */
+  release?: (project: string, task: string) => void
   /** The machine whose sessions have this one; `undefined` — none known. */
   sessionMachine: (sessionId: string) => string | undefined
   /** The machine a session works in this folder on; `undefined` — none known. */
@@ -22,8 +26,10 @@ export interface PoolDeps {
  * goes to the machine the task went to (`machine_tasks`, written by the lane's `bind` before its launch), a call about a
  * session to the machine that has it, and the rest — the project's main, fix and carry sessions, the accounts' reads —
  * to the own machine. A read of a task whose machine has no port (revoked, or off the link since the hub started) falls
- * back to the own one, and so do a stop and a cleanup; a launch, a resume, a reply, a relay or a move of such a task
- * throws `machine.away` instead (BTN-1625): run on the own machine, it would put a second task of the project there.
+ * back to the own one, and so does a stop; a launch, a resume, a reply, a relay or a move of such a task throws
+ * `machine.away` instead (BTN-1625): run on the own machine, it would put a second task of the project there. A cleanup
+ * of it never runs on the own machine (BTN-1627): it throws `machine.away` while the machine may come back, and lets go
+ * of the task's row with no cleanup anywhere once the machine is revoked.
  */
 export function machinePool(deps: PoolDeps): MachinePort {
   const hooked = new WeakSet<MachinePort>()
@@ -65,7 +71,13 @@ export function machinePool(deps: PoolDeps): MachinePort {
     // The machine that cleaned up holds main's commits if its sync failed: its next try goes there (BTN-995).
     // One that went off the link mid-cleanup is such a sync too (`RemoteMachine.lost`).
     finish: async (project, task, pull) => {
-      const machine = idOf(deps.machineOf(project, task))
+      const held = deps.machineOf(project, task)
+      if (held !== undefined && deps.port(held) === undefined) {
+        if (deps.gone?.(held) !== true) throw fail('machine.away', { command: 'finish', task })
+        deps.release?.(project, task)
+        return { warnings: [], syncError: notice('cleanup.machineGone', {}), machine: held }
+      }
+      const machine = held ?? deps.own()
       try {
         return { ...(await at(machine).finish(project, task, pull)), machine }
       } catch (error) {
