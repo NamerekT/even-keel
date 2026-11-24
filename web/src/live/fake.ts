@@ -708,6 +708,11 @@ export function createFakeSource(search: string): LiveSource {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
       if (name === 'machines/takeOver' && params.get('chain') === 'folderTakenGone') throw fail('machines.notTaken', {})
+      // Every drop refused as the service refuses one past the running task (BTN-1644).
+      if (name === 'chain/order' && params.get('order') === 'refused') {
+        const running = state.chain.active.find((chain) => chain.project === body.project)?.current?.task
+        throw fail('chain.currentFirst', { task: running ?? String(body.project) })
+      }
       if (chats.command(name, body)) {
         chatMail()
         return

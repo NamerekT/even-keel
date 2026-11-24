@@ -315,8 +315,17 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
   const movable = (block: ChainBlock) => !disabled && reorderable(block)
   /** A card is dragged, or its drop still glides: the rows are the drag's own (BTN-1612). */
   const held = () => active.current !== null || performance.now() < droppedUntil.current
+  /**
+   * Runs `run` once the drop's own glide is over: a refused drop's rows put back then glide home as any reorder
+   * (`useRowGlide`, BTN-1644), where an answer inside the glide would have jumped them back.
+   */
+  const afterDrop = (run: () => void) => {
+    const left = droppedUntil.current - performance.now()
+    if (left <= 0) run()
+    else setTimeout(run, Math.ceil(left))
+  }
 
-  return { drag, landing, settling, movable, held }
+  return { drag, landing, settling, movable, held, afterDrop }
 }
 
 /**
