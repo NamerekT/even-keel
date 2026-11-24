@@ -25,6 +25,17 @@ export function doubledLane(state: ChainState, machines: ChainMachines, chain: A
   return lanes.slice(0, lanes.indexOf(chain)).some((each) => laneMachine(each, machines) === machine)
 }
 
+/**
+ * Why the lane's machine may not take the project's next task (BTN-1625): `pool` — it no longer serves the project (off
+ * its pool, its folder off the main branch), `away` — it is not on the link now; `undefined` — it may. A lane between
+ * tasks ends on either rather than launch on another machine, its running session being none of this.
+ */
+export function laneOff(machines: ChainMachines, chain: ActiveChain): 'pool' | 'away' | undefined {
+  const machine = laneMachine(chain, machines)
+  if (!machines.serves(chain.project, machine)) return 'pool'
+  return machines.list().some(({ id }) => id === machine) ? undefined : 'away'
+}
+
 /** What a lane holds: its current task, the one it closes and the one a red main interrupted. */
 export function laneTasks(chain: ActiveChain): string[] {
   return [chain.current?.task, chain.closing, chain.interrupted?.task].filter((task): task is string => task !== undefined)

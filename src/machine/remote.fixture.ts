@@ -99,7 +99,15 @@ export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note
   const db = { query: async (sql: string, params: unknown[] = []) => (queries.push({ sql, params }), { rows: [] }) } as unknown as Db
   /** By task, the machine it was moved off by hand (BTN-1270). */
   const moved = new Map<string, string>()
-  const assignments = await Assignments.open({ db, writes: new Writes((line) => log.push(line)), order: () => [], movedFrom: (_project, task) => moved.get(task) })
+  /** By task, another machine of the hub with a live session of it (BTN-1625). */
+  const liveElsewhere = new Map<string, string>()
+  const assignments = await Assignments.open({
+    db,
+    writes: new Writes((line) => log.push(line)),
+    order: () => [],
+    movedFrom: (_project, task) => moved.get(task),
+    liveElsewhere: (_project, task, machine) => (liveElsewhere.get(task) === machine ? undefined : liveElsewhere.get(task)),
+  })
   queries.length = 0
   let id = ''
   const remote: RemoteMachine = new RemoteMachine({
@@ -183,5 +191,5 @@ export async function bench(brief?: RemoteDeps['brief'], note?: RemoteDeps['note
     })
     return { runner, end, moves }
   }
-  return { hub, hubStore, machineStore, wire, remote, port: remote.port(), state, local, log, snapshots, journal, ran, boot, id, assignments, moved, queries, held: () => kept }
+  return { hub, hubStore, machineStore, wire, remote, port: remote.port(), state, local, log, snapshots, journal, ran, boot, id, assignments, moved, liveElsewhere, queries, held: () => kept }
 }

@@ -64,6 +64,27 @@ describe('machinePool', () => {
     expect(pool.account('p')).toBe('own')
   })
 
+  it('never moves a launch, a resume, a relay or a move of a task bound to a machine with no port to the own one (BTN-1625)', async () => {
+    const { pool, calls } = poolOf()
+    const refused = async (call: () => unknown) => {
+      try {
+        await call()
+      } catch (error) {
+        return noticeOf(error)
+      }
+      return undefined
+    }
+    expect(await refused(() => pool.launch('p', 'A-3'))).toMatchObject({ code: 'machine.away', params: { command: 'launch', task: 'A-3' } })
+    expect(await refused(() => pool.launchFix('p', 'A-3', 'red'))).toMatchObject({ code: 'machine.away' })
+    expect(await refused(() => pool.resume('A-3', session('s-3')))).toMatchObject({ code: 'machine.away' })
+    expect(await refused(() => pool.relay('A-3', session('s-3'), 'go on', 'limit'))).toMatchObject({ code: 'machine.away' })
+    expect(await refused(() => pool.reply('A-3', session('s-3'), 'yes'))).toMatchObject({ code: 'machine.away' })
+    expect(await refused(() => pool.moves!.run('follow', { project: 'p', task: 'A-3', args: [] } as never))).toMatchObject({ code: 'machine.away' })
+    expect(calls).toEqual([])
+    // Reads of such a task still fall back to the own one.
+    expect(pool.liveSession('A-3')).toBe('own')
+  })
+
   it("reads a task's packages on the machine it went to, a project's alone on the own one", () => {
     const { pool } = poolOf()
     expect(pool.packagesBlocked('p', 'A-1')).toBe('server')

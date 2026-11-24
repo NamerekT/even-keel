@@ -1,5 +1,5 @@
 import type { HandoffSession } from '../chain/relay.js'
-import { noticeOf } from '../notice/notice.js'
+import { fail, noticeOf } from '../notice/notice.js'
 import type { MovesPort } from './move-call.js'
 import type { MachinePort } from './port.js'
 
@@ -21,7 +21,9 @@ export interface PoolDeps {
  * The chain's one port over every machine of the hub (BTN-993, `docs/machines.md`, "The pool"): a call about a task
  * goes to the machine the task went to (`machine_tasks`, written by the lane's `bind` before its launch), a call about a
  * session to the machine that has it, and the rest — the project's main, fix and carry sessions, the accounts' reads —
- * to the own machine. A machine gone falls back to the own one.
+ * to the own machine. A read of a task whose machine has no port (revoked, or off the link since the hub started) falls
+ * back to the own one, and so do a stop and a cleanup; a launch, a resume, a reply, a relay or a move of such a task
+ * throws `machine.away` instead (BTN-1625): run on the own machine, it would put a second task of the project there.
  */
 export function machinePool(deps: PoolDeps): MachinePort {
   const hooked = new WeakSet<MachinePort>()
@@ -41,16 +43,22 @@ export function machinePool(deps: PoolDeps): MachinePort {
     at(project === undefined || task === undefined ? undefined : deps.machineOf(project, task))
   const ofTask = (task: string): MachinePort => byTask(deps.projectOf(task), task)
   const ofSession = (session: HandoffSession): MachinePort => at(deps.sessionMachine(session.sessionId))
+  /** The task's own machine for what starts or drives its session: never another one in its place. */
+  const runsAt = (command: string, project: string | undefined, task: string): Promise<MachinePort> => {
+    const machine = project === undefined ? undefined : deps.machineOf(project, task)
+    if (machine !== undefined && deps.port(machine) === undefined) return Promise.reject(fail('machine.away', { command, task }))
+    return Promise.resolve(at(machine))
+  }
   const first = own()
 
   return {
-    launch: (project, task, extra, brief) => byTask(project, task).launch(project, task, extra, brief),
+    launch: async (project, task, extra, brief) => (await runsAt('launch', project, task)).launch(project, task, extra, brief),
     // The chain binds the fix to the machine it chose (BTN-995); unbound, it runs on the own one.
-    launchFix: (project, name, report, reran) => byTask(project, name).launchFix(project, name, report, reran),
+    launchFix: async (project, name, report, reran) => (await runsAt('launchFix', project, name)).launchFix(project, name, report, reran),
     launchCarry: (project, name, report) => own().launchCarry(project, name, report),
-    resume: (task, session) => ofTask(task).resume(task, session),
-    reply: (task, session, prompt, user) => ofTask(task).reply(task, session, prompt, user),
-    relay: (task, session, prompt, reason, brief) => ofTask(task).relay(task, session, prompt, reason, brief),
+    resume: async (task, session) => (await runsAt('resume', deps.projectOf(task), task)).resume(task, session),
+    reply: async (task, session, prompt, user) => (await runsAt('reply', deps.projectOf(task), task)).reply(task, session, prompt, user),
+    relay: async (task, session, prompt, reason, brief) => (await runsAt('relay', deps.projectOf(task), task)).relay(task, session, prompt, reason, brief),
     stop: (session) => ofSession(session).stop(session),
     locate: (session) => ofSession(session).locate(session),
 
@@ -128,7 +136,7 @@ export function machinePool(deps: PoolDeps): MachinePort {
     ...(first.catchUp === undefined ? {} : { catchUp: (whole?: boolean) => own().catchUp!(whole) }),
     ...(first.moves === undefined ? {} : {
       moves: {
-        run: (name, move) => (byTask(move.project, move.task).moves ?? first.moves!).run(name, move),
+        run: async (name, move) => ((await runsAt(`moves.${name}`, move.project, move.task)).moves ?? first.moves!).run(name, move),
         onSaved: (taken) => {
           take = taken
           own()

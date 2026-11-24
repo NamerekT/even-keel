@@ -90,6 +90,15 @@ export class MachineNetwork {
     return undefined
   }
 
+  /** A machine elsewhere but `except` whose sessions read hold a live session of the task (BTN-1625); `undefined` — none. */
+  liveHolderOf(task: string, except: string): string | undefined {
+    for (const [machine, peer] of this.peers) {
+      const facts = peer.remote.facts()
+      if (machine !== except && facts?.sessionsRead === true && facts.tasks[task]?.live !== undefined) return machine
+    }
+    return undefined
+  }
+
   /** What the page reads of each machine elsewhere that has posted a snapshot since the hub started. */
   pages(): RemoteMachine['page'][] {
     return [...this.peers.values()].map((peer) => peer.remote.page)

@@ -616,6 +616,7 @@ export const en = {
     `machine: the machine refused ${p.command}: ${p.reason === 'project' ? 'it did not agree to serve this project' : "the folder is outside the project's agreed ones"}`,
   'machine.commandInterrupted': (p: { command: string }) => `machine: the machine stopped in the middle of ${p.command} and does not run it again`,
   'machine.lockLost': (p: { command: string }) => `machine: the machine went off the link during ${p.command}; the sync of main is tried again once it is back`,
+  'machine.away': (p: { command: string; task: string }) => `machine: ${p.task} is on a machine not connected to the hub now: its ${p.command} waits for that machine and never runs on another`,
   'reassign.notHeld': (p: { task: string }) => `reassign: ${p.task} is not held by a machine elsewhere: there is nothing to move`,
   'reassign.machineOnline': (p: { task: string; machine: string }) => `reassign: ${p.task} is on ${p.machine}, which is connected: the chain goes on with it there`,
   'reassign.noRemote': (p: { task: string }) => `reassign: the project's repository has no remote, so ${p.task}'s branch cannot reach another machine`,

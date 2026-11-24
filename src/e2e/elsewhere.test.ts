@@ -207,4 +207,53 @@ describe('a machine elsewhere end to end', { timeout: scaled(180_000) }, () => {
     expect(run.service.dispatcher.state.released[PROJECT_ID]).toEqual(['ABC-1'])
     expect(await statusOf(1)).not.toBe('Done')
   })
+
+  it("ends the lane of a machine taken off the pool and the link, never running a second task of the project on the hub's own machine across its restart (BTN-1625)", async () => {
+    const gates = { 'ABC-1': new Gate(), 'ABC-2': new Gate() }
+    for (const task of ['ABC-1', 'ABC-2'] as const) {
+      run.agent.script(task, async (turn) => {
+        turn.show({ text: 'Working' })
+        await turn.park(gates[task])
+        return commitAndMerge(`${task}.txt`)(turn)
+      })
+    }
+    run.agent.script('ABC-3', commitAndMerge('ABC-3.txt'))
+    const machine = await connected(undefined, true)
+    const own = (await run.answer<{ machines: PoolRow[] }>('machines/pool', { project: PROJECT_ID })).machines.find((row) => row.own)!.id
+    await run.post('builtin/create', { project: PROJECT_ID, title: 'Work on the hub' })
+    await run.post('builtin/create', { project: PROJECT_ID, title: 'Work next' })
+    await run.post('task/run', { task: 'ABC-1', machines: [own] })
+    await run.post('task/run', { task: 'ABC-2', machines: [machine] })
+    run.service.configStore.saveWidth(PROJECT_ID, 2)
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.agent.sessionsOf('ABC-1').length > 0 && run.agent.sessionsOf('ABC-2').length > 0, 'both lanes launched', { limitMs: 10 * 60_000 })
+
+    const elsewhereCwd = (cwd: string) => cwd.startsWith(elsewhere.checkout + sep) || cwd.startsWith(`${elsewhere.checkout}/`)
+    const onOwn = () => run.agent.calls.filter((call) => call.kind !== 'stop' && !elsewhereCwd(call.cwd)).map((call) => `${call.kind} ${call.task}`)
+    expect(onOwn()).toEqual(['launch ABC-1'])
+
+    // The machine leaves the project's pool and the link with its session mid-turn; the hub comes up without it.
+    await run.post('machines/enable', { project: PROJECT_ID, machine, enabled: false })
+    const downAt = Date.now()
+    await run.restart(() => {
+      elsewhere.offLink()
+      vi.setSystemTime(downAt + 2 * 60_000)
+    })
+    await run.pass(2 * 60_000)
+    expect(onOwn()).toEqual(['launch ABC-1'])
+
+    // The machine is back: its session stays its own, finishes there, and its lane ends instead of taking ABC-3.
+    await elsewhere.backOnLink()
+    await run.until(() => run.service.machineLink.port.sessionsRead('ABC-2'), 'the machine posted its sessions')
+    expect(run.service.machineLink.assignments.machineOf(PROJECT_ID, 'ABC-1')).toBe(own)
+    gates['ABC-2'].open()
+    await run.until(() => run.log.join('\n').includes(`on machine ${machine} ends: the machine no longer serves the project`), 'the lane of the machine ended', { limitMs: 10 * 60_000 })
+    await run.pass(30_000)
+    expect(onOwn()).toEqual(['launch ABC-1'])
+    expect(run.agent.calls.filter((call) => call.task === 'ABC-3')).toEqual([])
+
+    gates['ABC-1'].open()
+    await run.until(() => run.agent.calls.some((call) => call.kind === 'launch' && call.task === 'ABC-3'), 'ABC-3 launched on the hub', { limitMs: 10 * 60_000 })
+    expect(onOwn()).toEqual(['launch ABC-1', 'launch ABC-3'])
+  })
 })

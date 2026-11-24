@@ -238,8 +238,9 @@ export class RemoteMachine {
       return project === undefined ? [] : [{ project, task }]
     })
     const machine = this.deps.machine()
-    const { removed, added, refused } = held(new Set(Object.keys(facts.tasks)), live)
+    const { removed, added, refused, rehomed } = held(new Set(Object.keys(facts.tasks)), live)
     for (const { task } of removed) log(`machine: ${task} is no longer on machine ${machine}, its row in machine_tasks is removed`)
+    for (const { task, to } of rehomed) log(`machine: ${task} is not on machine ${machine}, but has a live session on machine ${to}: its row in machine_tasks is ${to}'s now`)
     for (const { task } of refused) log(`machine: ${task} has a live session on machine ${machine}, but was moved off it by hand: the chain goes on with it elsewhere and leaves that session alone`)
     for (const { task, from } of added) {
       log(from === undefined

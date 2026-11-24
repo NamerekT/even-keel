@@ -14,17 +14,21 @@ export interface AssignmentDeps {
   order: (project: string) => string[]
   /** The machine the task was moved off by hand (`TaskMoves`, BTN-1270); `undefined` — it was not moved. */
   movedFrom?: (project: string, task: string) => string | undefined
+  /** A machine of the hub other than `machine` with a live session of the task (BTN-1625); `undefined` — none. */
+  liveElsewhere?: (project: string, task: string, machine: string) => string | undefined
   now?: () => number
 }
 
 /**
  * What squaring a machine's rows with its snapshot changed; `from` — the machine the task's row named before.
  * `refused` — the tasks with a live session there that were moved off the machine: they stay where they went.
+ * `rehomed` — the tasks the machine does not know whose live session another machine has: their rows went there.
  */
 export interface HeldChanges {
   removed: AssignedTask[]
   added: Array<AssignedTask & { from?: string }>
   refused: AssignedTask[]
+  rehomed: Array<AssignedTask & { to: string }>
 }
 
 const keyOf =(project: string, task: string): string => `${project}\n${task}`
@@ -70,13 +74,24 @@ export class Assignments implements AssignedTasks {
   }
 
   /**
-   * Squares the machine's rows with its snapshot: a row of a task the machine no longer names goes, and a task with a
+   * Squares the machine's rows with its snapshot: a row of a task the machine no longer names goes, or goes to the
+   * machine with a live session of it (BTN-1625: a launch the hub ran in another machine's place), and a task with a
    * live session there becomes its own, unless it was moved off the machine by hand. `named` is every task the machine
    * knows a session of; a stopped one keeps its row, since its place is cleaned up only with `finish`.
    */
   reconcile(machine: string, named: ReadonlySet<string>, live: AssignedTask[]): HeldChanges {
-    const removed = this.of(machine).filter(({ task }) => !named.has(task))
-    for (const { project, task } of removed) this.release(project, task)
+    const removed: AssignedTask[] = []
+    const rehomed: HeldChanges['rehomed'] = []
+    for (const { project, task } of this.of(machine).filter((each) => !named.has(each.task))) {
+      const to = this.deps.liveElsewhere?.(project, task, machine)
+      if (to === undefined || this.deps.movedFrom?.(project, task) === to) {
+        this.release(project, task)
+        removed.push({ project, task })
+      } else {
+        this.assign(project, task, to)
+        rehomed.push({ project, task, to })
+      }
+    }
     const added: HeldChanges['added'] = []
     const refused: AssignedTask[] = []
     for (const { project, task } of live) {
@@ -89,7 +104,7 @@ export class Assignments implements AssignedTasks {
       this.assign(project, task, machine)
       added.push({ project, task, ...(was === undefined ? {} : { from: was }) })
     }
-    return { removed, added, refused }
+    return { removed, added, refused, rehomed }
   }
 
   machineOf(project: string, task: string): string | undefined {
