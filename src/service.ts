@@ -1,5 +1,8 @@
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { AccessBook } from './access/book.js'
+import { PasskeyDesk } from './access/passkeys.js'
+import type { AccessControl } from './access/routes.js'
 import { type AccountHome } from './account/homes.js'
 import type { SessionStart } from './agent/contract.js'
 import { attachBuiltin } from './builtin/adapter.js'
@@ -76,6 +79,7 @@ export type ServiceContext = typeof context
 
 /** Live bindings keep callbacks lazy across initialization and later state/config changes. */
 const context = {
+  get access() { return access },
   get stateChanged() { return stateChanged },
   get attachmentsDir() { return attachmentsDir },
   get importedAdapters() { return importedAdapters },
@@ -428,6 +432,11 @@ const profileStatuses = hubBootstrap.assembleProfileStatuses(context)
 // The state goes to the page whole once, then by its changed parts, the sessions one by one (BTN-695); a tracker's
 // last read moves only its own entry (BTN-1256), a CI poll only its project's CI (BTN-1326).
 const hub = new EventHub({ state: { sessions: 'sessionId', eventLog: 'id', trackers: 'name', ci: OWN_KEYS } })
+// The page's sign-in (BTN-1619): a device signed out loses its event stream; a key changed while the service was
+// down signs out the devices that came in with the old one.
+const accessBook = await AccessBook.load(db, { revoked: (ids) => hub.closeTagged(ids) })
+await accessBook.keyIs(token)
+const access: AccessControl = { book: accessBook, passkeys: new PasskeyDesk(db, accessBook.person), key: () => token }
 // The event log looks at the state also while no page listens, at most every two seconds (BTN-350).
 hub.watch('state', (state) => eventLog.observe(state as EvenKeelState), 2_000)
 /**

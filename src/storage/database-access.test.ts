@@ -1,6 +1,6 @@
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
-import { ensureOwner, passkeysOf, tokensOf } from '../access/store.js'
+import { ensureOwner, passkeysOf } from '../access/store.js'
 import { insertRows, rowsOf } from './copy.js'
 import { fixture, readsWhole, schemaOf } from './database.fixture.js'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
@@ -17,9 +17,11 @@ it('step 79 adds the people, their device tokens and passkeys, none before it (B
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
     await readsWhole(frozen, 79, 79)
     expect(await ensureOwner(frozen)).toEqual({ id: OWNER, name: 'Owner', createdAt: '2026-11-24T08:00:00.000Z' })
-    expect((await tokensOf(frozen, OWNER)).map((token) => [token.device, token.rights, token.revokedAt])).toEqual([
-      ['Firefox on Linux', 'owner', null],
-      ['Safari on iPhone', 'owner', '2026-11-24T09:30:00.000Z'],
+    // Read as step 79 left the table: `tokensOf` follows the latest schema (step 80's `key_mark`).
+    const tokens = await frozen.query('select device, rights, revoked_at from access_tokens where person_id = $1 order by created_at, id', [OWNER])
+    expect(tokens.rows).toEqual([
+      { device: 'Firefox on Linux', rights: 'owner', revoked_at: null },
+      { device: 'Safari on iPhone', rights: 'owner', revoked_at: '2026-11-24T09:30:00.000Z' },
     ])
     expect(await passkeysOf(frozen, OWNER)).toEqual([
       {

@@ -81,6 +81,7 @@ export type HostingContext = Pick<ServiceContext,
   | 'FALLBACK_TOAST_MS'
   | 'LAUNCH_CHART_DAYS'
   | 'TRACKER_CHECK_MS'
+  | 'access'
   | 'account'
   | 'activeAccount'
   | 'agentOf'
@@ -708,7 +709,8 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     resolveCarry: (project) => ctx.forwards.resolve(project),
     stats: ctx.stats,
     badge: (project, theme, still) => ctx.badges.svg(project, theme, still),
-    guard: () => ({ hosts: guardHosts(ctx.listen.host, ctx.configStore.current.allowedHosts), token: ctx.token, language: ctx.configStore.current.language ?? ctx.promptLanguage() }),
+    access: ctx.access,
+    guard: () => ({ hosts: guardHosts(ctx.listen.host, ctx.configStore.current.allowedHosts), token: ctx.token, language: ctx.configStore.current.language ?? ctx.promptLanguage(), book: ctx.access.book }),
   })
 }
 
@@ -723,6 +725,11 @@ export function applyGuard(ctx: HostingContext): void {
   if (next === ctx.token) return
   ctx.token = next
   console.log(next === null ? 'guard: no token now' : 'guard: the token changed, open pages are asked for it again')
+  // The devices that came in with the old key go; the passkeys' stay.
+  ctx.access.book.keyIs(next).then(
+    (count) => count > 0 && console.log(`guard: ${count} device(s) signed in with the old key signed out`),
+    (error: unknown) => console.error(`guard: the devices of the old key not signed out: ${englishOf(noticeOf(error))}`),
+  )
   ctx.hub.closeAll()
 }
 

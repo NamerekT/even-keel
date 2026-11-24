@@ -1,0 +1,73 @@
+/* The settings group "Sign-in and devices" (BTN-1619): passkeys and devices as nested groups, a row each. */
+
+.sign-ins {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.sign-ins__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+  padding: var(--space-8) var(--space-12);
+  min-height: 44px;
+}
+
+.sign-ins__row + .sign-ins__row {
+  border-top: 1px solid var(--border);
+}
+
+/* On a phone the time and the button drop under the name, kept at the right. */
+.sign-ins__main {
+  display: flex;
+  flex: 1 1 12em;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.sign-ins__side {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin-left: auto;
+}
+
+.sign-ins__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-14);
+  font-weight: 600;
+}
+
+.sign-ins__from,
+.sign-ins__when {
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  font-variant-numeric: tabular-nums;
+}
+
+.sign-ins__when {
+  white-space: nowrap;
+}
+
+.sign-ins__empty {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.sign-ins__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}

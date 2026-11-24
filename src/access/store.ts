@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
 import type { Db, Queryable } from '../storage/database.js'
 import type { Rights } from './rights.js'
 
@@ -26,6 +26,8 @@ export interface AccessToken {
   /** The address the token was last seen from. */
   seenFrom: string | null
   revokedAt: string | null
+  /** The owner key's mark for a sign-in with the key (`keyMarkOf`); `null` — a passkey's. */
+  keyMark: string | null
 }
 
 export interface Passkey {
@@ -57,6 +59,7 @@ interface TokenRow {
   seen_at: string | null
   seen_from: string | null
   revoked_at: string | null
+  key_mark: string | null
 }
 
 interface PasskeyRow {
@@ -70,9 +73,13 @@ interface PasskeyRow {
   used_at: string | null
 }
 
-const TOKEN_COLUMNS = 'id, person_id, rights, device, created_at, seen_at, seen_from, revoked_at'
+const TOKEN_COLUMNS = 'id, person_id, rights, device, created_at, seen_at, seen_from, revoked_at, key_mark'
+const PASSKEY_COLUMNS = 'credential_id, person_id, public_key, counter, host, name, created_at, used_at'
 
-const hashOf = (secret: string) => createHash('sha256').update(secret).digest('hex')
+export const hashOf = (secret: string) => createHash('sha256').update(secret).digest('hex')
+
+/** What a token signed in with the owner key keeps of it: enough to tell the key changed, never the key. */
+export const keyMarkOf = (key: string) => createHmac('sha256', key).update('even-keel-owner-key').digest('hex')
 
 const personOf = (row: PersonRow): Person => ({ id: row.id, name: row.name, createdAt: row.created_at })
 
@@ -85,6 +92,7 @@ const tokenOf = (row: TokenRow): AccessToken => ({
   seenAt: row.seen_at,
   seenFrom: row.seen_from,
   revokedAt: row.revoked_at,
+  keyMark: row.key_mark,
 })
 
 const passkeyOf = (row: PasskeyRow): Passkey => ({
@@ -113,6 +121,7 @@ export interface NewToken {
   person: string
   rights: Rights
   device: string
+  keyMark?: string | null
   now?: Date
 }
 
@@ -120,9 +129,9 @@ export interface NewToken {
 export async function issueToken(db: Db, fresh: NewToken): Promise<{ token: AccessToken; secret: string }> {
   const secret = randomBytes(32).toString('base64url')
   const { rows } = await db.query<TokenRow>(
-    `insert into access_tokens (id, person_id, rights, secret_hash, device, created_at) values ($1, $2, $3, $4, $5, $6)
+    `insert into access_tokens (id, person_id, rights, secret_hash, device, created_at, key_mark) values ($1, $2, $3, $4, $5, $6, $7)
      returning ${TOKEN_COLUMNS}`,
-    [randomUUID(), fresh.person, fresh.rights, hashOf(secret), fresh.device, (fresh.now ?? new Date()).toISOString()],
+    [randomUUID(), fresh.person, fresh.rights, hashOf(secret), fresh.device, (fresh.now ?? new Date()).toISOString(), fresh.keyMark ?? null],
   )
   return { token: tokenOf(rows[0]!), secret }
 }
@@ -131,6 +140,12 @@ export async function issueToken(db: Db, fresh: NewToken): Promise<{ token: Acce
 export async function tokenBySecret(db: Queryable, secret: string): Promise<AccessToken | undefined> {
   const { rows } = await db.query<TokenRow>(`select ${TOKEN_COLUMNS} from access_tokens where secret_hash = $1 and revoked_at is null`, [hashOf(secret)])
   return rows[0] === undefined ? undefined : tokenOf(rows[0])
+}
+
+/** Every token not revoked, with the hash of its secret: what the guard's book holds. */
+export async function liveTokens(db: Queryable): Promise<{ token: AccessToken; secretHash: string }[]> {
+  const { rows } = await db.query<TokenRow & { secret_hash: string }>(`select ${TOKEN_COLUMNS}, secret_hash from access_tokens where revoked_at is null order by created_at, id`)
+  return rows.map((row) => ({ token: tokenOf(row), secretHash: row.secret_hash }))
 }
 
 export async function tokensOf(db: Queryable, person: string): Promise<AccessToken[]> {
@@ -160,7 +175,7 @@ export async function addPasskey(db: Db, passkey: NewPasskey): Promise<void> {
 
 export async function passkeysOf(db: Queryable, person: string): Promise<Passkey[]> {
   const { rows } = await db.query<PasskeyRow>(
-    'select credential_id, person_id, public_key, counter, host, name, created_at, used_at from passkeys where person_id = $1 order by created_at, credential_id',
+    `select ${PASSKEY_COLUMNS} from passkeys where person_id = $1 order by created_at, credential_id`,
     [person],
   )
   return rows.map(passkeyOf)
@@ -169,4 +184,15 @@ export async function passkeysOf(db: Queryable, person: string): Promise<Passkey
 /** A sign-in with the passkey: its new counter and the time. */
 export async function passkeyUsed(db: Db, credentialId: string, counter: number, at = new Date()): Promise<void> {
   await db.query('update passkeys set counter = $2, used_at = $3 where credential_id = $1', [credentialId, counter, at.toISOString()])
+}
+
+export async function passkeyById(db: Queryable, credentialId: string): Promise<Passkey | undefined> {
+  const { rows } = await db.query<PasskeyRow>(`select ${PASSKEY_COLUMNS} from passkeys where credential_id = $1`, [credentialId])
+  return rows[0] === undefined ? undefined : passkeyOf(rows[0])
+}
+
+/** Whether there was one to remove. */
+export async function removePasskey(db: Db, credentialId: string): Promise<boolean> {
+  const { affectedRows } = await db.query('delete from passkeys where credential_id = $1', [credentialId])
+  return (affectedRows ?? 0) > 0
 }

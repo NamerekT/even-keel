@@ -66,7 +66,8 @@ import { ListTable, RowsTable } from './settingsTable.js'
 import { invalidPending, TableDraft, validateTables } from './settingsTableDraft.js'
 import { SettingsNav } from './SettingsNav.js'
 import { SettingsProfiles } from './SettingsProfiles.js'
-import { ClassifierSettings, PageToken } from './SettingsSecrets.js'
+import { ClassifierSettings } from './SettingsSecrets.js'
+import { SignInSettings } from './SignInSettings.js'
 import { TallySettings } from './TallyChoice.js'
 import { NoticeSettings } from './NoticeSettings.js'
 import { BackupStatus } from './BackupStatus.js'
@@ -96,6 +97,8 @@ const GROUPS = [
   // The catalog of packages (BTN-802): each change is sent at once, no draft.
   { id: 'packages', keys: [] },
   { id: 'page', keys: ['language', 'allowedHosts', 'machinesAddress', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
+  // Passkeys, devices and the owner key (BTN-1619): each change is sent at once, no draft.
+  { id: 'signIn', keys: [] },
   { id: 'backup', keys: ['backupDir', 'backupKeep'] },
   // Each switch applies at once, as "Don't show again" on a banner does (BTN-759): no draft.
   { id: 'notices', keys: [] },
@@ -587,7 +590,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {numberRow('attachmentLimit', t.shared.attachmentLimit, wholeOf(text('attachmentLimit'), 1) === undefined || errorOf('attachmentLimit') !== null, t.shared.attachmentLimitHint)}
         </Section>
         <Section title={t.shared.sections.access}>
-          <PageToken state={state} />
           <div className={marks.box('allowedHosts')}>
             <FieldHead label={t.shared.allowedHosts} hint={t.shared.allowedHostsHint} mark={marks.note('allowedHosts')} />
             <ListTable
@@ -691,6 +693,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     ),
     trackers: () => <SettingsProfiles state={state} onRules={(id) => setOpen(profileGroup(id))} />,
     notices: () => <NoticeSettings />,
+    signIn: () => <SignInSettings state={state} />,
     packages: () => <PackageCatalog state={state} />,
   }
 
@@ -762,7 +765,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             )}
             {ruledOpen !== undefined ? <ProfileRules key={ruledOpen.id} state={state} profile={ruledOpen} /> : draftForm(false)}
           </section>
-        ) : open === 'trackers' || open === 'notices' || open === 'packages' || open === 'stats' ? (
+        ) : open === 'trackers' || open === 'notices' || open === 'packages' || open === 'signIn' || open === 'stats' ? (
           // Every profile, notice switch and package change is applied on its own, so the tab is not a form; Tally's place and its classifier are applied on their own, ahead of the draft.
           <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
             {groupTitle(open)}

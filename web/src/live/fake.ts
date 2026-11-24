@@ -38,6 +38,8 @@ import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog } from './fakeChangelog.js'
+import { fakeAuthQuery } from './fakeAuth.js'
+import { PAGE_TOKEN } from '../../../src/secrets/catalog.js'
 import { fakeChats, fakeDictation } from './fakeChats.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
@@ -809,6 +811,7 @@ export function createFakeSource(search: string): LiveSource {
     query: async <T>(name: string, body: Record<string, unknown>) => {
       await answer()
       if (current.state === null) throw new Error('fake: no state yet')
+      if (name.startsWith('auth/')) return fakeAuthQuery(name, body, current.state.secrets.variables.some((each) => each.name === PAGE_TOKEN && each.set)) as T
       if (name === 'models/list') return fakeModels(current.state.account, String(body.account), params.get('models')) as T
       if (name === 'project/branches') return fakeRepoBranches(current.state, String(body.project)) as T
       if (name === 'project/git/changes') return fakeGitChanges(params.get('gitChanges')) as T

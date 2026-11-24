@@ -4,6 +4,7 @@ import { toolsEN, packagesEN, chainEN, cardEN } from './workspace-en.js'
 import { accountEn } from './account-en.js'
 import { addAccount } from './add-account-en.js'
 import { sharedEn } from './shared-en.js'
+import { signInEn } from './sign-in-en.js'
 import { helpEn } from './help-en.js'
 import { sessionEn } from './session-en.js'
 import { ciEn, ciKindsEn } from './ci-en.js'
@@ -421,6 +422,7 @@ export const en: Messages = {
   project: projectEN,
   settings: settingsEN,
   shared: sharedEn,
+  signIn: signInEn,
   secrets: {
     variable: (name) => `In .env: ${name}.`,
     outerHint: "Set in the service's own environment, not in .env, and wins over the file: change it there.",
@@ -428,10 +430,10 @@ export const en: Messages = {
     kept: 'set — blank keeps it',
     save: 'Save',
     remove: 'Remove',
-    token: 'Access token',
-    tokenSet: 'set — type a new one to replace it',
+    token: 'Owner key',
+    tokenSet: 'set in the .env of the hub — type a new one to replace it',
     tokenHint:
-      'Pages opened from other machines ask for it; 16+ characters. Once it changes, they ask for the new one. While the service listens beyond localhost, it cannot be removed.',
+      'The first sign-in on a device and the way back in when every passkey is lost; scripts send it as Authorization: Bearer. 16+ characters. Changing it signs out every device signed in with the key; the passkeys stay. While the service listens beyond localhost, it cannot be removed.',
     classifier: 'Span classifier',
     classifierHint: 'Tally sorts the spans of sessions by kind with a model behind an OpenAI-compatible address, such as LiteLLM. Without an address or a key it is skipped.',
     llmUrl: 'Address',

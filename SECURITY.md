@@ -12,7 +12,7 @@ Only the latest release gets fixes.
 
 ## What counts
 
-- Reaching the page or its API past the boundary described in the guide ([Reaching the page from another machine](docs/guide/setup.md#reaching-the-page-from-another-machine)): around the `Host` and `Origin` checks, the `EVEN_KEEL_TOKEN` check or its cookie, DNS rebinding, cross-site requests from another page in the browser.
+- Reaching the page or its API past the boundary described in the guide ([Reaching the page from another machine](docs/guide/setup.md#reaching-the-page-from-another-machine)): around the `Host` and `Origin` checks, the sign-in (the owner key `EVEN_KEEL_TOKEN`, a passkey, a device token or its cookie, a revoked device), DNS rebinding, cross-site requests from another page in the browser.
 - Starting, answering or stopping a session, or changing the config, by someone the page did not let in.
 - Leaking secrets: tracker and CI tokens from `.env`, `EVEN_KEEL_TOKEN`, API keys of accounts, the CLI's credentials — into the page, the service log, the statistics database, a tracker comment or the environment of a session.
 - Writing or reading files outside the places Even Keel means to: the chat's file upload, the routes that serve files, worktree and slot paths.
@@ -24,5 +24,5 @@ Only the latest release gets fixes.
 - Anyone who can write tasks or comments in the tracker project directs the sessions: the task text is their prompt and a comment can answer their question. Give write access to the project only to people you would let run code on the machine.
 - An attacker who already has the machine's user account, the service account or a valid token.
 - Access from another OS user account on the same machine: the page and MCP gateway trust all local users without a token. They can use the page and the tasks server's tools for any project and run code as the service account. Run Even Keel only on a machine whose users you trust that much.
-- Access through a proxy or tunnel on the same machine that has no authentication of its own: once the forwarded name passes the `Host` check, the page treats the connection as local and does not require `EVEN_KEEL_TOKEN`, even when set. A public tunnel then lets anyone who knows its address drive the page. The proxy must control access; `allowedHosts` and HTTPS do not authenticate visitors.
-- The page opened over plain HTTP from another machine: the guide says the token is then visible on the way.
+- Access through a proxy or tunnel on the same machine that has no authentication of its own while `EVEN_KEEL_TOKEN` is not set, or that forwards a loopback name (`localhost`, `127.0.0.1`): such requests go without a sign-in. A public tunnel then lets anyone who knows its address drive the page. With the owner key set, a request by any other name is asked to sign in; `allowedHosts` and HTTPS alone do not authenticate visitors.
+- The page opened over plain HTTP from another machine: the guide says the key and the device's cookie are then visible on the way.

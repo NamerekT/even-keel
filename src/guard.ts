@@ -1,4 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
+import type { AccessToken } from './access/store.js'
+import { hookRouteOf } from './link/hooks.js'
 import { fail } from './notice/notice.js'
 
 /**
@@ -8,10 +10,25 @@ import { fail } from './notice/notice.js'
 export interface GuardSettings {
   /** Lowercase host names without port or brackets. */
   hosts: ReadonlySet<string>
-  /** `null` — the service listens on loopback only and takes no token. */
+  /** The owner key (`EVEN_KEEL_TOKEN`); `null` — the service listens on loopback only and takes no key. */
   token: string | null
   /** The language of the form that asks for the token; English without it. */
   language?: 'en' | 'ru'
+  /**
+   * The devices signed in (BTN-1619, `docs/web/sign-in.md`); absent — the blocked service, where the cookie holds the
+   * key itself and the form asks for it.
+   */
+  book?: DeviceBook
+}
+
+/** The device tokens the guard checks a request against, held in memory (`src/access/book.ts`). */
+export interface DeviceBook {
+  /** The live token of this secret; a revoked or unknown one is `undefined`. */
+  find(secret: string): AccessToken | undefined
+  /** Notes the token was used now from this address. */
+  seen(token: AccessToken, address: string): void
+  /** Issues a device a token of its own; `keyMark` — signed in with the owner key. */
+  signIn(entry: { device: string; address: string; keyMark: string | null }): Promise<{ token: AccessToken; secret: string }>
 }
 
 const TOKEN_FORM = {
@@ -41,18 +58,33 @@ export interface GuardRequest {
 }
 
 export type GuardVerdict =
-  | { kind: 'pass' }
+  /** `device` — the device token the request came with; none — this machine, the owner key or the OAuth callback. */
+  | { kind: 'pass'; device?: AccessToken }
+  /** Not signed in, with a book: only the page's files, to draw its sign-in screen, and the sign-in routes. */
+  | { kind: 'visit' }
   | { kind: 'refuse'; status: 401 | 403 | 415; reason: string }
-  /** The first visit with `?token=`: set the cookie and send the browser to the address without it. */
+  /** The blocked service's first visit with `?token=`: set the cookie and send the browser to the address without it. */
   | { kind: 'enter'; location: string; cookie: string }
+  /** An old link with the owner key in `?token=`: sign the device in with the key and send it to the address without it. */
+  | { kind: 'signIn'; location: string }
+
+/** Who the guard let in, for the routes: the sign-in routes and a device's event stream. */
+export interface Visitor {
+  /** `false` — a visit: the page's files and the sign-in routes only. */
+  signedIn: boolean
+  device: AccessToken | undefined
+  /** Where the request came from: a proxy's on this machine is the first `X-Forwarded-For`. */
+  address: string
+}
 
 export const TOKEN_COOKIE = 'even-keel-token'
 export const OAUTH_CALLBACK_PATH = '/api/profiles/oauth/callback'
 const ATTACH_PATH = '/api/builtin/attach'
+export const AUTH_PREFIX = '/api/auth/'
 const OAUTH_COOKIE = 'even-keel-oauth'
 const OAUTH_SECONDS = 600
 const TOKEN_SHAPE = /^[A-Za-z0-9._~+/=-]{16,}$/
-const COOKIE_DAYS = 365
+const COOKIE_MAX_AGE = 365 * 24 * 60 * 60
 const LOOPBACK_NAMES = ['localhost', '127.0.0.1', '::1']
 const WILDCARDS = ['0.0.0.0', '::']
 
@@ -89,24 +121,46 @@ export function guard(settings: GuardSettings, request: GuardRequest): GuardVerd
     return { kind: 'refuse', status: 403, reason: `origin ${request.origin} is not the page's own (${request.host})` }
   }
   const admitted = typeVerdict(request)
-  if (fromThisMachine(request)) return admitted
-
   const token = settings.token
+  // A proxy on this machine sends its own name: only loopback names and the hooks go without a sign-in (BTN-1619).
+  if (fromThisMachine(request) && (token === null || isLoopbackHost(host) || hookRouteOf(request.method, request.url) !== undefined)) return admitted
   if (token === null) return { kind: 'refuse', status: 401, reason: `${request.remote} is not on this machine and no token is set` }
-  if (same(cookieOf(request.cookie), token) || same(bearerOf(request.authorization), token)) return admitted
+
+  const book = settings.book
+  if (same(bearerOf(request.authorization), token)) return admitted
+  if (book === undefined && same(cookieOf(request.cookie), token)) return admitted
+  const device = book === undefined ? undefined : deviceOf(book, request)
+  if (device !== undefined) return admitted.kind === 'pass' ? { kind: 'pass', device } : admitted
 
   const url = new URL(request.url, 'http://localhost')
   if (isOAuthCallback(request) && validOAuthCookie(request.cookie, token)) return { kind: 'pass' }
   const offered = url.searchParams.get('token')
   if (request.method === 'GET' && offered !== null && same(offered, token)) {
     url.searchParams.delete('token')
-    return {
-      kind: 'enter',
-      location: url.pathname + url.search,
-      cookie: `${TOKEN_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${COOKIE_DAYS * 24 * 60 * 60}`,
-    }
+    const location = url.pathname + url.search
+    if (book !== undefined) return { kind: 'signIn', location }
+    return { kind: 'enter', location, cookie: `${TOKEN_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}` }
   }
-  return { kind: 'refuse', status: 401, reason: `${request.remote} came without a valid token; open the page once with ?token=` }
+  if (book !== undefined && ((request.method === 'GET' && !url.pathname.startsWith('/api/')) || url.pathname.startsWith(AUTH_PREFIX))) {
+    return admitted.kind === 'pass' ? { kind: 'visit' } : admitted
+  }
+  return { kind: 'refuse', status: 401, reason: `${request.remote} came without a valid sign-in; sign in on the page` }
+}
+
+/** The cookie a signed-in device keeps its token's secret in. */
+export function deviceCookie(secret: string): string {
+  return `${TOKEN_COOKIE}=${secret}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}`
+}
+
+/** The cookie that drops it: signing out. */
+export const SIGNED_OUT_COOKIE = `${TOKEN_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`
+
+function deviceOf(book: DeviceBook, request: GuardRequest): AccessToken | undefined {
+  for (const secret of [cookieOf(request.cookie), bearerOf(request.authorization)]) {
+    const device = secret === undefined || secret === '' ? undefined : book.find(secret)
+    if (device !== undefined) return device
+  }
+  return undefined
 }
 
 export function isOAuthCallback(request: Pick<GuardRequest, 'method' | 'url'>): boolean {
@@ -133,7 +187,8 @@ function bare(host: string): string {
   return host.trim().toLowerCase().replace(/^\[(.*)\]$/, '$1').replace(/\.$/, '')
 }
 
-function hostnameOf(header: string | undefined): string | undefined {
+/** The bare host name of a `Host` header: the passkeys' RP ID. */
+export function hostnameOf(header: string | undefined): string | undefined {
   if (header === undefined || header === '' || /[/\\@?#\s]/.test(header)) return undefined
   try {
     return bare(new URL(`http://${header}`).hostname)
@@ -166,7 +221,7 @@ function typeVerdict({ method, url, contentType }: GuardRequest): GuardVerdict {
   return { kind: 'refuse', status: 415, reason: `POST ${path} came as ${contentType ?? '(no type)'}; the API takes application/json` }
 }
 
-function fromThisMachine({ remote, local }: GuardRequest): boolean {
+function fromThisMachine({ remote, local }: Pick<GuardRequest, 'remote' | 'local'>): boolean {
   if (remote === undefined) return false
   const address = unmapped(remote)
   return address === '::1' || /^127\./.test(address) || (local !== undefined && address === unmapped(local))
@@ -174,6 +229,16 @@ function fromThisMachine({ remote, local }: GuardRequest): boolean {
 
 function unmapped(address: string): string {
   return address.replace(/^::ffff:/i, '')
+}
+
+/**
+ * The address a request came from, as the devices list shows it: behind a proxy on this machine the first
+ * `X-Forwarded-For`; from elsewhere the socket's, which a header cannot fake.
+ */
+export function addressOf(request: Pick<GuardRequest, 'remote' | 'local'>, forwardedFor: string | undefined): string {
+  const forwarded = forwardedFor?.split(',')[0]?.trim()
+  if (fromThisMachine(request) && forwarded !== undefined && forwarded !== '') return forwarded.slice(0, 64)
+  return unmapped(request.remote ?? '')
 }
 
 function cookieOf(header: string | undefined, cookieName = TOKEN_COOKIE): string | undefined {

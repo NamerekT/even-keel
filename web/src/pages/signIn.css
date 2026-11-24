@@ -1,0 +1,75 @@
+/* The sign-in screen (BTN-1619): the logo and one card, centred on any screen. */
+.sign-in {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-24);
+  min-height: 100dvh;
+  padding: var(--space-24) var(--space-16);
+  box-sizing: border-box;
+}
+
+.sign-in__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.sign-in__name {
+  font-size: var(--text-22);
+  font-weight: 600;
+}
+
+.sign-in__card {
+  width: 100%;
+  max-width: 400px;
+  box-sizing: border-box;
+}
+
+.sign-in__wide {
+  width: 100%;
+  padding-block: var(--space-8);
+}
+
+.sign-in__state,
+.sign-in__desc {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  line-height: 1.45;
+}
+
+.sign-in__or {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+.sign-in__or::before,
+.sign-in__or::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+.sign-in__key {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.sign-in__field {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0;
+}
+
+.sign-in__actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
