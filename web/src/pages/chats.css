@@ -508,6 +508,13 @@
   text-overflow: ellipsis;
 }
 
+/* The machine's colour before its name, a square as its label in the chain has it: an account's is a dot (BTN-1614). */
+.new-chat__mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+}
+
 .new-chat__blocked {
   color: var(--error-fg);
   font-size: var(--text-12);

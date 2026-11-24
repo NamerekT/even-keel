@@ -83,6 +83,8 @@ export interface ChatCard {
   successor: string | null
   /** The chat this one goes on from: its window links it as "Continued from …" (BTN-1232). */
   previous: string | null
+  /** The machine it runs on (BTN-1614); absent — an older service. */
+  machine?: string
 }
 
 /** The last choice of a new chat in a project, offered first in the window of a new session. */
@@ -90,6 +92,28 @@ export interface ChatChoice {
   account: string
   model: string | null
   effort: string | null
+}
+
+/** Why a machine cannot take a new chat of the project: off the link, or no folder of the project there. */
+export type ChatMachineBlock = 'offline' | 'noFolder'
+
+/** A machine of the "New session" window (BTN-1614, query `chats/machines`). */
+export interface ChatMachine {
+  id: string
+  name: string
+  own: boolean
+  block: ChatMachineBlock | null
+  /**
+   * Its account folders with the limits the hub has for them, as its panel shows them; `null` for the own machine,
+   * whose accounts the page has live, and for one elsewhere not read since the hub started.
+   */
+  accounts: import('../account/model.js').AccountView | null
+}
+
+export interface ChatMachines {
+  machines: ChatMachine[]
+  /** The machine a chat goes to when the window names none; `null` — none can take it now. */
+  picked: string | null
 }
 
 /** A page of the archive: `more` — an older page follows. No total count (BTN-1230). */
@@ -209,5 +233,6 @@ export function cardOf(chat: ChatRecord, view: SessionView | undefined, starting
     archivedAt: chat.archivedAt,
     successor: chat.successor,
     previous: chat.previous,
+    ...(chat.machine !== null && { machine: chat.machine }),
   }
 }

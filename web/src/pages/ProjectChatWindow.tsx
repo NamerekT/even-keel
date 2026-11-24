@@ -12,6 +12,7 @@ import { encoded, sentLine } from './ChatComposer.js'
 import { chatRenewal, renewalChoice, type ChatRenewal } from './chatRenewal.js'
 import { ChatRenewDialog } from './ChatRenewDialog.js'
 import { shownAsk } from './composerHold.js'
+import { useChatAccounts } from './useChatAccounts.js'
 import { useChatDraft } from './useChatDraft.js'
 import { ComposerBanner } from './ComposerBanner.js'
 import { ComposerBox } from './ComposerBox.js'
@@ -163,13 +164,15 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
     if (ok) setRenewal(null)
   }
 
-  const accounts = state?.account.accounts ?? []
+  // The new session stays on the chat's machine, its history is there: that machine's accounts (BTN-1614).
+  const accounts = useChatAccounts(chat, renewal !== null)
   // The window stands beside the field's form, not in it: a form holds no other form.
   return (
     <>
-      {renewal !== null && (
+      {renewal !== null && accounts !== undefined && (
         <ChatRenewDialog
           chat={chat}
+          accounts={accounts}
           renewal={renewal}
           busy={sending}
           failure={failure}
@@ -188,7 +191,7 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
         onSubmit={(event) => {
           event.preventDefault()
           if (off) return
-          const found = chatRenewal(chat, session, accounts.find((each) => each.key === chat.account), new Date())
+          const found = chatRenewal(chat, session, accounts?.find((each) => each.key === chat.account), new Date())
           if (found === null) void submit()
           else setRenewal(found)
         }}

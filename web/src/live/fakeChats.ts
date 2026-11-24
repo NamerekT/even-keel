@@ -1,4 +1,4 @@
-import type { ChatCard, ChatChoice, ChatPage } from '../../../src/chats/model.js'
+import type { ChatCard, ChatChoice, ChatMachine, ChatMachines, ChatPage } from '../../../src/chats/model.js'
 import { fail } from '../../../src/notice/notice.js'
 import type { Mail, SessionMail } from '../../../src/sessions/mail.js'
 import type { EvenKeelState, SessionView } from '../../../src/state.js'
@@ -26,9 +26,33 @@ function accountOf(state: EvenKeelState, agent: string, fallback: string): strin
   return state.account.accounts.find((entry) => entry.agent === agent)?.key ?? fallback
 }
 
+/** The machines a project's chat may run on (BTN-1614): its pool, the own machine first; none — the own one alone. */
+function poolOf(state: EvenKeelState, project: string): string[] {
+  const own = state.ownMachine ?? 'pc'
+  const pool = state.pools?.[project] ?? []
+  return [own, ...pool.filter((id) => id !== own)]
+}
+
+/**
+ * `chats/machines` of the fake: the own machine, the first one elsewhere with all but the first of the own accounts,
+ * as its mirror would have them, and any further one off the link.
+ */
+function machinesOf(state: EvenKeelState, project: string): ChatMachines {
+  const ids = poolOf(state, project)
+  const machines: ChatMachine[] = ids.map((id, index) => ({
+    id,
+    name: state.machineNames?.[id] ?? id,
+    own: index === 0,
+    block: index > 1 ? 'offline' : null,
+    accounts: index === 1 ? { ...state.account, accounts: state.account.accounts.slice(1) } : null,
+  }))
+  return { machines, picked: ids[0] ?? null }
+}
+
 function card(state: EvenKeelState, project: string, patch: Partial<ChatCard> & Pick<ChatCard, 'id'>): ChatCard {
   return {
     project,
+    machine: state.ownMachine ?? 'pc',
     title: null,
     agent: 'claude',
     account: accountOf(state, 'claude', 'global'),
@@ -62,6 +86,8 @@ function active(state: EvenKeelState, project: string): ChatCard[] {
     }),
     card(state, project, {
       id: `${project}-chat-2`,
+      // On the first machine elsewhere of a pool with several, so the card shows its machine.
+      ...(poolOf(state, project)[1] === undefined ? {} : { machine: poolOf(state, project)[1] }),
       title: 'Plan the cache warm-up for long tasks',
       model: 'claude-opus-5-5',
       effort: 'high',
@@ -255,12 +281,14 @@ export function fakeChats(mode: string | null) {
         )
         return { chats: matching.slice(page * PAGE, (page + 1) * PAGE), more: matching.length > (page + 1) * PAGE } satisfies ChatPage
       }
+      if (name === 'chats/machines') return machinesOf(state, project)
       if (name === 'chats/create') {
         const list = listOf(state, project)
         const choice: ChatChoice = { account: String(body.account), model: (body.model as string | null) ?? null, effort: (body.effort as string | null) ?? null }
         const agent = state.account.accounts.find((entry) => entry.key === choice.account)?.agent ?? 'claude'
+        const machine = typeof body.machine === 'string' ? body.machine : (state.ownMachine ?? 'pc')
         made += 1
-        const created = card(state, project, { id: `${project}-new-${made}`, agent, ...choice, state: 'new', context: null, lastAt: new Date().toISOString() })
+        const created = card(state, project, { id: `${project}-new-${made}`, agent, ...choice, machine, state: 'new', context: null, lastAt: new Date().toISOString() })
         list.active = [created, ...list.active]
         list.choice = choice
         return created

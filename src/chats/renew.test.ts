@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { USER_MESSAGE_HEAD } from '../chain/user-message.js'
 import { ABC } from '../storage/database.fixture.js'
 import { ProjectChats } from './chats.js'
-import { OWN, setup } from './chats.fixture.js'
+import { FAR, FAR_FOLDER, OWN, setup } from './chats.fixture.js'
 
 const at = '2026-11-18T10:00:30.000Z'
 
@@ -40,6 +40,20 @@ describe('a project chat going on in a new session (BTN-1232)', { timeout: 120_0
       expect(await fixture.chats.card(old)).toMatchObject({ state: 'archived', successor: next.id })
       expect(fixture.chats.choice(ABC)).toEqual({ account: 'codex-work', model: 'gpt-5.5', effort: 'medium' })
       expect(fixture.store.get(next.id)?.pending).toBeNull()
+    } finally {
+      await fixture.close()
+    }
+  })
+
+  it("goes on on the old chat's machine elsewhere, in its folder there (BTN-1614)", async () => {
+    const fixture = await setup()
+    try {
+      const { id } = await fixture.chats.create(ABC, { account: 'global', model: null, effort: null }, FAR)
+      await fixture.chats.send(id, { text: 'Why is the build slow?', files: [] })
+      fixture.calls.length = 0
+      const next = await fixture.chats.renew(id, { text: 'Fix the header', files: [] }, { account: 'global', model: null, effort: null })
+      expect(fixture.calls[1]?.slice(0, 3)).toEqual(['launch', ABC, FAR_FOLDER])
+      expect(next.machine).toBe(FAR)
     } finally {
       await fixture.close()
     }

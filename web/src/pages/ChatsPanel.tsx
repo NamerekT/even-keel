@@ -7,9 +7,11 @@ import { AgentIcon } from '../layout/accountParts.js'
 import { useNarrow } from '../layout/useNarrow.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
+import type { TaskMachine } from '../lanes.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { EmptyState } from '../ui/blocks.js'
 import { ChatIcon, CloseIcon, PlusIcon, SearchIcon } from '../ui/icons.js'
+import { MachineTag } from '../ui/MachineTag.js'
 import { EffortBars } from '../ui/RunLabelTag.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { NewChatDialog } from './NewChatDialog.js'
@@ -90,7 +92,7 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
         </button>
       </header>
       {section === 'active' ? (
-        <ActiveList chats={chats} onOpen={setOpened} />
+        <ActiveList project={project} chats={chats} onOpen={setOpened} />
       ) : (
         <ArchiveList project={project} active={active} onOpen={setOpened} />
       )}
@@ -142,16 +144,21 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
   )
 }
 
-function ActiveList({ chats, onOpen }: { chats: ProjectChatsView; onOpen: (chat: ChatCard) => void }) {
+function ActiveList({ project, chats, onOpen }: { project: string; chats: ProjectChatsView; onOpen: (chat: ChatCard) => void }) {
   const now = useNow(30_000)
   const narrow = useNarrow()
+  const { state } = useLive()
+  // The machine shows only when the project has a choice of them (BTN-1614): one machine says nothing.
+  const several = (state?.pools?.[project]?.length ?? 0) > 1
+  const machineOf = (chat: ChatCard): TaskMachine | null =>
+    several && chat.machine !== undefined ? { id: chat.machine, name: state?.machineNames?.[chat.machine] ?? chat.machine, color: state?.machineColors?.[chat.machine] } : null
   if (chats.chats === null) return chats.failed ? <p className="notice notice--error">{t.chats.failed}</p> : null
   if (chats.chats.length === 0) return <EmptyState className="chats__empty">{t.chats.empty}</EmptyState>
   return (
     <ul className="chats__list">
       {chats.chats.map((chat) => (
         <li key={chat.id}>
-          <ChatCardButton chat={chat} now={now} narrow={narrow} onOpen={() => onOpen(chat)} />
+          <ChatCardButton chat={chat} machine={machineOf(chat)} now={now} narrow={narrow} onOpen={() => onOpen(chat)} />
         </li>
       ))}
     </ul>
@@ -165,7 +172,7 @@ function modelTagTip(chat: ChatCard): string | null {
   return told.length === 0 ? null : told.join('\n')
 }
 
-function ChatCardButton({ chat, now, narrow, onOpen }: { chat: ChatCard; now: Date; narrow: boolean; onOpen: () => void }) {
+function ChatCardButton({ chat, machine, now, narrow, onOpen }: { chat: ChatCard; machine: TaskMachine | null; now: Date; narrow: boolean; onOpen: () => void }) {
   const tone = chatTone(chat.state)
   const chip = chatChip(chat.state)
   const percent = contextPercent(chat.context)
@@ -183,6 +190,7 @@ function ChatCardButton({ chat, now, narrow, onOpen }: { chat: ChatCard; now: Da
         <time dateTime={chat.lastAt}>{formatStamp(chat.lastAt, now)}</time>
       </span>
       <span className="chat-card__meta">
+        {machine !== null && <MachineTag machines={[machine]} title={t.chats.machineTip(machine.name)} />}
         <AccountTag account={chat.account} agent={chat.agent} muted={tone === 'idle'} />
         <span className="tag" title={modelTagTip(chat) ?? undefined}>
           {modelText(chat.model, t.chats.defaultModel, chat.modelTitle)}

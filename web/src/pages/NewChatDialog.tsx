@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { AccountEntry } from '../../../src/account/model.js'
 import { EFFORTS } from '../../../src/agent/providers.js'
-import type { ChatCard, ChatChoice } from '../../../src/chats/model.js'
+import type { ChatCard, ChatChoice, ChatMachine, ChatMachines } from '../../../src/chats/model.js'
 import { limitSpans, type LimitSpan } from '../../../src/limits/model.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import { accountName, agentLabel } from '../accountName.js'
@@ -18,6 +18,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { Select } from '../ui/Select.js'
 import { TipFacts } from '../ui/TipFacts.js'
 import { Tipped } from '../ui/Tipped.js'
+import { accountAfter, machineChoices, machinePanel } from './chatMachines.js'
 import { HelpTip } from './settingsParts.js'
 import { modelsReading, offersOf, useModelCatalog } from './useModels.js'
 import { CloseIcon } from '../ui/icons.js'
@@ -49,16 +50,22 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
   const now = useNow(30_000)
-  const view = state?.account
+  const [machines, setMachines] = useState<ChatMachines | null>(null)
+  const [machine, setMachine] = useState<string | null>(null)
+  const shownMachine = machine ?? machines?.picked ?? null
+  const choices = machineChoices(machines)
+  const view = machinePanel(machines, shownMachine, state?.account)
   const groups = view === undefined ? [] : accountGroups(view, now)
   const open = groups.flatMap((group) => group.entries).filter((entry) => blockOf(entry, now) === null)
-  const first = open.find((entry) => entry.key === choice?.account) ?? open[0]
-  const [account, setAccount] = useState(first?.key ?? '')
-  const [model, setModel] = useState(first !== undefined && first.key === choice?.account ? (choice.model ?? '') : '')
-  const entry = view?.accounts.find((each) => each.key === account)
+  const [wanted, setAccount] = useState(choice?.account ?? '')
+  // The account follows the machine: one the machine picked has not, or not open, gives way to the first that is (BTN-1614).
+  const entry = accountAfter(open, wanted, choice?.account)
+  // A model is the CLI's of one agent: it stays while the account picked is of that agent.
+  const [model, setModel] = useState(() => ({ agent: state?.account.accounts.find((each) => each.key === choice?.account)?.agent ?? '', value: choice?.model ?? '' }))
+  const shownModel = entry !== undefined && entry.agent === model.agent ? model.value : ''
   const efforts = entry === undefined ? [] : (EFFORTS[entry.agent] ?? [])
   const [effort, setEffort] = useState(choice?.effort ?? 'medium')
-  const catalog = useModelCatalog(account === '' ? [] : [account])
+  const catalog = useModelCatalog(entry === undefined ? [] : [entry.key])
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<Notice | null>(null)
   const shownEffort = efforts.includes(effort) ? effort : (efforts.find((each) => each === 'medium') ?? efforts[0] ?? '')
@@ -67,18 +74,31 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
     if (dialog.current?.open === false) dialog.current.showModal()
   }, [])
 
-  const pick = (next: AccountEntry) => {
-    if (next.key === account) return
-    setAccount(next.key)
-    if (next.agent !== entry?.agent) setModel('')
-  }
+  useEffect(() => {
+    let live = true
+    query<ChatMachines>('chats/machines', { project }).then(
+      (answer) => {
+        if (live) setMachines(answer)
+      },
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [project])
 
   const start = async () => {
     if (entry === undefined) return
     setBusy(true)
     setFailure(null)
     try {
-      const chat = await query<ChatCard>('chats/create', { project, account, model: model === '' ? null : model, effort: shownEffort === '' ? null : shownEffort })
+      const chat = await query<ChatCard>('chats/create', {
+        project,
+        account: entry.key,
+        model: shownModel === '' ? null : shownModel,
+        effort: shownEffort === '' ? null : shownEffort,
+        ...(shownMachine !== null && { machine: shownMachine }),
+      })
       onStarted(chat)
     } catch (reason) {
       setFailure(noticeOf(reason))
@@ -86,8 +106,10 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
     }
   }
 
+  const account = entry?.key ?? ''
   const offers = offersOf(catalog, account)
-  const models = [{ value: '', label: t.settings.cliDefault }, ...[...new Set([...offers, ...(model === '' ? [] : [model])])].map((each) => ({ value: each, label: each }))]
+  const models = [{ value: '', label: t.settings.cliDefault }, ...[...new Set([...offers, ...(shownModel === '' ? [] : [shownModel])])].map((each) => ({ value: each, label: each }))]
+  const unread = shownMachine !== null && view === undefined
 
   return (
     <dialog
@@ -118,7 +140,12 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
           </button>
         </header>
         <div className="add-package__body new-chat__body">
-          {groups.length === 0 || open.length === 0 ? <p className="notice notice--warn">{t.chats.dialog.none}</p> : null}
+          {choices.length > 0 && <MachinePick machines={choices} picked={shownMachine} onPick={setMachine} />}
+          {unread ? (
+            <p className="notice notice--warn">{t.chats.dialog.unread}</p>
+          ) : groups.length === 0 || open.length === 0 ? (
+            <p className="notice notice--warn">{t.chats.dialog.none}</p>
+          ) : null}
           <div role="radiogroup" aria-label={t.chats.dialog.accounts} className="new-chat__groups">
             {groups.map((group) => (
               <section key={group.agent} className="new-chat__group">
@@ -131,7 +158,7 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
                   const picked = each.key === account
                   return (
                     <label key={each.key} className={`new-chat__pick${picked ? ' new-chat__pick--on' : ''}${blocked === null ? '' : ' new-chat__pick--off'}`}>
-                      <input type="radio" name="account" value={each.key} checked={picked} disabled={blocked !== null} onChange={() => pick(each)} />
+                      <input type="radio" name="account" value={each.key} checked={picked} disabled={blocked !== null} onChange={() => setAccount(each.key)} />
                       <span className="new-chat__name">
                         <span className="new-chat__who">{accountName(each, view?.accounts)}</span>
                         {each.projects.includes(project) && (
@@ -150,7 +177,7 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
           <div className="new-chat__fields">
             <div className="new-chat__field">
               <span className="new-chat__label">{t.chats.dialog.model}</span>
-              <Select className="add-package__input" value={model} options={models} onChange={setModel} label={t.chats.dialog.model} loading={modelsReading(catalog, account)} disabled={entry === undefined} />
+              <Select className="add-package__input" value={shownModel} options={models} onChange={(value) => setModel({ agent: entry?.agent ?? '', value })} label={t.chats.dialog.model} loading={modelsReading(catalog, account)} disabled={entry === undefined} />
             </div>
             {efforts.length > 0 && (
               <div className="new-chat__field">
@@ -174,6 +201,38 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
         </footer>
       </form>
     </dialog>
+  )
+}
+
+/**
+ * The machines of a project with more than one (BTN-1614), as the accounts are: a radio each, one off the link or
+ * without the project's folder greyed with its reason in a tip.
+ */
+function MachinePick({ machines, picked, onPick }: { machines: ChatMachine[]; picked: string | null; onPick: (machine: string) => void }) {
+  const { state } = useLive()
+  const text = t.chats.dialog
+  return (
+    <section role="radiogroup" aria-label={text.machine} className="new-chat__group">
+      <h3 className="new-chat__agent">{text.machine}</h3>
+      {machines.map((each) => {
+        const on = each.id === picked
+        const color = state?.machineColors?.[each.id]
+        return (
+          <label key={each.id} className={`new-chat__pick${on ? ' new-chat__pick--on' : ''}${each.block === null ? '' : ' new-chat__pick--off'}`}>
+            <input type="radio" name="machine" value={each.id} checked={on} disabled={each.block !== null} onChange={() => onPick(each.id)} />
+            <span className="new-chat__name">
+              {color !== undefined && <span className="new-chat__mark" style={{ background: color }} aria-hidden="true" />}
+              <span className="new-chat__who">{each.name}</span>
+            </span>
+            {each.block !== null && (
+              <Tipped inline className="new-chat__blocked" tip={each.block === 'offline' ? text.offlineTip : text.noFolderTip}>
+                {each.block === 'offline' ? text.offline : text.noFolder}
+              </Tipped>
+            )}
+          </label>
+        )
+      })}
+    </section>
   )
 }
 
