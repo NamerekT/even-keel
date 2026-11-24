@@ -3,6 +3,7 @@ import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
 import { runGit } from '../git/run.js'
 import type { SessionLimits } from '../limits/model.js'
+import { samePath } from '../paths.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import type { MailEvent } from '../sessions/mail.js'
 import { hungEntry } from '../sessions/silence.js'
@@ -107,7 +108,16 @@ export interface ScriptedSession {
   wroteAt: number
   /** The gateway's servers of its last start. */
   mcp: SessionMcp[]
+  /** The account folder it was launched in; absent — any folder of its account's key (the demo's seeded sessions). */
+  folder?: string
 }
+
+/**
+ * The session is the folder's, as a CLI's transcript is: the e2e hub and its machine elsewhere share one scripted agent
+ * and name their account folders alike, and a key alone would show a machine's session in the hub's own folders.
+ */
+const ranIn = (session: ScriptedSession, home: AccountHome): boolean =>
+  session.entry.account === home.key && (session.folder === undefined || samePath(session.folder, home.dir))
 
 export const SCRIPT_PID = 4242
 const FEED_SIZE = 30
@@ -189,7 +199,7 @@ export class ScriptedAgent implements Agent {
     const sessionId = randomUUID()
     const summary = new TranscriptFold().summary()
     const entry: AgentEntry = { id: sessionId, cwd: start.cwd, kind: 'script', startedAt: Date.now(), sessionId, name: start.name, account: home.key }
-    this.known.set(sessionId, { entry, summary: { ...summary, workdir: start.cwd }, lines: [], plays: 0, prompt: start.prompt, turn: 0, wroteAt: Date.now(), mcp: start.mcp ?? [] })
+    this.known.set(sessionId, { entry, summary: { ...summary, workdir: start.cwd }, lines: [], plays: 0, prompt: start.prompt, turn: 0, wroteAt: Date.now(), mcp: start.mcp ?? [], folder: home.dir })
     this.calls.push({ kind: 'launch', task: start.name, sessionId, cwd: start.cwd, prompt: start.prompt, provider: home.agent, account: home.key, model: start.model, ...(start.effort !== undefined && { effort: start.effort }) })
     this.play(sessionId, start.prompt)
     return sessionId
@@ -227,7 +237,7 @@ export class ScriptedAgent implements Agent {
 
   protected listed(home: AccountHome): AgentEntry[] {
     // A busy turn carries the time of its last write, as the adapters' transcript reading gives it (`TurnActivity`).
-    return [...this.known.values()].filter((session) => session.entry.account === home.key).map((session) => hungEntry({ ...session.entry }, session.wroteAt, Date.now()))
+    return [...this.known.values()].filter((session) => ranIn(session, home)).map((session) => hungEntry({ ...session.entry }, session.wroteAt, Date.now()))
   }
 
   tail(_home: AccountHome, agent: AgentEntry) {
@@ -243,7 +253,7 @@ export class ScriptedAgent implements Agent {
   /** The session's record from what the script keeps of it, as an adapter's would be read from its transcript (EKR-114). */
   async record(home: AccountHome, sessionId: string): Promise<Omit<SessionRecord, 'agent'> | undefined> {
     const session = this.known.get(sessionId)
-    if (session === undefined || session.entry.account !== home.key) return undefined
+    if (session === undefined || !ranIn(session, home)) return undefined
     const { summary } = session
     return {
       sessionId,
