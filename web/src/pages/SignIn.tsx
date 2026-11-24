@@ -5,7 +5,7 @@ import { Card } from '../ui/blocks.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import { KeyIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
-import { addPasskey, passkeysWork, signInWithPasskey, type AuthPost } from './passkey.js'
+import { addPasskey, passkeysWork, signInWithPasskey, type AuthPost, type Refusal } from './passkey.js'
 import { HelpTip } from './settingsParts.js'
 import './settings.css'
 import './signIn.css'
@@ -41,12 +41,11 @@ export function SignIn({ keySet, post, entered }: { keySet: boolean; post: AuthP
       setBusy(false)
     }
   }
-  const cancelled = () => setFailure({ at: 'form', text: t.signIn.cancelled })
-  const withPasskey = () =>
-    run('form', async () => {
-      if (await signInWithPasskey(post)) entered()
-      else cancelled()
-    })
+  const ended = (outcome: true | Refusal) => {
+    if (outcome === true) entered()
+    else setFailure({ at: 'form', text: outcome === 'unsupported' ? t.signIn.unsupported : t.signIn.cancelled })
+  }
+  const withPasskey = () => run('form', async () => ended(await signInWithPasskey(post)))
   const withKey = (event: FormEvent) => {
     event.preventDefault()
     if (key.trim() === '') return
@@ -56,11 +55,7 @@ export function SignIn({ keySet, post, entered }: { keySet: boolean; post: AuthP
       else entered()
     })
   }
-  const add = () =>
-    run('form', async () => {
-      if (await addPasskey(post)) entered()
-      else cancelled()
-    })
+  const add = () => run('form', async () => ended(await addPasskey(post)))
   const band = failure?.at === 'form' && (
     <div className="notice notice--error" role="alert">
       {failure.text}

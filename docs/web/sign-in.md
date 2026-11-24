@@ -38,6 +38,8 @@ WebAuthn through `@simplewebauthn/server` and `@simplewebauthn/browser`. The RP 
 
 A passkey needs a secure context — HTTPS or `localhost`: on plain `http://<address>` the screen has no passkey button, only the key with a line saying why. After a sign-in with the key, where passkeys work, the screen offers to add one on this device.
 
+A browser answers `NotAllowedError` both when the person closes its dialog and when it refuses with no dialog at all — Telegram's in-app browser on iOS has `PublicKeyCredential` and refuses at once (BTN-1630). `ceremony` in `web/src/pages/passkey.ts` tells them apart: a refusal within `NO_DIALOG_MS` (1 s) with the page never losing focus or visibility is the browser's, and the screen and the settings group say the browser cannot use passkeys and to open the page in Safari or Chrome; a slower one, or one after the page lost focus, is "No passkey was picked".
+
 ## The owner key
 
 The owner key is `EVEN_KEEL_TOKEN` in the hub's `.env` (the "Owner key" row of the group, `PageToken`). A token signed in with it keeps the key's mark (`key_mark`, an HMAC of the key, never the key): when the key changes, live, `AccessBook.keyIs` revokes every token signed in with another key; passkey sign-ins stay. Whoever can open the `.env` on the server can always sign in: there is no reset by mail.
@@ -50,7 +52,7 @@ A stream the service ended after its 200 is reopened by the browser itself, and 
 
 ## dev:fake
 
-`/?signIn` draws the screen (`?signIn=nokey` — no owner key on the hub): the key is `owner-key`, a passkey always passes without the browser's dialog, and signing in drops the parameter. The settings group reads `web/src/live/fakeAuth.ts`: two passkeys and two devices, this browser one of them; its band follows the fake `EVEN_KEEL_TOKEN`.
+`/?signIn` draws the screen (`?signIn=nokey` — no owner key on the hub): the key is `owner-key`, a passkey always passes without the browser's dialog (`?signIn=nopasskeys` — refused at once, as by a browser without passkeys), and signing in drops the parameter. The settings group reads `web/src/live/fakeAuth.ts`: two passkeys and two devices, this browser one of them; its band follows the fake `EVEN_KEEL_TOKEN`.
 
 ```sh
 npm run shot -- '/?signIn&lang=ru' .sign-in__card --size 390x844

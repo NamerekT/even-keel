@@ -14,6 +14,7 @@ export const signInEn: typeof signInRu = {
   offerAdd: 'Add a passkey',
   offerLater: 'Later',
   cancelled: 'No passkey was picked.',
+  unsupported: 'This browser cannot use passkeys: open the page in Safari or Chrome.',
   passkeys: 'Passkeys',
   passkeysHint: 'A passkey works only on the name the page was opened by when it was added.',
   passkeysEmpty: 'No passkeys yet: only the owner key signs in.',

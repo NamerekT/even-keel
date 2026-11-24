@@ -54,6 +54,9 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
     }
   }
   const signOut = () => act(() => post('auth/sign-out', {}), () => location.reload())
+  const add = async () => {
+    if ((await addPasskey(post)) === 'unsupported') throw new Error(t.signIn.unsupported)
+  }
 
   return (
     <>
@@ -94,7 +97,7 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
               )}
               {passkeysWork() && view.current !== null && (
                 <div className="sign-ins__actions">
-                  <button type="button" className="button" disabled={busy} onClick={() => void act(() => addPasskey(post))}>
+                  <button type="button" className="button" disabled={busy} onClick={() => void act(add)}>
                     <PlusIcon />
                     {t.signIn.add}
                   </button>

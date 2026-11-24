@@ -13,6 +13,7 @@ export const signInRu = {
   offerAdd: 'Добавить passkey',
   offerLater: 'Позже',
   cancelled: 'Passkey не выбран.',
+  unsupported: 'Этот браузер не умеет passkey: откройте страницу в Safari или Chrome.',
   // The "Sign-in and devices" settings group.
   passkeys: 'Passkey',
   passkeysHint: 'Passkey работает только на том имени, по которому страница была открыта, когда его добавили.',

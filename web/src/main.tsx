@@ -171,7 +171,7 @@ async function realSignIn(): Promise<SignInProps | null> {
   return { keySet: state.keySet, post, entered: () => location.reload() }
 }
 
-/** `dev:fake` shows the screen on `?signIn` (`?signIn=nokey` — no owner key on the hub); signing in drops the parameter. */
+/** `dev:fake` shows the screen on `?signIn` (`?signIn=nokey` — no owner key on the hub, `?signIn=nopasskeys` — a browser without passkeys); signing in drops the parameter. */
 async function fakeSignIn(): Promise<SignInProps | null> {
   const search = new URLSearchParams(location.search)
   if (!search.has('signIn')) return null
