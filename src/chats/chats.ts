@@ -17,22 +17,25 @@ import {
   withSaid,
   type ChatCard,
   type ChatChoice,
+  type ChatMachines,
   type ChatPage,
   type ChatRecord,
 } from './model.js'
+import type { ChatPlace } from './places.js'
 import { renewPrompt, type ChatPast } from './prompt.js'
 import type { ChatStore } from './store.js'
 
-/** Where a project's folder is: its machine and the folder there. */
-export interface ChatPlace {
-  machine: string
-  folder: string
-}
+export type { ChatPlace } from './places.js'
 
 export interface ProjectChatsDeps {
   store: ChatStore
-  /** The machine of the project's folder (the own one, unless the project runs elsewhere only); throws a notice. */
-  placeOf: (project: string) => Promise<ChatPlace>
+  /**
+   * The machine of a chat of the project and its folder there: `machine` when named, which must be able to take it,
+   * else the own one, unless the project runs elsewhere only (`placeOf`, `src/chats/places.ts`); throws a notice.
+   */
+  placeOf: (project: string, machine?: string) => Promise<ChatPlace>
+  /** The machines the "New session" window offers for the project (BTN-1614). */
+  machines: (project: string) => Promise<ChatMachines>
   /** The commands to a machine connected now; `undefined` — off the link. */
   services: (machine: string) => Pick<MachineServices, 'chat' | 'chats'> | undefined
   /** The machine's sessions as the hub's mirror has them. */
@@ -66,9 +69,12 @@ export class ProjectChats {
 
   constructor(private readonly deps: ProjectChatsDeps) {}
 
-  /** A new chat of the project with the choice, which becomes the project's offer for the next one; no session yet. */
-  async create(project: string, choice: ChatChoice): Promise<ChatCard> {
-    const { machine } = await this.deps.placeOf(project)
+  /**
+   * A new chat of the project with the choice, which becomes the project's offer for the next one; no session yet. It
+   * runs on `machine` when the window named one (BTN-1614), else where `placeOf` puts it.
+   */
+  async create(project: string, choice: ChatChoice, named?: string): Promise<ChatCard> {
+    const { machine } = await this.deps.placeOf(project, named)
     const account = this.deps.accounts(machine)?.find((each) => each.key === choice.account)
     if (account === undefined) throw fail('chats.noAccount', { account: choice.account })
     const chat = this.newRecord(project, account.agent, choice, machine, this.deps.now().toISOString())
@@ -77,6 +83,11 @@ export class ProjectChats {
     this.deps.log(`chats: ${chat.id} of ${project} created on ${choice.account}`)
     this.deps.changed()
     return this.cardOf(chat)
+  }
+
+  /** The machines the "New session" window offers, with their accounts. */
+  machines(project: string): Promise<ChatMachines> {
+    return this.deps.machines(project)
   }
 
   choice(project: string): ChatChoice | null {
@@ -109,7 +120,7 @@ export class ProjectChats {
     const services = this.deps.services(machine)
     if (services === undefined) throw fail('chats.noMachine', {})
     const view = this.viewOf(chat)
-    const folder = view?.cwd ?? (await this.deps.placeOf(chat.project)).folder
+    const folder = view?.cwd ?? (await this.deps.placeOf(chat.project, machine)).folder
     const files = await this.saveFiles(services, chat.project, folder, message.files)
     const prompt = replyPrompt({ from: 'page', answers: message.answers ?? {}, text: message.text, files }, view?.ask ?? null, this.deps.language(chat.project))
     let sessionId: string
@@ -194,7 +205,8 @@ export class ProjectChats {
     if (this.starting.has(id) || this.moving.has(id)) throw fail('chats.starting', {})
     this.moving.add(id)
     try {
-      const place = await this.deps.placeOf(old.project)
+      // The new session stays on the old one's machine: its transcript and `past` are there (BTN-1614).
+      const place = await this.deps.placeOf(old.project, old.machine ?? undefined)
       const account = this.deps.accounts(place.machine)?.find((each) => each.key === choice.account)
       if (account === undefined) throw fail('chats.noAccount', { account: choice.account })
       const services = this.deps.services(place.machine)
@@ -347,8 +359,7 @@ export class ProjectChats {
       this.deps.changed()
       return
     }
-    const place = await this.deps.placeOf(chat.project)
-    if (place.machine !== chat.machine) return
+    const place = await this.deps.placeOf(chat.project, chat.machine)
     await this.launchPending(chat, services, place.folder)
   }
 
