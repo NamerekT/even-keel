@@ -248,7 +248,7 @@ function UpdateDialog({ updates }: { updates: UpdatesView }) {
           {result !== null && <ResultPart result={result} />}
           {available === null && <p className="update-window__muted">{t.updates.upToDate}</p>}
           {notes.length > 0 && (
-            <section className="update-window__notes" aria-label={t.updates.changes}>
+            <section className="update-window__releases" aria-label={t.updates.changes}>
               {notes.map((note) => (
                 <NotePart key={note.tag} note={note} />
               ))}
@@ -294,8 +294,8 @@ function UpdateDialog({ updates }: { updates: UpdatesView }) {
 
 function NotePart({ note }: { note: ReleaseNote }) {
   return (
-    <article className="update-window__note">
-      <header className="update-window__note-head">
+    <article className="update-window__release">
+      <header className="update-window__release-head">
         <h3>{note.version}</h3>
         <a href={note.url} target="_blank" rel="noreferrer">
           {t.updates.onGithub}

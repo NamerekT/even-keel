@@ -3,6 +3,7 @@ import { DEFAULT_HOTKEYS, HOTKEY_ACTIONS, type HotkeyAction, type HotkeyBindings
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { HelpTip } from '../pages/settingsParts.js'
 import { CloseIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { comboOf, DRAFT_KEYS, draftCombos, formatCombo, refusalOf, type Refusal } from './combo.js'
@@ -73,15 +74,17 @@ export function HotkeysDialog({ onClose }: { onClose: () => void }) {
     >
       <div className="add-package__frame">
         <header className="add-package__head">
-          <h2 id={heading} className="add-package__title">
-            {t.hotkeys.title}
-          </h2>
+          <span className="add-package__label-row">
+            <h2 id={heading} className="add-package__title">
+              {t.hotkeys.title}
+            </h2>
+            <HelpTip text={t.hotkeys.lead} align="start" />
+          </span>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
             <CloseIcon />
           </button>
         </header>
         <div className="add-package__body">
-          <p className="add-package__note">{t.hotkeys.lead}</p>
           <ul className="hotkeys__list">
             {HOTKEY_ACTIONS.map((action) => (
               <li key={action} className="hotkeys__row">
