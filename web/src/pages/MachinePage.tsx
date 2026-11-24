@@ -28,6 +28,7 @@ import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { Tipped } from '../ui/Tipped.js'
 import { IdentityButton } from './IdentityDialog.js'
+import { MachineMemoryCard } from './MachineMemoryCard.js'
 import { BranchDriftBand } from './BranchField.js'
 import { HelpTip } from './settingsParts.js'
 import { TakeOverButton } from './TakeOverButton.js'
@@ -182,6 +183,7 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
         </div>
         <div className="machine-page__column">
           <ProjectsCard page={page} />
+          {!page.own && <MachineMemoryCard state={state} page={page} reload={reload} />}
           <AccountsCard state={state} page={page} now={now} />
           <SessionsCard page={page} />
         </div>

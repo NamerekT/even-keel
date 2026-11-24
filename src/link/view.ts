@@ -287,6 +287,14 @@ export interface MachinePage {
   taken: TakenFolder[]
   /** Its build where it is not the hub's (BTN-1609); none — the same build, the own machine or no report yet. */
   build?: MachineBuildView
+  /** A machine elsewhere's folders bound to projects' memory beyond its pool (BTN-1648); none on the own machine. */
+  memory?: MemoryFolderView[]
+}
+
+/** A folder on a machine bound to a project's memory (BTN-1648): the project's id and the folder's path there. */
+export interface MemoryFolderView {
+  project: string
+  folder: string
 }
 
 /**

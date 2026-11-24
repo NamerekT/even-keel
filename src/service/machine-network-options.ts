@@ -4,7 +4,7 @@ import type { TokenAccountOf } from '../account/model.js'
 import type { HubCertificate } from '../link/cert.js'
 import type { HubStore } from '../link/hub-store.js'
 import type { JoinRequests } from '../link/join-requests.js'
-import type { CredentialsAnswer, HookAnswer, HookRequest, McpAnswer, McpRequest, SkillsAnswer, TallyAnswer } from '../link/protocol.js'
+import type { CredentialsAnswer, GitAnswer, GitRequest, HookAnswer, HookRequest, McpAnswer, McpRequest, SkillsAnswer, TallyAnswer } from '../link/protocol.js'
 import type { MachineAbout, MachineProjectSettings, PoolServer } from '../link/view.js'
 import type { HubBrief } from '../machine/brief.js'
 import type { RemoteDeps, RemoteMachine } from '../machine/remote.js'
@@ -22,8 +22,8 @@ import type { BriefSender } from './hub-brief.js'
 export interface NetworkPeers {
   /** The hub's port of the machine, but how it sends and whom it stands for. */
   remote: (machine: string) => Omit<RemoteDeps, 'send' | 'machine' | 'catchUp' | 'changed' | 'briefNow'>
-  /** The hub's brief for a machine whose projects are those of its pool, each in its folder there with its own values. */
-  brief: (folders: Record<string, string>, settings: Record<string, MachineProjectSettings>) => HubBrief
+  /** The hub's brief for the machine, whose projects are those of its pool, each in its folder there with its own values. */
+  brief: (folders: Record<string, string>, settings: Record<string, MachineProjectSettings>, machine: string) => HubBrief
   /** A machine's facts or connection changed: the limits are planned again. */
   changed: () => void
   /** A new connection of the machine: what it was told before is not known to hold. */
@@ -37,6 +37,8 @@ export interface NetworkPeers {
   credentials?: (machine: string, project: string, urls: string[], cloning: boolean) => Promise<CredentialsAnswer>
   /** The files of the hub's install of the user's skills package (BTN-1565). Absent — none. */
   skills?: (machine: string, install: string) => SkillsAnswer
+  /** One git request of the machine to a project's memory repository (BTN-1648). Absent — 404. */
+  git?: (machine: string, project: string, request: GitRequest) => Promise<GitAnswer>
   write: (machine: string, write: KeptWrite) => Promise<void>
 }
 

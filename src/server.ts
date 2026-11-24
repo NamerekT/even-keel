@@ -17,7 +17,7 @@ import { englishOf, fail, type Notice } from './notice/notice.js'
 import { oauthCallback, PROFILE_QUERIES } from './profiles/routes.js'
 import { guardedServer } from './server-guard.js'
 import { cleanMachineSettings } from './service/machine-settings.js'
-import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, cloneOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, joinRequestsOf, labelList, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, skillsOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
+import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, cloneOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, joinRequestsOf, labelList, memoryFoldersOf, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, skillsOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
 import { eventWriter, readJsonBody, sendFailure, sendFile, sendJson, serveStatic } from './server-response.js'
 import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
@@ -124,6 +124,7 @@ const COMMANDS: Record<string, Command> = {
   'machines/capacity': ({ machinePage }, body) => machinePage?.capacity(textOf(body.machine, 'machine'), body.capacity as number),
   'machines/color': ({ machinePage }, body) => machinePage?.color(textOf(body.machine, 'machine'), body.color === null ? null : textOf(body.color, 'color')),
   'machines/update': ({ machinePage }, body) => machinePage?.update(textOf(body.machine, 'machine')),
+  'machines/memory': ({ machinePage }, body) => machinePage?.memoryFolders(textOf(body.machine, 'machine'), memoryFoldersOf(body.folders)),
   'machines/gitIdentity': ({ machinePage }, body) => machinePage?.gitIdentity(textOf(body.machine, 'machine'), textOf(body.name, 'name'), textOf(body.email, 'email')),
   'machines/takeOver': ({ machines }, body) => machines?.takeOver(typeof body.machine === 'string' ? body.machine : undefined, textOf(body.project, 'project'), textOf(body.owner, 'owner')),
   'machines/login': ({ machines }, body) => machines?.login(

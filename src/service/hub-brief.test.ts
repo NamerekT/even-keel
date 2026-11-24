@@ -34,6 +34,12 @@ describe('the hub brief', () => {
     expect(brief.reports['project-2']).toBeUndefined()
   })
 
+  it("carries a machine elsewhere's folders bound to memory, only of the hub's projects, and none without the source (BTN-1648)", () => {
+    const memory = () => [{ project: 'project-2', folder: '/hand/two' }, { project: 'gone', folder: '/hand/gone' }]
+    expect(hubBrief(sources({ memory })).memory).toEqual([{ project: 'project-2', folder: '/hand/two' }])
+    expect(hubBrief(sources())).not.toHaveProperty('memory')
+  })
+
   it("runs the machine's own commands and server commands in its projects, the rest the project's (BTN-994)", () => {
     const own = { 'project-1': { check: ['make check'], servers: { files: { files: { command: '/opt/example/files-mcp' } } } }, 'project-2': { check: ['never'] } }
     const brief = hubBrief(sources({ machineSettings: () => own }))

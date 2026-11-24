@@ -168,6 +168,7 @@ export const en = {
   'machines.notJoined': () => 'The machine has not joined yet: run the join command with its connection string on it first',
   'machines.noRoot': () => 'The machine has no folder of projects: join it again with --root naming one',
   'machines.unknownProject': () => 'There is no such project here',
+  'machines.memoryOwn': () => "The hub's own machine keeps the hub's copies of every project's memory: there is no folder to bind on it",
   'machines.badSettings': () => "The machine's settings in the project are not commands and servers: reload the page and set them again",
   'machines.folderTaken': (p: { name: string; owner: string }) => `The project's folder is already served by machine ${p.name}: if that machine is gone, take the folder over from it`,
   'machines.notTaken': () => 'No other machine holds this project\'s folder now: there is nothing to take over',

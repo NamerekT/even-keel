@@ -1,12 +1,12 @@
-import { existsSync, mkdirSync, realpathSync, renameSync, rmSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
 import { runGit } from '../../git/run.js'
 import type { Git } from '../../git/types.js'
-import { pathKey } from '../../paths.js'
 import type { Queryable } from '../../storage/database.js'
 import { folderRecords } from '../files.js'
 import { indexLine } from '../record.js'
-import { MEMORY_BRANCH, MemorySync, type MemorySyncDeps } from './sync.js'
+import { WorkingCopies } from './copies.js'
+import { MEMORY_BRANCH, type MemorySyncDeps } from './sync.js'
 import { transferRecords } from './transfer.js'
 
 export { memoryDirOf } from '../../storage/owner.js'
@@ -25,46 +25,50 @@ export interface MemoryHubDeps {
   watch?: MemorySyncDeps['watch']
 }
 
-interface Copy {
-  project: string
-  folder: string
-  sync: MemorySync
-}
-
 /**
  * The hub's side of the project memory in git (BTN-1646, `docs/sessions/memory.md`): a bare repository per project,
  * `<id>.git` in the state database's folder, and the project's memory folders on the hub kept as its working copies by
  * a `MemorySync` each. Before a project's first sync its `memory_records` go into its folder once (`transferRecords`).
- * A folder two projects name is the first one's; the other is told in the log and gets none.
+ * The copies themselves are `WorkingCopies`, as a machine's are.
  */
 export class MemoryHub {
-  private readonly copies = new Map<string, Copy>()
-  private applying: Promise<void> = Promise.resolve()
-  private readonly told = new Set<string>()
-  private stopped = false
+  private readonly copies: WorkingCopies
 
-  constructor(private readonly deps: MemoryHubDeps) {}
+  constructor(private readonly deps: MemoryHubDeps) {
+    this.copies = new WorkingCopies({
+      folders: () => deps.folders(),
+      remoteOf: (project) => this.repositoryOf(project),
+      prepare: (project, folder) => this.prepare(project, folder),
+      author: deps.author,
+      log: deps.log,
+      git: deps.git,
+      schedule: deps.schedule,
+      watch: deps.watch,
+    })
+  }
 
   repositoryOf(project: string): string {
     return join(this.deps.dir, `${project}.git`)
   }
 
+  /** The project's bare repository if it is made; `null` — not yet (`apply` makes it with the project's first copy). */
+  existingRepository(project: string): string | null {
+    const repository = this.repositoryOf(project)
+    return existsSync(repository) ? repository : null
+  }
+
   /** The projects' folders as `folders` gives them now: new ones synced, gone ones left. One apply runs at a time. */
   apply(): Promise<void> {
-    const run = this.applying.catch(() => {}).then(() => this.applyNow())
-    this.applying = run
-    return run
+    return this.copies.apply()
   }
 
   stop(): void {
-    this.stopped = true
-    for (const copy of this.copies.values()) copy.sync.stop()
-    this.copies.clear()
+    this.copies.stop()
   }
 
   /** The folder the memory tools work in; `null` — the hub has none for the project. */
   folderOf(project: string): string | null {
-    return this.primary(project)?.folder ?? this.deps.folders()[project]?.[0] ?? null
+    return this.copies.primary(project)?.folder ?? this.deps.folders()[project]?.[0] ?? null
   }
 
   /**
@@ -72,7 +76,7 @@ export class MemoryHub {
    * working copy (git failed for it) the step runs at once.
    */
   async within<T>(project: string, step: (folder: string | null) => T, wrote = false): Promise<T> {
-    const copy = this.primary(project)
+    const copy = this.copies.primary(project)
     if (copy === undefined) return step(this.folderOf(project))
     const result = await copy.sync.edit(() => step(copy.folder))
     if (wrote) void copy.sync.sync()
@@ -84,71 +88,9 @@ export class MemoryHub {
     return this.within(project, (folder) => (folder === null ? [] : folderRecords(folder).map(indexLine)))
   }
 
-  /** A sync of every working copy now: the link back, or a call that needs the newest files. */
-  syncAll(): Promise<unknown> {
-    return Promise.allSettled([...this.copies.values()].map((copy) => copy.sync.sync()))
-  }
-
-  private primary(project: string): Copy | undefined {
-    const first = this.deps.folders()[project]?.[0]
-    if (first === undefined) return undefined
-    const copy = this.copies.get(this.keyOf(first))
-    return copy?.project === project ? copy : undefined
-  }
-
-  private keyOf(folder: string): string {
-    let real = resolve(folder)
-    try {
-      real = realpathSync.native(folder)
-    } catch {
-      // A folder not made yet: its own path.
-    }
-    return pathKey(real)
-  }
-
-  private async applyNow(): Promise<void> {
-    if (this.stopped) return
-    const wanted = new Map<string, { project: string; folder: string }>()
-    for (const [project, folders] of Object.entries(this.deps.folders())) {
-      for (const folder of folders) {
-        const key = this.keyOf(folder)
-        const owner = wanted.get(key)
-        if (owner === undefined) wanted.set(key, { project, folder })
-        else if (owner.project !== project) this.tellOnce(`${key}\0${project}`, `memory: ${folder} is the memory folder of ${owner.project} already: ${project} gets no working copy there`)
-      }
-    }
-    for (const [key, copy] of this.copies) {
-      const want = wanted.get(key)
-      if (want !== undefined && want.project === copy.project) continue
-      copy.sync.stop()
-      this.copies.delete(key)
-    }
-    const projects = new Map<string, string[]>()
-    for (const [key, { project }] of wanted) if (!this.copies.has(key)) projects.set(project, [...(projects.get(project) ?? []), key])
-    for (const [project, keys] of projects) {
-      const folders = keys.map((key) => wanted.get(key)!.folder)
-      try {
-        await this.prepare(project, this.deps.folders()[project]?.[0] ?? folders[0]!)
-      } catch (error) {
-        this.deps.log(`memory: ${project} has no repository: ${(error as Error).message}`)
-        continue
-      }
-      if (this.stopped) return
-      for (const key of keys) {
-        const folder = wanted.get(key)!.folder
-        const sync = new MemorySync({
-          folder,
-          remote: this.repositoryOf(project),
-          author: this.deps.author,
-          log: this.deps.log,
-          git: this.deps.git,
-          schedule: this.deps.schedule,
-          watch: this.deps.watch,
-        })
-        this.copies.set(key, { project, folder, sync })
-        void sync.start()
-      }
-    }
+  /** A sync of every working copy now, or of the project's only (a machine pushed into its repository, BTN-1648). */
+  syncAll(project?: string): Promise<unknown> {
+    return this.copies.syncAll(project)
   }
 
   /** The project's records into its main folder once, then its bare repository, made whole or not at all. */
@@ -166,11 +108,5 @@ export class MemoryHub {
     }
     renameSync(draft, repository)
     this.deps.log(`memory: ${project} has a new repository ${repository}`)
-  }
-
-  private tellOnce(key: string, line: string): void {
-    if (this.told.has(key)) return
-    this.told.add(key)
-    this.deps.log(line)
   }
 }

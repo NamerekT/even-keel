@@ -331,6 +331,8 @@ export interface ServerDeps {
     gitIdentity(machine: string, name: string, email: string): Promise<void>
     /** "Update" to the hub's build (BTN-1609). */
     update(machine: string): Promise<void>
+    /** The card "Other projects' memory" (BTN-1648): the machine's whole list of folders bound to projects' memory. */
+    memoryFolders(machine: string, folders: import('./link/view.js').MemoryFolderView[]): Promise<void>
   }
   /** The header's machines panel (BTN-1051): every machine with what only the hub knows of it. */
   machineCards?: () => Promise<MachineCard[]>

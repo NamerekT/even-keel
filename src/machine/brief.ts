@@ -2,6 +2,7 @@ import type { CheckReport } from '../chain/checkreports.js'
 import { isCarryName, isFixName, projectOfCarry, projectOfFix } from '../chain/fix.js'
 import { parseConfig, type EvenKeelConfig } from '../config.js'
 import type { ServerOverride } from '../link/view.js'
+import type { MemoryFolder } from '../memory/git/folders.js'
 import type { CatalogBrief } from '../packages/follow.js'
 import type { WarmTask } from '../sessions/keepwarm.js'
 import type { TaskRun } from '../sessions/runs.js'
@@ -55,6 +56,8 @@ export interface HubBrief {
   warm: WarmTask[]
   /** By project and task, what the check before the merge reported (EKR-103). */
   reports: Record<string, Record<string, CheckReport>>
+  /** For a machine elsewhere, its folders outside the pools bound to their projects' memory (BTN-1648). */
+  memory?: MemoryFolder[]
 }
 
 /** A brief with nothing in it: what the machine holds until the hub's first one comes. */

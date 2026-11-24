@@ -5,9 +5,9 @@ import { fingerprintOf } from './cert.js'
 import { joinCodeOf, newNonce } from './join-code.js'
 import type { HubTransport, StreamSink } from './machine.js'
 import {
-  API_VERSION, CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, REQUEST_ANSWER_PATH, REQUEST_PATH, SKILLS_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, TooLarge,
+  API_VERSION, CREDENTIALS_PATH, EVENTS_PATH, GIT_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, REQUEST_ANSWER_PATH, REQUEST_PATH, SKILLS_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, TooLarge,
   bearerOf, isRefusal,
-  type ConnectionToken, type CredentialsAnswer, type EventsAnswer, type Frame, type HookAnswer, type JoinAnswer, type MachineAbout, type McpAnswer, type Refusal, type RequestAnswer,
+  type ConnectionToken, type CredentialsAnswer, type EventsAnswer, type Frame, type GitAnswer, type HookAnswer, type JoinAnswer, type MachineAbout, type McpAnswer, type Refusal, type RequestAnswer,
   type RequestState, type SkillsAnswer, type TallyAnswer,
 } from './protocol.js'
 
@@ -279,6 +279,7 @@ export function httpsTransport(token: ConnectionToken, options: TransportOptions
       const { skills } = value as Partial<SkillsAnswer>
       return skills === null || (typeof skills === 'object' && skills !== undefined && Array.isArray(skills.files))
     }, SKILLS_TIMEOUT_MS),
+    git: (body) => post<GitAnswer>(GIT_PATH, body, (value) => typeof (value as GitAnswer).status === 'number' && typeof (value as GitAnswer).body === 'string'),
     hook: (body) => {
       const limit = Math.min(timeoutMs, HOOK_TIMEOUT_MS)
       return postTo<HookAnswer>(token, HOOK_PATH, body, (value) => typeof (value as HookAnswer).status === 'number' && typeof (value as HookAnswer).body === 'string', limit, limit)

@@ -149,8 +149,11 @@ export class MemorySync {
       ['core.hooksPath', join(folder, '.git', 'no-hooks')],
       ['commit.gpgSign', 'false'],
       ['advice.detachedHead', 'false'],
+      // Git for Windows sets `core.autocrlf` system-wide: the files must stay byte for byte what every copy wrote.
+      ['core.autocrlf', 'false'],
     ]
-    const env: Record<string, string> = { GIT_CONFIG_COUNT: String(config.length), GIT_EDITOR: 'true' }
+    // A machine's remote is its relay on the loopback (BTN-1648): a proxy of the environment must not catch it.
+    const env: Record<string, string> = { GIT_CONFIG_COUNT: String(config.length), GIT_EDITOR: 'true', NO_PROXY: '127.0.0.1', no_proxy: '127.0.0.1' }
     config.forEach(([key, value], index) => {
       env[`GIT_CONFIG_KEY_${index}`] = key
       env[`GIT_CONFIG_VALUE_${index}`] = value

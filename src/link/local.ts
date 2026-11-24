@@ -1,6 +1,6 @@
 import type { HubEnd, Opened } from './hub.js'
 import type { HubTransport, StreamSink } from './machine.js'
-import { isRefusal, type CredentialsAnswer, type CredentialsPost, type EventsAnswer, type EventsPost, type HookAnswer, type HookPost, type MachineHello, type McpAnswer, type McpPost, type Refusal, type SkillsAnswer, type SkillsPost, type SnapshotPost, type TallyAnswer, type TallyPost } from './protocol.js'
+import { isRefusal, type CredentialsAnswer, type CredentialsPost, type EventsAnswer, type EventsPost, type GitAnswer, type GitPost, type HookAnswer, type HookPost, type MachineHello, type McpAnswer, type McpPost, type Refusal, type SkillsAnswer, type SkillsPost, type SnapshotPost, type TallyAnswer, type TallyPost } from './protocol.js'
 
 /**
  * The pulse of a link inside one process: there is no network to lose, and a timer of days never fires between two
@@ -77,6 +77,11 @@ export class LocalTransport implements HubTransport {
   /** Never posted in practice: the hub's own machine does not follow the hub's catalog. */
   async skills(post: SkillsPost): Promise<SkillsAnswer | Refusal> {
     return carried(await this.hub.skills(this.authorization, carried(post)))
+  }
+
+  /** Never posted in practice: the hub's own machine's memory folders are the hub's working copies. */
+  async git(post: GitPost): Promise<GitAnswer | Refusal> {
+    return carried(await this.hub.git(this.authorization, carried(post)))
   }
 
   /** Never posted in practice: the hub's own machine is read by the hub's own collector. */

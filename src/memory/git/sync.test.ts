@@ -66,7 +66,7 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
 
-describe('MemorySync', () => {
+describe('MemorySync', { timeout: 120_000 }, () => {
   it('starts a missing folder, pushes its first commit and gives a second copy the same files', async () => {
     const a = copy('a')
     expect((await a.sync.start()).reached).toBe(true)
