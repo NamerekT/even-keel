@@ -21,7 +21,7 @@ import { steer, wireMachine } from './machine-chain.js'
 import { machineTasks } from './hub-mcp.js'
 import { wireMachineChats } from './machine-chats.js'
 import { wireMachineServices } from './machine-services.js'
-import { CLONE_PROGRESS_EVENT, cloneTold } from '../machine/services.js'
+import { CLONE_PROGRESS_EVENT, cloneTold, type MachineServices } from '../machine/services.js'
 
 export interface MachineSideOptions {
   transport: HubTransport
@@ -34,6 +34,8 @@ export interface MachineSideOptions {
   changed?: (end: MachineEnd) => void
   /** The hub refused this machine's API version (BTN-1275): the machine may move itself to the hub's. */
   versionRefused?: (refusal: VersionRefusal) => void
+  /** The hub of the same API asks for its build (BTN-1609): the installation's update process. */
+  update?: MachineServices['update']
   heartbeatMs?: number
   /**
    * A machine of its own (BTN-1226): while the link is down it follows and guards the tasks the hub gave it, and keeps
@@ -225,6 +227,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
       cloneProgress: cloneTold((payload) => void end.emit(CLONE_PROGRESS_EVENT, payload).catch(() => {})),
       chats: wireMachineChats(machine),
       checkouts: () => void checkouts.check(),
+      ...(options.update !== undefined && { update: options.update }),
     }),
     scope: (body) => machine.account.batch(() => machine.packages.pass(() => machine.choiceFor.pass(() => {
       pass = passOf()

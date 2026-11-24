@@ -33,11 +33,13 @@ describe('machineState', () => {
     const cards = [card('pc'), card('srv')]
     expect(machineState(view, cards, card('srv', { online: false, offlineSince: 5 }), 'ABC')).toEqual({ lamp: 'offline', since: 5 })
     expect(machineState(view, cards, cards[0]!, 'ABC')).toEqual({ lamp: 'working', task: { id: 'ABC-1', title: 'Title ABC-1' } })
-    expect(machineState(view, cards, card('srv', { otherVersion: '0.3.9', gitUser: false }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'version', version: '0.3.9' })
+    expect(machineState(view, cards, card('srv', { otherBuild: '0.3.9', gitUser: false }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'version', version: '0.3.9' })
     expect(machineState(view, cards, card('srv', { gitUser: false }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'git' })
     expect(machineState(view, cards, card('srv', { projects: [projectRow('ABC', true, true)] }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'packages' })
     expect(machineState(view, cards, card('srv', { limitedUntil: { claude: '2026-11-17T18:40:00Z' } }), 'ABC')).toEqual({ lamp: 'limit', until: '2026-11-17T18:40:00Z' })
     expect(machineState(view, cards, cards[1]!, 'ABC')).toEqual({ lamp: 'free', task: { id: 'ABC-2', title: 'Title ABC-2' } })
+    // The hub refuses a machine of another protocol at the handshake: off the link, its card names the other build (BTN-1609).
+    expect(machineState(view, cards, card('srv', { online: false, offlineSince: 5, otherBuild: '0.3.9' }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'version', version: '0.3.9' })
   })
 
   it('guesses the next task past the ones held, skipped and of a provider the machine has no account of', () => {

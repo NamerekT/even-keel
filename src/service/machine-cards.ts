@@ -5,6 +5,7 @@ import type { MachineCard, MachineCardAccount } from '../link/view.js'
 import { currentLimits, exhaustedReset, type RateLimits } from '../limits/model.js'
 import type { RemoteMachine } from '../machine/remote.js'
 import { machineAccountOf } from './machine-page.js'
+import { buildGap } from './machine-updates.js'
 
 export interface MachineCardsDeps {
   own: () => string
@@ -62,7 +63,7 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
       gitUser: git.user,
       ...(git.name !== undefined && { gitName: git.name }),
       ...(git.email !== undefined && { gitEmail: git.email }),
-      ...(!isOwn && record.about !== null && record.about.evenKeel !== deps.version && { otherVersion: record.about.evenKeel }),
+      ...(!isOwn && record.about !== null && buildGap({ evenKeel: deps.version }, record.about) === 'protocol' && { otherBuild: record.about.evenKeel }),
       ...limitedOf(accounts.filter((account) => account.signedIn), now),
       accounts,
       active: panel?.active || null,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../account/model.js'
 import type { MachineRecord } from '../link/hub-store.js'
+import { API_VERSION } from '../link/protocol.js'
 import type { MachineAbout } from '../link/view.js'
 import type { MachineFacts } from '../machine/facts.js'
 import { pageReads } from '../machine/page.js'
@@ -78,10 +79,16 @@ describe('machineCards', () => {
     expect((await machineCards(deps({ records, ownGit: () => null })))[0]?.gitUser).toBeNull()
   })
 
-  it("names the version of a machine elsewhere that is not the hub's (BTN-994)", async () => {
-    const records = async () => [record('pc', { about: { ...ABOUT, evenKeel: '0.1.0' } }), record('laptop', { about: { ...ABOUT, evenKeel: '0.3.9' } }), record('desk'), record('new', { about: null })]
+  it('names the build of a machine elsewhere only where its protocol is not the hub\'s: another version on it works (BTN-1609)', async () => {
+    const records = async () => [
+      record('pc', { about: { ...ABOUT, evenKeel: '0.1.0', api: API_VERSION - 1 } }),
+      record('laptop', { about: { ...ABOUT, evenKeel: '0.3.9', api: API_VERSION - 1 } }),
+      record('desk', { about: { ...ABOUT, evenKeel: '0.3.9', api: API_VERSION } }),
+      record('old', { about: { ...ABOUT, evenKeel: '0.3.9' } }),
+      record('new', { about: null }),
+    ]
     const cards = await machineCards(deps({ records }))
-    expect(cards.map((card) => card.otherVersion)).toEqual([undefined, '0.3.9', undefined, undefined])
+    expect(cards.map((card) => card.otherBuild)).toEqual([undefined, '0.3.9', undefined, undefined, undefined])
   })
 
   it('marks an agent limited only when every signed-in account of it is spent, until the first frees', async () => {

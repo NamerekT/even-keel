@@ -11,7 +11,7 @@ export const machinePanelEn: Messages['machinePanel'] = {
   next: 'next:',
   limit: (time) => `accounts at a limit till ${time}`,
   git: 'git: no name or e-mail',
-  version: (version) => `Even Keel ${version}, not the hub's: update it`,
+  version: (version) => `another build (Even Keel ${version}): the hub does not take it`,
   packages: "the project's packages are not ready",
   offline: (span) => `off the link for ${span}`,
   offlineUnknown: 'off the link',

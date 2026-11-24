@@ -168,6 +168,13 @@ export const en = {
   'machines.folderTaken': (p: { name: string; owner: string }) => `The project's folder is already served by machine ${p.name}: if that machine is gone, take the folder over from it`,
   'machines.notTaken': () => 'No other machine holds this project\'s folder now: there is nothing to take over',
   'machines.offline': (p: { name: string }) => `Machine ${p.name} is not connected to the hub now: sign in there once it is back`,
+  'machines.updateFailed': (p: { name: string; to: string }) =>
+    `Machine ${p.name} did not update to the hub's ${p.to}: the update failed and the machine runs its build as before. Its log is logs/update.log on the machine; "Update" on its page tries again`,
+  'machines.updateDirty': (p: { name: string; to: string }) =>
+    `Machine ${p.name} did not update to the hub's ${p.to}: its checkout has changes in tracked files. Commit or drop them there, then press "Update" on its page`,
+  'machines.updateManual': (p: { name: string; to: string }) =>
+    `Machine ${p.name} cannot update itself to the hub's ${p.to}: no service manager runs it, or it is neither a git checkout nor a global npm install. Install the hub's build there by hand`,
+  'machines.noUpdate': (p: { name: string }) => `Machine ${p.name} has nothing to update to: it runs the hub's build, speaks another protocol, or the hub has no build it can move to`,
   'machines.transcriptOffline': (p: { name: string }) => `The session runs on machine ${p.name}, which is not connected to the hub now: its transcript opens once the machine is back`,
   'machines.accountAbsent': (p: { account: string; machine: string; name: string }) =>
     `The project's account ${p.account} is not signed in on ${p.name === '' ? 'this machine' : `machine ${p.name}`}: add it there`,

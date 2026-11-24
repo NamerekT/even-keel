@@ -8,7 +8,7 @@ import { createHubServer } from '../link/hub-server.js'
 import type { MachineRecord } from '../link/hub-store.js'
 import { HubEnd, type HubHandlers, type Invite } from '../link/hub.js'
 import { ASSIGN_COMMAND, HEARTBEAT_MS, TAKEN_EVENT, type AssignPayload, type FolderTaken } from '../link/protocol.js'
-import type { AddressChoice, MachineInvite, MachineSignIn, MachineView, TakenFolder } from '../link/view.js'
+import type { AddressChoice, HubBuild, MachineFollow, MachineInvite, MachineSignIn, MachineView, TakenFolder } from '../link/view.js'
 import type { LimitsPlan, MachineAccounts } from '../limits/polls.js'
 import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
 import { RemoteMachine } from '../machine/remote.js'
@@ -105,18 +105,12 @@ export class MachineNetwork {
     return this.peers.get(machine)?.port
   }
 
-  /** The machines elsewhere that take the chain's tasks now: online, their sessions read (BTN-993). */
-  takers(): Array<{ id: string; capacity: number }> {
-    return [...this.peers].flatMap(([id, peer]) =>
-      this.hub.connected(id) && peer.remote.facts()?.sessionsRead === true && peer.version === this.options.version ? [{ id, capacity: peer.capacity }] : [])
-  }
-
   /**
-   * Even Keel's version the machine elsewhere last reported, as its last snapshot read it (BTN-994): one other than the
-   * hub's goes on with the tasks it holds and takes no new ones. `undefined` — no such machine connected since the start.
+   * The machines elsewhere that take the chain's tasks now: online, their sessions read (BTN-993). The handshake refuses
+   * another API, so each speaks the hub's protocol: another build or version of Even Keel takes tasks too (BTN-1609).
    */
-  versionOf(machine: string): string | null | undefined {
-    return this.peers.get(machine)?.version
+  takers(): Array<{ id: string; capacity: number }> {
+    return [...this.peers].flatMap(([id, peer]) => (this.hub.connected(id) && peer.remote.facts()?.sessionsRead === true ? [{ id, capacity: peer.capacity }] : []))
   }
 
   /** The machines of the project's pool, turned on, as `refresh` last read them. */
@@ -367,6 +361,20 @@ export class MachineNetwork {
     this.options.changed()
   }
 
+  /**
+   * The machine's update to the hub's build (BTN-1609, `update.follow`): `null` — it moves; what keeps it where it is
+   * goes into its report at once, as its next handshake would bring it.
+   */
+  async follow(machine: string, build: HubBuild, force: boolean): Promise<MachineFollow | null> {
+    const answer = await (await this.servicesOf(machine)).update.follow(build, force)
+    if (answer !== null) {
+      const about = (await this.options.store.machine(machine))?.about ?? null
+      if (about !== null) await this.options.store.described(machine, { ...about, follow: answer })
+      this.options.changed()
+    }
+    return answer
+  }
+
   private async accountsOf(machine: string): Promise<MachineServices['account']> {
     return (await this.servicesOf(machine)).account
   }
@@ -416,11 +424,7 @@ export class MachineNetwork {
         const record = await this.options.store.machine(machine)
         peer.name = record?.name ?? machine
         peer.capacity = record?.capacity ?? 1
-        const version = record?.about?.evenKeel ?? null
-        if (version !== peer.version && version !== this.options.version) {
-          log(`machines: machine ${machine} (${peer.name}) runs Even Keel ${version ?? 'of no version reported'}, the hub ${this.options.version}: it takes no new tasks until it is updated`)
-        }
-        peer.version = version
+        if (record?.about != null) this.options.seen?.(machine, record.about)
         peers.connected(machine)
         // A new connection may be a new process of the machine, which holds no brief yet.
         peer.briefs.forget()
@@ -465,7 +469,7 @@ export class MachineNetwork {
       changed: () => peers.changed(),
       briefNow: () => this.brief(machine),
     })
-    const made: Peer = { remote, port: remote.port(), capacity: 1, folders: {}, settings: {}, name: machine, version: null, briefs: new BriefSender(() => peers.brief(made.folders, made.settings), (brief) => remote.tellBrief(brief)) }
+    const made: Peer = { remote, port: remote.port(), capacity: 1, folders: {}, settings: {}, name: machine, briefs: new BriefSender(() => peers.brief(made.folders, made.settings), (brief) => remote.tellBrief(brief)) }
     peer = made
     this.peers.set(machine, peer)
     return peer

@@ -3,7 +3,7 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import type { HubStore, MachineRecord } from './hub-store.js'
 import {
   API_VERSION, HEARTBEAT_MS, INVITE_MS, MISSED_PULSES, credentialsOf, encodeToken,
-  type Command, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type JoinAnswer, type JoinPost, type MachineEvent, type MachineHello, type McpAnswer, type McpPost,
+  type Command, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type JoinAnswer, type JoinPost, type MachineAbout, type MachineEvent, type MachineHello, type McpAnswer, type McpPost,
   type McpRequest, type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type CredentialsAnswer, type CredentialsPost, type SkillsAnswer, type SkillsPost,
 } from './protocol.js'
 
@@ -175,8 +175,8 @@ export class HubEnd {
     const record = await this.known(authorization)
     if (record === undefined) return { refused: 'token' }
     if (hello.api !== API_VERSION) {
-      // The report's shape has not changed since API 10: the page names the machine's version beside the hub's.
-      if (typeof hello.about === 'object' && hello.about !== null) await this.options.store.described(record.id, hello.about)
+      // The report's shape has not changed since API 10: the page names the machine's version and API beside the hub's.
+      if (typeof hello.about === 'object' && hello.about !== null) await this.options.store.described(record.id, withApi(hello.about, hello.api))
       return this.otherVersion()
     }
     const machine = record.id
@@ -187,7 +187,7 @@ export class HubEnd {
       if (fresh === undefined || fresh.revokedAt !== null) return { refused: 'token' } as const
       this.drop(machine)
       await store.seen(machine, hello.host, hello.api, this.now())
-      if (hello.about !== undefined) await store.described(machine, hello.about)
+      if (hello.about !== undefined) await store.described(machine, withApi(hello.about, hello.api))
       await store.dropCommands(machine, hello.lastCommand)
       const connection = randomUUID()
       const live: Live = { connection, sink, ping: setInterval(() => sink.send({ kind: 'ping' }), this.heartbeatMs) }
@@ -345,4 +345,9 @@ export class HubEnd {
     })
     return run
   }
+}
+
+/** The report with the API its handshake spoke (BTN-1609): what tells the page a machine of another protocol. */
+function withApi(about: MachineAbout, api: unknown): MachineAbout {
+  return typeof api === 'number' ? { ...about, api } : about
 }

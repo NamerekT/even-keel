@@ -4,7 +4,7 @@ import type { TokenAccountOf } from '../account/model.js'
 import type { HubCertificate } from '../link/cert.js'
 import type { HubStore } from '../link/hub-store.js'
 import type { CredentialsAnswer, HookAnswer, HookRequest, McpAnswer, McpRequest, SkillsAnswer, TallyAnswer } from '../link/protocol.js'
-import type { MachineProjectSettings, PoolServer } from '../link/view.js'
+import type { MachineAbout, MachineProjectSettings, PoolServer } from '../link/view.js'
 import type { HubBrief } from '../machine/brief.js'
 import type { RemoteDeps, RemoteMachine } from '../machine/remote.js'
 import type { MachinePort } from '../machine/port.js'
@@ -52,8 +52,6 @@ export interface Peer {
   settings: Record<string, MachineProjectSettings>
   /** The hub's name of the machine, read at each snapshot: the page's state is built without a query. */
   name: string
-  /** Even Keel's version its last report named, read at each snapshot; `null` — none reported. */
-  version: string | null
 }
 
 export interface MachineNetworkOptions {
@@ -80,6 +78,8 @@ export interface MachineNetworkOptions {
   commit?: string
   /** A machine joined, connected or went away: the page asks for the list again. */
   changed: () => void
+  /** A machine elsewhere's snapshot came with the report of its handshake: its build is compared with the hub's (BTN-1609). */
+  seen?: (machine: string, about: MachineAbout) => void
   /** The projects' machines were read anew or one was revoked: a width above them is cut (BTN-1571, `machinesIn`). */
   poolCounted?: () => void
   /** The project's settings, for the commands after a green main each machine of the pool runs. */

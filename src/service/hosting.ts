@@ -297,6 +297,8 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     },
     setGitIdentity: (machine, name, email) => network.gitIdentity(machine, name, email),
     version: installed(root).version,
+    hubBuild: ctx.machineLink.hubBuild,
+    updates: ctx.machineLink.updates,
     polled: (account) => ctx.machineLink.polled(account),
     differs: (account) => ctx.machineLink.differs(account),
     log: (line) => console.log(line),

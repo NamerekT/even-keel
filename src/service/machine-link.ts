@@ -16,6 +16,7 @@ import { listenOf, localUrlOf, projectLabel, runSettings } from '../config.js'
 import { fitWidths } from './width-cap.js'
 import { inContainer, root, source } from '../locations.js'
 import { headOf } from '../updates/checkout.js'
+import { busyChains } from '../updates/settle.js'
 import { installed } from '../updates/watcher.js'
 import { machinesPortOf } from '../link/address.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
@@ -36,7 +37,7 @@ import { Assignments, fillPool } from '../machine/assignments.js'
 import { ownMachine } from '../machine/own.js'
 import { folderMarks } from '../machine/marks.js'
 import type { FolderOwner, MachineEnd } from '../link/machine.js'
-import type { MachineProjectSettings } from '../link/view.js'
+import type { HubBuild, MachineProjectSettings } from '../link/view.js'
 import { allSessions, type PageReads, type SessionReads } from '../machine/page.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
@@ -69,6 +70,7 @@ import { HubHooks } from './hub-hooks.js'
 import { HubMcp } from './hub-mcp.js'
 import { wireMachineSide } from './machine-side.js'
 import { PoolAfterGreen } from './pool-after-green.js'
+import { MachineUpdates } from './machine-updates.js'
 import { DEFAULT_CI } from '../settings/defaults.js'
 
 export { MACHINE_DIR }
@@ -80,6 +82,10 @@ const PUBLISH_EVERY_MS = 5_000
 export interface LinkedMachine {
   /** The checkout at this hub's start, also sent in a machine's version refusal. */
   hubCommit: string | null
+  /** The hub's version and commit, the build the machines elsewhere come to (BTN-1609). */
+  hubBuild: HubBuild
+  /** The machines elsewhere's updates to the hub's build: "Update" on a machine's page. */
+  updates: MachineUpdates
   /** The hub's side of the port: what the chain is given, each call routed to the machine of its task (`machinePool`). */
   port: MachinePort
   /** The commands after a green main on the machines elsewhere of each pool (BTN-994). */
@@ -350,8 +356,20 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
   own = token.machine
   // Read once: a push moves the checkout before the rebuild restarts this process on it.
   const hubCommit = source === 'git' ? await headOf(root) : null
+  const hubVersion = installed(root).version
+  // The machines elsewhere come to the hub's build once their lanes settle (BTN-1609).
+  const hubBuild: HubBuild = { evenKeel: hubVersion, ...(hubCommit !== null && { commit: hubCommit }) }
+  const updates = new MachineUpdates({
+    hub: hubBuild,
+    busy: (machine) => busyChains(ctx.dispatcher.state.active.filter((lane) => lane.machine === machine), new Date()),
+    ask: (machine, build, force) => network.follow(machine, build, force),
+    name: (machine) => network.names()[machine] ?? machine,
+    notify: (told, machine) => ctx.eventLog.add({ level: 'warning', notice: told, place: { view: 'machine', machine } }),
+    log,
+  })
   const network = new MachineNetwork({
     ...(hubCommit !== null && { commit: hubCommit }),
+    seen: (machine, about) => void updates.seen(machine, about).catch((error: unknown) => log(`machines: the build of machine ${machine} was not compared: ${String(error)}`)),
     db: ctx.db,
     store: hubStore,
     certificate: () => hubIdentity(ctx.db),
@@ -363,7 +381,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     allowedHosts: () => ctx.configStore.current.allowedHosts,
     serviceHost: listenOf(process.env).host,
     inContainer,
-    version: installed(root).version,
+    version: hubVersion,
     changed: () => ctx.hub.broadcast('machines', { changedAt: Date.now() }),
     // A machine gone from a project's list cuts its width to the machines left; one connected raises none (BTN-1571).
     poolCounted: () =>
@@ -415,7 +433,8 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     pool: (project, machine) => network.afterGreenPool(project, machine),
     projectsOf: (machine) => network.projectsOf(machine),
     mark: (project, machine, commit) => network.markAfterGreen(project, machine, commit),
-    ready: (machine) => network.connected(machine) && network.versionOf(machine) === installed(root).version,
+    // A machine on the link speaks the hub's protocol: another build runs its commands too (BTN-1609).
+    ready: (machine) => network.connected(machine),
     port: (machine) => network.port(machine),
     green: (project) => ((ctx.configStore.current.settings[project]?.ci ?? DEFAULT_CI).guard ? ctx.dispatcher.state.ci[project]?.green : undefined),
     log,
@@ -511,6 +530,8 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
 
   return {
     hubCommit,
+    hubBuild,
+    updates,
     port,
     afterGreen,
     machines: chain,

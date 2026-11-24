@@ -321,6 +321,8 @@ export interface ServerDeps {
     capacity(machine: string, capacity: number): Promise<void>
     color(machine: string, color: string | null): Promise<void>
     gitIdentity(machine: string, name: string, email: string): Promise<void>
+    /** "Update" to the hub's build (BTN-1609). */
+    update(machine: string): Promise<void>
   }
   /** The header's machines panel (BTN-1051): every machine with what only the hub knows of it. */
   machineCards?: () => Promise<MachineCard[]>

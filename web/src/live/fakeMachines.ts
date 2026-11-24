@@ -9,6 +9,10 @@ import type { EvenKeelState, JobStep, MachineAbout, MachineCard, MachineInvite, 
 /** A string issued in `dev:fake` is joined with this much later (BTN-1056). */
 const JOIN_MS = 3_000
 const INVITE_MS = 30 * 60_000
+/** The link's API and the commit of the fake hub (BTN-1609): only what the page compares. */
+const FAKE_API = 20
+const FAKE_HUB_COMMIT = '9f8e7d6c5b4a39281706f5e4d3c2b1a098765432'
+const FAKE_UPDATE_MS = 4_000
 
 const about = (host: string, patch: Partial<MachineAbout> = {}): MachineAbout => ({
   host, os: 'linux 6.8.0', evenKeel: '0.4.0', node: '24.11.0', git: '2.47.0', agents: { claude: '2.1.322', codex: null, opencode: null, copilot: null }, gitUser: true,
@@ -33,16 +37,18 @@ export class FakeNetwork {
     const joined = (id: string, name: string, report: MachineAbout, online: boolean): MachineView => ({
       id, name, createdAt: Date.now() - 86_400_000, revokedAt: null, inviteExpires: null, joinedAt: Date.now() - 86_000_000, host: report.host, about: report, online, projects: [], taken: [],
     })
-    // `follow`: the hub refused the laptop's API version and its update to the hub's commit failed (BTN-1275);
-    // `container`: the laptop runs in a container, an older image the hub refused (BTN-1440).
+    // `version`: the laptop runs another version on the hub's protocol, it works and offers "Update" (BTN-1609);
+    // `protocol`: another API, refused at the handshake; `follow`: refused too, and its update to the hub's commit failed
+    // (BTN-1275); `container`: the laptop runs in a container, an older image the hub refused (BTN-1440).
     const laptop: Partial<MachineAbout> =
       mode === 'nocli' ? { agents: {} }
-      : mode === 'version' ? { evenKeel: '0.3.9' }
-      : mode === 'container' ? { evenKeel: '0.3.9', container: true, root: '/home/node/.local/share/even-keel/projects', follow: { to: '0.4.0', stuck: 'manual' } }
-      : mode === 'follow' ? { commit: '4b1d2c3e5f60718293a4b5c6d7e8f90123456789', follow: { to: '9f8e7d6c5b4a39281706f5e4d3c2b1a098765432', stuck: 'failed' } }
+      : mode === 'version' ? { evenKeel: '0.3.9', api: FAKE_API }
+      : mode === 'protocol' ? { evenKeel: '0.3.9', api: FAKE_API - 1 }
+      : mode === 'container' ? { evenKeel: '0.3.9', api: FAKE_API - 1, container: true, root: '/home/node/.local/share/even-keel/projects', follow: { to: '0.4.0', stuck: 'manual' } }
+      : mode === 'follow' ? { api: FAKE_API - 1, commit: '4b1d2c3e5f60718293a4b5c6d7e8f90123456789', follow: { to: FAKE_HUB_COMMIT, stuck: 'failed' } }
       : { gitUser: false, gitName: undefined }
     this.machines = [
-      joined('machine-1', 'Example laptop', about('example-laptop', laptop), mode !== 'offline' && mode !== 'follow' && mode !== 'container'),
+      joined('machine-1', 'Example laptop', about('example-laptop', laptop), !['offline', 'follow', 'container', 'protocol'].includes(mode)),
       joined('machine-2', 'Example desktop', about('example-desktop', { os: 'win32 10.0.26200', agents: { claude: '2.1.322', codex: '0.98.0' }, root: 'D:/Projects' }), true),
     ]
     // The wizard's block (BTN-1297) shows each state of a row: a third machine, off the link.
@@ -106,6 +112,8 @@ export class FakeNetwork {
   private readonly capacities = new Map<string, number>()
   /** The git authors set from the page's window (BTN-1503), by machine. */
   private readonly identities = new Map<string, { name: string; email: string }>()
+  /** The hub's build each machine took at "Update" and moves to (BTN-1609). */
+  private readonly moving = new Map<string, string>()
   /** With `?machines=taken` (BTN-1262), the laptop's first project's folder is held by a gone machine's mark until taken over. */
   private held: boolean
 
@@ -129,6 +137,7 @@ export class FakeNetwork {
     const ids = [own, ...Object.keys(names).filter((id) => id !== own)]
     return ids.map((id): MachineCard => {
       const online = id === own || (this.machines.find((machine) => machine.id === id)?.online ?? true)
+      const report = id === own ? undefined : this.machines.find((machine) => machine.id === id)?.about ?? undefined
       // A card lists only the projects whose pool has the machine, as the server's does; the first project has every one.
       const pooled = state.projects
         .map((project, index) => {
@@ -155,6 +164,7 @@ export class FakeNetwork {
         limitedUntil: id === 'machine-2' && this.mode === 'limit' ? { claude: until.toISOString() } : {},
         projects: pooled,
         ...this.cardAccounts(state, id, id === own, until),
+        ...(report !== undefined && report.api !== undefined && report.api !== FAKE_API && { otherBuild: report.evenKeel }),
       }
     })
   }
@@ -245,7 +255,17 @@ export class FakeNetwork {
       missing: own ? [] : [...new Set([...(panel?.missing ?? []), ...Object.keys(report.agents).filter((agent) => report.agents[agent] === null)])],
       sessions: own ? state.sessions.filter((session) => session.lamp !== 'finished').map(({ task, sessionId, agent, model, lamp, cwd }) => ({ task, sessionId, agent, model, lamp, cwd })) : [],
       taken: id === 'machine-1' && this.held && pooled[0] !== undefined ? [{ project: pooled[0], machine: 'machine-0', name: 'Example old laptop' }] : [],
+      ...(!own && this.buildOf(report, view?.online === true, id)),
     }
+  }
+
+  /** The laptop's build beside the fake hub's 0.4.0 (BTN-1609), as `machinePageControl` compares them. */
+  private buildOf(report: MachineAbout, online: boolean, id: string): Pick<MachinePage, 'build'> {
+    const hub = { evenKeel: '0.4.0', ...(report.commit !== undefined && { commit: FAKE_HUB_COMMIT }) }
+    const protocol = report.api !== undefined && report.api !== FAKE_API
+    if (!protocol && (report.commit !== undefined ? report.commit === FAKE_HUB_COMMIT : report.evenKeel === hub.evenKeel)) return {}
+    const moving = this.moving.get(id)
+    return { build: { gap: protocol ? 'protocol' : 'build', hub, hubApi: FAKE_API, update: !protocol && online && report.container !== true, ...(moving !== undefined && { moving }) } }
   }
 
   /**
@@ -256,6 +276,18 @@ export class FakeNetwork {
     if (name === 'machines/capacity') {
       this.capacities.set(String(body.machine), Number(body.capacity))
       this.changed()
+      return true
+    }
+    if (name === 'machines/update') {
+      // The laptop takes the hub's version and comes back on it a few seconds later (BTN-1609).
+      const id = String(body.machine)
+      this.moving.set(id, '0.4.0')
+      this.changed()
+      setTimeout(() => {
+        this.moving.delete(id)
+        this.machines = this.machines.map((machine) => (machine.id === id && machine.about !== null ? { ...machine, about: { ...machine.about, evenKeel: '0.4.0' } } : machine))
+        this.changed()
+      }, FAKE_UPDATE_MS)
       return true
     }
     if (name === 'machines/gitIdentity') {

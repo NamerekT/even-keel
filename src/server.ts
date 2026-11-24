@@ -121,6 +121,7 @@ const COMMANDS: Record<string, Command> = {
   'machines/settings': ({ pool }, body) => pool?.settings(projectOf(body), textOf(body.machine, 'machine'), cleanMachineSettings(body.settings)),
   'machines/capacity': ({ machinePage }, body) => machinePage?.capacity(textOf(body.machine, 'machine'), body.capacity as number),
   'machines/color': ({ machinePage }, body) => machinePage?.color(textOf(body.machine, 'machine'), body.color === null ? null : textOf(body.color, 'color')),
+  'machines/update': ({ machinePage }, body) => machinePage?.update(textOf(body.machine, 'machine')),
   'machines/gitIdentity': ({ machinePage }, body) => machinePage?.gitIdentity(textOf(body.machine, 'machine'), textOf(body.name, 'name'), textOf(body.email, 'email')),
   'machines/takeOver': ({ machines }, body) => machines?.takeOver(typeof body.machine === 'string' ? body.machine : undefined, textOf(body.project, 'project'), textOf(body.owner, 'owner')),
   'machines/login': ({ machines }, body) => machines?.login(

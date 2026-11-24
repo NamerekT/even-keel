@@ -3,6 +3,7 @@ import type { HandoffSession } from '../chain/relay.js'
 import type { ChatPast } from '../chats/prompt.js'
 import type { CloneProgress } from '../git/clone-progress.js'
 import type { AccountControl } from '../server-control.js'
+import type { HubBuild, MachineFollow } from '../link/view.js'
 import type { Notice } from '../notice/notice.js'
 import type { BranchShift } from '../projects/branch.js'
 import type { Mail, MailReason } from '../sessions/mail.js'
@@ -164,6 +165,15 @@ export interface MachineBranch {
   back(project: string, branch: string, shift: BranchShift): Promise<void>
 }
 
+/** The machine's own installation (BTN-1609): it comes to the hub's build through its update process. */
+export interface MachineUpdate {
+  /**
+   * Launches the update to the hub's build (`HubFollower.asked`); `force` — the person's "Update", which tries again a
+   * target an update failed at. `null` — it moves, one runs already, or it runs that build; else what keeps it.
+   */
+  follow(build: HubBuild, force: boolean): Promise<MachineFollow | null>
+}
+
 /**
  * What the hub's page, hooks and chat ask of a machine besides the chain's port (`docs/machines.md`, "The seam"): each
  * member is the link's command `<group>.<member>` with `{args}`, its value in `command.done` as for `port.*`.
@@ -177,6 +187,7 @@ export interface MachineServices {
   chats: MachineChats
   git: MachineGit
   branch: MachineBranch
+  update: MachineUpdate
 }
 
 export const SERVICE_COMMANDS = {
@@ -192,6 +203,7 @@ export const SERVICE_COMMANDS = {
   chats: ['launch', 'send', 'stop', 'title', 'past'],
   git: ['identity'],
   branch: ['move', 'back'],
+  update: ['follow'],
 } as const satisfies { [G in keyof MachineServices]: ReadonlyArray<keyof MachineServices[G]> }
 
 type Group = keyof MachineServices

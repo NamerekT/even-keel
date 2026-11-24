@@ -125,7 +125,8 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
     if (await send('machines/revoke', { machine: page.id })) navigate('/')
   }
   const more = page.own ? [] : [{ label: text.revoke, danger: true, pick: () => setRevoking(true) }]
-  const otherVersion = page.about !== null && page.about.evenKeel !== page.hubVersion
+  // Another protocol is refused at the handshake; another build on the hub's one works and is marked by its fact (BTN-1609).
+  const otherProtocol = page.build?.gap === 'protocol'
   // Docker replaces a machine in a container: the page gives the Compose commands, never an update in place (BTN-1440).
   const boxed = page.about?.container === true
   return (
@@ -138,20 +139,31 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
         <span className={`chip machine-page__state${page.online ? ' machine-page__state--online' : ''}`}>{page.online ? text.online : text.offline}</span>
         {page.own && <span className="tag">{text.own}</span>}
       </PageHead>
-      {!page.own && otherVersion && page.about !== null && (
+      {!page.own && otherProtocol && page.about !== null && (
         <Band tone="warn" className="machine-page__version">
-          <span>{text.otherVersion(page.about.evenKeel, page.hubVersion)}</span>
-          {boxed ? <ContainerSteps version={page.hubVersion} /> : <CommandBlock command={`even-keel update ${page.hubVersion}`} />}
+          <span>{text.otherProtocol(page.about.api ?? 0, page.build!.hubApi)}</span>
+          {boxed ? (
+            <ContainerSteps version={page.hubVersion} />
+          ) : (
+            page.about.commit === undefined && (
+              <>
+                <span className="machine-page__step">{text.otherProtocolManual(page.hubVersion)}</span>
+                <CommandBlock command={`even-keel update ${page.hubVersion}`} />
+              </>
+            )
+          )}
         </Band>
       )}
-      {!page.own && page.about?.follow !== undefined && !(boxed && otherVersion) && (
+      {!page.own && page.about?.follow !== undefined && page.build !== undefined && !(boxed && otherProtocol) && (
         boxed ? (
           <Band tone="warn" className="machine-page__version">
             <span>{text.followContainer(page.about.follow.to)}</span>
             <ContainerSteps version={page.about.follow.to} />
           </Band>
         ) : (
-          <Band tone="warn">{text.follow[page.about.follow.stuck](shortRef(page.about.follow.to))}</Band>
+          <Band tone="warn" action={page.build.update && page.build.moving === undefined ? <UpdateButton machine={page.id} reload={reload} /> : undefined}>
+            {text.follow[page.about.follow.stuck](shortRef(page.about.follow.to))}
+          </Band>
         )
       )}
       {page.taken.map((each) => (
@@ -334,7 +346,10 @@ function ReportCard({ state, page, now, reload }: { state: EvenKeelState; page: 
       <dd className="machine-page__muted">{about.host}</dd>
     </Fact>,
     <Fact key="even-keel" label={text.evenKeel}>
-      <dd>{about.evenKeel}</dd>
+      <dd className="machine-page__tags">
+        <span>{about.evenKeel}</span>
+        <BuildMark page={page} />
+      </dd>
       {about.commit !== undefined && <dd className="machine-page__muted">{shortRef(about.commit)}</dd>}
     </Fact>,
     page.joinedAt !== null && !page.own && (
@@ -379,14 +394,17 @@ function ReportCard({ state, page, now, reload }: { state: EvenKeelState; page: 
           </Fact>
         )}
       </FactList>
-      {about.git !== null && page.online && (
+      {page.online && (about.git !== null || offersUpdate(page)) && (
         <div className="machine-page__report-actions">
-          <IdentityButton
-            className="button button--small"
-            label={about.gitUser ? text.gitChange : text.gitSet}
-            machine={{ id: page.id, name: page.name, gitName: about.gitName, gitEmail: about.gitEmail }}
-            onSaved={reload}
-          />
+          {about.git !== null && (
+            <IdentityButton
+              className="button button--small"
+              label={about.gitUser ? text.gitChange : text.gitSet}
+              machine={{ id: page.id, name: page.name, gitName: about.gitName, gitEmail: about.gitEmail }}
+              onSaved={reload}
+            />
+          )}
+          {offersUpdate(page) && <UpdateButton machine={page.id} reload={reload} />}
         </div>
       )}
     </Card>
@@ -394,6 +412,43 @@ function ReportCard({ state, page, now, reload }: { state: EvenKeelState; page: 
 }
 
 const agentName = (agent: string): string => t.account.agents[agent as keyof typeof t.account.agents] ?? agent
+
+/** "Update" stands under the facts unless the band of a stuck update carries it, and not while an update is under way. */
+const offersUpdate = (page: MachinePageView): boolean => page.build?.update === true && page.build.moving === undefined && page.about?.follow === undefined
+
+/**
+ * The quiet mark of another build on the hub's protocol by the Even Keel fact (BTN-1609): it works, the hub's build is
+ * the tip; while it moves, the build it moves to. Another protocol has its band at the page's top instead.
+ */
+function BuildMark({ page }: { page: MachinePageView }) {
+  const build = page.build
+  if (build === undefined || build.gap !== 'build') return null
+  const text = t.machinePage
+  if (build.moving !== undefined) return <span className="tag">{text.moving(shortRef(build.moving))}</span>
+  const hub = page.about?.commit !== undefined && build.hub.commit !== undefined ? shortRef(build.hub.commit) : (build.hub.evenKeel ?? page.hubVersion)
+  return (
+    <Tipped tip={text.otherBuild(hub)} inline>
+      <span className="tag">{text.otherBuildTag}</span>
+    </Tipped>
+  )
+}
+
+/** "Update" to the hub's build (BTN-1609): the answer is at once, the machine's restart comes after its lanes settle. */
+function UpdateButton({ machine, reload }: { machine: string; reload: () => void | Promise<void> }) {
+  const { send, sending, failure } = useCommand()
+  const text = t.machinePage
+  const update = async () => {
+    if (await send('machines/update', { machine })) void reload()
+  }
+  return (
+    <>
+      <Tipped tip={text.updateTip} inline>
+        <button type="button" className="button button--small" disabled={sending} onClick={() => void update()}>{text.update}</button>
+      </Tipped>
+      {failure !== null && <span role="alert" className="notice notice--error">{say(failure)}</span>}
+    </>
+  )
+}
 
 /** A fact of one value, framed as a warning when something follows from it: that is the value's tip. */
 function ValueFact({ label, value, effect }: { label: string; value: string; effect?: string | undefined }) {

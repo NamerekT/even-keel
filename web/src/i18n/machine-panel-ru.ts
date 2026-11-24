@@ -10,7 +10,7 @@ export const machinePanelRu = {
   next: 'дальше:',
   limit: (time: string) => `лимит аккаунтов до ${time}`,
   git: 'git: нет имени и почты',
-  version: (version: string) => `Even Keel ${version}, не как у хаба: обновите`,
+  version: (version: string) => `другая сборка (Even Keel ${version}): хаб её не принимает`,
   packages: 'пакеты проекта не готовы',
   offline: (span: string) => `нет связи ${span}`,
   offlineUnknown: 'нет связи',

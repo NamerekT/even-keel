@@ -16,6 +16,8 @@ export type EventPlace =
   | { view: 'tracker'; project: string; transfer?: string }
   | { view: 'packages'; project: string }
   | { view: 'accounts' }
+  /** The page of a machine elsewhere (BTN-1609). */
+  | { view: 'machine'; machine: string }
 
 /** An entry of the event log (BTN-350): written by the service, also while no page is open. */
 export interface EventEntry {

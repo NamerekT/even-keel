@@ -534,7 +534,7 @@ describe('the hub ↔ machine link', () => {
 
   it('tells the hub what it is at the handshake and when it heard the hub last', async () => {
     const { end, hubStore, id } = await started({ about: async () => ABOUT })
-    expect(hubStore.machines.get(id)?.about).toEqual(ABOUT)
+    expect(hubStore.machines.get(id)?.about).toEqual({ ...ABOUT, api: API_VERSION })
     const heard = end.contact()
     expect(heard).toBe(Date.now())
     await tick(HEARTBEAT_MS)
@@ -644,6 +644,8 @@ describe('the hub ↔ machine link', () => {
     expect(wire.posts).toEqual([])
     // The hub keeps what the machine told, so its page names both versions (BTN-994).
     expect(hubStore.machines.get(id)?.about?.evenKeel).toBe('0.5.0')
+    // With the API it spoke: the page tells a machine of another protocol from one only off the link (BTN-1609).
+    expect(hubStore.machines.get(id)?.about?.api).toBe(API_VERSION + 1)
     // The commit the hub runs on goes with its version, for a machine from a checkout to move to (BTN-1275).
     expect(refusals).toEqual([{ refused: 'version', api: API_VERSION, evenKeel: '0.4.0', commit: 'c0ffee0000000000000000000000000000000000' }])
     expect(log).toContain(`link: the hub speaks API ${API_VERSION} (Even Keel 0.4.0, commit c0ffee0000000000000000000000000000000000), this machine ${API_VERSION + 1}: this machine needs the hub's version`)

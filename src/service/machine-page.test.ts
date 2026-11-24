@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AccountView } from '../account/model.js'
 import type { MachineRecord } from '../link/hub-store.js'
+import { API_VERSION } from '../link/protocol.js'
 import type { MachineAbout } from '../link/view.js'
 import type { MachineFacts } from '../machine/facts.js'
 import { pageReads } from '../machine/page.js'
@@ -137,5 +138,47 @@ describe('the page of a machine (BTN-1272)', () => {
     await control.gitIdentity('srv', 'Jane Doe', 'jane@example.com')
     expect(all.setGitIdentity).toHaveBeenCalledWith('srv', 'Jane Doe', 'jane@example.com')
     await expect(control.gitIdentity('gone', 'John Doe', 'john@example.com')).rejects.toMatchObject({ notice: { code: 'machines.unknown' } })
+  })
+})
+
+describe("a machine's build beside the hub's (BTN-1609)", () => {
+  const HUB_COMMIT = 'c0ffee0000000000000000000000000000000000'
+  const OLD = 'beef000000000000000000000000000000000000'
+  const built = (about: MachineAbout, patch: Partial<MachinePageDeps> = {}) => {
+    const updates = { update: vi.fn(async () => {}), moving: vi.fn((): string | undefined => undefined) }
+    const all = deps({ record: async (machine) => (machine === 'own' ? record('own', { about: null }) : record(machine, { about })), hubBuild: { evenKeel: '0.4.0', commit: HUB_COMMIT }, updates, ...patch })
+    return { control: machinePageControl(all), updates }
+  }
+
+  it('names no gap for a machine at the hub\'s commit, nor for the own machine', async () => {
+    const { control } = built({ ...ABOUT, commit: HUB_COMMIT, api: API_VERSION })
+    expect((await control.view('srv')).build).toBeUndefined()
+    expect((await control.view('own')).build).toBeUndefined()
+  })
+
+  it('offers "Update" to an online checkout at another commit on the same protocol, and names the target it moves to', async () => {
+    const { control, updates } = built({ ...ABOUT, commit: OLD, api: API_VERSION })
+    expect((await control.view('srv')).build).toEqual({ gap: 'build', hub: { evenKeel: '0.4.0', commit: HUB_COMMIT }, hubApi: API_VERSION, update: true })
+    updates.moving.mockReturnValue(HUB_COMMIT)
+    expect((await control.view('srv')).build?.moving).toBe(HUB_COMMIT)
+    await control.update('srv')
+    expect(updates.update).toHaveBeenCalledWith('srv', expect.objectContaining({ commit: OLD }))
+  })
+
+  it('offers nothing to a machine of another protocol, off the link or in a container', async () => {
+    const other = built({ ...ABOUT, commit: OLD, api: API_VERSION + 1 })
+    expect((await other.control.view('srv')).build).toMatchObject({ gap: 'protocol', update: false })
+    const away = built({ ...ABOUT, commit: OLD, api: API_VERSION }, { online: () => false })
+    expect((await away.control.view('srv')).build).toMatchObject({ gap: 'build', update: false })
+    await expect(away.control.update('srv')).rejects.toMatchObject({ notice: { code: 'machines.offline' } })
+    expect(away.updates.update).not.toHaveBeenCalled()
+    const boxed = built({ ...ABOUT, evenKeel: '0.3.9', container: true, api: API_VERSION })
+    expect((await boxed.control.view('srv')).build).toMatchObject({ gap: 'build', update: false })
+  })
+
+  it('refuses "Update" of the own machine', async () => {
+    const { control, updates } = built({ ...ABOUT, commit: OLD, api: API_VERSION })
+    await expect(control.update('own')).rejects.toMatchObject({ notice: { code: 'machines.noUpdate' } })
+    expect(updates.update).not.toHaveBeenCalled()
   })
 })

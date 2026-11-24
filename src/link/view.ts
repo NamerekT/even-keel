@@ -35,17 +35,29 @@ export interface MachineAbout {
   follow?: MachineFollow
   /** Even Keel runs there in a container (BTN-1440): Docker updates it, the page gives the Compose commands. */
   container?: true
+  /**
+   * The link's API version of its last handshake, written by the hub (BTN-1609): another than the hub's is refused, so
+   * such a machine takes no work. None — a report kept before the field.
+   */
+  api?: number
 }
 
 /**
- * The hub refused the machine's API version and the machine stays on its own (BTN-1275): `failed` — its update to `to`
- * failed and was rolled back, it tries again only at another commit or version of the hub; `dirty` — its checkout has
- * changes in tracked files; `manual` — it cannot update itself (no service manager, no checkout nor a global package,
- * or the hub named nothing to move to). `to` is the hub's commit for a checkout, its version for a package.
+ * The machine did not move itself to the hub's build and stays on its own (BTN-1275, BTN-1609): `failed` — its update
+ * to `to` failed and was rolled back, it tries again only at another commit or version of the hub, or at "Update";
+ * `dirty` — its checkout has changes in tracked files; `manual` — it cannot update itself (no service manager, no
+ * checkout nor a global package, or the hub named nothing to move to). `to` is the hub's commit for a checkout, its
+ * version for a package.
  */
 export interface MachineFollow {
   to: string
   stuck: 'failed' | 'dirty' | 'manual'
+}
+
+/** What the hub runs (BTN-1609): its version of Even Keel and, from a git checkout, its commit. */
+export interface HubBuild {
+  evenKeel?: string
+  commit?: string
 }
 
 /** A name the page offers for "Hub address for machines": one of the page's names, a network card's address, the service's own. */
@@ -107,8 +119,11 @@ export interface MachineCard {
   /** Git's `user.name` and `user.email` there (BTN-1503); none — unset, not told yet or a machine older than the fields. */
   gitName?: string
   gitEmail?: string
-  /** Even Keel's version its report names, where it is not the hub's: it takes no new task (BTN-994). */
-  otherVersion?: string
+  /**
+   * Even Keel's version its report names, where its link speaks another API than the hub's (BTN-1609): the handshake
+   * refuses it, so it takes no task until it moves to the hub's build. Another version on the hub's API is none.
+   */
+  otherBuild?: string
   /** The agents it has a signed-in account of. */
   agents: string[]
   /** By agent, when the first of its accounts frees, where every signed-in account of that agent there is at a limit. */
@@ -255,6 +270,23 @@ export interface MachinePage {
   /** Its sessions not finished. */
   sessions: Array<Pick<import('../state.js').SessionView, 'task' | 'sessionId' | 'agent' | 'model' | 'lamp' | 'cwd'>>
   taken: TakenFolder[]
+  /** Its build where it is not the hub's (BTN-1609); none — the same build, the own machine or no report yet. */
+  build?: MachineBuildView
+}
+
+/**
+ * A machine elsewhere on another build than the hub's (BTN-1609): `protocol` — another API of the link, which the
+ * handshake refuses, so it takes no work and moves itself; `build` — another commit or version on the hub's API: it
+ * works, its page marks it quietly.
+ */
+export interface MachineBuildView {
+  gap: 'protocol' | 'build'
+  hub: HubBuild
+  hubApi: number
+  /** "Update" goes over the link: the machine is online on the hub's API and moves to the hub's build by itself. */
+  update: boolean
+  /** The hub's commit or version the machine took and moves to, as far as the hub knows. */
+  moving?: string
 }
 
 /** A project of a machine's pool as its page shows it: the folder there, whether it takes the tasks, its packages. */

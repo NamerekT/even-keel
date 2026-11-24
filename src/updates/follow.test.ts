@@ -130,3 +130,50 @@ describe('HubFollower', () => {
     expect(made.view()).toEqual({ to: HUB, stuck: 'failed' })
   })
 })
+
+describe('HubFollower.asked', () => {
+  it('moves a checkout to the commit the hub of the same API asks for', async () => {
+    const { made, plans } = follower()
+    expect(await made.asked({ evenKeel: '0.4.0', commit: HUB }, false)).toBeNull()
+    expect(plans.map((plan) => [plan.mode, plan.target?.tag])).toEqual([['follow', HUB]])
+  })
+
+  it('does nothing where it already runs the hub\'s build', async () => {
+    const checkout = follower({ checkout: async () => ({ ...CLEAN, commit: HUB }) })
+    expect(await checkout.made.asked({ evenKeel: '0.4.0', commit: HUB }, false)).toBeNull()
+    expect(checkout.plans).toEqual([])
+    expect(checkout.made.view()).toBeUndefined()
+
+    const npm = follower({ source: 'npm', root: '/usr/lib/node_modules/even-keel', platform: 'linux' })
+    expect(await npm.made.asked({ evenKeel: '0.4.0' }, false)).toBeNull()
+    expect(npm.plans).toEqual([])
+  })
+
+  it('answers what keeps it where it is', async () => {
+    const dirty = follower({ checkout: async () => ({ ...CLEAN, dirty: true }) })
+    expect(await dirty.made.asked({ evenKeel: '0.4.0', commit: HUB }, false)).toEqual({ to: HUB, stuck: 'dirty' })
+
+    const failed = follower({ record: () => failedAt(HUB) })
+    expect(await failed.made.asked({ evenKeel: '0.4.0', commit: HUB }, false)).toEqual({ to: HUB, stuck: 'failed' })
+    expect(failed.plans).toEqual([])
+  })
+
+  it('tries a target it failed at again when the person asks for it', async () => {
+    const { made, plans } = follower({ record: () => failedAt(HUB) })
+    expect(await made.asked({ evenKeel: '0.4.0', commit: HUB }, true)).toBeNull()
+    expect(plans.map((plan) => plan.target?.tag)).toEqual([HUB])
+  })
+
+  it('installs the hub\'s version of a package of the same API', async () => {
+    const { made, plans } = follower({ source: 'npm', root: '/usr/lib/node_modules/even-keel', platform: 'linux' })
+    expect(await made.asked({ evenKeel: '0.4.1', commit: HUB }, false)).toBeNull()
+    expect(plans[0]).toMatchObject({ package: { prefix: '/usr' }, target: { version: '0.4.1', tag: 'v0.4.1' } })
+  })
+
+  it('takes one update per process, the refusal\'s and the hub\'s together', async () => {
+    const { made, plans } = follower()
+    await made.refused(REFUSAL)
+    expect(await made.asked({ evenKeel: '0.4.0', commit: 'abc0000000000000000000000000000000000000' }, true)).toBeNull()
+    expect(plans).toHaveLength(1)
+  })
+})

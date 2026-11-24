@@ -54,6 +54,8 @@ export interface MachineServicesDeps {
   home?: string
   /** A project's folder may stand on another branch now (`CheckoutWatch.check`). */
   checkouts?: () => void
+  /** The installation's update to the hub's build (BTN-1609); absent — the hub's own machine, which the hub never asks. */
+  update?: MachineServices['update']
 }
 
 /** What a chat message into a session's inbox needs on the machine (`tellMail`, BTN-1322). */
@@ -175,7 +177,13 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
       fetchGit: (project) => withCredentials(deps.git ?? runGit, (_folder, urls) => ctx.tell.credentials(project, urls)),
       moved: () => deps.checkouts?.(),
     }),
+    update: deps.update ?? noUpdate,
   }
+}
+
+/** The hub's own machine runs the hub's build by definition: an ask is answered as an installation that cannot move. */
+const noUpdate: MachineServices['update'] = {
+  follow: async (build) => ({ to: build.commit ?? build.evenKeel ?? '', stuck: 'manual' }),
 }
 
 const noChats: MachineServices['chats'] = {

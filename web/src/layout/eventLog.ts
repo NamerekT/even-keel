@@ -21,6 +21,7 @@ export type EventPath = { pathname: string; search?: string; hash?: string }
 export function placePath(place: EventPlace | null, state: Pick<EvenKeelState, 'ci' | 'projects'>): EventPath | null {
   if (place === null) return null
   if (place.view === 'accounts') return { pathname: '/accounts' }
+  if (place.view === 'machine') return { pathname: `/machines/${encodeURIComponent(place.machine)}` }
   if (place.project === null) return { pathname: place.view === 'settings' ? '/settings' : '/' }
   if (!state.projects.includes(place.project)) return null
   const pathname = projectPath(place.project)

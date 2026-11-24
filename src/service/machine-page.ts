@@ -2,9 +2,11 @@ import type { AccountView } from '../account/model.js'
 import type { AccountTie } from '../limits/polls.js'
 import { MACHINE_PALETTE } from '../link/colors.js'
 import type { MachineRecord } from '../link/hub-store.js'
-import type { MachineAbout, MachineAccount, MachinePage, TakenFolder } from '../link/view.js'
+import { API_VERSION } from '../link/protocol.js'
+import type { HubBuild, MachineAbout, MachineAccount, MachineBuildView, MachinePage, TakenFolder } from '../link/view.js'
 import type { RemoteMachine } from '../machine/remote.js'
 import { fail } from '../notice/notice.js'
+import { buildGap, followTarget, type MachineUpdates } from './machine-updates.js'
 
 type PanelEntry = AccountView['accounts'][number]
 
@@ -74,8 +76,12 @@ export interface MachinePageDeps {
   ownIdentity: (name: string, email: string) => Promise<void>
   /** A machine elsewhere's: written there by `git.identity`, its report updated with what git read back. */
   setGitIdentity: (machine: string, name: string, email: string) => Promise<void>
-  /** The hub's version of Even Keel: a machine of another one takes no new tasks (BTN-994). */
+  /** The hub's version of Even Keel, named beside a machine's. */
   version: string
+  /** What the hub runs, its commit too (BTN-1609); absent — only `version` is compared. */
+  hubBuild?: HubBuild
+  /** The machines' updates to the hub's build; absent — the page offers no "Update". */
+  updates?: Pick<MachineUpdates, 'update' | 'moving'>
   /** Absent — the accounts carry no `sessionsOnly`. */
   polled?: Polled
   /** Absent — the accounts carry no `limitsDiffer`. */
@@ -89,6 +95,21 @@ export interface MachinePageDeps {
  */
 function withLiveClis(about: MachineAbout | null, clis: Record<string, string | null> | undefined): MachineAbout | null {
   return about === null || clis === undefined ? about : { ...about, agents: { ...about.agents, ...clis } }
+}
+
+/** How the machine's build stands to the hub's, for its page (BTN-1609); `undefined` — no gap. */
+function buildOf(deps: MachinePageDeps, machine: string, about: MachineAbout, online: boolean): MachineBuildView | undefined {
+  const hub = deps.hubBuild ?? { evenKeel: deps.version }
+  const gap = buildGap(hub, about)
+  if (gap === null) return undefined
+  const moving = deps.updates?.moving(machine)
+  return {
+    gap,
+    hub,
+    hubApi: API_VERSION,
+    update: gap === 'build' && online && deps.updates !== undefined && followTarget(hub, about) !== undefined,
+    ...(moving !== undefined && { moving }),
+  }
 }
 
 /** The page of one machine (`/machines/<id>`, BTN-1272): its query and its commands besides "Revoke". */
@@ -108,11 +129,13 @@ export function machinePageControl(deps: MachinePageDeps) {
       const color = deps.colors()[record.id] ?? MACHINE_PALETTE[0]!
       const entries = panel?.accounts ?? []
       const polls = deps.polled === undefined ? undefined : { panel: entries, identities: facts?.identities, polled: deps.polled, ...(deps.differs !== undefined && { differs: deps.differs }) }
+      const online = own || deps.online(record.id)
+      const build = own || record.about === null ? undefined : buildOf(deps, record.id, record.about, online)
       return {
         id: record.id,
         name: record.name,
         own,
-        online: own || deps.online(record.id),
+        online,
         joinedAt: record.joinedAt,
         about: withLiveClis(own ? await deps.ownAbout() : record.about, panel?.clis),
         hubVersion: deps.version,
@@ -132,7 +155,18 @@ export function machinePageControl(deps: MachinePageDeps) {
           .filter((view) => view.lamp !== 'finished')
           .map(({ task, sessionId, agent, model, lamp, cwd }) => ({ task, sessionId, agent, model, lamp, cwd })),
         taken: deps.taken(record.id),
+        ...(build !== undefined && { build }),
       }
+    },
+    /**
+     * "Update" (BTN-1609): the machine comes to the hub's build once its lanes settle, a target it failed at too. The
+     * answer comes at once; the settle and the machine's answer go to the log and the event log.
+     */
+    async update(machine: string): Promise<void> {
+      const record = await known(machine)
+      if (record.id === deps.own() || record.about === null || deps.updates === undefined) throw fail('machines.noUpdate', { name: record.name })
+      if (!deps.online(record.id)) throw fail('machines.offline', { name: record.name })
+      void deps.updates.update(record.id, record.about).catch((error: unknown) => deps.log(`machines: "Update" of machine ${record.id} failed: ${String(error)}`))
     },
     /** The own machine's is `parallel`; a machine elsewhere's applies at once, without waiting for its next snapshot. */
     async capacity(machine: string, capacity: number): Promise<void> {

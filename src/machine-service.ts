@@ -54,7 +54,7 @@ if (token === undefined) {
 const projectsRoot = (await storedRoot(machineDb)) ?? null
 const version = installed(root).version
 const commit = source === 'git' ? await headOf(root) : null
-// At a refusal of its API version the machine moves itself to the hub's commit or version (BTN-1275).
+// At a refusal of its API version, or when the hub asks, the machine moves itself to the hub's commit or version (BTN-1275, BTN-1609).
 const follower = new HubFollower({ root, home, stateDir, source, current: version, container: inContainer, control: () => serviceControl(root), log })
 
 const writes = new Writes((text) => console.warn(text))
@@ -100,6 +100,7 @@ const side = wireMachineSide(machine, {
     return follow === undefined ? about : { ...about, follow }
   },
   versionRefused: (refusal) => void follower.refused(refusal).catch((error: unknown) => log(`link: the move to the hub's version failed: ${String(error)}`)),
+  update: { follow: (build, force) => follower.asked(build, force) },
   changed: (end) => keepContact(end.status().state === 'online', end.contact()),
   alone: true,
   log,

@@ -16,7 +16,7 @@ import { CLONE_PROGRESS_EVENT } from '../machine/services.js'
 import { DONE_EVENT, type FactsSnapshot } from '../machine/runner.js'
 import { ABC, fixture } from '../storage/database.fixture.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
-import { folderUnder, MachineNetwork, type NetworkPeers } from './machine-network.js'
+import { folderUnder, MachineNetwork, type MachineNetworkOptions, type NetworkPeers } from './machine-network.js'
 
 const OWN = '88888888-8888-4888-8888-888888888888'
 const ABOUT: MachineAbout = { host: 'example-laptop', os: 'linux 6.8.0', evenKeel: '0.4.0', node: '24.11.0', git: '2.47.0', agents: {}, gitUser: true, root: '/home/example/projects' }
@@ -41,7 +41,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     for (const close of closing.splice(0).reverse()) await close()
   })
 
-  const started = async (peers?: NetworkPeers, log: (line: string) => void = () => {}, takeOverOwn?: (project: string, owner: string) => Promise<void>, inContainer = false) => {
+  const started = async (peers?: NetworkPeers, log: (line: string) => void = () => {}, takeOverOwn?: (project: string, owner: string) => Promise<void>, inContainer = false, extra: Partial<MachineNetworkOptions> = {}) => {
     const db = await PGlite.create()
     await db.exec(fixture(60))
     const settings = { address: null as string | null }
@@ -49,6 +49,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     const counted: number[] = []
     const network = new MachineNetwork({
       poolCounted: () => void counted.push(1),
+      ...extra,
       ...(peers === undefined ? {} : { peers }),
       ...(takeOverOwn === undefined ? {} : { takeOverOwn }),
       db,
@@ -619,7 +620,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await expect(network.gitIdentity(OWN, 'John Doe', 'john@example.com')).rejects.toThrow(/no such machine/)
   })
 
-  it("pulls tasks only to a machine of the hub's version of Even Keel (BTN-994)", async () => {
+  it("pulls tasks to a machine of another build on the hub's protocol, telling each report it took (BTN-1609)", async () => {
     const peers: NetworkPeers = {
       remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} }),
       brief: () => ({ config: { projects: {} } }) as unknown as HubBrief,
@@ -629,8 +630,8 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       hook: () => Promise.resolve({ status: 200, body: '' }),
       write: async () => {},
     }
-    const lines: string[] = []
-    const { network, settings } = await started(peers, (line) => void lines.push(line))
+    const seen: Array<[string, string]> = []
+    const { network, settings } = await started(peers, () => {}, undefined, false, { seen: (machine, about) => void seen.push([machine, about.evenKeel]) })
     settings.address = '127.0.0.1'
     await network.apply()
     const connect = async (name: string, about: MachineAbout) => {
@@ -652,8 +653,8 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     const older = await connect('Example desktop', { ...ABOUT, host: 'example-desktop', evenKeel: '0.3.9' })
     await until(() => network.remote(older)?.facts()?.sessionsRead === true && network.remote(same)?.facts()?.sessionsRead === true, 'both snapshots')
 
-    expect(network.takers()).toEqual([{ id: same, capacity: 1 }])
-    expect(network.versionOf(older)).toBe('0.3.9')
-    expect(lines.filter((line) => line.includes('0.3.9'))).toEqual([`machines: machine ${older} (Example desktop) runs Even Keel 0.3.9, the hub 0.4.0: it takes no new tasks until it is updated`])
+    // The handshake refuses another API: a machine connected speaks the hub's, so another version still takes tasks.
+    expect(network.takers()).toEqual(expect.arrayContaining([{ id: same, capacity: 1 }, { id: older, capacity: 1 }]))
+    expect(seen).toEqual(expect.arrayContaining([[same, '0.4.0'], [older, '0.3.9']]))
   })
 })

@@ -65,11 +65,12 @@ const titleOf = (state: Pick<EvenKeelState, 'tasks'>, project: string, id: strin
  * pool has, those with a lane first, then the queue's.
  */
 export function machineState(state: View, cards: readonly MachineCard[], card: MachineCard, project?: string): MachineState {
+  // Another protocol is refused at the handshake, so such a machine is off the link: its card says why (BTN-1609).
+  if (card.otherBuild !== undefined) return { lamp: 'blocked', reason: 'version', version: card.otherBuild }
   if (!card.online) return { lamp: 'offline', since: card.offlineSince }
   const lanes = lanesOfMachine(state, card).filter((lane) => lane.current !== null && (project === undefined || lane.project === project))
   const running = lanes[0]?.current
   if (running) return { lamp: 'working', task: { id: running.task, title: titleOf(state, lanes[0]!.project, running.task) } }
-  if (card.otherVersion !== undefined) return { lamp: 'blocked', reason: 'version', version: card.otherVersion }
   if (card.gitUser === false) return { lamp: 'blocked', reason: 'git' }
   const projects = projectsOf(state, cards, card, project)
   if (project !== undefined && card.projects.some((row) => row.project === project && row.packagesBlocked)) return { lamp: 'blocked', reason: 'packages' }
