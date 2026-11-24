@@ -227,8 +227,9 @@ function fromThisMachine({ remote, local }: Pick<GuardRequest, 'remote' | 'local
   return address === '::1' || /^127\./.test(address) || (local !== undefined && address === unmapped(local))
 }
 
-function unmapped(address: string): string {
-  return address.replace(/^::ffff:/i, '')
+/** A socket's address as a person reads it: an IPv4 one mapped into IPv6 (`::ffff:192.0.2.10`) as plain IPv4. */
+export function unmapped(address: string): string {
+  return address.replace(/^::ffff:(?=\d{1,3}(\.\d{1,3}){3}$)/i, '')
 }
 
 /**

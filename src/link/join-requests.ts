@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { unmapped } from '../guard.js'
 import { fail } from '../notice/notice.js'
 import { joinCodeOf } from './join-code.js'
 import { REQUEST_MS, type Refusal, type RequestAnswer, type RequestAnswerPost, type RequestPost, type RequestState } from './protocol.js'
@@ -48,7 +49,8 @@ export class JoinRequests {
     this.code = options.code ?? joinCodeOf
   }
 
-  async ask(from: string, post: RequestPost): Promise<RequestAnswer | Refusal> {
+  async ask(socketAddress: string, post: RequestPost): Promise<RequestAnswer | Refusal> {
+    const from = unmapped(socketAddress)
     const version = this.options.versionRefusal(post.api)
     if (version !== undefined) return version
     const waiting = [...this.held.values()].filter((each) => each.state === 'waiting')

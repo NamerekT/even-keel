@@ -65,6 +65,14 @@ describe('requests to join by the address (BTN-1620)', () => {
     expect(requests.waiting().some((request) => request.from === '192.0.2.99')).toBe(false)
   })
 
+  it('shows an IPv4 address mapped into IPv6 as plain IPv4 and takes both forms as one address (BTN-1628)', async () => {
+    const { requests } = made()
+    await requests.ask('::ffff:192.0.2.10', post(1))
+    expect(await requests.ask('192.0.2.10', post(2))).toEqual({ refused: 'busy' })
+    await requests.ask('2001:db8::10', post(3))
+    expect(requests.waiting().map(({ from }) => from)).toEqual(['192.0.2.10', '2001:db8::10'])
+  })
+
   it('takes two requests of the same address at once as one', async () => {
     const { requests } = made()
     const both = await Promise.all([requests.ask('192.0.2.10', post(1)), requests.ask('192.0.2.10', post(2))])
