@@ -699,7 +699,7 @@ Each sign-in gives the browser a token of its own in an `HttpOnly`, `SameSite=St
 A new phone or laptop does not need the owner key: invite it from a device that is signed in already.
 
 1. On the signed-in device open Settings → **Sign-in and devices** and press **Invite a device** under "Devices". Open the page there by the name the new device will use (the proxy's HTTPS name, not `localhost`).
-2. On the new device scan the QR with its camera, or open the link from **Copy the link**. It shows two digits and waits.
+2. On the new device scan the QR with its camera, or open the link from **Copy the link**. It shows two digits and waits. Where Even Keel is installed as an app (on an iPhone, "Add to Home Screen"), press **Scan a QR** on its sign-in screen instead: the system camera opens the link in the browser, which keeps its sign-in apart from the app's, so the app would still ask to sign in.
 3. On the first device the window now says which device opened the link and shows its two digits. Press **Let in** only if they are the same as on the new device; otherwise **Decline**.
 4. The new device signs in and offers to add a passkey, so next time it needs nothing.
 

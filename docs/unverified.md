@@ -351,6 +351,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 321 | [The hub's memory repositories and the transfer](unverified/sessions.md#the-hubs-memory-repositories-and-the-transfer-btn-1646) | every hub at the upgrade that brings the memory repositories | a project's memory folder gets no repository and its memory is not synced; the log says `has no repository`, the rows stay in `memory_records` | — |
 | 322 | [Memory copies on a machine elsewhere over the link](unverified/machines.md#memory-copies-on-a-machine-elsewhere-over-the-link-btn-1648) | hubs with machines elsewhere | a machine's memory folders never clone or their commits stay on the machine; its log says `did not get through`, nothing is lost | — |
 | 323 | [A new device let in by an invitation](unverified/page.md#a-new-device-let-in-by-an-invitation-btn-1655) | hubs with the owner key set, reached by a proxy's name | the link or the QR does not open on the phone, or the dialog does not turn when the link is opened; sign in with the owner key | — |
+| 324 | ["Scan a QR" on the sign-in screen of an installed app](unverified/page.md#scan-a-qr-on-the-sign-in-screen-of-an-installed-app-btn-1657) | phones signing in an installed page by an invitation | the camera does not start or the scanned link signs in Safari instead of the app; sign the app in with the owner key | — |
 
 ### Waiting for the event / not checked by choice
 

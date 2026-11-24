@@ -58,6 +58,7 @@ A new device can sign in without the key: a device signed in invites it (BTN-165
 - **Without the key** there is no "Invite a device" button and `invites/create` answers `auth.noKey`: such a hub asks nobody to sign in yet.
 - **The new device** (`web/src/pages/InviteJoin.tsx`, drawn by `main.tsx` on `/invite` before the page) shows the digits and "Waiting for approval where the link was made", then its own screen for each end — declined, expired, cancelled, used by another device, gone — or, let in, the passkey offer of the key's sign-in and the page. A browser signed in already does not take the link: the screen says so and leads to the page, since the link may be meant for another device.
 - The sign-in screen says under the key field where to get an invitation, with a link to the guide.
+- **Scan a QR** (BTN-1657) under that line, only where the browser has a camera (`cameraHere`, `web/src/pages/qrScan.ts`: a secure page, `getUserMedia` and a `videoinput` among `enumerateDevices`, which lists kinds before any permission). It is for an installed app: on an iPhone the app keeps its cookies apart from Safari's, and the system camera opens the link in Safari. `QrScanDialog` (lazy, with its decoder) shows the back camera (`facingMode: environment`, `playsInline` and `muted` or iOS goes full screen) and reads a frame every 200 ms at 720 px at most with jsQR (`qrRead.ts`: plain JS bundled into the page, no network; Safari on iOS has no `BarcodeDetector`). Only a link of this page's own origin with `/invite#<secret>` is opened, by `location.assign` in the same window; an invitation of another address names its host, any other code says it is no invitation, and scanning goes on. A refused or missing camera is the dialog's error band.
 
 ## Revoking
 
@@ -74,4 +75,7 @@ npm run shot -- '/?signIn&lang=ru' .sign-in__card --size 390x844
 npm run shot -- '/settings?lang=ru' --click '.settings-nav__item:has-text("Вход и устройства")' --wait '.sign-ins'
 npm run shot -- '/settings?lang=ru&invites' --click '.settings-nav__item:has-text("Вход и устройства")' --click 'button:has-text("Пригласить устройство")' --wait '.invite__qr'
 npm run shot -- '/invite?signIn&invite=waiting&lang=ru#fake' .sign-in__card --wait '.sign-in__digits' --size 390x844
+npm run shot -- '/?signIn&lang=ru' 'dialog[open]' --click '.sign-in__wide:has-text("Сканировать")' --wait 1500 --size 390x844
 ```
+
+The shot's browser has Chromium's fake camera, so "Scan a QR" is there and its window shows the fake picture; a browser without a camera has no button.
