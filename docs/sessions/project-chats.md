@@ -37,11 +37,21 @@ The model list of the "New session" and renewal windows is still the hub's `mode
 
 A restart between 4 and 5 loses nothing: the sweep finds an active chat with `pending` and no session and launches it with the same prompt, unless the machine already knows a session of the chat (`past`), which it then takes. An offline machine keeps it pending until the machine is back. A chat with `pending` and no session is `starting` for the page.
 
+## An idle session
+
+An idle chat's process group (the daemon, its pty host, the session, a `bg-spare`, its MCP servers) took about 510 MB on the server; the session stops long before the archive (BTN-1653, exception 11):
+
+- **The cold cache.** The sweep stops the session of an active chat whose state is `cold` (`stateOf`: the cache window of `docs/sessions/cache.md` passed — 55 min for Claude on a subscription, 25 for Codex and Copilot) and whose process is up, unless it goes on in a new session right now (`moving`). The chat stays in the active list; its archive is a day later, as before.
+- **The ceiling.** `chatSessions` (default 3, read at each launch) is how many chat sessions a machine keeps up. Before a chat's session comes up there — a first message, a message to a stopped session, a deferred relaunch — `makeRoom` stops that machine's chats over the ceiling (`roomFor`, `src/chats/model.ts`): the longest idle first, by the last event, never one `starting`, `working` or `waiting`. With all of them busy the new one starts anyway: the ceiling never holds a chat back.
+- **Up or not** (`running`): a launch under way, or the machine's view of the session not `finished`. A session stopped as idle counts as stopped for two minutes (`STOP_SEEN_MS`), while the mirror may still show the view from before the stop.
+- A failed stop is a line in the log (`was not stopped`); the sweep tries again a minute later, and a launch goes on.
+- **The next message** takes the path of a stopped session in `MachineChats.send`: `--resume` with it, the same context, a few seconds of start. No threshold of the context: past the cache window a live process saves nothing.
+
 ## The archive
 
 - A chat goes to the archive a day after its last message or its session's last action, **in any state** — mid-turn or waiting on a question too (`ARCHIVE_AFTER_MS`). The service's sweep runs once a minute (`CHATS_SWEEP_MS`): it also keeps the title, the last message and the time of the last event, so the archive has them once the session's view is gone.
 - "Hide" is the same archive; there is no delete, and the transcript stays on disk.
-- On its way to the archive the session is stopped through its agent (exception 11 in `docs/chain/exceptions.md`). A failed stop refuses "Hide"; the day-old sweep archives anyway and logs it.
+- On its way to the archive the session, if still up (an idle one stopped long before, above), is stopped through its agent (exception 11 in `docs/chain/exceptions.md`). A failed stop refuses "Hide"; the day-old sweep archives anyway and logs it.
 - An archived chat is only read: a message to it is refused (`chats.archived`); going on is a new chat. The chat a new session replaces goes to the archive with its successor (BTN-1232, exception 12).
 - A restart loses nothing: the active chats are read back from the database, and their sessions are found again by name as the chain's are.
 

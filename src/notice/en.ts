@@ -879,6 +879,7 @@ export const en = {
   'config.openCodeAutoCompactWindow': (p: { value: string }) => `config: openCodeAutoCompactWindow ${p.value} must be a positive whole number of tokens, or null for the model's own window`,
   'config.parallel': (p: { value: string }) => `config: parallel must be a positive integer, got ${p.value}`,
   'config.keepWarm': (p: { value: string; max: string }) => `config: keepWarm must be a whole number of hours from 0 to ${p.max}, got ${p.value}`,
+  'config.chatSessions': (p: { value: string }) => `config: chatSessions must be a whole number of sessions from 1, got ${p.value}`,
   'config.attachmentLimit': (p: { value: string; max: string }) => `config: attachmentLimit must be a whole number of megabytes from 1 to ${p.max}, got ${p.value}`,
   'config.backupDir': (p: { value: string }) => `config: backup.dir must be an absolute folder path or empty, got ${p.value}`,
   'config.machinesAddress': (p: { value: string }) => `config: machinesAddress must be a host name or an IP address, a port after a colon if needed, or empty, got ${p.value}`,

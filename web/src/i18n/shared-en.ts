@@ -23,6 +23,7 @@ export const sharedEn = {
   parallelHint: 'Other projects wait in the queue. Lowering it stops nothing: no new chain starts until fewer run.',
   sessions: 'Sessions',
   claude: 'Claude Code',
+  chats: 'Project chats',
   ci: 'Check and CI',
   packages: 'Packages',
   ciNote: 'For projects with no value of their own. The check commands, the commands after a green main, pull requests and the remote profiles are set per project.',
@@ -95,6 +96,9 @@ export const sharedEn = {
   keepWarm: 'Keep the cache of a waiting session warm, hours',
   keepWarmHint:
     'While the current session of a chain waits for your answer, Even Keel asks a copy of it for one word shortly before its cache expires, so your answer does not pay for reading the whole context anew. The session itself gets nothing. Counted from its last answer; 0 turns it off. Each ping spends the account’s limits, and a missed cache stops the pings for that session.',
+  chatSessions: 'Live project chat sessions per machine',
+  chatSessionsHint:
+    'A project chat’s session is stopped once its cache goes cold, and a new chat past this number stops the machine’s chat idle the longest. A chat that works or waits for you is never stopped. A stopped chat stays in the list, and your next message resumes it in a few seconds.',
   hiddenSkillsAdd: 'Add a skill',
   attachmentLimit: 'Attachment size limit, MB',
   attachmentLimitHint: 'The largest file a task Even Keel keeps itself takes, pasted or dropped into its description, and the largest a session attaches to a task of any tracker.',

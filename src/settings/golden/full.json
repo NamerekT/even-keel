@@ -29,6 +29,7 @@
     "/chain/terminal": [
       "Done"
     ],
+    "/chatSessions": 5,
     "/cli/claude": "checked",
     "/cliCheck": true,
     "/codexAutoCompactWindow": 250000,

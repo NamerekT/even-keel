@@ -79,6 +79,7 @@ export const FAKE_SHARED: SharedForm = {
   openCodeAutoCompactWindow: null,
   contextHandoffs: true,
   keepWarm: 2,
+  chatSessions: 3,
   attachmentLimit: 25,
   backup: { dir: null, keep: 14 },
   defaultGit: null,

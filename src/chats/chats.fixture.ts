@@ -47,6 +47,8 @@ export interface SetupOptions {
   offline?: boolean
   stopFails?: boolean
   launchFails?: boolean
+  /** The `chatSessions` ceiling; 3 by default. */
+  ceiling?: number
 }
 
 /** Project chats on a fresh database with one machine whose calls are recorded. */
@@ -60,7 +62,8 @@ export async function setup(options: SetupOptions = {}) {
   const sessions: SessionView[] = []
   const titles = new Map<string, string>()
   const pasts = new Map<string, ChatPast>()
-  const switches = { offline: options.offline === true, launchFails: options.launchFails === true }
+  const switches = { offline: options.offline === true, launchFails: options.launchFails === true, stopFails: options.stopFails === true, ceiling: options.ceiling ?? 3 }
+  const logged: string[] = []
   const services: Pick<MachineServices, 'chat' | 'chats'> = {
     chat: {
       post: async () => {},
@@ -82,7 +85,7 @@ export async function setup(options: SetupOptions = {}) {
       },
       stop: async (chat) => {
         calls.push(['stop', chat])
-        if (options.stopFails === true) throw fail('chats.noMachine', {})
+        if (switches.stopFails) throw fail('chats.noMachine', {})
       },
       title: async (_account, sessionId) => titles.get(sessionId) ?? null,
       past: async (chat) => pasts.get(chat) ?? null,
@@ -101,7 +104,8 @@ export async function setup(options: SetupOptions = {}) {
     accounts: () => [{ key: 'global', agent: 'claude' }, { key: 'codex-work', agent: 'codex' }],
     language: () => 'en',
     changed: () => {},
-    log: () => {},
+    log: (line) => void logged.push(line),
+    ceiling: () => switches.ceiling,
     now: () => clock,
     newId: () => `chat-${String((ids += 1)).padStart(12, '0')}`,
   }
@@ -117,6 +121,7 @@ export async function setup(options: SetupOptions = {}) {
     titles,
     pasts,
     switches,
+    logged,
     close: async () => {
       await writes.settled()
       await db.close()

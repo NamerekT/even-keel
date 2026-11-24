@@ -59,5 +59,6 @@ export async function wireProjectChats(ctx: ChatsContext): Promise<ProjectChats>
     changed: () => ctx.stateChanged(),
     log: (line) => console.log(line),
     now: () => new Date(),
+    ceiling: () => ctx.configStore.current.chatSessions,
   })
 }

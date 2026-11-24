@@ -53,6 +53,7 @@ export const fieldsEn = {
   'config.codexAutoCompactWindow': () => "Positive whole tokens, or empty for the model's own window",
   'config.parallel': (p) => `A whole number from 1, not ${p.value}`,
   'config.keepWarm': (p) => `Whole hours from 0 to ${p.max}, not ${p.value}`,
+  'config.chatSessions': (p) => `A whole number from 1, not ${p.value}`,
   'config.attachmentLimit': (p) => `Whole megabytes from 1 to ${p.max}, not ${p.value}`,
   'config.backupDir': (p) => `An absolute folder path, or empty for the state folder, not ${p.value}`,
   'config.backupDirFile': (p) => `${p.value} is a file: name a folder, or leave empty for the state folder`,

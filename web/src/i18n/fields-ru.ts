@@ -49,6 +49,7 @@ export const fieldsRu: FieldTexts = {
   'config.codexAutoCompactWindow': () => 'Положительное целое число токенов или пусто — собственное окно модели',
   'config.parallel': (p) => `Целое число от 1, а не ${p.value}`,
   'config.keepWarm': (p) => `Целое число часов от 0 до ${p.max}, а не ${p.value}`,
+  'config.chatSessions': (p) => `Целое число от 1, а не ${p.value}`,
   'config.attachmentLimit': (p) => `Целое число мегабайт от 1 до ${p.max}, а не ${p.value}`,
   'config.backupDir': (p) => `Абсолютный путь к папке или пусто — папка состояния, а не ${p.value}`,
   'config.backupDirFile': (p) => `${p.value} — файл: укажите папку или оставьте пусто — папка состояния`,

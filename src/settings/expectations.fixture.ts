@@ -83,6 +83,7 @@ export function configDefaults(projects: Record<string, string> = {}): EvenKeelC
     hiddenSkills: ['update-config', 'keybindings-help', 'fewer-permission-prompts', 'loop', 'schedule', 'init', 'claude-api', 'claude-in-chrome', 'plugin-authoring', 'artifact-design', 'artifact-diagramming', 'artifact-capabilities', 'dataviz'],
     parallel: 1,
     keepWarm: 2,
+    chatSessions: 3,
     cacheTrial: false,
     attachmentLimit: 25,
     defaultGit: null,

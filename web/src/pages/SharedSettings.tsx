@@ -92,7 +92,7 @@ const GROUPS = [
     id: 'models',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), ...Object.values(WINDOW_KEYS), 'cliCheck', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
-  { id: 'sessions', keys: ['protection', 'hiddenSkills', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
+  { id: 'sessions', keys: ['protection', 'hiddenSkills', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm', 'chatSessions'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask', 'rerun', 'landingHold'] },
   // The catalog of packages (BTN-802): each change is sent at once, no draft.
   { id: 'packages', keys: [] },
@@ -561,6 +561,9 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             t.shared.cacheTtlHint,
           )}
           {numberRow('keepWarm', t.shared.keepWarm, wholeOf(text('keepWarm'), 0) === undefined || errorOf('keepWarm') !== null, t.shared.keepWarmHint)}
+        </Section>
+        <Section title={t.shared.chats}>
+          {numberRow('chatSessions', t.shared.chatSessions, wholeOf(text('chatSessions'), 1) === undefined || errorOf('chatSessions') !== null, t.shared.chatSessionsHint)}
         </Section>
       </>
     ),

@@ -3,7 +3,7 @@ import { fail, type NoticeCode } from './notice/notice.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { ATTACHMENT_LIMIT_MB } from './builtin/model.js'
 import { DEFAULT_BACKUP } from './storage/backup-model.js'
-import { DEFAULT_CACHE_TTL, DEFAULT_CI, DEFAULT_KEEP_WARM } from './settings/defaults.js'
+import { DEFAULT_CACHE_TTL, DEFAULT_CHAT_SESSIONS, DEFAULT_CI, DEFAULT_KEEP_WARM } from './settings/defaults.js'
 import { EDIT_CHOICES, type EditChoice } from './account/settingsLayer.js'
 import { OWN_KEYS } from './settings/registry.js'
 import type { AnswerRequest } from './server.js'
@@ -216,7 +216,7 @@ export function ownOf(raw: unknown): OwnValues {
 }
 
 export function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, switchOnLimit, ci, fillMilestone, landingHold, allowedHosts, machinesAddress, memoryMirror, context, stats, updates } = body
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, chatSessions, attachmentLimit, defaultGit, setupPassed, cliCheck, switchOnLimit, ci, fillMilestone, landingHold, allowedHosts, machinesAddress, memoryMirror, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
   if (prompt != null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
@@ -247,6 +247,7 @@ export function sharedFormOf(body: Record<string, unknown>): SharedForm {
     contextHandoffs: contextHandoffs === undefined ? true : switchOf(contextHandoffs, 'contextHandoffs'),
     // A page from before the setting sends none: the default, so nothing is written.
     keepWarm: keepWarm === undefined ? DEFAULT_KEEP_WARM : numberOf(keepWarm, 'keepWarm'),
+    chatSessions: chatSessions === undefined ? DEFAULT_CHAT_SESSIONS : numberOf(chatSessions, 'chatSessions'),
     attachmentLimit: attachmentLimit === undefined ? ATTACHMENT_LIMIT_MB : numberOf(attachmentLimit, 'attachmentLimit'),
     // A page from before the setting sends none: not asked, as the default, so nothing is written.
     defaultGit: defaultGit == null ? null : switchOf(defaultGit, 'defaultGit'),
