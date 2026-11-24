@@ -631,55 +631,78 @@
    The frame is a layer of the list placed over its rows' rects (`useGroupGlide`), so it stretches as they move. */
 
 /* The frame fades by its colours, not its opacity: an opacity under 1 would make it a stacking context and hide the
-   caption under the rows. */
+   caption under the rows. The frame paints only the group's fill; its edge is `::before`, cut where the caption stands
+   (BTN-1624), so the fill, the halo beside the caption and the row under it show as they would without it. */
+.chain {
+  --caption-left: 14px;
+}
+
 .chain .chain__group {
   position: absolute;
   pointer-events: none;
   border: 1px solid transparent;
   border-radius: var(--radius);
   background: transparent;
-  box-shadow:
-    0 0 0 1px transparent,
-    0 0 0 4px transparent;
+  transition: background-color var(--motion-step) ease;
+}
+
+/* The halo is a 3 px border reaching 4 px out of the frame, the line an inset shadow from 1 px out to 1 px in: both
+   inside the pseudo's own box, which its mask covers. The mask leaves out the top 8 px over the caption's width
+   (`--caption-width` on the list, measured by `useGroupGlide`); the gap moves with the frame and fades with its
+   colours. */
+.chain .chain__group::before {
+  --gap-left: calc(var(--caption-left) + 5px);
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border: 3px solid transparent;
+  border-radius: var(--radius-halo);
+  box-shadow: inset 0 0 0 2px transparent;
+  mask-image: linear-gradient(black, black), linear-gradient(black, black), linear-gradient(black, black);
+  mask-size:
+    var(--gap-left) 100%,
+    calc(100% - var(--gap-left) - var(--caption-width, 0px)) 100%,
+    100% calc(100% - var(--space-8));
+  mask-position: left top, right top, left bottom;
+  mask-repeat: no-repeat;
   transition:
     border-color var(--motion-step) ease,
-    background-color var(--motion-step) ease,
     box-shadow var(--motion-step) ease;
 }
 
 .chain .chain__group--shown {
-  border-color: var(--group-edge);
   background: color-mix(in srgb, var(--group-edge) 6%, var(--surface));
-  box-shadow:
-    0 0 0 1px var(--group-edge),
-    0 0 0 4px color-mix(in srgb, var(--group-edge) 10%, transparent);
+}
+
+.chain .chain__group--shown::before {
+  border-color: color-mix(in srgb, var(--group-edge) 10%, transparent);
+  box-shadow: inset 0 0 0 2px var(--group-edge);
 }
 
 .chain .chain__group--glide {
   transition:
-    border-color var(--motion-step) ease,
     background-color var(--motion-step) ease,
-    box-shadow var(--motion-step) ease,
     top var(--motion-step) ease-out,
     left var(--motion-step) ease-out,
     width var(--motion-step) ease-out,
     height var(--motion-step) ease-out;
 }
 
-/* Over the first row, whose focus fill would cover its lower half, and over a row gliding past (z-index 2). */
+/* Over the first row, whose focus fill would cover its lower half, and over a row gliding past (z-index 2). No fill of
+   its own: the edge has a gap under it. */
 .chain .chain__group-caption {
   position: absolute;
   z-index: 3;
   top: 0;
-  left: 14px;
+  left: var(--caption-left);
   translate: 0 -50%;
   padding: 0 var(--space-6);
   opacity: 0;
-  background: var(--bg);
   color: var(--group-edge);
   font-size: var(--text-12);
   font-weight: 600;
   line-height: 16px;
+  white-space: nowrap;
   transition:
     opacity var(--motion-step) ease,
     color var(--motion-step) ease;
@@ -701,6 +724,26 @@
 
 .chain .block--grouped:not(.block--focus):hover {
   background: color-mix(in srgb, var(--group-edge) 6%, transparent);
+}
+
+/* The row at the frame's top holding its own frame for a step, as it joins or parts while the caption shows: the same
+   gap in its own edge, the rest of the row and its ring kept (an even-odd hole in a polygon reaching far out). */
+.chain .block[data-group-top]:is(.block--join, .block--merge, .block--part, .block--solo) {
+  --gap-left: calc(var(--caption-left) + 1px);
+  --gap-right: calc(var(--gap-left) + var(--caption-width, 0px));
+  clip-path: polygon(
+    evenodd,
+    -100vw -100vh,
+    calc(100% + 100vw) -100vh,
+    calc(100% + 100vw) calc(100% + 100vh),
+    -100vw calc(100% + 100vh),
+    -100vw -100vh,
+    var(--gap-left) calc(-1 * var(--space-8)),
+    var(--gap-right) calc(-1 * var(--space-8)),
+    var(--gap-right) 1px,
+    var(--gap-left) 1px,
+    var(--gap-left) calc(-1 * var(--space-8))
+  );
 }
 
 /* Room for the caption on the frame's top edge. */
@@ -1030,6 +1073,7 @@
   .chain .block--take .block__title,
   .chain .block__now,
   .chain .chain__group,
+  .chain .chain__group::before,
   .chain .chain__group-caption,
   .chain .block--join,
   .chain .block--merge,
