@@ -2,7 +2,6 @@ import { join } from 'node:path'
 import { sessionSecrets } from '../agent/env.js'
 import { isPlain, type EvenKeelConfig } from '../config.js'
 import type { Git } from '../git/types.js'
-import { MEMORY_SERVER } from '../memory/mcp.js'
 import { readJson } from '../packages/plugins.js'
 import type { Packages } from '../packages/service.js'
 import { trialTtl } from '../sessions/cache.js'
@@ -11,7 +10,7 @@ import { readProjectSettings } from './projectSettings.js'
 
 export interface SessionSettingsDeps {
   config: () => EvenKeelConfig
-  packages: Pick<Packages, 'otherPlugins' | 'keyNames' | 'bringsServer'>
+  packages: Pick<Packages, 'otherPlugins' | 'keyNames'>
   globalDir: string
   trim: () => boolean
   projectOf: (task: string) => string | undefined
@@ -34,6 +33,6 @@ export function createSessionSettings(deps: SessionSettingsDeps) {
     const plugins = deps.packages.otherPlugins(project, task, [readJson(join(deps.globalDir, 'settings.json')), files.project, files.local])
     const own = config.settings[project]
     const ttl = (config.cacheTrial ? trialTtl(task) : null) ?? own?.cacheTtl ?? null
-    return chainSettings(repo, plugins, deps.trim(), config.hiddenSkills, deps.globalDir, ttl,sessionSecrets(deps.packages.keyNames()), own?.protection ?? config.protection, own?.autoCompactWindow ?? null, plain, deps.packages.bringsServer(project, MEMORY_SERVER), files)
+    return chainSettings(repo, plugins, deps.trim(), config.hiddenSkills, deps.globalDir, ttl, sessionSecrets(deps.packages.keyNames()), own?.protection ?? config.protection, own?.autoCompactWindow ?? null, plain, files)
   }
 }

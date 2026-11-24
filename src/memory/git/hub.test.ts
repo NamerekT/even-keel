@@ -2,7 +2,7 @@ import type { PGlite } from '@electric-sql/pglite'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runGit } from '../../git/run.js'
 import { openDatabase } from '../../storage/database.js'
 import { memoryFile } from '../record.js'
@@ -81,11 +81,10 @@ describe('MemoryHub (BTN-1646)', { timeout: 120_000 }, () => {
     expect(existsSync(join(root, 'one', 'tone.md'))).toBe(false)
   })
 
-  it('writes through the memory tools between syncs and syncs after a write', async () => {
+  it('writes through the memory tools between syncs and commits a write at once, with no settle wait (BTN-1647)', async () => {
     await hub.apply()
     await hub.within(ONE, (folder) => writeFileSync(join(folder!, 'tone.md'), memoryFile({ name: 'tone', description: 'short', type: 'user', body: 'x' })), true)
-    await hub.syncAll()
-    expect(await inRepository(ONE)).toContain('tone.md')
+    await vi.waitFor(async () => expect(await inRepository(ONE)).toContain('tone.md'), { timeout: 30_000, interval: 100 })
     expect(await hub.within(TWO, (folder) => folder)).toBeNull()
   })
 
