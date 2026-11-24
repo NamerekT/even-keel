@@ -4,6 +4,7 @@ import { isOwnName } from '../../../src/chain/fix.js'
 import type { ContextScale } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { chainRefusal } from '../chainRefusal.js'
 import { blockMetered, sessionCache, taskTitle, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { inOrder, underWayFirst, withOrder } from '../ui/chainOrder.js'
@@ -111,7 +112,11 @@ export function ChainList(props: Props) {
   const [revealed, setRevealed] = useState(0)
   /** The presses of each milestone's "N more" button, by milestone; a fold of the milestone forgets them. */
   const [more, setMore] = useState<ReadonlyMap<string, number>>(new Map())
-  const { send, sending, failure } = useCommand()
+  const command = useCommand()
+  // A drop's refusal is a toast in sight (BTN-1644), not the band under the list's last row the row buttons' errors take.
+  const ordering = useCommand()
+  const { send, failure } = command
+  const sending = command.sending || ordering.sending
   const location = useLocation()
   const navigate = useNavigate()
   // A row's link keeps the page's query, the machine of the view with it (BTN-1575).
@@ -204,16 +209,22 @@ export function ChainList(props: Props) {
     unfocus(milestoneView(archive.visible, kept, '', empty).sections.flatMap((section) => section.blocks))
   }
 
-  const { drag, landing, settling, movable, held } = useChainDrag({
+  const dropped = useRef<string | null>(null)
+  const { drag, landing, settling, movable, held, afterDrop } = useChainDrag({
     listRef,
     blocks,
     disabled: sending,
     onDrop: (order, moved) => {
       const full = droppedOrder(openIds(ordered), order, moved)
       setPending(full)
-      void send('chain/order', { project, order: full }).then((ok) => ok || setPending(null))
+      dropped.current = moved
+      chainRefusal.set(null)
+      void ordering.send('chain/order', { project, order: full }).then((ok) => ok || afterDrop(() => setPending(null)))
     },
   })
+  useEffect(() => {
+    if (ordering.failure !== null && dropped.current !== null) chainRefusal.set({ task: dropped.current, notice: ordering.failure })
+  }, [ordering.failure])
   useRowGlide(listRef, frameRef, members, glide, chainView, held)
 
   const selected = relativesOf(blocks, focus)

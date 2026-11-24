@@ -10,6 +10,7 @@ import { LoginDialog } from './layout/LoginDialog.js'
 import { MachineLoginDialog } from './layout/MachineSignIns.js'
 import { AddMachineDialog } from './layout/AddMachineDialog.js'
 import { MachineArrivalToast } from './layout/MachineArrival.js'
+import { ChainRefusalToast } from './layout/ChainRefusalToast.js'
 import { MachineRequestDialog } from './layout/MachineRequest.js'
 import { MachineFilterProvider } from './layout/MachineFilter.js'
 import { MachinePanel } from './layout/MachinePanel.js'
@@ -113,6 +114,7 @@ export function App() {
         <FallbackToasts />
         <EventToasts />
         <MachineArrivalToast />
+        <ChainRefusalToast />
       </ToastStack>
     </div>
     </MachineFilterProvider>

@@ -26,6 +26,7 @@ export const ADVICE = {
   'task.relabelFailed': () => "check the tracker profile's permission to edit issues and labels, then try again",
   'codex.hooksUntrusted': () => 'update Even Keel, or for now run the task on another provider',
   'copilot.binaryMissing': () => "set Copilot's CLI version to Checked in Settings → Providers and models, then resume the chain",
+  'chain.currentFirst': () => 'drop the task below it',
   'chain.noTrackerMcp': () => 'turn on a package with it or the description, and the chain goes on by itself',
   'changelog.unnoticed': () => 'if a task does change something for users, say what in its closing comment and press "Write again"',
   'storage.newer': () => 'put back its *.bak copy or update Even Keel',
