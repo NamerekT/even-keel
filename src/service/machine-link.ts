@@ -445,7 +445,10 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
         placed: (project, machine) => placedIn(ctx.db, project, machine),
         bound: (machine, project) => memoryFolders.allows(machine, project),
         repository: (project) => ctx.memory.existingRepository(project),
-        pushed: (project) => void ctx.memory.syncAll(project),
+        pushed: (project) => {
+          ctx.memory.pushed(project)
+          void ctx.memory.syncAll(project)
+        },
         log,
       }),
       write: (machine, write) => hubMcp.write(machine, write),

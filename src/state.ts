@@ -426,6 +426,8 @@ export interface EvenKeelState {
   updates: UpdatesView
   /** The automatic copies of the state database (BTN-1083). */
   backup?: BackupView
+  /** The warning that the memory mirror must be private, while one is set (BTN-1649); `null` or absent — no mirror. */
+  memoryMirror?: Notice | null
   /**
    * The page's "Got it" marks (BTN-759): a banner's id and the stamp of what it said when closed; it comes back once
    * the stamp changes. Kept in `service_state`, so every device sees them.

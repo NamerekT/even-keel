@@ -11,6 +11,8 @@ export interface WorkingCopiesDeps {
   remoteOf(project: string): string
   /** Runs before a project's first copy starts; a throw leaves the project without copies until the next apply. */
   prepare?(project: string, folder: string): Promise<void>
+  /** A copy pushed new commits into the project's repository. */
+  pushed?(project: string): void
   /** Who the commits are by. */
   author: string
   log(line: string): void
@@ -119,6 +121,7 @@ export class WorkingCopies {
           git: this.deps.git,
           schedule: this.deps.schedule,
           watch: this.deps.watch,
+          pushed: () => this.deps.pushed?.(project),
         })
         this.copies.set(key, { project, folder, sync })
         void sync.start()

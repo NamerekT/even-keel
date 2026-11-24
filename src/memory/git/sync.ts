@@ -31,6 +31,8 @@ export interface MemorySyncDeps {
   schedule?(run: () => void, ms: number): () => void
   /** Calls `changed` on every edit in the folder; gives the way to stop. */
   watch?(folder: string, changed: () => void): () => void
+  /** Called after a push brought the remote new commits; never waited for (the hub's mirror, BTN-1649). */
+  pushed?(): void
 }
 
 export interface SyncOutcome {
@@ -243,7 +245,10 @@ export class MemorySync {
     if (!(await this.hasHead())) return 'pushed'
     if (remote && (await this.must('rev-list', '--count', `${upstream}..HEAD`)) === '0') return 'pushed'
     const pushed = await this.run('push', '-q', 'origin', `HEAD:refs/heads/${MEMORY_BRANCH}`)
-    if (pushed.code === 0) return 'pushed'
+    if (pushed.code === 0) {
+      this.deps.pushed?.()
+      return 'pushed'
+    }
     if (/\[rejected\]|fetch first|non-fast-forward/.test(pushed.out)) return 'rejected'
     this.deps.log(`memory: ${folder} cannot push to its repository, the commits stay here: ${pushed.out.split('\n')[0]}`)
     return 'failed'

@@ -99,7 +99,7 @@ const GROUPS = [
   { id: 'page', keys: ['language', 'allowedHosts', 'machinesAddress', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
   // Passkeys, devices and the owner key (BTN-1619): each change is sent at once, no draft.
   { id: 'signIn', keys: [] },
-  { id: 'backup', keys: ['backupDir', 'backupKeep'] },
+  { id: 'backup', keys: ['backupDir', 'backupKeep', 'memoryMirror'] },
   // Each switch applies at once, as "Don't show again" on a banner does (BTN-759): no draft.
   { id: 'notices', keys: [] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
@@ -201,6 +201,29 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   )
   const numberRow = (key: string, label: string, invalid: boolean, hint?: string) => (
     <Row className={marks.box(key)} label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} control={numberInput(key, invalid)} error={errorOf(key)} />
+  )
+  // A path or an address in one line; `empty` is what no value means.
+  const monoRow = (key: string, label: string, hint: string, empty: string) => (
+    <Row
+      className={marks.box(key)}
+      label={label}
+      hint={hint}
+      htmlFor={fieldId(key)}
+      mark={marks.note(key, (value) => ((value as string).trim() === '' ? empty : shown(value)))}
+      control={
+        <input
+          id={fieldId(key)}
+          className="settings__text settings__text--mono"
+          autoComplete="off"
+          spellCheck={false}
+          value={text(key)}
+          placeholder={empty}
+          aria-invalid={errorOf(key) !== null}
+          onChange={(event) => edit(key, event.target.value)}
+        />
+      }
+      error={errorOf(key)}
+    />
   )
   const select = (key: string, label: string, options: readonly { value: string; label: string }[], hint?: string) => (
     <Row
@@ -637,28 +660,10 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       <>
         <BackupStatus state={state} />
         <Section title={t.shared.backupCopies}>
-          <Row
-            className={marks.box('backupDir')}
-            label={t.shared.backupDir}
-            hint={t.shared.backupDirHint}
-            htmlFor={fieldId('backupDir')}
-            mark={marks.note('backupDir', (value) => ((value as string).trim() === '' ? t.shared.backupDirDefault : shown(value)))}
-            control={
-              <input
-                id={fieldId('backupDir')}
-                className="settings__text settings__text--mono"
-                autoComplete="off"
-                spellCheck={false}
-                value={text('backupDir')}
-                placeholder={t.shared.backupDirDefault}
-                aria-invalid={errorOf('backupDir') !== null}
-                onChange={(event) => edit('backupDir', event.target.value)}
-              />
-            }
-            error={errorOf('backupDir')}
-          />
+          {monoRow('backupDir', t.shared.backupDir, t.shared.backupDirHint, t.shared.backupDirDefault)}
           {numberRow('backupKeep', t.shared.backupKeep, wholeOf(text('backupKeep'), 1) === undefined || errorOf('backupKeep') !== null, t.shared.backupKeepHint)}
         </Section>
+        <Section title={t.shared.memoryMirrorTitle}>{monoRow('memoryMirror', t.shared.memoryMirror, t.shared.memoryMirrorHint, t.shared.memoryMirrorNone)}</Section>
       </>
     ),
     stats: () => (

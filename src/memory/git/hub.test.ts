@@ -89,6 +89,20 @@ describe('MemoryHub (BTN-1646)', { timeout: 120_000 }, () => {
     expect(await hub.within(TWO, (folder) => folder)).toBeNull()
   })
 
+  it("follows every push into a project's repository with one into the memory mirror (BTN-1649)", async () => {
+    const mirror = join(root, 'mirror.git')
+    await runGit(root, ['init', '--bare', '-q', mirror])
+    hub.stop()
+    hub = new MemoryHub({ db, dir, folders: () => folders, author: 'hub', log: (line) => logs.push(line), mirror: () => mirror, schedule: () => () => {}, watch: () => () => {} })
+    await hub.apply()
+    await hub.within(ONE, (folder) => writeFileSync(join(folder!, 'tone.md'), memoryFile({ name: 'tone', description: 'short', type: 'user', body: 'x' })), true)
+    const head = async () => (await runGit(join(dir, `${ONE}.git`), ['rev-parse', MEMORY_BRANCH])).out
+    const mirrored = async () => (await runGit(root, ['ls-remote', mirror, `refs/heads/${ONE}`])).out.split('\t')[0]
+    await vi.waitFor(async () => expect(await inRepository(ONE)).toContain('tone.md'), { timeout: 30_000, interval: 100 })
+    await vi.waitFor(async () => expect(await mirrored()).toBe(await head()), { timeout: 30_000, interval: 100 })
+    expect(hub.mirrorView()).toEqual({ code: 'memory.mirrorPrivate', params: { address: mirror } })
+  })
+
   it('gives a folder two projects name to the first, telling it once, and stops the copy of a project gone', async () => {
     mkdirSync(join(root, 'one'))
     symlinkSync(join(root, 'one'), join(root, 'alias'), 'junction')

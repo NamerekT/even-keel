@@ -134,6 +134,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     hulyClient: hulyClient.view(),
     updates: { ...ctx.releasesView(), ...ctx.updater.view() },
     backup: ctx.backups.view(),
+    memoryMirror: ctx.memory.mirrorView(),
     noticesDismissed: ctx.dismissedNotices,
     hotkeys: ctx.browserHotkeys,
     cliVersions: [...ctx.cliVersions.view(), ...ctx.daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],

@@ -32,6 +32,7 @@ export function wireMemory(ctx: Pick<AccountsContext, 'db' | 'configStore' | 'ho
     folders: () => Object.fromEntries(Object.entries(ctx.configStore.current.projects).map(([project, repo]) => [project, [sharedMemory(ctx.homes.global.dir, repo)]])),
     author: hostname(),
     log: (line) => console.log(line),
+    mirror: () => ctx.configStore.current.memoryMirror,
   })
 }
 

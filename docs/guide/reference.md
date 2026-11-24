@@ -110,6 +110,7 @@ The project wizard includes its started milestone row when adding the project.
 | `attachmentLimit` | `25` | megabytes, 1–1024: the largest file a task of the built-in tracker takes and the largest a session attaches to a task of any tracker; **Attachment size limit, MB** in **Settings** → **Interface** |
 | `backup.dir` | `null` | absolute path of the folder the automatic copies of the state database go into ([Stored state](setup.md#stored-state)); `null` — `backups/` in the state folder. **Copies folder** in **Settings** → **Backups** |
 | `backup.keep` | `14` | how many of the newest checked copies stay, 1–365; **Copies to keep** in **Settings** → **Backups** |
+| `memoryMirror` | `null` | a git address the projects' memory is pushed to, a branch per project ([Stored state](setup.md#stored-state)); must be private, no password in it. **Mirror repository** in **Settings** → **Backups** |
 | `version` | — | version of the file's format; `config-export` writes it, and an older file is migrated as it is imported. A file newer than the code is refused |
 
 ### The chain

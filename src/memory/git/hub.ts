@@ -6,6 +6,7 @@ import type { Queryable } from '../../storage/database.js'
 import { folderRecords } from '../files.js'
 import { indexLine } from '../record.js'
 import { WorkingCopies } from './copies.js'
+import { RemoteMirror } from './remote-mirror.js'
 import { MEMORY_BRANCH, type MemorySyncDeps } from './sync.js'
 import { transferRecords } from './transfer.js'
 
@@ -20,6 +21,8 @@ export interface MemoryHubDeps {
   /** Who the hub's commits are by. */
   author: string
   log(line: string): void
+  /** The `memoryMirror` setting now (BTN-1649); absent or `null` — no mirror. */
+  mirror?(): string | null
   git?: Git
   schedule?: MemorySyncDeps['schedule']
   watch?: MemorySyncDeps['watch']
@@ -29,21 +32,32 @@ export interface MemoryHubDeps {
  * The hub's side of the project memory in git (BTN-1646, `docs/sessions/memory.md`): a bare repository per project,
  * `<id>.git` in the state database's folder, and the project's memory folders on the hub kept as its working copies by
  * a `MemorySync` each. Before a project's first sync its `memory_records` go into its folder once (`transferRecords`).
- * The copies themselves are `WorkingCopies`, as a machine's are.
+ * The copies themselves are `WorkingCopies`, as a machine's are. Every push into a project's repository, from a copy
+ * of the hub's or a machine's, is followed by one into the memory mirror, when one is set (`RemoteMirror`).
  */
 export class MemoryHub {
   private readonly copies: WorkingCopies
+  private readonly mirror: RemoteMirror
+  private stopped = false
 
   constructor(private readonly deps: MemoryHubDeps) {
     this.copies = new WorkingCopies({
       folders: () => deps.folders(),
       remoteOf: (project) => this.repositoryOf(project),
       prepare: (project, folder) => this.prepare(project, folder),
+      pushed: (project) => this.pushed(project),
       author: deps.author,
       log: deps.log,
       git: deps.git,
       schedule: deps.schedule,
       watch: deps.watch,
+    })
+    this.mirror = new RemoteMirror({
+      address: () => deps.mirror?.() ?? null,
+      repositoryOf: (project) => this.repositoryOf(project),
+      projects: () => Object.keys(deps.folders()).filter((project) => existsSync(this.repositoryOf(project))),
+      log: deps.log,
+      git: deps.git,
     })
   }
 
@@ -59,10 +73,23 @@ export class MemoryHub {
 
   /** The projects' folders as `folders` gives them now: new ones synced, gone ones left. One apply runs at a time. */
   apply(): Promise<void> {
-    return this.copies.apply()
+    const run = this.copies.apply()
+    void run.catch(() => {}).then(() => (this.stopped ? undefined : this.mirror.apply()))
+    return run
+  }
+
+  /** A push brought the project's repository new commits: from a working copy of the hub's or a machine's. */
+  pushed(project: string): void {
+    void this.mirror.push(project)
+  }
+
+  /** The page's warning while the memory mirror is set. */
+  mirrorView(): ReturnType<RemoteMirror['view']> {
+    return this.mirror.view()
   }
 
   stop(): void {
+    this.stopped = true
     this.copies.stop()
   }
 

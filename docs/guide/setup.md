@@ -1079,6 +1079,8 @@ The copies go into `state/backups/`, next to `state/even-keel/`, named `even-kee
 
 Folders of other names in it, such as your own backups, are never removed.
 
+**Settings** → **Backups** → **Memory mirror** copies the projects' memory to a git repository of yours elsewhere, so it outlives this computer: give **Mirror repository** (`memoryMirror`) an address git can push to, such as `ssh://git@git.example.com/you/memory.git`. Each project's memory goes into its own branch, named by the project's id, after every change and when Even Keel starts. Git signs in by your SSH key or its credential helper: an address with a password is refused. Make the repository private, since the memory may hold personal notes: Even Keel cannot check it and shows a warning while the mirror is on. A failed push is a line in `logs/even-keel.log` and is tried again at the next change.
+
 A copy holds the trackers' tokens and keys in plain text: keep its folder as private as `.env`.
 
 To restore one, stop Even Keel and put it in place of `state/even-keel`, as above.
