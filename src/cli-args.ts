@@ -51,13 +51,13 @@ export function commandOf(argv: string[]): CliCommand {
   return { command: 'help', error: `unknown command ${name}` }
 }
 
-/** `join <connection string> [--root <folder>]`, the option before or after the string. */
+/** `join <hub address or connection string> [--root <folder>]`, the option before or after it. */
 function joinOf(rest: string[]): CliCommand {
   const at = rest.indexOf('--root')
   const root = at === -1 ? null : rest[at + 1]
   const lines = at === -1 ? rest : rest.filter((_, index) => index !== at && index !== at + 1)
   if (root === undefined || root?.startsWith('--') === true) return { command: 'help', error: '--root needs a folder' }
-  if (lines.length !== 1) return { command: 'help', error: 'join takes one connection string' }
+  if (lines.length !== 1) return { command: 'help', error: 'join takes one hub address or connection string' }
   return { command: 'join', line: lines[0]!, root }
 }
 
@@ -72,7 +72,7 @@ function installOf(rest: string[]): CliCommand {
     else if (option === '--machine' || option === '--root') {
       const value = rest[at + 1]
       if (value === undefined || value.startsWith('--')) {
-        return { command: 'help', error: option === '--machine' ? '--machine needs the connection string the hub issued' : '--root needs a folder' }
+        return { command: 'help', error: option === '--machine' ? '--machine needs the hub address for machines or the connection string the hub issued' : '--root needs a folder' }
       }
       if ((option === '--machine' ? line : root) !== null) return { command: 'help', error: `${option} is given twice` }
       if (option === '--machine') line = value

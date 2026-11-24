@@ -21,6 +21,15 @@ export function hubUrlOf(address: string, port: number): string | undefined {
     return undefined
   }
   if (url.hostname === '') return undefined
-  if (url.port === '') url.port = String(port)
+  // `:443` written out is the port asked for, though a URL drops it as https's default.
+  const named = /(^[^:[]*|\]):\d+$/.test(text)
+  if (url.port === '' && !named) url.port = String(port)
   return url.origin
+}
+
+/** The hub's URL as `even-keel join <address>` takes it back (BTN-1620): the machines' default port left out, 443 named. */
+export function writtenAddressOf(hub: string): string {
+  const url = new URL(hub)
+  const port = url.port === '' ? '443' : url.port
+  return port === String(MACHINES_PORT) ? url.hostname : `${url.hostname}:${port}`
 }

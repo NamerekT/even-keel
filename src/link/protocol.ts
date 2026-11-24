@@ -7,7 +7,7 @@ import type { SkillsCopy } from '../packages/skills.js'
 import type { MachineAbout } from './view.js'
 
 /** The version both ends name in the handshake; another one is refused before anything else is said. */
-export const API_VERSION = 20
+export const API_VERSION = 21
 
 /** The pulse of both directions; two missed ones break the connection. */
 export const HEARTBEAT_MS = 20_000
@@ -28,9 +28,14 @@ export const CREDENTIALS_PATH = '/link/credentials'
 export const SKILLS_PATH = '/link/skills'
 /** The one post of a connection string: it is exchanged for the machine's own secret (BTN-1242). */
 export const JOIN_PATH = '/link/join'
+/** A machine asks to join by the hub's address alone (BTN-1620), and asks again for the answer of a person on the page. */
+export const REQUEST_PATH = '/link/request'
+export const REQUEST_ANSWER_PATH = '/link/request/answer'
 
 /** How long a connection string can be joined with. */
 export const INVITE_MS = 30 * 60_000
+/** How long a machine's request to join waits for a person on the hub's page. */
+export const REQUEST_MS = 10 * 60_000
 
 /** The link's own command: the hub names a project's folder on the machine, which agrees to it inside its root. */
 export const ASSIGN_COMMAND = 'projects.assign'
@@ -115,6 +120,31 @@ export interface JoinAnswer {
   secret: string
 }
 
+/**
+ * A machine asks to join with no string (BTN-1620): its report and its number, of which with the certificate it saw
+ * it shows the code; `public` — the certificate verified as one of a public authority, so the code is of the number.
+ */
+export interface RequestPost {
+  api: number
+  about: MachineAbout
+  nonce: string
+  public: boolean
+}
+
+export interface RequestAnswer {
+  request: string
+  expiresAt: number
+}
+
+/** The machine asks what became of its request, by its number again: no one else learns the answer. */
+export interface RequestAnswerPost {
+  request: string
+  nonce: string
+}
+
+/** Still waiting, or let in: a secret to join with once, as a connection string's, for the machine to exchange. */
+export type RequestState = { state: 'waiting' } | { state: 'admitted'; machine: string; secret: string }
+
 export interface HubHello {
   api: number
   /** This connection's name: the posts of an older one are refused. */
@@ -129,9 +159,12 @@ export type Frame = { kind: 'hello'; hello: HubHello } | { kind: 'ping' } | { ki
 /**
  * Why a hub turned a machine away: its token is unknown or revoked, the API versions differ, or the post came over a
  * connection that is no longer the machine's. A connection string is also `expired` past its time and `used` once a
- * machine joined with it.
+ * machine joined with it. A request to join (BTN-1620) is `busy` while another from the same address waits, `full`
+ * while as many as the hub keeps wait, `declined` by a person and `expired` past its time or after the hub restarted.
  */
-export type Refusal = { refused: 'token' } | VersionRefusal | { refused: 'connection' } | { refused: 'expired' } | { refused: 'used' }
+export type Refusal =
+  | { refused: 'token' } | VersionRefusal | { refused: 'connection' } | { refused: 'expired' } | { refused: 'used' }
+  | { refused: 'busy' } | { refused: 'full' } | { refused: 'declined' }
 
 /**
  * Another API version: `api` is the hub's, `evenKeel` its version of Even Keel, the one to install on the machine

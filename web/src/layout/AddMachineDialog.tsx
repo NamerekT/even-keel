@@ -300,7 +300,8 @@ type Way = 'npx' | 'docker'
 
 /**
  * The one command for every system or, for a machine in a container (BTN-1440), the `.env` line, the join and the
- * start; until when the string holds, and the wait for the machine that runs it.
+ * start — with the hub's address, the page letting the machine in (BTN-1620); then the same with the string, until
+ * when it holds, and the wait for the machine that runs it.
  */
 function CommandPart({ invite, container, sending, blank, onAgain }: { invite: MachineInvite; container: boolean; sending: boolean; blank: boolean; onAgain: () => void }) {
   const now = useNow(5_000)
@@ -313,12 +314,12 @@ function CommandPart({ invite, container, sending, blank, onAgain }: { invite: M
         <span className="add-machine__way">
           <span className="add-package__label-row">
             <span className="add-package__label">{text.run}</span>
-            <HelpTip text={way === 'npx' ? text.needs : text.dockerNeeds} align="start" />
+            <HelpTip text={`${way === 'npx' ? text.needs : text.dockerNeeds} ${text.byAddressHint}`} align="start" />
           </span>
           <Segmented<Way> label={text.way} options={[['npx', text.wayNpx], ['docker', text.wayDocker]]} value={way} onChange={setWay} />
         </span>
         {way === 'npx' ? (
-          <CommandBlock command={invite.command} copyLabel={text.copy} className="add-machine__command" />
+          <CommandBlock command={invite.byAddress.command} copyLabel={text.copy} className="add-machine__command" />
         ) : (
           <>
             <span className="add-machine__step add-machine__hinted">
@@ -328,11 +329,18 @@ function CommandPart({ invite, container, sending, blank, onAgain }: { invite: M
             <span className="add-machine__step">{text.dockerEnv}</span>
             <CommandBlock command={invite.docker.env} copyLabel={text.copy} className="add-machine__command" />
             <span className="add-machine__step">{text.dockerJoin}</span>
-            <CommandBlock command={invite.docker.join} copyLabel={text.copy} className="add-machine__command" />
+            <CommandBlock command={invite.byAddress.docker.join} copyLabel={text.copy} className="add-machine__command" />
             <span className="add-machine__step">{text.dockerStart}</span>
             <CommandBlock command="docker compose up -d" copyLabel={text.copy} className="add-machine__command" />
           </>
         )}
+      </div>
+      <div key={`${invite.machine}-string`} className="add-package__field add-machine__appear">
+        <span className="add-package__label-row">
+          <span className="add-package__label">{text.byString}</span>
+          <HelpTip text={text.byStringHint} align="start" />
+        </span>
+        <CommandBlock command={way === 'npx' ? invite.command : invite.docker.join} copyLabel={text.copy} className="add-machine__command" />
         <p className="add-machine__meta">
           <span>{t.machines.until(formatLineTime(new Date(invite.expiresAt).toISOString()))}</span>
           <Tipped tip={t.machines.againHint} inline align="start">

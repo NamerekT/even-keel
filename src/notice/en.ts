@@ -161,6 +161,7 @@ export const en = {
   'git.noIdentity': () => 'git has no name and e-mail to commit with',
   'machines.noAddress': () => 'Set "Hub address for machines" in the settings first: the connection string carries it',
   'machines.unknown': () => 'There is no such machine, or its connection string was revoked',
+  'machines.requestGone': () => 'This request to join is no longer waiting: it expired, or another tab decided it. Run the join on the machine again if it still should join',
   'machines.notJoined': () => 'The machine has not joined yet: run the join command with its connection string on it first',
   'machines.noRoot': () => 'The machine has no folder of projects: join it again with --root naming one',
   'machines.unknownProject': () => 'There is no such project here',

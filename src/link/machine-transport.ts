@@ -2,10 +2,13 @@ import { request, type IncomingMessage } from 'node:http'
 import { connect, type TLSSocket } from 'node:tls'
 import { partsOf } from './body-size.js'
 import { fingerprintOf } from './cert.js'
+import { joinCodeOf, newNonce } from './join-code.js'
 import type { HubTransport, StreamSink } from './machine.js'
 import {
-  API_VERSION, CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, SKILLS_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, TooLarge, bearerOf, isRefusal,
-  type ConnectionToken, type CredentialsAnswer, type EventsAnswer, type Frame, type HookAnswer, type JoinAnswer, type MachineAbout, type McpAnswer, type Refusal, type SkillsAnswer, type TallyAnswer,
+  API_VERSION, CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, REQUEST_ANSWER_PATH, REQUEST_PATH, SKILLS_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, TooLarge,
+  bearerOf, isRefusal,
+  type ConnectionToken, type CredentialsAnswer, type EventsAnswer, type Frame, type HookAnswer, type JoinAnswer, type MachineAbout, type McpAnswer, type Refusal, type RequestAnswer,
+  type RequestState, type SkillsAnswer, type TallyAnswer,
 } from './protocol.js'
 
 export interface TransportOptions {
@@ -92,7 +95,8 @@ function sendTo(token: ConnectionToken, socket: TLSSocket, path: string, body: u
     path: `${url.pathname.replace(/\/+$/, '')}${path}`,
     headers: {
       Host: url.host,
-      Authorization: bearerOf(token),
+      // A request to join is made before the machine is anyone (BTN-1620).
+      ...(token.machine !== '' && { Authorization: bearerOf(token) }),
       'Content-Type': 'application/json; charset=utf-8',
       'Content-Length': Buffer.byteLength(text),
       Accept: path === STREAM_PATH ? 'text/event-stream' : 'application/json',
@@ -135,6 +139,75 @@ async function postTo<T>(token: ConnectionToken, path: string, body: unknown, wh
 export async function joinHub(token: ConnectionToken, about: MachineAbout, timeoutMs: number = TIMEOUT_MS): Promise<ConnectionToken | Refusal> {
   const answer = await postTo<JoinAnswer>(token, JOIN_PATH, { api: API_VERSION, about }, (value) => typeof (value as JoinAnswer).secret === 'string', timeoutMs)
   return isRefusal(answer) ? answer : { ...token, secret: answer.secret }
+}
+
+/**
+ * The certificate a hub's address shows (BTN-1620): `public` — it verified as one of a public authority for that
+ * name, and the fingerprint is empty, as in a string issued behind such a proxy; else the SHA-256 of what came.
+ */
+export function seeHub(hub: string, timeoutMs: number = TIMEOUT_MS): Promise<{ fingerprint: string; public: boolean }> {
+  const url = new URL(hub)
+  return new Promise((resolve, reject) => {
+    const socket = connect({ host: url.hostname.replace(/^\[|\]$/g, ''), port: Number(url.port || 443), rejectUnauthorized: false, ALPNProtocols: ['http/1.1'] })
+    const over = (error?: Error) => {
+      socket.destroy()
+      if (error !== undefined) reject(error)
+    }
+    socket.setTimeout(timeoutMs, () => over(new Error(`no connection to ${url.host} in ${timeoutMs} ms`)))
+    socket.once('error', over)
+    socket.once('secureConnect', () => {
+      const raw = socket.getPeerCertificate().raw as Buffer | undefined
+      const authorized = socket.authorized
+      over()
+      if (authorized) return resolve({ fingerprint: '', public: true })
+      if (raw === undefined) return reject(new Error(`${url.host} showed no certificate`))
+      resolve({ fingerprint: fingerprintOf(raw), public: false })
+    })
+  })
+}
+
+export interface AskOptions {
+  /** The code to compare on the hub's page, once the hub took the request. */
+  shown(code: string, expiresAt: number): void
+  pollMs?: number
+  timeoutMs?: number
+  now?: () => number
+  sleep?: (ms: number) => Promise<void>
+}
+
+const POLL_MS = 2_000
+/** How long the machine goes on asking through failed posts past the request's time before it gives up. */
+const ASK_GRACE_MS = 30_000
+
+/**
+ * Asks the hub at the address to let this machine in (BTN-1620) and waits for a person on its page: the answer is a
+ * connection string's token to exchange with `joinHub`, pinned to the certificate first seen, or the hub's refusal.
+ * Every post after the first goes only to that certificate, so the answer comes from the hub the code was made with.
+ */
+export async function askToJoin(hub: string, about: MachineAbout, options: AskOptions): Promise<ConnectionToken | Refusal> {
+  const timeoutMs = options.timeoutMs ?? TIMEOUT_MS
+  const now = options.now ?? Date.now
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
+  const seen = await seeHub(hub, timeoutMs)
+  const nonce = newNonce()
+  const code = await joinCodeOf(seen.fingerprint, nonce)
+  const pinned: ConnectionToken = { hub, fingerprint: seen.fingerprint, machine: '', secret: '' }
+  const asked = await postTo<RequestAnswer>(pinned, REQUEST_PATH, { api: API_VERSION, about, nonce, public: seen.public }, (value) => typeof (value as RequestAnswer).request === 'string', timeoutMs)
+  if (isRefusal(asked)) return asked
+  options.shown(code, asked.expiresAt)
+  const isState = (value: object): boolean => (value as { state?: unknown }).state === 'waiting' || (value as { state?: unknown }).state === 'admitted'
+  for (;;) {
+    await sleep(options.pollMs ?? POLL_MS)
+    let state: RequestState | Refusal
+    try {
+      state = await postTo<RequestState>(pinned, REQUEST_ANSWER_PATH, { request: asked.request, nonce }, isState, timeoutMs)
+    } catch (error) {
+      if (now() > asked.expiresAt + ASK_GRACE_MS) throw error
+      continue
+    }
+    if (isRefusal(state)) return state
+    if (state.state === 'admitted') return { hub, fingerprint: seen.fingerprint, machine: state.machine, secret: state.secret }
+  }
 }
 
 /** The link over HTTPS: the stream is one long answer to a POST, each post a request of its own. */

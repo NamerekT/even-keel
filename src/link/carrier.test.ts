@@ -8,9 +8,10 @@ import { HubEnd } from './hub.js'
 import { createHubServer } from './hub-server.js'
 import { MemoryHubStore, MemoryMachineStore } from './link.fixture.js'
 import { MachineEnd } from './machine.js'
-import { connectPinned, frameReader, httpsTransport, joinHub } from './machine-transport.js'
+import { JoinRequests } from './join-requests.js'
+import { askToJoin, connectPinned, frameReader, httpsTransport, joinHub } from './machine-transport.js'
 import {
-  API_VERSION, EVENTS_PATH, JOIN_PATH, STREAM_PATH, bearerOf, isRefusal, parseToken,
+  API_VERSION, EVENTS_PATH, JOIN_PATH, REQUEST_PATH, STREAM_PATH, bearerOf, isRefusal, parseToken,
   type ConnectionToken, type Frame, type MachineAbout, type MachineEvent, type NumberedCommand,
 } from './protocol.js'
 
@@ -217,5 +218,56 @@ describe('the link over HTTPS', { timeout: 30_000 }, () => {
     const machine = made.machine(joined)
     await machine.start()
     await until(() => machine.status().state === 'online', 'the joined machine online')
+  })
+
+  describe('a request to join by the address (BTN-1620)', () => {
+    const asking = async () => {
+      const certificate = createCertificate()
+      const log: string[] = []
+      hub = new HubEnd({ store: new MemoryHubStore(), log: (line) => log.push(line), handlers: { event: () => {}, snapshot: () => {} } })
+      const requests = new JoinRequests({
+        fingerprint: async () => certificate.fingerprint,
+        admit: () => hub!.admit(),
+        versionRefusal: (api) => hub!.versionRefusal(api),
+        changed: () => {},
+        log: (line) => log.push(line),
+      })
+      server = createHubServer({ hub, certificate, log: (line) => log.push(line), requests })
+      await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve))
+      const address = `https://127.0.0.1:${(server.address() as AddressInfo).port}`
+      return { requests, address, certificate }
+    }
+    const shown: string[] = []
+    const sleep = () => new Promise<void>((resolve) => setTimeout(resolve, 20))
+
+    it('shows the machine the code the page shows, and the machine let in joins as with a string', async () => {
+      const { requests, address, certificate } = await asking()
+      const asked = askToJoin(address, ABOUT, { shown: (code) => void shown.push(code), sleep })
+      await until(() => requests.waiting().length === 1, 'the request on the page')
+      await until(() => shown.length === 1, 'the code on the terminal')
+      const [request] = requests.waiting()
+      expect(request!.code).toBe(shown[0])
+      expect(request!.from).toBe('127.0.0.1')
+      await requests.admit(request!.id)
+      const string = await asked
+      if (isRefusal(string)) throw new Error(`refused: ${string.refused}`)
+      expect(string).toMatchObject({ hub: address, fingerprint: certificate.fingerprint })
+      const joined = await joinHub(string, ABOUT, 5_000)
+      if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
+      expect(joined.machine).toBe(string.machine)
+    })
+
+    it('tells a declined machine so', async () => {
+      const { requests, address } = await asking()
+      const asked = askToJoin(address, ABOUT, { shown: () => {}, sleep })
+      await until(() => requests.waiting().length === 1, 'the request on the page')
+      requests.decline(requests.waiting()[0]!.id)
+      expect(await asked).toEqual({ refused: 'declined' })
+    })
+
+    it('has no door for requests when the hub takes none', async () => {
+      const made = await started()
+      expect((await made.raw(REQUEST_PATH, '{}')).status).toBe(404)
+    })
   })
 })

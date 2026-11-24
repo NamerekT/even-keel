@@ -346,6 +346,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 315 | [A lane elsewhere through a hub restart before its machine's snapshot](unverified/machines.md#a-lane-elsewhere-through-a-hub-restart-before-its-machines-snapshot-btn-1610) | hubs with machines elsewhere, restarted while a lane there is mid-turn | the lane stays still while its machine is online, or stops mid-turn after "Stop"; restart the machine's service, or Stop and Start the chain | — |
 | 316 | [A task pinned to machines](unverified/machines.md#a-task-pinned-to-machines-btn-1623) | hubs with machines elsewhere and a task pinned to some of them | a pinned task runs on a machine off its list, or waits while its machine is free; clear the pin on the card | — |
 | 317 | [Sign-in with a passkey and the owner key in a real browser](unverified/page.md#sign-in-with-a-passkey-and-the-owner-key-in-a-real-browser-btn-1619) | hubs with the owner key set, reached by a proxy's name or from another machine | a passkey is not made or not accepted, or a proxy's request goes without a sign-in; sign in with the owner key | — |
+| 318 | [A machine joining by the hub's address](unverified/machines.md#a-machine-joining-by-the-hubs-address-btn-1620) | a hub with "Hub address for machines" set and a machine running `even-keel join <address>` | the codes differ and a good machine is declined (the string still joins it), or the window never comes and the request expires | — |
 
 ### Waiting for the event / not checked by choice
 

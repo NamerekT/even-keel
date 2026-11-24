@@ -10,6 +10,7 @@ import { LoginDialog } from './layout/LoginDialog.js'
 import { MachineLoginDialog } from './layout/MachineSignIns.js'
 import { AddMachineDialog } from './layout/AddMachineDialog.js'
 import { MachineArrivalToast } from './layout/MachineArrival.js'
+import { MachineRequestDialog } from './layout/MachineRequest.js'
 import { MachineFilterProvider } from './layout/MachineFilter.js'
 import { MachinePanel } from './layout/MachinePanel.js'
 import { EventToasts } from './layout/EventToasts.js'
@@ -101,6 +102,7 @@ export function App() {
       {state !== null && state.account.login !== null && !addingAccount && <LoginDialog account={state.account} />}
       {state !== null && <AddAccountDialog account={state.account} />}
       {state !== null && <AddMachineDialog state={state} />}
+      {state !== null && <MachineRequestDialog state={state} />}
       {state !== null && state.account.login === null && <MachineLoginDialog />}
       <CliConsent />
       <UpdateWindow />

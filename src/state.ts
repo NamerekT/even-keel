@@ -193,7 +193,7 @@ export type { CloneProgress } from './git/clone-progress.js'
 export type { JobStep, StepJob } from './jobs/model.js'
 export type { BranchChoice, BranchDrift, BranchMove, RepoBranches } from './projects/branch.js'
 export type { RemoteBranchList } from './projects/remote-branches.js'
-export type { AddressChoice, MachineAbout, MachineAccount, MachineBuildView, MachineCard, MachineCardAccount, MachineInvite, MachineLogin, MachinePage, MachineProject, MachineSignIn, MachineView, MachineProjectSettings, PoolMachine, PoolServer, ProjectPool, ServerOverride } from './link/view.js'
+export type { AddressChoice, MachineAbout, MachineAccount, MachineBuildView, MachineCard, MachineCardAccount, MachineInvite, MachineLogin, MachinePage, MachineProject, MachineRequest, MachineSignIn, MachineView, MachineProjectSettings, PoolMachine, PoolServer, ProjectPool, ServerOverride } from './link/view.js'
 import type { BranchDrift } from './projects/branch.js'
 
 /** How a release project's branch goes into the branch of the project it merges into (`mergeInto`, BTN-172). */
@@ -445,6 +445,8 @@ export interface EvenKeelState {
   gitFound?: Record<string, FoundRepository>
   /** The accounts of each machine elsewhere that posted its facts, and its sign-in under way (BTN-1245); absent — an older service. */
   machineSignIns?: import('./link/view.js').MachineSignIn[]
+  /** The machines asking to join by the address (BTN-1620): a window in every tab; absent — an older service. */
+  machineRequests?: import('./link/view.js').MachineRequest[]
   /**
    * The hub's name of each machine it ever had, the own one too (BTN-993): what the page labels a lane and a session
    * by, the revoked ones too; absent — an older service.

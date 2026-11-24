@@ -26,6 +26,7 @@ describe('even-keel join', () => {
       projects: async () => 0,
       about: async (root) => ({ ...ABOUT, root }),
       exchange: async (token) => ({ ...token, secret: 'own-secret' }),
+      ask: async (hub) => ({ hub, fingerprint: 'cd'.repeat(32), machine: 'machine-asked', secret: 'admitted-secret' }),
       keep: async (token, root) => void kept.push({ token, root }),
       now: () => 1794650000000,
       ...over,
@@ -47,7 +48,8 @@ describe('even-keel join', () => {
     const line = encodeToken(STRING)
     const cases: Array<[Partial<JoinDeps>, string, RegExp]> = [
       [{ env: { [TEST_INSTANCE_VAR]: '1' } }, line, /test installation/],
-      [{}, 'ekm1.broken', /not a connection string/],
+      [{}, 'ekm1.broken', /neither the hub address for machines nor a connection string/],
+      [{}, 'not an/address', /neither the hub address/],
       [{ serviceRuns: async () => true }, line, /stop it first/],
       [{ projects: async () => 2 }, line, /2 project\(s\) of its own/],
       [{ exchange: async () => ({ refused: 'expired' }) }, line, /expired/],
@@ -70,6 +72,53 @@ describe('even-keel join', () => {
     expect(joinedWith(stateDir, encodeToken({ ...STRING, machine: 'machine-2' }))).toBeUndefined()
     expect(joinedWith(stateDir, encodeToken({ ...STRING, hub: 'https://other.example.com:4749' }))).toBeUndefined()
     expect(joinedWith(stateDir, 'ekm1.broken')).toBeUndefined()
+  })
+
+  describe('by the hub’s address (BTN-1620)', () => {
+    it('asks the hub at the machines’ port, then exchanges the secret it was let in with, as a string’s', async () => {
+      const asked: string[] = []
+      const exchanged: ConnectionToken[] = []
+      const { deps, kept, stateDir } = setup({
+        ask: async (hub, about) => {
+          asked.push(`${hub} ${about.host}`)
+          return { hub, fingerprint: 'cd'.repeat(32), machine: 'machine-asked', secret: 'admitted-secret' }
+        },
+        exchange: async (token) => {
+          exchanged.push(token)
+          return { ...token, secret: 'own-secret' }
+        },
+      })
+      const file = await joinAsMachine(' Even-Keel.example.ts.net ', undefined, deps)
+      expect(asked).toEqual(['https://even-keel.example.ts.net:4749 example-laptop'])
+      expect(exchanged).toEqual([{ hub: 'https://even-keel.example.ts.net:4749', fingerprint: 'cd'.repeat(32), machine: 'machine-asked', secret: 'admitted-secret' }])
+      expect(kept[0]?.token.secret).toBe('own-secret')
+      expect(file).toMatchObject({ hub: 'https://even-keel.example.ts.net:4749', machine: 'machine-asked' })
+      expect(joinedWith(stateDir, 'even-keel.example.ts.net')).toEqual(file)
+      expect(joinedWith(stateDir, 'other.example.ts.net')).toBeUndefined()
+    })
+
+    it('keeps the port the address names: a proxy at 443', async () => {
+      const asked: string[] = []
+      const { deps } = setup({ ask: async (hub) => (asked.push(hub), { refused: 'declined' }) })
+      await expect(joinAsMachine('hub.example.com:443', undefined, deps)).rejects.toThrow(/declined this machine/)
+      expect(asked).toEqual(['https://hub.example.com'])
+    })
+
+    it('exits with the reason when the page declined it, no one let it in in time, or the hub turned the request away', async () => {
+      const cases: Array<[Awaited<ReturnType<JoinDeps['ask']>>, RegExp]> = [
+        [{ refused: 'declined' }, /declined this machine/],
+        [{ refused: 'expired' }, /no one let the machine in on the hub page in time/],
+        [{ refused: 'busy' }, /waits on the hub already/],
+        [{ refused: 'full' }, /as many requests waiting/],
+        [{ refused: 'version', api: 1 }, /another version/],
+      ]
+      for (const [answer, message] of cases) {
+        const { deps, kept, stateDir } = setup({ ask: async () => answer })
+        await expect(joinAsMachine('hub.example.com', undefined, deps)).rejects.toThrow(message)
+        expect(kept).toEqual([])
+        expect(readLinkFile(stateDir)).toBeUndefined()
+      }
+    })
   })
 
   it('takes the folder of projects given with --root', async () => {

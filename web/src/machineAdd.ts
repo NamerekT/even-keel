@@ -1,5 +1,5 @@
 import type { AccountEntry } from '../../src/account/model.js'
-import type { EvenKeelState, MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
+import type { EvenKeelState, MachineAbout, MachineRequest, MachineSignIn, MachineView } from '../../src/state.js'
 import type { JoinRequest } from '../../src/jobs/model.js'
 import { matchPath } from 'react-router'
 import { CLAUDE } from '../../src/claude/name.js'
@@ -57,6 +57,11 @@ export function joinRequests(projects: string[], chosen: Set<string>, folders: R
 }
 
 const PLATFORMS: Record<string, string> = { linux: 'Linux', win32: 'Windows', darwin: 'macOS' }
+
+/** The machines asking to join a tab shows (BTN-1620): those still waiting by its clock and not closed in it. */
+export function shownRequests(requests: MachineRequest[] | undefined, now: number, aside: ReadonlySet<string>): MachineRequest[] {
+  return (requests ?? []).filter((each) => each.expiresAt > now && !aside.has(each.id))
+}
 
 /** `process.platform` and the release, as a person names the system. */
 export function osLabel(os: string): string {

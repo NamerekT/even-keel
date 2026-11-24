@@ -44,7 +44,7 @@ import { fakeChats, fakeDictation } from './fakeChats.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
 import { fakeJob } from './fakeCreation.js'
-import { FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineLaneWait, fakeMachineNames, fakeMachineSignIns } from './fakeMachines.js'
+import { FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineLaneWait, fakeMachineNames, fakeMachineRequests, fakeMachineSignIns } from './fakeMachines.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
 import { GROUP_STEP_MS, GROUP_STEPS, withGroupBase } from './fakeGroup.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeMachineDrift, fakeRepoBranches } from './fakeBranches.js'
@@ -154,6 +154,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.machineNames = fakeMachineNames(params.get('machines'))
     Object.assign(current.state, fakeMachineColors(current.state.machineNames))
   }
+  if (params.has('machineRequest') && current.state !== null) current.state.machineRequests = fakeMachineRequests(params.get('machineRequest'))
   if (params.get('git') === 'plain' && current.state !== null) {
     const { projects } = current.state.config
     projects.OPS = { ...projects.OPS!, git: false, repo: 'C:/Users/EvenKeelSvc/AppData/Local/even-keel/projects/ops-3f9a1c2e', ci: { ...projects.OPS!.ci, guard: false }, pullRequests: false, slot: 0 }
@@ -826,6 +827,12 @@ export function createFakeSource(search: string): LiveSource {
         const page = network.page(String(body.machine), current.state)
         if (page === undefined) throw fail('machines.unknown', {})
         return page as T
+      }
+      if (name === 'machines/admit') {
+        const admitted = network.admit(current.state, String(body.request))
+        current = { ...current, state: admitted.state }
+        notify()
+        return { machine: admitted.machine } as T
       }
       const chat = chats.query(current.state, name, body)
       if (chat !== undefined) {
