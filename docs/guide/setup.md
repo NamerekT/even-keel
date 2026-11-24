@@ -694,6 +694,17 @@ Two ways to reach it from elsewhere:
 
 Each sign-in gives the browser a token of its own in an `HttpOnly`, `SameSite=Strict` cookie. Settings → **Sign-in and devices** lists the passkeys (add, remove) and the devices signed in — when each was last seen and from where — with "Sign out" on each and "Sign out everywhere but here"; a device signed out loses its open page at once and is asked to sign in again. Changing the owner key signs out every device that signed in with the old key; passkey sign-ins stay. An old link with `?token=<key>` still works: it signs the browser in and drops the key from the address. Scripts send `Authorization: Bearer <key>`.
 
+#### Signing in on a new device
+
+A new phone or laptop does not need the owner key: invite it from a device that is signed in already.
+
+1. On the signed-in device open Settings → **Sign-in and devices** and press **Invite a device** under "Devices". Open the page there by the name the new device will use (the proxy's HTTPS name, not `localhost`).
+2. On the new device scan the QR with its camera, or open the link from **Copy the link**. It shows two digits and waits.
+3. On the first device the window now says which device opened the link and shows its two digits. Press **Let in** only if they are the same as on the new device; otherwise **Decline**.
+4. The new device signs in and offers to add a passkey, so next time it needs nothing.
+
+A link lives 10 minutes and lets in one device: the first one to open it takes it, any other gets "already used". Closing the window does not cancel the invitation: it stays a row under "Devices" with **Let in**, **Decline** and **Cancel** until it is decided or expires, and any signed-in device can decide it. A browser that is signed in already does not take a link. Without the owner key there is no **Invite a device**: such a hub asks nobody to sign in.
+
 Requests by a loopback name — `localhost`, `127.0.0.1`, `[::1]` — go without a sign-in: the sessions' hooks reach the page so, and so does a browser on the machine itself. Any proxy or tunnel on the same machine that forwards a loopback name, or runs without the owner key, must control who can reach Even Keel itself.
 
 Once the forwarded name is accepted by the `Host` check, a public tunnel without its own authentication lets anyone who knows its address drive the page and start sessions with automatic permissions.

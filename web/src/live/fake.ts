@@ -38,7 +38,7 @@ import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog } from './fakeChangelog.js'
-import { fakeAuthQuery } from './fakeAuth.js'
+import { fakeAuthQuery, fakeDevicesChanged } from './fakeAuth.js'
 import { PAGE_TOKEN } from '../../../src/secrets/catalog.js'
 import { fakeChats, fakeDictation } from './fakeChats.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
@@ -796,6 +796,7 @@ export function createFakeSource(search: string): LiveSource {
     },
     onTranscript: () => () => {},
     onMachines: (listener) => network.on(listener),
+    onDevices: (listener) => fakeDevicesChanged(listener),
     checkpoint: async (sessionId) => {
       await answer()
       const view = current.state?.sessions.find((each) => each.sessionId === sessionId)

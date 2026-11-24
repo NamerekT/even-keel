@@ -34,6 +34,7 @@ Only these values. A colour, size, radius or duration that is not here is either
 | The shadow of a menu or a tip over the page, of a dialog, of a side drawer | `--shadow-popover`, `--shadow-dialog`, `--shadow-drawer` |
 | Text or a knob on a fill that keeps its depth in both themes: on a deep one (accent, red), on a bright one (amber) | `--on-fill`, `--on-bright` |
 | The media viewer, dark in both themes | `--viewer-bg`, `--viewer-fg`, `--viewer-muted`, `--viewer-link`, `--viewer-control`, `--viewer-glass` |
+| A QR code, black on white in both themes | `--qr-bg`, `--qr-fg` |
 
 Red is only an error or a limit; amber is a warning or a wait for the user; blue is work going on or a neutral note; green is fine. A bright colour is a small mark — a dot, a bar, a 3 px stripe, a chart. A surface larger than a chip that takes a series or lamp colour is mixed down: `color-mix(in srgb, var(--series-1) 18%, var(--surface))`.
 

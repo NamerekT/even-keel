@@ -33,11 +33,18 @@
   min-width: 0;
 }
 
+/* An opened invitation's digits and three buttons wrap whole on a phone rather than breaking a word. */
 .sign-ins__side {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
-  gap: var(--space-12);
+  gap: var(--space-8) var(--space-12);
   margin-left: auto;
+}
+
+.sign-ins__side .button {
+  white-space: nowrap;
 }
 
 .sign-ins__name {
@@ -77,4 +84,16 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-8);
+}
+
+/* The two digits of an opened invitation, to compare with the new device's screen. */
+.sign-ins__digits {
+  padding: var(--space-2) var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  font-size: var(--text-16);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2em;
+  white-space: nowrap;
 }

@@ -1,0 +1,59 @@
+/* The invitation of a new device (BTN-1655): the QR over the link, the state line, the digits to compare. */
+
+.invite__body {
+  align-items: stretch;
+}
+
+.invite__qr {
+  align-self: center;
+  width: min(220px, 60vw);
+  height: auto;
+}
+
+/* Three buttons on a phone: a button goes to the next line whole rather than breaking its word. */
+.invite .add-package__foot .button {
+  white-space: nowrap;
+}
+
+.invite__link {
+  margin: 0;
+}
+
+.invite__state {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-12);
+  margin: 0;
+  font-size: var(--text-14);
+}
+
+.invite__left {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The digits are compared across the room with the other screen: as large as the page draws a figure. */
+.invite__digits {
+  align-self: center;
+  margin: var(--space-8) 0 0;
+  padding: var(--space-12) var(--space-24);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  font-size: var(--text-24);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+}
+
+.invite__check {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  line-height: 1.45;
+  text-align: center;
+}

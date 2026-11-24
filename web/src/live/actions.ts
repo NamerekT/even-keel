@@ -1,7 +1,7 @@
 import type { Activity } from './activity.js'
 import type { LiveSource } from './connection.js'
 
-export type LiveActions = { read: LiveSource['query']; deliver: LiveSource['command'] } & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'onMachines' | 'checkpoint' | 'imageUrl' | 'sentFileUrl' | 'sharedUrl' | 'badgeUrl' | 'tools' | 'card' | 'vocabulary' | 'checkProject' | 'query' | 'attach' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTokens' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'>
+export type LiveActions = { read: LiveSource['query']; deliver: LiveSource['command'] } & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'onMachines' | 'onDevices' | 'checkpoint' | 'imageUrl' | 'sentFileUrl' | 'sharedUrl' | 'badgeUrl' | 'tools' | 'card' | 'vocabulary' | 'checkProject' | 'query' | 'attach' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTokens' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'>
 
 /**
  * The source with the person's own waits on the top bar (BTN-1257): commands, the session, the card, the project check,
@@ -20,6 +20,7 @@ export function liveActions(source: LiveSource, bar: Activity): LiveActions {
     transcript: (sessionId, after) => source.transcript(sessionId, after),
     onTranscript: (sessionId, listener) => source.onTranscript(sessionId, listener),
     onMachines: (listener) => source.onMachines(listener),
+    onDevices: (listener) => source.onDevices(listener),
     checkpoint: (sessionId) => source.checkpoint(sessionId),
     imageUrl: (sessionId, tool, index) => source.imageUrl(sessionId, tool, index),
     sentFileUrl: (sessionId, name) => source.sentFileUrl(sessionId, name),

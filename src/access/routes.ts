@@ -6,16 +6,27 @@ import { englishOf, fail, noticeOf } from '../notice/notice.js'
 import { readJsonBody, sendJson } from '../server-response.js'
 import type { AccessBook } from './book.js'
 import { deviceNameOf } from './device-name.js'
+import { INVITE_MS, type InviteDesk, type JoinAnswer } from './invites.js'
 import type { PasskeyDesk } from './passkeys.js'
+import type { RateLimit } from './rate.js'
 import { keyMarkOf } from './store.js'
 import type { AuthState, DevicesView } from './view.js'
 
 const BODY_BYTES = 64 * 1024
+/** The cookie a new device keeps its claim on an invitation in: only the invitation's routes get it. */
+export const INVITE_COOKIE = 'even-keel-invite'
+const INVITE_PATH = '/api/auth/invite/'
+/** How many calls of the invitation's open routes one address makes a minute (`RateLimit`). */
+export const INVITE_CALLS = 30
 
 /** The page's sign-in (BTN-1619, `docs/web/sign-in.md`). */
 export interface AccessControl {
   book: AccessBook
   passkeys: PasskeyDesk
+  /** The invitations of new devices (BTN-1655). */
+  invites: InviteDesk
+  /** The open invitation routes, by the caller's address. */
+  inviteRate: RateLimit
   /** The owner key as it is now; `null` — none set. */
   key(): string | null
 }
@@ -53,6 +64,18 @@ const OPEN: Record<string, Handler> = {
     const passkey = await call.access.passkeys.authenticate({ host: call.host, origin: originOf(call.request), response })
     await signIn(call, null, passkey.host)
   },
+  // The new device's door (BTN-1655): no sign-in, so a rate limit and one answer for a wrong or an expired link.
+  'POST invite/open': async (call) => {
+    if (!slowed(call)) {
+      const link = (await body(call.request)).link
+      const entry = { device: deviceNameOf(call.request.headers['user-agent']), address: call.visitor.address }
+      const answer = typeof link === 'string' && link !== '' ? await call.access.invites.open(link, claimOf(call.request), entry) : { view: { state: 'gone' as const } }
+      await sendJoin(call, answer)
+    }
+  },
+  'POST invite/wait': async (call) => {
+    if (!slowed(call)) await sendJoin(call, await call.access.invites.wait(claimOf(call.request), call.visitor.address))
+  },
 }
 
 /** Only for a browser signed in already. */
@@ -82,6 +105,22 @@ const SIGNED_IN: Record<string, Handler> = {
     const keep = visitor.device?.id
     const count = keep === undefined ? 0 : await access.book.revokeOthers(keep)
     sendJson(response, 200, { revoked: count })
+  },
+  'POST invites/create': async ({ access, response, visitor }) => {
+    if (access.key() === null) throw fail('auth.noKey', {})
+    sendJson(response, 200, await access.invites.create(visitor.device?.id ?? null))
+  },
+  'POST invites/admit': async ({ access, request, response }) => {
+    await access.invites.admit(await idOf(request))
+    sendJson(response, 200, { ok: true })
+  },
+  'POST invites/decline': async ({ access, request, response }) => {
+    await access.invites.decline(await idOf(request))
+    sendJson(response, 200, { ok: true })
+  },
+  'POST invites/cancel': async ({ access, request, response }) => {
+    await access.invites.cancel(await idOf(request))
+    sendJson(response, 200, { ok: true })
   },
   'POST sign-out': async ({ access, response, visitor }) => {
     if (visitor.device !== undefined) await access.book.revoke(visitor.device.id)
@@ -139,8 +178,43 @@ async function devicesOf(access: AccessControl, visitor: Visitor): Promise<Devic
     seenFrom: token.seenFrom,
     byKey: token.keyMark !== null,
     passkeyHost: token.passkeyHost,
+    byInvite: token.inviteId !== null,
   }))
-  return { passkeys, devices, current: visitor.device?.id ?? null, keySet: access.key() !== null }
+  return { passkeys, devices, invites: await access.invites.live(), current: visitor.device?.id ?? null, keySet: access.key() !== null }
+}
+
+/** Over the rate limit: answered 429 here. */
+function slowed({ access, response, visitor }: Call): boolean {
+  if (access.inviteRate.take(visitor.address)) return false
+  const notice = noticeOf(fail('auth.inviteSlowDown', {}))
+  sendJson(response, 429, { error: englishOf(notice), notice })
+  return true
+}
+
+/** The new device's view; its claim and, once let in, its token go into cookies it cannot read. */
+async function sendJoin(call: Call, answer: JoinAnswer): Promise<void> {
+  const cookies: string[] = []
+  if (answer.claim !== undefined) cookies.push(`${INVITE_COOKIE}=${answer.claim}; Path=${INVITE_PATH}; HttpOnly; SameSite=Strict; Max-Age=${(INVITE_MS / 1000) * 2}`)
+  if (answer.signedIn !== undefined) {
+    if (call.visitor.device !== undefined) await call.access.book.revoke(call.visitor.device.id)
+    cookies.push(deviceCookie(answer.signedIn.secret), `${INVITE_COOKIE}=; Path=${INVITE_PATH}; HttpOnly; SameSite=Strict; Max-Age=0`)
+  }
+  if (cookies.length > 0) call.response.setHeader('set-cookie', cookies)
+  sendJson(call.response, 200, answer.view)
+}
+
+function claimOf(request: IncomingMessage): string | undefined {
+  for (const part of (request.headers.cookie ?? '').split(';')) {
+    const [name, ...value] = part.trim().split('=')
+    if (name === INVITE_COOKIE && value.join('=') !== '') return value.join('=')
+  }
+  return undefined
+}
+
+async function idOf(request: IncomingMessage): Promise<string> {
+  const id = (await body(request)).id
+  if (typeof id !== 'string') throw fail('auth.inviteGone', {})
+  return id
 }
 
 function body(request: IncomingMessage): Promise<Record<string, unknown>> {

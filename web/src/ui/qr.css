@@ -1,0 +1,14 @@
+/* A QR code (BTN-1655): its quiet zone is part of the picture, so it needs no frame of its own. */
+
+.qr {
+  display: block;
+  border-radius: var(--radius-control);
+}
+
+.qr__bg {
+  fill: var(--qr-bg);
+}
+
+.qr__dots {
+  fill: var(--qr-fg);
+}

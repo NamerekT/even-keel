@@ -1,6 +1,5 @@
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
-import { tokensOf } from '../access/store.js'
 import { insertRows, rowsOf } from './copy.js'
 import { fixture, readsWhole, schemaOf } from './database.fixture.js'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
@@ -16,7 +15,8 @@ it("step 81 keeps the host name of a device token's passkey, none before it (BTN
     expect(await databaseVersion(frozen)).toBe(81)
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
     await readsWhole(frozen, 81, 81)
-    expect((await tokensOf(frozen, OWNER)).map((token) => [token.device, token.passkeyHost])).toEqual([
+    // Read as step 81 left the table: `tokensOf` follows the latest schema (step 82's `invite_id`).
+    expect((await passkeyHosts(frozen)).map((token) => [token.device, token.passkey_host])).toEqual([
       ['Firefox on Linux', null],
       ['Safari on iPhone', 'hub.example.com'],
     ])
@@ -25,8 +25,16 @@ it("step 81 keeps the host name of a device token's passkey, none before it (BTN
     await upgraded.exec(fixture(80))
     await upgraded.exec(STEPS[78]!)
     expect(await schemaOf(upgraded)).toEqual(await schemaOf(made))
-    expect((await tokensOf(upgraded, OWNER)).map((token) => token.passkeyHost)).toEqual([null, null])
+    expect((await passkeyHosts(upgraded)).map((token) => token.passkey_host)).toEqual([null, null])
   } finally {
     await Promise.all([frozen.close(), made.close(), upgraded.close()])
   }
 })
+
+async function passkeyHosts(db: PGlite) {
+  const { rows } = await db.query<{ device: string; passkey_host: string | null }>(
+    'select device, passkey_host from access_tokens where person_id = $1 order by created_at, id',
+    [OWNER],
+  )
+  return rows
+}

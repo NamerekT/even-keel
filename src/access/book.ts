@@ -56,9 +56,9 @@ export class AccessBook implements DeviceBook {
     this.write(`the sign-in of ${token.device} seen`, tokenSeen(this.db, token.id, { at: now, address }))
   }
 
-  async signIn(entry: { device: string; address: string; keyMark: string | null; passkeyHost?: string | null }): Promise<{ token: AccessToken; secret: string }> {
+  async signIn(entry: { device: string; address: string; keyMark: string | null; passkeyHost?: string | null; inviteId?: string | null }): Promise<{ token: AccessToken; secret: string }> {
     const now = this.now()
-    const issued = await issueToken(this.db, { person: this.person, rights: 'owner', device: entry.device, keyMark: entry.keyMark, passkeyHost: entry.passkeyHost, now })
+    const issued = await issueToken(this.db, { person: this.person, rights: 'owner', device: entry.device, keyMark: entry.keyMark, passkeyHost: entry.passkeyHost, inviteId: entry.inviteId, now })
     await tokenSeen(this.db, issued.token.id, { at: now, address: entry.address })
     const token = { ...issued.token, seenAt: now.toISOString(), seenFrom: entry.address }
     this.byHash.set(hashOf(issued.secret), token)

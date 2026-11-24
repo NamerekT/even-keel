@@ -12,6 +12,8 @@ import './signIn.css'
 
 type Stage = 'form' | 'offer'
 
+const INVITE_GUIDE = 'https://github.com/NamerekT/even-keel/blob/main/docs/guide/setup.md#signing-in-on-a-new-device'
+
 /** A wrong key is the key field's strip; a passkey that failed is the band of the whole form. */
 interface Failure {
   at: 'key' | 'form'
@@ -109,6 +111,12 @@ export function SignIn({ keySet, passkeyHere, post, entered }: { keySet: boolean
                   {t.signIn.enter}
                 </button>
               </form>
+              <p className="sign-in__ask">
+                {t.signIn.noKeyAsk}{' '}
+                <a href={INVITE_GUIDE} target="_blank" rel="noreferrer">
+                  {t.signIn.noKeyAskLink}
+                </a>
+              </p>
             </>
           )}
         </Card>

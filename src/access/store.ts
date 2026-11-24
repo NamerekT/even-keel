@@ -30,6 +30,8 @@ export interface AccessToken {
   keyMark: string | null
   /** The host name of the passkey a sign-in used; `null` — the key's, or a token made before step 81. */
   passkeyHost: string | null
+  /** The invitation the device came in by (step 82, `device_invites`); `null` — the key's or a passkey's sign-in. */
+  inviteId: string | null
 }
 
 export interface Passkey {
@@ -63,6 +65,7 @@ interface TokenRow {
   revoked_at: string | null
   key_mark: string | null
   passkey_host: string | null
+  invite_id: string | null
 }
 
 interface PasskeyRow {
@@ -76,7 +79,7 @@ interface PasskeyRow {
   used_at: string | null
 }
 
-const TOKEN_COLUMNS = 'id, person_id, rights, device, created_at, seen_at, seen_from, revoked_at, key_mark, passkey_host'
+const TOKEN_COLUMNS = 'id, person_id, rights, device, created_at, seen_at, seen_from, revoked_at, key_mark, passkey_host, invite_id'
 const PASSKEY_COLUMNS = 'credential_id, person_id, public_key, counter, host, name, created_at, used_at'
 
 export const hashOf = (secret: string) => createHash('sha256').update(secret).digest('hex')
@@ -97,6 +100,7 @@ const tokenOf = (row: TokenRow): AccessToken => ({
   revokedAt: row.revoked_at,
   keyMark: row.key_mark,
   passkeyHost: row.passkey_host,
+  inviteId: row.invite_id,
 })
 
 const passkeyOf = (row: PasskeyRow): Passkey => ({
@@ -127,6 +131,7 @@ export interface NewToken {
   device: string
   keyMark?: string | null
   passkeyHost?: string | null
+  inviteId?: string | null
   now?: Date
 }
 
@@ -134,9 +139,9 @@ export interface NewToken {
 export async function issueToken(db: Db, fresh: NewToken): Promise<{ token: AccessToken; secret: string }> {
   const secret = randomBytes(32).toString('base64url')
   const { rows } = await db.query<TokenRow>(
-    `insert into access_tokens (id, person_id, rights, secret_hash, device, created_at, key_mark, passkey_host) values ($1, $2, $3, $4, $5, $6, $7, $8)
+    `insert into access_tokens (id, person_id, rights, secret_hash, device, created_at, key_mark, passkey_host, invite_id) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      returning ${TOKEN_COLUMNS}`,
-    [randomUUID(), fresh.person, fresh.rights, hashOf(secret), fresh.device, (fresh.now ?? new Date()).toISOString(), fresh.keyMark ?? null, fresh.passkeyHost ?? null],
+    [randomUUID(), fresh.person, fresh.rights, hashOf(secret), fresh.device, (fresh.now ?? new Date()).toISOString(), fresh.keyMark ?? null, fresh.passkeyHost ?? null, fresh.inviteId ?? null],
   )
   return { token: tokenOf(rows[0]!), secret }
 }

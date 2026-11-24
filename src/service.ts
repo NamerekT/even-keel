@@ -1,8 +1,10 @@
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { AccessBook } from './access/book.js'
+import { InviteDesk } from './access/invites.js'
 import { PasskeyDesk } from './access/passkeys.js'
-import type { AccessControl } from './access/routes.js'
+import { RateLimit } from './access/rate.js'
+import { INVITE_CALLS, type AccessControl } from './access/routes.js'
 import { type AccountHome } from './account/homes.js'
 import type { SessionStart } from './agent/contract.js'
 import { attachBuiltin } from './builtin/adapter.js'
@@ -436,7 +438,14 @@ const hub = new EventHub({ state: { sessions: 'sessionId', eventLog: 'id', track
 // down signs out the devices that came in with the old one.
 const accessBook = await AccessBook.load(db, { revoked: (ids) => hub.closeTagged(ids) })
 await accessBook.keyIs(token)
-const access: AccessControl = { book: accessBook, passkeys: new PasskeyDesk(db, accessBook.person), key: () => token }
+const access: AccessControl = {
+  book: accessBook,
+  passkeys: new PasskeyDesk(db, accessBook.person),
+  // The invitations of new devices (BTN-1655): every change makes the pages read "Sign-in and devices" anew.
+  invites: new InviteDesk(db, accessBook, { changed: () => hub.broadcast('devices', { changedAt: Date.now() }) }),
+  inviteRate: new RateLimit(INVITE_CALLS, 60_000),
+  key: () => token,
+}
 // The event log looks at the state also while no page listens, at most every two seconds (BTN-350).
 hub.watch('state', (state) => eventLog.observe(state as EvenKeelState), 2_000)
 /**

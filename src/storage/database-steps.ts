@@ -390,4 +390,26 @@ export const STEPS: readonly string[] = [
   `
   alter table access_tokens add column passkey_host text;
   `,
+  // The invitations of a new device (BTN-1655, `docs/web/sign-in.md`): the link and the secret of the browser that
+  // opened it only as their SHA-256, the pair of digits both sides show, and the token the device got. A device token
+  // keeps the invitation it came in by; null — the key's or a passkey's sign-in, and every token before the step.
+  `
+  create table device_invites (
+    id            text primary key,
+    person_id     text not null references people (id) on delete cascade deferrable initially deferred,
+    link_hash     text not null unique,
+    created_by    text,
+    created_at    text not null,
+    expires_at    text not null,
+    state         text not null check (state in ('waiting', 'opened', 'admitted', 'declined', 'cancelled', 'used')),
+    claim_hash    text unique,
+    opened_at     text,
+    opened_device text,
+    opened_from   text,
+    digits        text,
+    decided_at    text,
+    token_id      text
+  );
+  alter table access_tokens add column invite_id text;
+  `,
 ]
