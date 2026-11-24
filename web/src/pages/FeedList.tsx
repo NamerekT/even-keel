@@ -49,7 +49,7 @@ export function FeedList({ state, project, main, mainTitle, tasks }: {
       {feeds.map((feed) => (
         <FeedRow key={feed.id} state={state} project={project} feed={feed} tasks={tasks} />
       ))}
-      {feeds.length === 0 && !adding && <p className="settings__hint">{t.settings.feedsNone(mainTitle)}</p>}
+      {feeds.length === 0 && !adding && <p className="feeds__empty">{t.settings.feedsNone(mainTitle)}</p>}
     </Section>
   )
 }

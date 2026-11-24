@@ -79,7 +79,7 @@ export function SourceLine({ kind, title, sourceKey, own, dirty, onConfigure, me
         </button>
         {menu}
       </span>
-      {children !== undefined && <div className="source-line__note">{children}</div>}
+      {children !== undefined && <div className="source-line__problem">{children}</div>}
     </div>
   )
 }

@@ -15,9 +15,7 @@ export function ProjectCiTab({ fields, project, state, shared, plain }: { fields
   // A project without git has neither: said in one line, not shown as switches that do nothing.
   if (plain) {
     return (
-      <Section title={t.settings.sections.guard}>
-        <p className="settings__hint">{t.settings.plain.ci}</p>
-      </Section>
+      <Section title={t.settings.sections.guard} hint={t.settings.plain.ci} />
     )
   }
   return <GitCiTab fields={fields} project={project} state={state} shared={shared} />

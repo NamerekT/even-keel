@@ -374,9 +374,9 @@ function CiBody({ view, now, urls, fixes, extras }: { view: CiView; now: Date; u
           {queued ? t.ci.stuckRun(formatAgoSpan(stuck, now)) : t.ci.stuckPush(short(view.pushed!.commit), formatAgoSpan(stuck, now))}
         </p>
       )}
-      {stuck === null && view.pushed !== null && <p className="ci__hint">{t.ci.pushed(short(view.pushed.commit))}</p>}
+      {stuck === null && view.pushed !== null && <p className="ci__state">{t.ci.pushed(short(view.pushed.commit))}</p>}
       {waitingJobs(view.current, now).map((job) => (
-        <p key={`${job.name}:${job.since}`} className="ci__hint">
+        <p key={`${job.name}:${job.since}`} className="ci__state">
           {t.ci.jobWaits(job.name, formatAgoSpan(job.since, now))}
         </p>
       ))}
@@ -386,7 +386,7 @@ function CiBody({ view, now, urls, fixes, extras }: { view: CiView; now: Date; u
       {view.history.length > 0 ? (
         <History runs={view.history} medians={view.medians} now={now} marked={fixes.marked} pushes={fixes.pushes} />
       ) : (
-        view.checkedAt !== null && view.health === 'ok' && <p className="ci__hint">{t.ci.noRuns}</p>
+        view.checkedAt !== null && view.health === 'ok' && <p className="ci__state">{t.ci.noRuns}</p>
       )}
     </div>
   )
@@ -454,7 +454,7 @@ function Push({
         {by !== undefined && !fixed && <span className="ci__seg">{t.ci.by[by]}</span>}
         <Timing run={lead} median={medians[lead.workflow] ?? null} now={now} meter={single !== null} />
       </div>
-      {single !== null && status === 'notTaken' && <p className="ci__hint">{t.ci.notTaken}</p>}
+      {single !== null && status === 'notTaken' && <p className="ci__state">{t.ci.notTaken}</p>}
       {hold}
       {(tasks.length > 0 || fixed) && (
         <p className="ci__tasks">
@@ -566,7 +566,7 @@ function WorkflowLine({ run, median, busy, now }: { run: CiRun; median: number |
 
 /** Folded unless the run is red, where what failed must be seen. */
 function Jobs({ jobs, run, now }: { jobs: CiJob[]; run: CiRun; now: Date }) {
-  if (jobs.length === 0) return <p className="ci__hint">{t.ci.noJobs}</p>
+  if (jobs.length === 0) return <p className="ci__state">{t.ci.noJobs}</p>
   return (
     <Fold
       className="ci__fold"

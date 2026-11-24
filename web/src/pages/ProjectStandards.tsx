@@ -51,7 +51,7 @@ export function ProjectStandards({
 
   return (
     <div className={`${className} standards`}>
-      {rows.length === 0 && <p className="settings__hint">{text.empty}</p>}
+      {rows.length === 0 && <p className="standards__empty">{text.empty}</p>}
       {rows.map((row, index) => (
         <Standard
           key={index}
