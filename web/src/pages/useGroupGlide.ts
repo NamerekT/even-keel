@@ -4,6 +4,7 @@ import { stillMotion } from '../ui/landing.js'
 import { moveDelay, regroups, STEP_MS, type Motion } from '../ui/motion.js'
 
 const GLIDE = 'group-glide'
+const CAPTION = '.chain__group-caption'
 
 /**
  * The rows that move into the running group or out of it (BTN-1613), and the group's frame. A row glides from where it
@@ -28,6 +29,8 @@ export function useGroupGlide(
   const until = useRef(0)
   const glideUntil = useRef(0)
   const framed = useRef(0)
+  /** Until when the caption shows: while the frame is shown and a step after, as it fades. */
+  const captionUntil = useRef(0)
   const looping = useRef(false)
   const shown = useRef(members)
   shown.current = members
@@ -39,15 +42,26 @@ export function useGroupGlide(
     const now = performance.now()
     for (const [id, at] of holds.current) if (at <= now) holds.current.delete(id)
     const ids = [...new Set([...shown.current, ...holds.current.keys()])]
-    const rects = ids.flatMap((id) => {
+    const rows = ids.flatMap((id) => {
       const row = rowOf(list, id)
-      return row === null ? [] : [row.getBoundingClientRect()]
+      return row === null ? [] : [{ row, rect: row.getBoundingClientRect() }]
     })
+    const rects = rows.map((each) => each.rect)
     // One row fewer in the frame: it glides shut rather than jumps.
     if (rects.length < framed.current) glideUntil.current = now + STEP_MS
+    if (rects.length < 2 && framed.current > 1) track(now + STEP_MS)
     framed.current = rects.length
+    if (rects.length > 1) captionUntil.current = now + STEP_MS
     frame.classList.toggle('chain__group--glide', now < glideUntil.current)
     frame.classList.toggle('chain__group--shown', rects.length > 1)
+    // The edge's gap under the caption (BTN-1624): the caption does not wrap, so its width is the text's alone. The
+    // row at the frame's top gets the gap in its own edge, which it holds for a step as it joins or parts, while the
+    // caption shows or fades.
+    const caption = frame.querySelector<HTMLElement>(CAPTION)
+    if (caption !== null) list.style.setProperty('--caption-width', `${caption.getBoundingClientRect().width}px`)
+    const topRow = now < captionUntil.current && rows.length > 0 ? rows.reduce((a, b) => (b.rect.top < a.rect.top ? b : a)).row : null
+    for (const row of list.querySelectorAll<HTMLElement>('li[data-group-top]')) if (row !== topRow) delete row.dataset.groupTop
+    if (topRow !== null) topRow.dataset.groupTop = ''
     if (rects.length === 0) return
     const base = list.getBoundingClientRect()
     const top = Math.min(...rects.map((rect) => rect.top))
@@ -120,9 +134,11 @@ export function useGroupGlide(
       place()
     })
     observer.observe(list)
+    const caption = frameRef.current?.querySelector(CAPTION)
+    if (caption) observer.observe(caption)
     return () => observer.disconnect()
-    // The list element lives as long as the page.
-  }, [listRef])
+    // The list and the frame live as long as the page.
+  }, [listRef, frameRef])
 }
 
 interface Glide {
