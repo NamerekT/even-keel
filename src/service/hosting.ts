@@ -205,7 +205,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     busy: (task) =>
       ctx.dispatcher.state.active.some((chain) => chain.current?.task === task)
         ? 'current'
-        : ctx.machineLink.page.liveView(task) !== undefined ? 'live' : null,
+        : ctx.machineLink.sessions.liveView(task) !== undefined ? 'live' : null,
     renamed: (project, from, to) => ctx.configStore.renameMilestone(project, from, to),
   })
   const builtinExports = new BuiltinExports({
@@ -694,7 +694,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     },
     tasks: taskControl({
       configuredProject: ctx.configuredProject, linkFor: ctx.linkFor, disabled: (reader) => disabledNotice(ctx.profiles.disabledFor(reader)), rulesOf: ctx.rulesOf, readerFor: ctx.readerFor, refreshers: ctx.refreshers, readerTasks: ctx.readerTasks, refreshProject: ctx.refreshProject,
-      live: (task) => ctx.machineLink.page.liveView(task) !== undefined,
+      live: (task) => ctx.machineLink.sessions.liveView(task) !== undefined,
       pollReviews: (project) => ctx.dispatcher.pollReviews(project),
       setRun: (project, task, run) => ctx.setTaskRun(project, task, run),
       runOf: (project, task) => ctx.runOfTask(project, task),
