@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { emptyChainState, newChain, type ActiveChain } from '../chain/model.js'
+import { emptyChainState, newChain, type ActiveChain, type ChainState } from '../chain/model.js'
 import type { PullRequest } from '../review/model.js'
 import type { TurnSpend } from '../state.js'
 import { KeepWarm, warmStep, warmTasks, type KeepWarmDeps, type WarmFacts } from './keepwarm.js'
@@ -78,6 +78,41 @@ describe('warmTasks', () => {
     ])
     expect(tasksOf([], reviews)).toEqual([])
   })
+
+  describe('a session the fix of main interrupted (BTN-1616)', () => {
+    const interrupted = { task: 'ABC-1', sessionId: 'session-1', since, at: since, commit: 'c0ffee' }
+    const fixing = (over: Partial<ActiveChain> = {}) => chain({ current: { task: 'BTN-FIX.1', sessionId: 'fix-1', since }, interrupted, ...over })
+    const stateOf = (chains: ActiveChain[], over: Partial<ChainState> = {}) => warmTasks({ ...emptyChainState(), active: chains, ...over })
+
+    it('takes it next to the fix session while the chain waits for the fix', () => {
+      expect(tasksOf([fixing()])).toEqual([
+        { task: 'BTN-FIX.1', sessionId: 'fix-1' },
+        { task: 'ABC-1', sessionId: 'session-1', interrupted: true },
+      ])
+      expect(tasksOf([fixing({ current: null, interrupted: { ...interrupted, fixed: 'beef' } })])).toEqual([{ task: 'ABC-1', sessionId: 'session-1', interrupted: true }])
+    })
+
+    it('takes none of a paused chain, one on a limit, or after a red fix gave it back', () => {
+      expect(tasksOf([fixing({ paused: true })])).toEqual([])
+      expect(tasksOf([fixing({ limitUntil: since })])).toEqual([])
+      expect(tasksOf([fixing({ error: { code: 'chain.midTurn', params: { task: 'ABC-1' } } })])).toEqual([])
+      const given = chain({ paused: true })
+      expect(tasksOf([given])).toEqual([])
+    })
+
+    it('takes none of a task skipped or released from the chain', () => {
+      expect(stateOf([fixing()], { skipped: { 'id-abc': ['ABC-1'] } })).toEqual([{ task: 'BTN-FIX.1', sessionId: 'fix-1' }])
+      expect(stateOf([fixing()], { released: { 'id-abc': ['ABC-1'] } })).toEqual([{ task: 'BTN-FIX.1', sessionId: 'fix-1' }])
+    })
+
+    it('takes it on the lane it was stopped on only', () => {
+      const other = chain({ machine: 'machine-2', current: { task: 'ABC-2', sessionId: 'session-2', since } })
+      expect(tasksOf([other, fixing({ current: null })])).toEqual([
+        { task: 'ABC-2', sessionId: 'session-2' },
+        { task: 'ABC-1', sessionId: 'session-1', interrupted: true },
+      ])
+    })
+  })
 })
 
 describe('warmStep', () => {
@@ -111,6 +146,17 @@ describe('warmStep', () => {
     expect(warmStep(facts({ busy: true }), undefined, at('12:58'), 8 * HOUR)).toBe('wait')
     expect(warmStep(facts({ held: true }), undefined, at('12:58'), 8 * HOUR)).toBe('wait')
     expect(warmStep(facts({ limited: true }), undefined, at('12:58'), 8 * HOUR)).toBe('wait')
+  })
+
+  it('pings a session stopped for the fix of main only where its agent forks a session on an open tool call (BTN-1616)', () => {
+    const stopped = facts({ stopped: true, cache: { ttl: '5m', until: '2026-10-26T12:05:00.000Z' } })
+    expect(warmStep({ ...stopped, onTool: true }, undefined, at('12:03'), 8 * HOUR)).toBe('wait')
+    expect(warmStep({ ...stopped, onTool: true }, undefined, at('12:04'), 8 * HOUR)).toBe('ping')
+    expect(warmStep(stopped, undefined, at('12:04'), 8 * HOUR)).toBe('wait')
+    expect(warmStep(stopped, undefined, at('12:05'), 8 * HOUR)).toBe('wait')
+    expect(warmStep({ ...stopped, ended: true }, undefined, at('12:04'), 8 * HOUR)).toBe('ping')
+    expect(warmStep({ ...stopped, onTool: true, limited: true }, undefined, at('12:04'), 8 * HOUR)).toBe('wait')
+    expect(warmStep({ ...stopped, onTool: true }, undefined, at('12:04'), 4 * 60_000)).toBe('wait')
   })
 
   it('pings a turn that waits on a long tool call by the same thresholds, unless it is held (EKR-142)', () => {

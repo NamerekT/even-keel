@@ -337,8 +337,11 @@ export function wireKeepWarm(ctx: MachineContext): KeepWarm {
         const view = ctx.warmable(each)
         if (view === undefined) return []
         const session = ctx.monitor.handoff(view.task)
-        const onTool = view.onTool === true && session !== undefined && ctx.agentOf(ctx.homeOf(session.account)).warmsOnTool === true
+        const forks = session !== undefined && ctx.agentOf(ctx.homeOf(session.account)).warmsOnTool === true
+        // A session stopped for the fix of main has no live turn to tell an open tool call by: its agent's fork decides (BTN-1616).
+        const onTool = (view.onTool === true || each.interrupted === true) && forks
         return [{
+          ...(each.interrupted && { stopped: true as const }),
           task: view.task,
           sessionId: view.sessionId,
           busy: ctx.agentStatus(view.task) === 'busy',
@@ -350,8 +353,8 @@ export function wireKeepWarm(ctx: MachineContext): KeepWarm {
           cache: view.cache,
         }]
       }),
-    ping: async ({ task, sessionId, cache }) => {
-      const view = ctx.warmable({ task, sessionId })
+    ping: async ({ task, sessionId, cache, stopped }) => {
+      const view = ctx.warmable({ task, sessionId, ...(stopped && { interrupted: true as const }) })
       const session = ctx.monitor.handoff(task)
       if (view === undefined || session === undefined) throw new Error(`the session ${sessionId} is not live`)
       const home = ctx.homeOf(session.account)

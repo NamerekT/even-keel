@@ -79,6 +79,8 @@ export class ScriptedAgent extends ScriptCore {
 
   /** The agent pings a fork of a session to keep its cache warm (`Agent.warm`); off — it leaves the method out. */
   warming = false
+  /** Its fork reads a session whose transcript ends on an open tool call, as Claude Code's does (`Agent.warmsOnTool`). */
+  warmsOnTool = false
   /** Each keep-warm ping: the session and the time it went out. */
   readonly warms: { sessionId: string; at: string }[] = []
 

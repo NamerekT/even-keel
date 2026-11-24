@@ -47,6 +47,11 @@ export interface WarmFacts {
    * request is in flight and the cache goes cold until the job's notice comes (BTN-1507).
    */
   ended: boolean
+  /**
+   * Stopped mid-turn for the fix of a red main (`chain.interrupted`, BTN-1616): its transcript may end on a tool call
+   * with no result, so it is pinged only where its agent's fork reads such a session (`onTool`) or the turn had ended.
+   */
+  stopped?: true
   /** Being resumed or handed over. */
   held: boolean
   /** The session or its chain waits on a limit: the ping would hit it too. */
@@ -110,7 +115,8 @@ function warmUntilOf(cache: CacheWindow, memory: WarmMemory | undefined): number
  */
 export function warmStep(facts: WarmFacts, memory: WarmMemory | undefined, now: Date, maxIdleMs: number, aheadMs = 0): WarmStep {
   const { cache } = facts
-  if ((facts.busy && !facts.onTool && !facts.ended) || facts.held || facts.limited || cache === null) return 'wait'
+  const unread = facts.stopped === true && !facts.onTool && !facts.ended
+  if ((facts.busy && !facts.onTool && !facts.ended) || unread || facts.held || facts.limited || cache === null) return 'wait'
   const stretch = Date.parse(cache.until) - TTL_MS[cache.ttl]
   const own = memory !== undefined && Date.parse(memory.stretch) === stretch ? memory : undefined
   const warmUntil = warmUntilOf(cache, memory)
@@ -124,23 +130,28 @@ export interface WarmTask {
   task: string
   /** The session the chain leads with; `null` — whichever is live for the task (one waiting on its pull request). */
   sessionId: string | null
+  /** The session a red main stopped mid-turn, `chain.interrupted` (BTN-1616): see `WarmFacts.stopped`. */
+  interrupted?: true
 }
 
 /**
  * The tasks a running chain will go on in a session of: its current one, unless it is starting, being moved or on a
- * limit with a handoff planned, and those whose pull request is open (BTN-205). A paused or halted chain has none;
- * warmStep excludes actual limits, while a temporary model error waiting for a resume remains eligible. A handoff on a
- * limit already made leaves its record behind for `moved` and `recover`: its new session is kept warm (BTN-1507).
+ * limit with a handoff planned, the one the fix of main interrupted (BTN-1616), unless it was skipped or released
+ * since, and those whose pull request is open (BTN-205). A paused or halted chain has none; warmStep excludes actual
+ * limits, while a temporary model error waiting for a resume remains eligible. A handoff on a limit already made
+ * leaves its record behind for `moved` and `recover`: its new session is kept warm (BTN-1507).
  */
 export function warmTasks(state: ChainState): WarmTask[] {
   return state.active.flatMap((chain) => {
     if (chain.paused || chain.error !== null || chain.limitUntil !== undefined) return []
-    const { current } = chain
+    const { current, interrupted, project } = chain
     const limit = current?.limit
     const free = limit === undefined || limit.then === 'resume' || limit.acted === 'relay'
     const leads = current !== null && current.sessionId !== null && current.starting === undefined && free
     const own: WarmTask[] = leads ? [{ task: current.task, sessionId: current.sessionId }] : []
-    const reviewed = (state.reviews[chain.project] ?? []).filter((pull) => pull.closed === undefined && pull.task !== current?.task)
+    const left = (task: string) => [state.skipped, state.released].some((list) => (list[project] ?? []).includes(task))
+    if (interrupted !== undefined && interrupted.task !== current?.task && !left(interrupted.task)) own.push({ task: interrupted.task, sessionId: interrupted.sessionId, interrupted: true })
+    const reviewed = (state.reviews[project] ?? []).filter((pull) => pull.closed === undefined && pull.task !== current?.task)
     return [...own, ...reviewed.map((pull) => ({ task: pull.task, sessionId: null }))]
   })
 }

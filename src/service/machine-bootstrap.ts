@@ -23,6 +23,7 @@ import type { ServiceContext } from '../service.js'
 import { Approvals } from '../sessions/approvals.js'
 import { type WarmTask } from '../sessions/keepwarm.js'
 import { TranscriptWatch } from '../sessions/watch.js'
+import { viewOf } from '../sessions/view-index.js'
 import type { SessionView } from '../state.js'
 import { machineValue, setMachineValue } from '../machine/state.js'
 
@@ -112,9 +113,10 @@ export function assembleOnline(ctx: Pick<ServiceContext, 'reach' | 'homes'>) {
   return (home: AccountHome) => ctx.reach.up(providerUrl(home.agent, home.agent === OPENCODE ? ctx.homes.apiKeyOf(home) : null))
 }
 
-export function assembleWarmable(ctx: Pick<ServiceContext, 'liveView' | 'monitor' | 'agentOf' | 'homeOf'>) {
-  return ({ task, sessionId }: WarmTask): SessionView | undefined => {
-    const view = ctx.liveView(task)
+export function assembleWarmable(ctx: Pick<ServiceContext, 'liveView' | 'sessions' | 'monitor' | 'agentOf' | 'homeOf'>) {
+  return ({ task, sessionId, interrupted }: WarmTask): SessionView | undefined => {
+    // The page sees a session stopped for the fix of main as finished: only its own pair finds it (BTN-1616).
+    const view = interrupted === true && sessionId !== null ? viewOf(ctx.sessions, task, sessionId) : ctx.liveView(task)
     if (view === undefined || (sessionId !== null && view.sessionId !== sessionId)) return undefined
     const session = ctx.monitor.handoff(task)
     return session?.sessionId === view.sessionId && ctx.agentOf(ctx.homeOf(session.account)).warm !== undefined ? view : undefined

@@ -93,6 +93,34 @@ describe('the fix of a red main end to end', { timeout: scaled(60_000) }, () => 
     expect(calls('launch', 'ABC-2')).toHaveLength(1)
   })
 
+  it('keeps the stopped session warm through a fix longer than its cache and resumes it after the fix (BTN-1616)', async () => {
+    run.config.keepWarm = 1
+    run.agent.warming = true
+    run.agent.warmsOnTool = true
+    const fixing = new Gate()
+    fixer = parked(fixing, commitAndMerge('fix.txt'))
+    const look: Turn = async (turn) => {
+      turn.cache('5m')
+      return { say: 'A first look' }
+    }
+    await underTask('success', look, parked(new Gate(), ends({ say: 'never' })), goOn)
+    await run.until(() => run.agent.sessionsOf('ABC-2')[0]?.resting === true, 'the first turn of ABC-2 over')
+    await run.pass(15_000)
+    const session = calls('launch', 'ABC-2')[0]!.sessionId
+    await run.post('session/answer', { project: PROJECT_ID, task: 'ABC-2', sessionId: session, ask: null, answers: {}, text: 'Go on' })
+    await run.until(() => calls('resume', 'ABC-2').length === 1, 'ABC-2 working on the chat message')
+
+    run.ci.finish('ABC-1', 'failure')
+    await run.until(() => chain()?.interrupted?.sessionId === session, 'ABC-2 stopped for the fix')
+    await run.pass(10 * 60_000)
+    expect(run.agent.warms.filter((ping) => ping.sessionId === session).length).toBeGreaterThan(1)
+    fixing.open()
+
+    await run.until(() => run.board.status('ABC-2') === 'Done', 'ABC-2 done')
+    expect(calls('resume', 'ABC-2')[1]).toMatchObject({ sessionId: session, prompt: expect.stringContaining('It is fixed, main is now at commit') })
+    expect(calls('launch', 'ABC-2')).toHaveLength(1)
+  })
+
   it('halts with ci.fixFailed when main is red after the fix, gives the stopped session back and starts no second fix', async () => {
     await underTask('failure', parked(new Gate(), ends({ say: 'never' })))
     const session = calls('launch', 'ABC-2')[0]!.sessionId
