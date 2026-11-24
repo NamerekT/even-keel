@@ -80,6 +80,8 @@ export interface MachineNetworkOptions {
   commit?: string
   /** A machine joined, connected or went away: the page asks for the list again. */
   changed: () => void
+  /** The projects' machines were read anew or one was revoked: a width above them is cut (BTN-1571, `machinesIn`). */
+  poolCounted?: () => void
   /** The project's settings, for the commands after a green main each machine of the pool runs. */
   projectSettings?: (project: string) => Pick<ProjectSettings, 'beforeStart' | 'check' | 'afterGreen'> | undefined
   /** The stdio servers of the project's packages here, which a machine elsewhere may run with a command of its own. */

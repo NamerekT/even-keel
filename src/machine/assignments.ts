@@ -1,4 +1,5 @@
 import type { Db, Queryable, Writes } from '../storage/database.js'
+import { stateValue } from '../storage/service-state.js'
 import type { AssignedTask, AssignedTasks } from '../tracker/source.js'
 
 interface Assignment extends AssignedTask {
@@ -136,6 +137,20 @@ export async function fillPool(db: Queryable, machine: string, projects: string[
 export async function poolOf(db: Queryable, project: string): Promise<string[]> {
   const { rows } = await db.query<{ machine_id: string }>('select machine_id from project_machines where project_id = $1 and enabled order by machine_id', [project])
   return rows.map((row) => row.machine_id)
+}
+
+/**
+ * By project, how many machines its list "The project's machines" holds, turned on or off (BTN-1571): the own one and
+ * the joined ones not revoked, as `MachineNetwork.machinesIn` counts them; a project with none named is not there.
+ */
+export async function listedMachines(db: Queryable): Promise<Map<string, number>> {
+  const own = ((await stateValue(db, 'machines.own')) as string | undefined) ?? null
+  const { rows } = await db.query<{ project_id: string; machines: number }>(
+    `select pm.project_id, count(*)::int as machines from project_machines pm join machines m on m.id = pm.machine_id
+     where m.revoked_at is null and (m.joined_at is not null or m.id = $1) group by pm.project_id`,
+    [own],
+  )
+  return new Map(rows.map((row) => [row.project_id, row.machines]))
 }
 
 /** The machine has a folder of the project in its pool, turned on or off (a connect's checks run on one turned off). */

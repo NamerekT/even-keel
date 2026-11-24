@@ -11,6 +11,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { BranchDriftBand } from './BranchField.js'
 import { ConnectMachineDialog } from './ConnectMachine.js'
 import { JobWindow } from './JobWindow.js'
+import { cappedWidth, widthMaxOf } from './poolWidth.js'
 import type { PanelFields } from './projectSettingsFields.js'
 import { fieldId, Row, Section, Switch, SwitchField, wholeOf } from './settingsParts.js'
 import { useVocabularies } from './useVocabularies.js'
@@ -57,6 +58,7 @@ export function usePool(project: string): { pool: ProjectPool | null; reload: ()
 export function ProjectMachinesTab({ fields, project, slot, state }: { fields: PanelFields; project: string; slot: number; state: EvenKeelState | null }) {
   const { text, on, edit, marks, errorOf, notes, number } = fields
   const { pool, reload } = usePool(project)
+  const widthMax = widthMaxOf(pool)
   // The switch is the tracker's to offer: one that keeps no components has nothing to split the lanes by.
   const { vocabularies } = useVocabularies([project])
   const components = vocabularies.some((each) => (each.components?.length ?? 0) > 0) || on('componentLanes')
@@ -131,9 +133,11 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
           hint={t.pool.widthHint}
           htmlFor={fieldId('width')}
           mark={marks.note('width')}
-          control={number('width', text('width'), wholeOf(text('width'), 1) === undefined || errorOf('width') !== null, (value) => edit('width', value))}
+          control={number('width', text('width'), wholeOf(text('width'), 1) === undefined || errorOf('width') !== null, (value) => edit('width', cappedWidth(value, widthMax)))}
           error={errorOf('width')}
-        />
+        >
+          {widthMax !== undefined && <span className="settings__hint">{t.pool.widthMax(widthMax)}</span>}
+        </Row>
         {components && (
           <SwitchField
             className={marks.box('componentLanes')}

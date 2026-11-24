@@ -410,3 +410,11 @@ To check, on the benches: give machine-1 of the bench hub one project's pool and
 Assumed: a machine's panel names each account's e-mail as the hub's does (`sameEmail`), so the machine's folder maps to the hub's, and its panel's `sessions` and `transport` are those of that machine. If not, an account signed in there shows as "signed in on the hub, not here" beside its own row, a header level drops or names another account, or the sessions and "Runs through" columns stay empty.
 
 To check, on the benches: pick machine-1 of the bench hub in the header on a project page and on `/accounts`; compare the rows, the limits, the sessions count and "Runs through" with machine-1's own `/accounts`, point at the header's block and see the project's levels, and sign machine-1 out of one account to see its info chip and "Sign in".
+
+## A width cut when a machine leaves a project (BTN-1571)
+
+`docs/machines.md`, "The pool" ("Two numbers"). A project's width is at most the machines of its list, turned on or off; a revoke, a cancelled connection or any read of the pools cuts a width above them and writes it to the config, `config-import` stores the most. Covered by `src/service/width-cap.test.ts` (the fit and the refusal), `src/service/machine-network.test.ts` (the count, turned off and revoked), `src/settings/import.test.ts` and `web/src/pages/poolWidth.test.ts`. Not seen on a hub with machines elsewhere.
+
+Assumed: `poolCounted` runs after every change of a list, so a width never stays above the machines left; and the hub's own machine has its row in every project's list (`fillPool`). If not, a width stays above the machines after one goes, or a project with machines elsewhere is cut to 1 at the start; the log has `config: project … runs N task(s) at once, not M`.
+
+To check, on the benches: give a project of the bench hub two machines and width 2, turn one off in the pool and see the width stay; revoke it and see the width 1 in "Machines" and the log line; connect two machines again and see the field go up to 3 with the width still 1; type 4 and see 3; `config-import` a width of 5 and see 3 stored with its line.

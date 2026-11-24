@@ -110,6 +110,33 @@ describe('the settings in the database', { timeout: 30_000 }, () => {
     ])
   })
 
+  it("cuts a width above the project's machines, two of them one turned off, and says so (BTN-1571)", async () => {
+    await prepare()
+    await importConfig(db, { projects: [abc] })
+    const OWN = '11111111-1111-4111-8111-111111111111'
+    const LAPTOP = '22222222-2222-4222-8222-222222222222'
+    const GONE = '33333333-3333-4333-8333-333333333333'
+    await db.query(`insert into service_state (name, value) values ('machines.own', $1)`, [JSON.stringify(OWN)])
+    await db.query(
+      `insert into machines (id, name, secret_hash, created_at, joined_at, revoked_at) values
+       ($1, 'Example server', 'h1', 1, null, null), ($2, 'Example laptop', 'h2', 1, 2, null), ($3, 'Example desktop', 'h3', 1, 2, 3)`,
+      [OWN, LAPTOP, GONE],
+    )
+    await db.query(`insert into project_machines (project_id, machine_id, enabled) values ('id-abc', $1, true), ('id-abc', $2, false), ('id-abc', $3, true)`, [OWN, LAPTOP, GONE])
+    const width = async () => (await config()).settings['id-abc']!.width
+
+    expect((await importConfig(db, { projects: [{ ...abc, width: 2 }] })).cut).toEqual([])
+    expect(await width()).toBe(2)
+    const { cut } = await importConfig(db, { projects: [{ ...abc, width: 3 }, { id: 'id-xyz', key: 'XYZ', repo: 'C:\\xyz', width: 2 }] })
+    expect(await width()).toBe(2)
+    // A project with no machine elsewhere has the own one alone.
+    expect((await config()).settings['id-xyz']!.width).toBe(1)
+    expect(cut).toEqual([
+      'config: project ABC (id-abc) has 2 machine(s), so its width 3 is stored as 2',
+      'config: project XYZ (id-xyz) has 1 machine(s), so its width 2 is stored as 1',
+    ])
+  })
+
   it('brings a file of an older schema to the current one and gives its projects ids', () => {
     const { contents } = configOfFile({ model: 'opus', projects: { ABC: 'C:\\abc' } })
     expect(contents.records).toEqual([{ id: expect.stringMatching(/^[0-9a-f-]{36}$/), key: 'ABC', name: null, repo: 'C:\\abc', branch: 'main', trackerProjects: {} }])

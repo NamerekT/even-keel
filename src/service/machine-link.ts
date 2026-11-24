@@ -12,7 +12,8 @@ import { AccountPolls } from '../limits/polls.js'
 import { AccountIdentities } from '../limits/identity.js'
 import { briefAccounts } from '../machine/account-here.js'
 import { foldersHere } from './folders-here.js'
-import { listenOf, localUrlOf, runSettings } from '../config.js'
+import { listenOf, localUrlOf, projectLabel, runSettings } from '../config.js'
+import { fitWidths } from './width-cap.js'
 import { inContainer, root, source } from '../locations.js'
 import { headOf } from '../updates/checkout.js'
 import { installed } from '../updates/watcher.js'
@@ -364,6 +365,15 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     inContainer,
     version: installed(root).version,
     changed: () => ctx.hub.broadcast('machines', { changedAt: Date.now() }),
+    // A machine gone from a project's list cuts its width to the machines left; one connected raises none (BTN-1571).
+    poolCounted: () =>
+      fitWidths(Object.keys(ctx.configStore.current.projects), {
+        widthOf: (project) => ctx.configStore.current.settings[project]?.width ?? 1,
+        capOf: (project) => network.machinesIn(project),
+        save: (project, width) => ctx.configStore.saveWidth(project, width),
+        label: (project) => projectLabel(ctx.configStore.current, project),
+        log,
+      }),
     projectSettings: (project) => ctx.configStore.current.settings[project],
     servers: (project) => ctx.packages.localStdio(project),
     briefed: (machine) => afterGreen.back(machine),

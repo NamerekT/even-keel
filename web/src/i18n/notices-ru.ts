@@ -787,6 +787,8 @@ export const noticesRu: NoticeTexts = {
   'config.statusMoves': (p) => `${p.where} должен быть объектом имён статусов: start и review — имя или null, done — имя`,
   'config.milestoneOrder': (p) => `${p.where} должен быть списком названий вех`,
   'config.width': (p) => `${p.where} должен быть целым числом задач, не меньше 1`,
+  'config.widthOverMachines': (p) =>
+    `«Задач проекта одновременно» — не больше ${p.max}, по числу машин проекта: каждая задача идёт на своей машине. Чтобы поставить больше, подключите ещё машину на вкладке «Машины»`,
   'config.badge': (p) =>
     `${p.where} должен быть null или { on, url, slug, fields }: on — true или false, url — адрес http(s), slug — строчные буквы, цифры и дефисы, fields — известные поля бейджа`,
   'badge.url': () => 'Адрес Worker\'а должен начинаться с https://, например https://even-keel-badge.example.workers.dev',

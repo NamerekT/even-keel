@@ -1,5 +1,6 @@
 import { existsSync, renameSync } from 'node:fs'
 import { ignoredKeys, parseConfig, readRawConfig, trackerKeysOf, withIds } from '../config.js'
+import { listedMachines } from '../machine/assignments.js'
 import { fail } from '../notice/notice.js'
 import { inTransaction, type Db, type Queryable } from '../storage/database.js'
 import { currentConfig } from '../storage/migrations.js'
@@ -96,9 +97,24 @@ export async function exportConfig(db: Queryable): Promise<string> {
  * The file's config in place of the stored one, whole (`config-import`): a key the file lacks goes back to its default,
  * a project it lacks goes. Through the service's port the running service applies it at its next look.
  */
-export async function importConfig(db: Queryable, raw: unknown): Promise<FileContents> {
+export async function importConfig(db: Queryable, raw: unknown): Promise<FileContents & { cut: string[] }> {
   const { contents, dismissed } = configOfFile(raw)
+  const cut = await widthsCut(db, contents)
   await saveSettings(db, contents, 'hand')
   if (dismissed !== undefined) await setStateValue(db, 'updates.dismissed', dismissed)
-  return contents
+  return { ...contents, cut }
+}
+
+/** A project's width above its machines is stored as their number (BTN-1571); a line for each such project. */
+async function widthsCut(db: Queryable, contents: FileContents): Promise<string[]> {
+  const machines = await listedMachines(db)
+  return contents.rows.flatMap((row) => {
+    if (row.key !== 'width' || row.project === null || typeof row.value !== 'number') return []
+    const cap = Math.max(1, machines.get(row.project) ?? 0)
+    if (row.value <= cap) return []
+    const key = contents.records.find((record) => record.id === row.project)?.key
+    const line = `config: project ${key === undefined ? row.project : `${key} (${row.project})`} has ${cap} machine(s), so its width ${row.value} is stored as ${cap}`
+    row.value = cap
+    return [line]
+  })
 }
