@@ -121,7 +121,8 @@ describe('a turn the chain cannot see the end of', { timeout: scaled(60_000) }, 
     }, commitAndMerge())
     await run.start()
     await run.startChain(PROJECT_ID)
-    await run.until(() => run.agent.sessionsOf('ABC-1')[0]?.status === 'shell', 'the turn ended on a background command')
+    // The handover may follow within the step that ends the turn: its shell is then seen only as stopped.
+    await run.until(() => run.agent.sessionsOf('ABC-1')[0]?.status === 'shell' || launches().length === 2, 'the turn ended on a background command')
     const [first] = launches()
 
     await run.until(() => launches().length === 2, 'ABC-1 handed over by its checkpoint')

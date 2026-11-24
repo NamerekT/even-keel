@@ -2,7 +2,7 @@ import type { Dispatcher } from '../chain/dispatcher.js'
 import type { DoneMove } from '../chain/moves.js'
 import { ownsMilestone, type ChainRules } from '../chain/rules.js'
 import { MilestoneFiller } from '../chain/milestones.js'
-import { mergedCommits } from '../git/merged.js'
+import { landedCommits } from '../git/merged.js'
 import { NoticeError } from '../notice/notice.js'
 import { runGit } from '../git/run.js'
 import type { PendingCloses } from './close.js'
@@ -39,6 +39,8 @@ export interface TrackerStartDeps {
    * hub's checkout learns only after that machine's push at the cleanup; `undefined` — not on one, the checkout tells.
    */
   elsewhere?: (project: string, task: string) => Promise<string[]> | undefined
+  /** The reader's project is in PR mode: a merge into the local main closes, as the forge lands it (BTN-1581). */
+  pullRequests?: (project: string) => boolean
   rulesOf: (project: string) => ChainRules
   links: Map<string, TrackerLink>
   tasksByProject: { get(project: string): Task[] | undefined; has(project: string): boolean; set(project: string, tasks: Task[]): void }
@@ -128,7 +130,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   const closer = new MergeCloser({
     merged: async (project, task) => {
       if (deps.plain?.(project) === true) return []
-      return deps.elsewhere?.(project, task) ?? mergedCommits(runGit, repoOf(project), task, mainBranch(project))
+      return deps.elsewhere?.(project, task) ?? landedCommits(runGit, repoOf(project), task, mainBranch(project), deps.pullRequests?.(project) === true)
     },
     complete: (task, status) => link.run((tracker) => tracker.complete!(task, status)),
     done: (project) => deps.doneOf?.(project),

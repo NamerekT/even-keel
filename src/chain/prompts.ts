@@ -7,7 +7,26 @@ import { closeFence } from './fence.js'
 import type { ReturnReason } from './model.js'
 import { USER_MESSAGE_HEAD } from './user-message.js'
 
-export type HandoffReason = 'limit' | 'restart' | 'message' | 'checkpoint' | 'mainFixed' | 'review' | ReturnReason
+export type HandoffReason = 'limit' | 'restart' | 'message' | 'checkpoint' | 'mainFixed' | 'review' | 'landing' | ReturnReason
+
+/** How many times a landing returns a task to its session before the chain pauses on it (BTN-1581); not a setting. */
+export const LANDING_ROUNDS = 3
+
+/** What made a landing return to the session, with the round it opens. */
+export type LandingReturn =
+  | { remote: string; main: string; round: number; files: string[] }
+  | { remote: string; main: string; round: number; command: string; code: number; output: string }
+
+export interface LandingTexts {
+  conflict: (facts: { remote: string; main: string; round: number; files: string[] }) => string
+  red: (facts: { remote: string; main: string; round: number; command: string; code: number; output: string }) => string
+}
+
+/** The text of a landing's return, by what made it. */
+export function landingPrompt(facts: LandingReturn, language: Language): string {
+  const texts = PROMPTS[language].landing
+  return 'files' in facts ? texts.conflict(facts) : texts.red(facts)
+}
 
 /** What a session is told of its pull request's feedback (BTN-205). */
 export interface ReviewTexts {
@@ -72,6 +91,8 @@ export interface PromptTexts {
   /** In PR mode, in place of `cleanup`: the session marks its turn's end, Even Keel pushes and opens the pull request. */
   pullRequest: (main: string) => string
   review: ReviewTexts
+  /** What a session is told when its merge did not land in the main of the remote (BTN-1581). */
+  landing: LandingTexts
   worktree: (path: string) => string
   /** A slot's folder outlives the task (BTN-1315): what its cleanup after Done deletes, as the project's patterns. */
   slotTemp: (patterns: string) => string
@@ -149,6 +170,10 @@ export interface CarryFacts {
 
 const carryOutput = (output: string): string[] => (output.trim() === '' ? [] : ['```', output.trim(), '```'])
 
+/** The end of a check's output a landing's return quotes: its failures are at the end. */
+const OUTPUT_TAIL = 4000
+const tailOf = (output: string): string => (output.length <= OUTPUT_TAIL ? output : `…${output.slice(-OUTPUT_TAIL)}`)
+
 const MEMORY_EN =
   "The project memory is kept by Even Keel, not in the agent's memory files: read a record with `memory_read`, save what later tasks will need (a trap of the environment, what did not work) with `memory_write`, remove a wrong one with `memory_delete`. A change of a record goes with the version `memory_read` gave; a refusal brings the record's current text — merge your edit into it and write again. A new record close to an existing one is refused with their list: update the old one instead."
 const MEMORY_RU =
@@ -220,6 +245,21 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       closedAfter: (main) =>
         fill`Его ветка удалена: задачу делаешь заново, на свежей ветке от ${main}. Учти замечания — в них может быть, почему pull request закрыли и что сделать иначе.`,
     },
+    landing: {
+      conflict: ({ remote, main, files, round }) =>
+        [
+          fill`Твой мерж в ${main} не сел в ${remote}: в ${remote}/${main} появились коммиты, которые конфликтуют с ним в файлах ${files.join(', ')}. Even Keel откатил ${main} основного чекаута на коммит до твоего мержа, задача не закрыта.`,
+          fill`- В своём worktree: \`git fetch ${remote}\`, влей \`${remote}/${main}\` в ветку задачи, разреши конфликты, прогони проверки и снова смержи ветку в ${main} основного чекаута. Сам не пушь — посадку повторит Even Keel.`,
+          fill`- Это круг ${String(round)} из ${String(LANDING_ROUNDS)}: после последнего Even Keel поставит цепочку на паузу и спросит пользователя.`,
+        ].join('\n'),
+      red: ({ remote, main, command, code, output, round }) =>
+        [
+          fill`Твой мерж в ${main} не сел в ${remote}: вместе с новыми коммитами ${remote}/${main} он не проходит проверку проекта — \`${command}\` завершилась с кодом ${String(code)}. Even Keel откатил ${main} основного чекаута на коммит до твоего мержа, задача не закрыта.`,
+          fill`- В своём worktree: \`git fetch ${remote}\`, влей \`${remote}/${main}\` в ветку задачи, почини то, что падает, прогони проверки и снова смержи ветку в ${main} основного чекаута. Сам не пушь — посадку повторит Even Keel.`,
+          fill`- Это круг ${String(round)} из ${String(LANDING_ROUNDS)}: после последнего Even Keel поставит цепочку на паузу и спросит пользователя.`,
+          ...(output.trim() === '' ? [] : ['- Вывод проверки (конец):', ...carryOutput(tailOf(output))]),
+        ].join('\n'),
+    },
     worktree: (path) => fill`- Worktree готов: ${path} — работай в нём, новый worktree не создавай.`,
     slotTemp: (patterns) => fill`- Это постоянный слот: после Done Even Keel удаляет в нём временные файлы (${patterns}). Нужное оттуда забери до мержа.`,
     branch: (branch) => fill`- Ветка: ${branch} — не меняй её.`,
@@ -254,6 +294,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         'Продолжение: прошлая сессия по этой задаче поставила контрольную точку, чтобы не тащить раздутый контекст дальше, и остановлена — задачу доводишь ты.',
       mainFixed: 'Продолжение: прошлую сессию по этой задаче остановил Even Keel, потому что упала проверка main, — задачу доводишь ты.',
       review: 'Продолжение: прошлая сессия по этой задаче открыла pull request, на него пришли замечания, а её кэш уже остыл — замечания отрабатываешь ты.',
+      landing:
+        'Продолжение: прошлая сессия по этой задаче смержила ветку в main, но мерж не сел в удалённый main, а её кэш уже остыл — разбираешь ты. Что помешало посадке — в конце, после передачи дел.',
       returned:
         'Продолжение: прошлая сессия по этой задаче закончила ход и увела задачу из цепочки — скорее всего, с вопросом пользователю. Пользователь вернул её в цепочку: ответ — в описании задачи или в комментариях к ней после вопроса. Прочитай эти комментарии в трекере, даже если навык трекера велит не читать ленту задачи. Прошлая сессия остановлена, задачу доводишь ты.',
       unblocked: 'Продолжение: прошлая сессия отложила задачу из-за блокера и закончила ход. Блокеры больше не держат задачу, цепочка вернулась к ней. Прошлая сессия остановлена; продолжи её работу с передачей.',
@@ -389,6 +431,21 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       closedAfter: (main) =>
         fill`Its branch is removed: you do the task over, on a fresh branch from ${main}. Take the remarks into account — they may say why the pull request was closed and what to do differently.`,
     },
+    landing: {
+      conflict: ({ remote, main, files, round }) =>
+        [
+          fill`Your merge into ${main} did not land on ${remote}: ${remote}/${main} got commits that conflict with it in ${files.join(', ')}. Even Keel rolled ${main} of the main checkout back to the commit before your merge; the task is not closed.`,
+          fill`- In your worktree: \`git fetch ${remote}\`, merge \`${remote}/${main}\` into the task's branch, resolve the conflicts, run the checks and merge the branch into ${main} of the main checkout again. Do not push yourself: Even Keel lands it again.`,
+          fill`- This is round ${String(round)} of ${String(LANDING_ROUNDS)}: after the last one Even Keel pauses the chain and asks the user.`,
+        ].join('\n'),
+      red: ({ remote, main, command, code, output, round }) =>
+        [
+          fill`Your merge into ${main} did not land on ${remote}: merged with the new commits of ${remote}/${main}, it fails the project's check — \`${command}\` exited with ${String(code)}. Even Keel rolled ${main} of the main checkout back to the commit before your merge; the task is not closed.`,
+          fill`- In your worktree: \`git fetch ${remote}\`, merge \`${remote}/${main}\` into the task's branch, fix what fails, run the checks and merge the branch into ${main} of the main checkout again. Do not push yourself: Even Keel lands it again.`,
+          fill`- This is round ${String(round)} of ${String(LANDING_ROUNDS)}: after the last one Even Keel pauses the chain and asks the user.`,
+          ...(output.trim() === '' ? [] : ["- The check's output (its end):", ...carryOutput(tailOf(output))]),
+        ].join('\n'),
+    },
     worktree: (path) => fill`- Worktree is ready: ${path} — work in it, do not create a new worktree.`,
     slotTemp: (patterns) => fill`- This is a permanent slot: after Done Even Keel deletes its temporary files (${patterns}). Copy out what you need before the merge.`,
     branch: (branch) => fill`- Branch: ${branch} — do not change it.`,
@@ -423,6 +480,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         'Continuation: the previous session on this task set a checkpoint so as not to carry a bloated context further, and was stopped; you finish the task.',
       mainFixed: 'Continuation: Even Keel stopped the previous session on this task because the check of main failed; you finish the task.',
       review: 'Continuation: the previous session on this task opened a pull request, it got feedback, and that session\'s cache has gone cold; you work the feedback.',
+      landing:
+        "Continuation: the previous session on this task merged its branch into main, but the merge did not land in the remote's main, and that session's cache has gone cold; you deal with it. What stopped the landing is at the end, after the handoff.",
       returned:
         'Continuation: the previous session on this task ended its turn and let the task leave the chain, most likely with a question to the user. The user brought the task back into the chain: the answer is in the task\'s description or in its comments after the question. Read those comments in the tracker, even where the tracker\'s skill says not to read the task\'s activity. The previous session is stopped; you finish the task.',
       unblocked: 'Continuation: the previous session postponed the task for a blocker and ended its turn. The blockers no longer hold the task and the chain returned to it. The previous session is stopped; continue its work from the handoff.',

@@ -126,6 +126,25 @@ export interface ChainState {
   ci: Record<string, MainGate>
   /** The pull requests Even Keel opened for the project's tasks in PR mode (BTN-205), until each is closed and cleaned up after. */
   reviews: Record<string, PullRequest[]>
+  /** The landings of the project's tasks into the main of its remotes that have not gone through yet (BTN-1581). */
+  landings: Record<string, Landing[]>
+}
+
+/** A task, a fix or a carry whose merge did not land at once: returned to its session, or waiting for the remote. */
+export interface Landing {
+  task: string
+  /** How many times the landing returned the task to its session since its last landing or a person's answer; at most 3. */
+  rounds: number
+  /** The session resolves a conflict or a red check of its landing: the next start of the project waits on it (#2). */
+  resolving?: true
+  /** The message for the session the chain could not deliver yet: its account's limit, a launch block. */
+  message?: string
+  /** A remote is out of reach: the task is not done, its session is told nothing, the landing is tried again. */
+  waitingRemote?: true
+  /** The network failures in a row, for the waits between tries. */
+  failures?: number
+  /** When the next try is due after a network failure, ISO. */
+  retryAt?: string
 }
 
 /** A push of main by the cleanup after Done that the CI has not judged yet. */
@@ -220,9 +239,10 @@ export type FixOutcome = 'landed' | 'dropped' | 'unneeded' | 'carried'
 /**
  * Why a new session with a handoff followed a cold cache; a launch without one in the journal is a `limit`. `credit` —
  * the API key ran out of money; `message` — of a `restart`: the user sent a chat message as a new session (BTN-757);
- * `transient` — the same session resumed after a temporary model error.
+ * `transient` — the same session resumed after a temporary model error; `landing` — the task's merge did not land in the
+ * remote's main and went back to its session, resumed or handed over (BTN-1581).
  */
-export type RelayCause = 'limit' | 'credit' | 'mainFixed' | 'review' | 'message' | 'transient' | ReturnReason
+export type RelayCause = 'limit' | 'credit' | 'mainFixed' | 'review' | 'landing' | 'message' | 'transient' | ReturnReason
 
 export interface LaunchEntry {
   at: string
@@ -547,7 +567,7 @@ export interface RedReport {
 }
 
 export function emptyChainState(): ChainState {
-  return { active: [], queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, shelved: {}, unattended: false, trimTools: true, ci: {}, reviews: {} }
+  return { active: [], queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, shelved: {}, unattended: false, trimTools: true, ci: {}, reviews: {}, landings: {} }
 }
 
 export function newChain(project: string): ActiveChain {

@@ -12,6 +12,8 @@ import { readNote, snapshotReason, type HandoffSnapshot } from '../chain/snapsho
 import { cutUserMessage } from '../chain/user-message.js'
 import { DEFAULT_CI, isPlain, projectLabel } from '../config.js'
 import { changesOf } from '../git/changes.js'
+import { landTask, type LandOutcome } from '../git/landing.js'
+import { landedCommit } from '../git/merged.js'
 import { pushTaskBranch, restoreBranch } from '../git/push.js'
 import { guardedFiles } from '../review/outsider.js'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from '../git/slot.js'
@@ -179,8 +181,16 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       const extras = ctx.agentExtras(home, project, name)
       return ctx.launchIn(home, { name, cwd: place.path, prompt, model, settings: await ctx.settingsFor(name, project), ...extras }, project)
     },
-    carried: async (project, commit) =>
-      (await ctx.git(ctx.configStore.current.projects[project]!, ['merge-base', '--is-ancestor', commit, `refs/heads/${ctx.branchOf(project)}`])).code === 0,
+    carried: (project, commit) => landedCommit(ctx.git, ctx.configStore.current.projects[project]!, commit, ctx.branchOf(project)),
+    // PR mode is the forge's landing, a project without git has nothing to land (BTN-1581).
+    land: async (project, task, commit) => {
+      if (isPlain(ctx.configStore.current, project) || ctx.pullRequestsOn(project)) return { state: 'none' }
+      const repo = ctx.configStore.current.projects[project]!
+      const check = landingCheck(ctx, project, repo)
+      const outcome = await landTask(ctx.git, repo, { task, main: ctx.branchOf(project), ...(commit !== undefined && { commit }), ...(check !== undefined && { check }) })
+      if (outcome.state !== 'none') console.log(`git: the landing of ${task} into ${ctx.branchOf(project)}: ${landingLine(outcome)}`)
+      return outcome
+    },
     stop: async (session) => {
       await ctx.stopIn(ctx.homeOf(session.account), session)
       const task = ctx.sessions.find((view) => view.sessionId === session.sessionId)?.task
@@ -238,6 +248,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       plain: (project) => isPlain(ctx.configStore.current, project),
       main: ctx.branchOf,
       git: ctx.git,
+      pullRequests: ctx.pullRequestsOn,
       settings: (project) => ctx.configStore.current.settings[project]?.ci ?? DEFAULT_CI,
       commands: (project) => ctx.configStore.current.settings[project]?.check ?? [],
       reported: (project, task) => ctx.brief.report(project, task),
@@ -297,10 +308,23 @@ export async function syncProject(ctx: MachineContext, project: string): Promise
  * project several tasks run at once (`width` above 1), whose lanes may push from different machines.
  */
 function mergeCheck(ctx: MachineContext, project: string, repo: string): MergeCheck | undefined {
-  const settings = ctx.configStore.current.settings[project]
-  const commands = settings?.check ?? []
-  if ((settings?.width ?? 1) <= 1 || commands.length === 0) return undefined
+  if ((ctx.configStore.current.settings[project]?.width ?? 1) <= 1) return undefined
+  return landingCheck(ctx, project, repo)
+}
+
+/** The project's `commands.check` on main merged with what a remote got meanwhile, before a landing pushes it (BTN-1581): whatever the width. */
+function landingCheck(ctx: MachineContext, project: string, repo: string): MergeCheck | undefined {
+  const commands = ctx.configStore.current.settings[project]?.check ?? []
+  if (commands.length === 0) return undefined
   return { run: () => runCheck(commands, ctx.taskRun(project, repo, ctx.choiceFor(project).account)) }
+}
+
+function landingLine(outcome: LandOutcome): string {
+  if (outcome.state === 'landed') return 'pushed'
+  if (outcome.state === 'failed') return `${outcome.network ? 'the remote is out of reach' : 'refused'}: ${englishOf(outcome.failure)}`
+  if (outcome.state === 'returned' && 'files' in outcome) return `conflicts with ${outcome.remote} in ${outcome.files.join(', ')}, main rolled back`
+  if (outcome.state === 'returned') return `${outcome.red.command} exited with ${outcome.red.code} on the merge with ${outcome.remote}, main rolled back`
+  return 'nothing to land'
 }
 
 export function wireKeepWarm(ctx: MachineContext): KeepWarm {

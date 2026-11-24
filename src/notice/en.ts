@@ -256,6 +256,12 @@ export const en = {
   'sync.push': (p: { remote: string; main: string }) => `sync: could not push ${p.main} to ${p.remote}`,
   'sync.checkRed': (p: { main: string; command: string; code: number }) =>
     `sync: ${p.main} merged with commits of another machine fails the project's check (${p.command} exited with ${p.code}); it is not pushed, merge it by hand`,
+  'landing.noBase': (p: { main: string }) => `landing: no commit of ${p.main} before the session's merge was found; push ${p.main} by hand`,
+  'landing.notReset': (p: { main: string; commit: string }) =>
+    `landing: ${p.main} could not be rolled back to ${p.commit}, before the session's merge; roll it back by hand`,
+  'landing.refused': (p: { task: string; main: string }) => `the landing of ${p.task} into ${p.main} of the remote was refused`,
+  'landing.exhausted': (p: { task: string; main: string; rounds: number }) =>
+    `${p.task} came back from its landing into ${p.main} of the remote ${p.rounds} times, and its session is not told again`,
   'git.readOnly': (p: { profile: string; url: string }) =>
     `the token of the profile ${p.profile} may not push to ${p.url}: give the token write access to the repository's contents in Trackers and CI`,
 
@@ -1009,7 +1015,7 @@ const PACKAGE_PROBLEMS: Record<LoggedPackageProblem, (detail: string) => string>
 }
 
 /** What moved a session that goes on (`launchDraft`): the reason of its launch log entry, and for a resume its cause. */
-export type ContinuedWhy = 'answer' | 'resume' | 'review' | 'limit' | 'credit' | 'mainFixed' | 'transient'
+export type ContinuedWhy = 'answer' | 'resume' | 'review' | 'landing' | 'limit' | 'credit' | 'mainFixed' | 'transient'
 /** What made a new session in place of the previous one: the entry's cause, or a restart or a checkpoint without one. */
 export type HandoffWhy = RelayCause | 'restart' | 'checkpoint'
 
@@ -1017,6 +1023,7 @@ const CONTINUED: Record<ContinuedWhy, string> = {
   answer: 'the session goes on after an answer',
   resume: 'the session was resumed',
   review: 'the session got the pull request feedback',
+  landing: 'the session was told its merge did not land',
   limit: 'the session was resumed after the usage limit',
   credit: 'the session was resumed after the key ran out of credit',
   mainFixed: 'the session was resumed after main was fixed',
@@ -1031,6 +1038,7 @@ const HANDOFFS: Record<HandoffWhy, string> = {
   credit: 'after the key ran out of credit',
   mainFixed: 'after main was fixed',
   review: 'after the pull request feedback',
+  landing: 'after a merge that did not land',
   transient: 'after a temporary model error',
   returned: 'after the task came back',
   unblocked: 'after the blockers closed',

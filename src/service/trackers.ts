@@ -143,6 +143,7 @@ export function wireTrackers(ctx: TrackersContext): Trackers {
         repoOf: (reader) => ctx.configStore.current.projects[ctx.ownerOfReader(reader)]!,
         plain: (reader) => isPlain(ctx.configStore.current, ctx.ownerOfReader(reader)),
         elsewhere: (reader, task) => ctx.machineLink.mergedElsewhere(ctx.ownerOfReader(reader), task),
+        pullRequests: (reader) => ctx.configStore.current.settings[ctx.ownerOfReader(reader)]?.pullRequests ?? false,
         rulesOf: ctx.readerRules,
         links: ctx.links,
         tasksByProject: ctx.readerTasks,

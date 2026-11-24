@@ -98,11 +98,13 @@ Sequential within a project, not across them: `parallel` lets that many chains o
 
 Each task gets a background session (`claude --bg`) in its own git worktree `.claude/worktrees/<key>-<number>` on a branch `<key>-<number>/task`, made from `main` (or the project's `branch`; `main` below means that branch).
 
-The session does the task and merges its branch into `main`; Even Keel sees the merge, closes the task in the tracker, stops the session, removes the worktree and the branch, and syncs `main` with the remote.
+The session does the task and merges its branch into `main`; once its turn ends, Even Keel lands the merge: it fetches the remote, merges in what the remote got meanwhile, runs the project's check commands when there was such work, and pushes `main`. Only a task whose branch is in the remote's `main` is closed in the tracker; then Even Keel stops the session and removes the worktree and the branch. A repository without a remote closes by the merge into the local `main`; in PR mode the forge lands the branch.
+
+When the remote's `main` conflicts with the merge or the check fails on it, Even Keel puts the local `main` back as it was before the merge and tells the task's session what happened — the conflicting files, or the failed command with its output — so it merges the remote's `main` into its branch, resolves it and merges again. That happens three times at most; a fourth time the chain pauses on the task with a question in its chat, and your answer gives the session three more tries. A remote that cannot be reached leaves the task open and the session untouched, and the landing is tried again: 30 s and 2 min later, then every 10 minutes. A push the remote refuses (a server hook, no rights) pauses the chain with git's text.
 
 While the task runs, Even Keel pushes its branch to the repository's remote (`origin`, else its first one) whenever one session hands the task to the next — a limit, a checkpoint, a restart — when it stops a task's session, and at the end of each turn that left new commits on the branch (a question, say; in PR mode too, so the branch can reach the forge before its pull request), so the work can go on from another machine of a hub. A task taken in from an outsider's issue is not pushed while its branch changes CI workflows, agent files or `package.json` ([Security](security.md)). The branch on the remote goes with the local one after Done. A refused push is only a line in the log; the chain goes on.
 
-A sync that cannot reach the remote (no connection, a timeout, DNS) is tried again 30 s and 2 min later while the next task runs; only after the third failure does the project page show a warning to sync by hand.
+After Done, Even Keel syncs `main` with the remote once more, for work merged into it by hand. A sync that cannot reach the remote (no connection, a timeout, DNS) is tried again 30 s and 2 min later while the next task runs; only after the third failure does the project page show a warning to sync by hand.
 
 ### A task with nothing to merge
 

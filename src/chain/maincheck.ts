@@ -262,8 +262,9 @@ export class MainCheck {
     delete this.state.ci[project]?.fix
   }
 
-  merged(project: string, task: string): Promise<boolean> {
-    return this.machine.merged(project, task).then((commits) => commits.length > 0, () => false)
+  /** Landed in the main of the remotes; `local` — merged into the checkout's own main, the landing still to come. */
+  merged(project: string, task: string, local = false): Promise<boolean> {
+    return this.machine.merged(project, task, local).then((commits) => commits.length > 0, () => false)
   }
 
   /** The fix task goes before the chain's order while it is open in the chain. */

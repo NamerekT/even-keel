@@ -113,7 +113,8 @@ export class MainFix {
       this.host.letGo(chain)
       return true
     }
-    if (await this.main.merged(chain.project, task)) return false
+    // Merged into the checkout's main, it lands once its turn ends (BTN-1581): the fix waits for that turn.
+    if (await this.main.merged(chain.project, task, true)) return false
     if (session === undefined || session.sessionId !== current.sessionId) return false
     try {
       await this.deps.machine.stop(session)

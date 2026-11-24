@@ -72,8 +72,11 @@ export function machinePool(deps: PoolDeps): MachinePort {
     runAfterGreen: (project, commit) => own().runAfterGreen(project, commit),
     head: (project, machine) => at(machine).head(project),
     tree: (project, commit, machine) => at(machine).tree(project, commit),
-    merged: (project, task) => byTask(project, task).merged(project, task),
+    merged: (project, task, local) => byTask(project, task).merged(project, task, local),
     carried: (project, commit) => own().carried(project, commit),
+    ...(first.land === undefined
+      ? {}
+      : { land: (project: string, task: string, commit?: string) => byTask(project, task).land?.(project, task, commit) ?? Promise.resolve({ state: 'none' as const }) }),
     changes: (project, workdir) => at(deps.folderMachine(workdir)).changes(project, workdir),
     history: (project, commit, candidates) => own().history(project, commit, candidates),
     ...(first.modelBlock === undefined ? {} : { modelBlock: async (project: string, task: string) => byTask(project, task).modelBlock?.(project, task) }),

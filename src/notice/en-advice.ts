@@ -10,6 +10,8 @@ export const ADVICE = {
   'chain.unchangedNotCompleted': () => 'move it there yourself and resume the chain, or skip the task',
   'review.notOpened': () => 'fix access and press Resume, answer its session from the chat, or skip the task',
   'review.notCompleted': () => 'move it there yourself and resume the chain, or skip the task',
+  'landing.refused': () => "fix what git names and press Resume to land it again, or push main yourself",
+  'landing.exhausted': () => "answer its session from the chat to give it three more rounds, merge main by hand, or skip the task",
   // The mark is the session's and its new one opens the pull request with no Resume, which only rereads the same path (EKR-118).
   'review.noNote': (p) => (p.reason === undefined ? undefined : 'answer its session from the chat to write it under .temp/ and mark again: the chain goes on by itself'),
   'review.noBranch': () => "check out the task's branch there and press Resume, or skip the task",

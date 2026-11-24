@@ -944,4 +944,10 @@ export const STEPS: readonly string[] = [
   `
   alter table tracker_profiles add column hand_sessions boolean not null default true;
   `,
+  // The landings of tasks into the main of the project's remotes that have not gone through (BTN-1581, `docs/storage.md`):
+  // returned to their sessions, with the rounds counted, or waiting for a remote out of reach.
+  `
+  alter table chain_lists drop constraint chain_lists_list_check;
+  alter table chain_lists add constraint chain_lists_list_check check (list in ('orders', 'skipped', 'leftovers', 'released', 'shelved', 'ci', 'reviews', 'landings'));
+  `,
 ]
