@@ -33,6 +33,7 @@ import { ProjectSessionsTab } from './ProjectSessionsTab.js'
 import { ProjectCiTab } from './ProjectCiTab.js'
 import { poolShown, ProjectMachinesTab } from './ProjectMachinesTab.js'
 import { CloseIcon } from '../ui/icons.js'
+import { MachineMark } from '../ui/MachineIcon.js'
 import './settings.css'
 
 export { useSettingsDirty } from './projectSettingsDraft.js'
@@ -164,8 +165,8 @@ export function SettingsPanel({
     return (
       <aside className="panel settings" aria-label={t.settings.title}>
         <header className="panel__head settings__head">
-          <span className="settings__machine" style={{ '--machine': machine.color } as CSSProperties}>
-            <span className="settings__machine-mark" aria-hidden="true" />
+          <span className="settings__machine">
+            <MachineMark id={machine.id} color={machine.color} />
             {machine.name}
           </span>
           <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
@@ -185,7 +186,7 @@ export function SettingsPanel({
         {machine !== null && (
           <div className="settings__back-row">
             <button type="button" className="settings__back" style={{ '--machine': machine.color } as CSSProperties} onClick={() => setSharedFor(null)}>
-              <span className="settings__machine-mark" aria-hidden="true" />
+              <MachineMark id={machine.id} color={machine.color} />
               {t.machinePanel.view.back(machine.name)}
             </button>
           </div>

@@ -7,6 +7,7 @@ import { useCommand } from '../live/useCommand.js'
 import { machinePath } from '../machineColor.js'
 import { severalMachines } from '../machineView.js'
 import { Loading } from '../ui/Loader.js'
+import { MachineMark } from '../ui/MachineIcon.js'
 import { Tipped } from '../ui/Tipped.js'
 import { BranchDriftBand } from './BranchField.js'
 import { ConnectMachineDialog } from './ConnectMachine.js'
@@ -100,6 +101,7 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
                     <span className="pool__main">
                       <span className="pool__name">
                         <Link to={machinePath(machine.id)} className="pool__link">
+                          <MachineMark id={machine.id} />
                           {machine.name}
                         </Link>
                         {machine.own && <span className="tag">{t.pool.own}</span>}

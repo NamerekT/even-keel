@@ -20,7 +20,12 @@ import { RAN_SHOWN_MS } from '../tracker/start.js'
 import { runOf } from './demo.js'
 import { pinnable, pinWaits } from '../machine/pins.js'
 import type { HostingContext } from './hosting.js'
+import { inContainer } from '../locations.js'
+import { kindOf } from '../link/kinds.js'
 import { recentHistory } from './page-history.js'
+
+/** The hub's own machine as its icon shows it (BTN-1595): the hub's process knows its system and container itself. */
+const OWN_KIND = kindOf({ os: process.platform, container: inContainer })
 
 export function wireGetState(ctx: HostingContext): () => EvenKeelState {
   // The machine's sessions and accounts come from the hub's mirror (`docs/machines.md`, "The mirror"), never its objects.
@@ -147,6 +152,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     machineNames: ctx.machineLink.network.names(),
     liveMachines: ctx.machineLink.network.live(),
     machineColors: ctx.machineLink.network.colors(),
+    machineKinds: { ...ctx.machineLink.network.kinds(), [ctx.machineLink.machines.own()]: OWN_KIND },
     ownMachine: ctx.machineLink.machines.own(),
     stranded: ctx.machineLink.reassigner.stranded(),
     pools: Object.fromEntries(Object.keys(ctx.configStore.current.projects).map((project) => [

@@ -8,6 +8,7 @@ import { machineCount, machineState, type MachineLamp, type MachineState } from 
 import { HelpChip } from '../pages/HelpPanel.js'
 import { projectOfPath } from '../state.js'
 import { ServerIcon, SlidersIcon } from '../ui/icons.js'
+import { MachineMark } from '../ui/MachineIcon.js'
 import { useOpenAddMachine } from './AddMachineDialog.js'
 import { useMachineFilter, useMachineStripColor } from './MachineFilter.js'
 import { useNow } from './useNow.js'
@@ -135,8 +136,9 @@ function Cards({ state }: { state: EvenKeelState }) {
           <li key={card.id} className={classes.join(' ')} style={colorOf(card)}>
             <button type="button" className="machine-card__pick" aria-pressed={selected?.id === card.id} onClick={() => select(card.id)}>
               <span className="machine-card__name">
+                <MachineMark id={card.id} color={card.color} />
+                <span className="machine-card__title">{card.name}</span>
                 <span className={`machine-lamp machine-lamp--${view.lamp}`} role="img" aria-label={t.machinePanel.lamps[view.lamp]} />
-                {card.name}
               </span>
               <CardLine view={view} now={now} />
             </button>

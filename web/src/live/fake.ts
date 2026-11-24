@@ -693,6 +693,11 @@ export function createFakeSource(search: string): LiveSource {
       notify()
     }, TICK_MS)
   }
+  // `?hubOs=linux` (BTN-1595): the hub's own machine on another system, so the icons show every combination.
+  const hubOs = params.get('hubOs')
+  if (hubOs !== null && current.state?.machineKinds !== undefined) {
+    current.state.machineKinds = { ...current.state.machineKinds, [current.state.ownMachine ?? 'pc']: { platform: hubOs } }
+  }
 
   return {
     subscribe: (listener) => {

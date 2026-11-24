@@ -1,0 +1,64 @@
+/*
+ * A machine's icon (BTN-1595) before its name everywhere: the shape says hub or machine, the sign its system, a frame
+ * Docker; its colour is in the icon, not behind the name.
+ */
+.machine-icon {
+  display: block;
+  flex: none;
+}
+
+/* An icon and a name on one line, the icon's centre on the line's middle, the same gap everywhere. */
+.machine-named {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+/*
+ * The machines a task ran on (`MachineTag`): a quiet outline round the icons and names, no fill, one height with the
+ * machine labels (`.machine-label`). A long name is cut, the whole of it in the tip.
+ */
+.machine-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  height: 24px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 var(--space-8) 0 var(--space-2);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  white-space: nowrap;
+}
+
+/* Each machine of the tag opens its page (BTN-1272). */
+.machine-tag__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.machine-tag__link:hover .machine-tag__name {
+  text-decoration: underline;
+}
+
+.machine-tag__name {
+  min-width: 0;
+  overflow: clip;
+  overflow-clip-margin: var(--space-6);
+  text-overflow: ellipsis;
+  text-box: trim-both cap alphabetic;
+}
+
+.machine-tag__between {
+  flex: none;
+  white-space: pre;
+}

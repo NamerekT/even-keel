@@ -70,6 +70,9 @@
 
 /* The machine's name opens its page (BTN-1272). */
 .pool__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
   color: inherit;
   text-decoration: none;
 }

@@ -5,6 +5,8 @@ import { fail } from '../notice/notice.js'
 import { hubUrlOf, writtenAddressOf } from '../link/address.js'
 import { colorOf, machineColors } from '../link/colors.js'
 import { createHubServer } from '../link/hub-server.js'
+import { kindOf } from '../link/kinds.js'
+import type { MachineKind } from '../state.js'
 import type { MachineRecord } from '../link/hub-store.js'
 import { HubEnd, type HubHandlers, type Invite } from '../link/hub.js'
 import { ASSIGN_COMMAND, HEARTBEAT_MS, TAKEN_EVENT, type AssignPayload, type FolderTaken } from '../link/protocol.js'
@@ -59,6 +61,7 @@ export class MachineNetwork {
   private joinedIds: string[] = []
   private colorsById: Record<string, string> = {}
   private paletteById: Record<string, string> = {}
+  private kindsById: Record<string, MachineKind> = {}
   /** By machine and project, the connect job's step that shows a clone's progress there. */
   private readonly clones = new Map<string, (progress: CloneProgress) => void>()
   /** By machine off the link, when this hub saw it go (BTN-1051): kept in memory only. */
@@ -158,6 +161,11 @@ export class MachineNetwork {
     return this.colorsById
   }
 
+  /** The system and Docker of each machine elsewhere that reported them (BTN-1595), as `refresh` last read them. */
+  kinds(): Record<string, MachineKind> {
+    return this.kindsById
+  }
+
   /** The palette's colour of each machine by its place, as if none had picked its own (BTN-1515). */
   paletteColors(): Record<string, string> {
     return this.paletteById
@@ -192,6 +200,7 @@ export class MachineNetwork {
     this.joinedIds = machines.filter((record) => record.id === own || record.joinedAt !== null).map((record) => record.id)
     this.colorsById = machineColors(machines)
     this.paletteById = machineColors(machines.map(({ id }) => ({ id })))
+    this.kindsById = Object.fromEntries(machines.filter((record) => record.id !== own && record.about !== null).map((record) => [record.id, kindOf(record.about)]))
     const { rows } = await this.options.db.query<{ project_id: string; machine_id: string; enabled: boolean }>('select project_id, machine_id, enabled from project_machines order by machine_id')
     const pools = new Map<string, string[]>()
     const listed = new Map<string, string[]>()
@@ -411,8 +420,9 @@ export class MachineNetwork {
     const changed = (machine: string, online: boolean) => {
       if (online) this.wentOff.delete(machine)
       else this.wentOff.set(machine, Date.now())
-      // A machine that has just joined is read anew, so the page counts it among the live ones at once.
-      if (online && !this.joinedIds.includes(machine)) {
+      // A machine that comes online is read anew: one just joined is counted among the live ones at once, and the
+      // system it reported at the handshake reaches its icon (BTN-1595).
+      if (online) {
         void this.refresh().then(() => this.options.changed(), (error: unknown) => log(`machines: the machines could not be read anew: ${error instanceof Error ? error.message : String(error)}`))
       }
       this.options.changed()
