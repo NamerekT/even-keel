@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import type { BlockLamp } from '../state.js'
-import { BEAT_MS, motionOf, placeLeaving, stageOf, type Frame } from './motion.js'
+import { BEAT_MS, STAMP_MS, STEP_MS, motionOf, moveDelay, placeLeaving, stageOf, type Frame } from './motion.js'
 
 interface Item {
   id: string
   lamp: BlockLamp
 }
 
-const frame = (rows: string, current: string | null = null, extra: { hidden?: string[]; closed?: string[] } = {}): Frame<Item> => {
+interface Extra {
+  hidden?: string[]
+  closed?: string[]
+  /** The lane tasks; without it — the current one. */
+  running?: string[]
+  grouped?: string[]
+}
+
+const frame = (rows: string, current: string | null = null, extra: Extra = {}): Frame<Item> => {
   const items = rows
     .split(' ')
     .filter((row) => row !== '')
@@ -24,6 +32,8 @@ const frame = (rows: string, current: string | null = null, extra: { hidden?: st
     shown: new Set(order.filter((id) => !hidden.has(id))),
     closed: new Set([...closed, ...(extra.closed ?? [])]),
     current,
+    running: new Set(extra.running ?? (current === null ? [] : [current])),
+    grouped: new Set(extra.grouped ?? []),
   }
 }
 
@@ -121,6 +131,51 @@ describe('motionOf', () => {
     const motion = motionOf(frame('MVT-1 GH-1 GH-2'), frame('MVU-7 GH-1 GH-3', null, { closed: ['GH-2'] }), none)!
     expect(motion.quiet).toEqual({ entered: 1, archived: 1, removed: 0, moved: { from: ['MVT'], to: ['MVU'] } })
     expect(motion.entered).toEqual(['GH-3'])
+  })
+})
+
+describe('motionOf: the running group (BTN-1613)', () => {
+  it('lets a task another machine took join the running one, without drawing a frame of its own', () => {
+    const before = frame('A:working B C D', 'A')
+    const after = frame('A:working D:working B C', 'A', { running: ['A', 'D'], grouped: ['A', 'D'] })
+    const motion = motionOf(before, after, none)!
+    expect(motion.joined).toEqual(['D'])
+    expect(motion.merged).toEqual(['A'])
+    expect(motion.taken).toBeNull()
+    expect(motion.delays).toEqual({ take: 0 })
+    expect(moveDelay(motion, 'D')).toBe(0)
+    expect(moveDelay(motion, 'B')).toBe(0)
+  })
+
+  it('lets a task out after its lane let it go: its own frame first, then the move, the last one getting its frame back', () => {
+    const before = frame('A:working D:working B C', 'A', { running: ['A', 'D'], grouped: ['A', 'D'] })
+    const after = frame('A:working B C D:stopped', 'A')
+    const motion = motionOf(before, after, none)!
+    expect(motion.parted).toEqual(['D'])
+    expect(motion.alone).toEqual(['A'])
+    expect(motion.delays).toEqual({ part: 0 })
+    expect(moveDelay(motion, 'D')).toBe(STEP_MS)
+    expect(moveDelay(motion, 'B')).toBe(STEP_MS)
+    const marks = stageOf([motion]).marks
+    expect(marks.get('D')).toEqual(new Map([['part', 0]]))
+    expect(marks.get('A')).toEqual(new Map([['solo', STEP_MS]]))
+  })
+
+  it('lets a done task out after its stamp, and the other lane task that leads now is no new take', () => {
+    const before = frame('Z:done A:working D:working B', 'A', { running: ['A', 'D'], grouped: ['A', 'D'] })
+    const after = frame('A:done D:working B', 'D', { closed: ['Z'] })
+    const motion = motionOf(before, after, none)!
+    expect(motion.finished).toEqual(['A'])
+    expect(motion.parted).toEqual(['A'])
+    expect(motion.taken).toBeNull()
+    expect(motion.delays).toEqual({ finish: 0, part: STAMP_MS, leave: STAMP_MS + BEAT_MS })
+    expect(moveDelay(motion, 'A')).toBe(STAMP_MS + STEP_MS)
+  })
+
+  it('keeps the groups out of a lone take', () => {
+    const motion = motionOf(frame('A:done B C', null), frame('A:done B:working C', 'B'), none)!
+    expect(motion.taken).toBe('B')
+    expect([motion.joined, motion.merged, motion.parted, motion.alone]).toEqual([[], [], [], []])
   })
 })
 

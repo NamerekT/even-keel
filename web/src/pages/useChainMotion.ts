@@ -23,10 +23,17 @@ interface Play {
  * `view` names the project and its filter (a machine, the parents): each view keeps its own last frame,
  * so a switch of the view is no change of the chain, and a motion of the view left stops with it (BTN-1577).
  */
-export function useChainMotion(view: string, chain: ChainBlock[], shown: ReadonlySet<string>, skip: string | null): Stage<ChainBlock> {
+export function useChainMotion(
+  view: string,
+  chain: ChainBlock[],
+  shown: ReadonlySet<string>,
+  skip: string | null,
+  grouped: ReadonlySet<string>,
+  onPlay: (motion: Motion<ChainBlock>) => void,
+): Stage<ChainBlock> {
   const visible = useVisible()
   const [plays, setPlays] = useState<Play[]>([])
-  const frame = frameOf(chain, shown)
+  const frame = frameOf(chain, shown, grouped)
   const key = frameKey(frame)
 
   useLayoutEffect(() => {
@@ -35,6 +42,7 @@ export function useChainMotion(view: string, chain: ChainBlock[], shown: Readonl
     seen.set(view, frame)
     const found = prev === undefined ? null : motionOf(prev, frame, new Set(skip === null ? [] : [skip]))
     const motion = found !== null && stillMotion() ? { ...found, leaving: [] } : found
+    if (motion !== null) onPlay(motion)
     setPlays((current) => {
       const kept = current.filter((play) => play.view === view)
       if (motion === null) return kept.length === current.length ? current : kept
@@ -64,7 +72,7 @@ export function useSwitched(view: string): boolean {
   return switched
 }
 
-function frameOf(chain: ChainBlock[], shown: ReadonlySet<string>): Frame<ChainBlock> {
+function frameOf(chain: ChainBlock[], shown: ReadonlySet<string>, grouped: ReadonlySet<string>): Frame<ChainBlock> {
   const live = archiveView(chain, 0, '').visible
   return {
     order: live.map((block) => block.id),
@@ -72,10 +80,13 @@ function frameOf(chain: ChainBlock[], shown: ReadonlySet<string>): Frame<ChainBl
     shown,
     closed: new Set(chain.filter((block) => isClosedLamp(block.lamp)).map((block) => block.id)),
     current: chain.find((block) => block.current)?.id ?? null,
+    running: new Set(chain.filter((block) => block.current).map((block) => block.id)),
+    grouped,
   }
 }
 
 function frameKey(frame: Frame<ChainBlock>): string {
   const done = frame.order.filter((id) => frame.items.get(id)!.lamp === 'done')
-  return [frame.order.join(','), [...frame.shown].join(','), frame.current ?? '', done.join(','), frame.closed.size].join('|')
+  const lanes = [[...frame.running].join(','), [...frame.grouped].join(',')]
+  return [frame.order.join(','), [...frame.shown].join(','), frame.current ?? '', done.join(','), frame.closed.size, ...lanes].join('|')
 }

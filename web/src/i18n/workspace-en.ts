@@ -325,6 +325,7 @@ export const chainEN: Messages['chain'] = {
       closed: 'closed',
     },
     questionTitle: 'Label “Question”: without an answer in the description the session will most likely get stuck',
+    underWay: 'Under way',
     work: {
       uncommitted: 'uncommitted',
       unmerged: 'not merged',

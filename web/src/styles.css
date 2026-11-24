@@ -103,6 +103,8 @@
   --motion-fast: 0.15s;
   --motion-fold: 0.12s;
   --motion-appear: 0.2s;
+  /* One step of the chain's motion: a take's frame, a leave, a row moving into the running group or out (BTN-1613). */
+  --motion-step: 0.25s;
   --motion-mark: 1.6s;
   --motion-skeleton: 1.4s;
   --motion-blink: 1.2s;

@@ -44,6 +44,7 @@ import { fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withPro
 import { fakeJob } from './fakeCreation.js'
 import { FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineLaneWait, fakeMachineNames, fakeMachineSignIns } from './fakeMachines.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
+import { GROUP_STEP_MS, GROUP_STEPS, withGroupBase } from './fakeGroup.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeMachineDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, failedRenew, fakeCommand, finishCurrent, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
@@ -322,6 +323,9 @@ export function createFakeSource(search: string): LiveSource {
     const run = (sessionId: string, at: number, machine: string) => ({ sessionId, at: ago(at), how: 'checkpoint' as const, resumed: 0, answers: 0, machine })
     state.taskSessions['ABC-4'] = [run('lanes-2', 120, 'srv'), run('lanes-1', 300, 'pc')]
   }
+  // The running group "Under way" through its steps (BTN-1613); `&group=<n>` starts with the first n done.
+  const groupFrom = params.get('chain') === 'group' && active ? Math.min(Number(params.get('group') ?? 0), GROUP_STEPS.length) : null
+  if (groupFrom !== null) current.state = GROUP_STEPS.slice(0, groupFrom).reduce((state, step) => step(state), withGroupBase(current.state!))
   // A task on the home server whose new session has already ended its first turn (BTN-1314): the state carries the
   // session from that machine's mirror, so the row shows its lamp and the panel the session, not the start.
   if (params.get('chain') === 'elsewhere' && active) {
@@ -637,6 +641,16 @@ export function createFakeSource(search: string): LiveSource {
       current = { ...current, state: fakeEvent(current.state!, event) }
       notify()
     }, EVENT_MS)
+  }
+
+  if (groupFrom !== null) {
+    const gap = Number(params.get('gap') ?? GROUP_STEP_MS)
+    GROUP_STEPS.slice(groupFrom).forEach((step, index) => {
+      setTimeout(() => {
+        current = { ...current, state: step(current.state!) }
+        notify()
+      }, (index + 1) * gap)
+    })
   }
 
   if (link === 'live') {

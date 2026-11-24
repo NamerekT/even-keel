@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { isOwnName } from '../../../src/chain/fix.js'
 import type { ContextScale } from '../../../src/state.js'
@@ -20,7 +20,9 @@ import { parentsTo, rowLinkSearch } from '../parents.js'
 import { milestoneView, type EmptyMilestones, type Section } from '../ui/milestones.js'
 import { chainPlace, looseGhost, takesGhost, type MilestoneRules } from '../ui/addGhost.js'
 import { AddGhost } from './AddGhost.js'
-import { placeLeaving, type Mark, type Slot } from '../ui/motion.js'
+import { placeLeaving, STEP_MS, type Mark, type Motion, type Slot } from '../ui/motion.js'
+import { firstGroup, type GroupTone } from '../ui/runningGroup.js'
+import { useGroupGlide } from './useGroupGlide.js'
 import { droppedOrder, milestonePage, staysInView, type MilestonePage } from '../ui/chainPage.js'
 import { PullChip } from '../ui/PullChip.js'
 import { WorkChip } from '../ui/WorkChip.js'
@@ -43,7 +45,8 @@ import { useArchivePages } from './useArchivePages.js'
 /** How long the ghost takes to grow open or fold shut. */
 const GHOST_MS = 250
 /** How long the frame of a taken block takes to draw (`frame-draw` in chain.css): its action prints after it. */
-const FRAME_MS = 700
+const FRAME_MS = STEP_MS
+const NO_MEMBERS: readonly string[] = []
 
 interface Props {
   project: string
@@ -130,7 +133,16 @@ export function ChainList(props: Props) {
   const listRef = useRef<HTMLDivElement>(null)
   // Each view of the feed and each machine's keeps its own last frame: a switch of the view is no motion of the chain.
   const chainView = `${project}${rowSearch === undefined ? '' : `?${rowSearch}`}${machine === undefined ? '' : `@${machine}`}`
-  const motion = useChainMotion(chainView, ordered, shown, incoming)
+  const group = firstGroup(rows)
+  const members = group?.members ?? NO_MEMBERS
+  const grouped = useMemo(() => new Set(members), [members.join(',')])
+  // The edge keeps its colour while the group breaks up.
+  const lastTone = useRef<GroupTone>('working')
+  if (group !== null) lastTone.current = group.tone
+  const frameRef = useRef<HTMLDivElement>(null)
+  const glide = useRef<(motion: Motion<ChainBlock>) => void>(() => {})
+  const motion = useChainMotion(chainView, ordered, shown, incoming, grouped, (each) => glide.current(each))
+  useGroupGlide(listRef, frameRef, members, glide)
   const switched = useSwitched(chainView)
   const real = blocks.filter((block) => block.id !== ghost?.id)
   const tiers = tiersOf(real.map((block) => ({ ...block, live: blockMetered(block) })))
@@ -201,7 +213,10 @@ export function ChainList(props: Props) {
           {t.chain.away(motion.quiet)}
         </p>
       )}
-      <div ref={listRef} className={listClass(drag, landing, settling)}>
+      <div ref={listRef} className={listClass(drag, landing, settling)} style={{ '--group-edge': `var(--lamp-${lastTone.current})` } as CSSProperties}>
+        <div ref={frameRef} className="chain__group" aria-hidden="true">
+          <span className="chain__group-caption">{t.chain.underWay}</span>
+        </div>
         {view.sections.map((section, index) => (
           <section key={`${index}:${section.milestone}`} className={sectionClass(index, view.fixed, settled, leaving)}>
             {view.titled && (
@@ -243,6 +258,7 @@ export function ChainList(props: Props) {
                     rails={rails.get(block.id) ?? []}
                     kin={kin !== null && block.parent === kin}
                     marks={motion.marks.get(block.id) ?? NO_MARKS}
+                    grouped={!grouped.has(block.id) ? null : block.id === members[0] ? 'first' : 'inner'}
                     still={switched}
                     focused={block.id === focus}
                     movable={movable(block)}
@@ -435,6 +451,8 @@ interface BlockProps {
   kin: boolean
   /** The marks of running motions, each with the delay of its own beat. */
   marks: ReadonlyMap<Mark, number>
+  /** A row of the running group (BTN-1613): the group's frame is its frame; `null` — outside it. */
+  grouped: 'first' | 'inner' | null
   /** The render switches the chain's view: a row that mounts in it shows its action line as it is. */
   still: boolean
   focused: boolean
@@ -454,7 +472,7 @@ interface BlockProps {
 }
 
 function Block(props: BlockProps) {
-  const { project, block, search, number, waits, links, scale, tier, rails, kin, marks, still, focused, movable, relation, arrival, offset, onHover, onDismiss, onReassign, ready, onReady, onUnready, onCard } =
+  const { project, block, search, number, waits, links, scale, tier, rails, kin, marks, grouped, still, focused, movable, relation, arrival, offset, onHover, onDismiss, onReassign, ready, onReady, onUnready, onCard } =
     props
   const { state } = useLive()
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
@@ -463,6 +481,7 @@ function Block(props: BlockProps) {
   if (kin) classes.push('block--kin')
   for (const mark of marks.keys()) classes.push(`block--${mark}`)
   if (block.current) classes.push('block--current')
+  if (grouped !== null) classes.push('block--grouped', `block--group-${grouped}`)
   if (block.start !== null) classes.push('block--starting')
   if (block.skipped) classes.push('block--skipped')
   if (block.locked) classes.push('block--locked')
