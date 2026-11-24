@@ -254,21 +254,6 @@
   color: var(--fg);
 }
 
-.accounts__add {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-}
-
-/* "All accounts →" at the right end of the row "+ Add account" starts, a button of the same size. */
-.accounts__all {
-  margin-left: auto;
-  text-decoration: none;
-}
-
 .account__actions {
   display: flex;
   flex-wrap: wrap;
