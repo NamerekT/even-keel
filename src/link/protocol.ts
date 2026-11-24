@@ -7,7 +7,7 @@ import type { SkillsCopy } from '../packages/skills.js'
 import type { MachineAbout } from './view.js'
 
 /** The version both ends name in the handshake; another one is refused before anything else is said. */
-export const API_VERSION = 21
+export const API_VERSION = 22
 
 /** The pulse of both directions; two missed ones break the connection. */
 export const HEARTBEAT_MS = 20_000
@@ -26,6 +26,7 @@ export const HOOK_PATH = '/link/hook'
 export const TALLY_PATH = '/link/tally'
 export const CREDENTIALS_PATH = '/link/credentials'
 export const SKILLS_PATH = '/link/skills'
+export const GIT_PATH = '/link/git'
 /** The one post of a connection string: it is exchanged for the machine's own secret (BTN-1242). */
 export const JOIN_PATH = '/link/join'
 /** A machine asks to join by the hub's address alone (BTN-1620), and asks again for the answer of a person on the page. */
@@ -286,6 +287,35 @@ export interface SkillsPost {
 /** `null` — the hub holds no files of that install. */
 export interface SkillsAnswer {
   skills: SkillsCopy | null
+}
+
+/**
+ * One request of git's smart HTTP protocol to the memory repository of a project (BTN-1648, `docs/sessions/memory.md`):
+ * the machine's git reaches the hub's `<id>.git` through the machine's relay. `path` is what follows the repository in
+ * the address (`/info/refs`, `/git-upload-pack`, `/git-receive-pack`), the body base64.
+ */
+export interface GitRequest {
+  method: string
+  path: string
+  query: string
+  contentType?: string
+  contentEncoding?: string
+  gitProtocol?: string
+  body?: string
+}
+
+/** Not an event and not numbered, as `McpPost`: a lost answer is a sync that tries again. */
+export interface GitPost {
+  connection: string
+  project: string
+  request: GitRequest
+}
+
+/** git's answer as the hub's `git http-backend` gave it, the body base64; 403 — a project outside the machine's pool. */
+export interface GitAnswer {
+  status: number
+  contentType: string
+  body: string
 }
 
 /** The events a machine writes about the link itself. */

@@ -303,6 +303,16 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     updates: ctx.machineLink.updates,
     polled: (account) => ctx.machineLink.polled(account),
     differs: (account) => ctx.machineLink.differs(account),
+    memory: {
+      of: (machine) => ctx.machineLink.memoryFolders.of(machine),
+      projects: () => Object.keys(ctx.configStore.current.projects),
+      set: async (machine, folders) => {
+        await ctx.machineLink.memoryFolders.set(machine, folders)
+        console.log(`memory: machine ${machine} has ${folders.length} folder(s) bound to projects' memory beyond its pool`)
+        void network.catchUp()
+        ctx.hub.broadcast('machines', { changedAt: Date.now() })
+      },
+    },
     log: (line) => console.log(line),
   })
   const cards = () => machineCards({

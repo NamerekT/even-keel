@@ -471,4 +471,13 @@ export function joinRequestsOf(body: Record<string, unknown>): JoinRequest[] {
   })
 }
 
+/** The card "Other projects' memory" (BTN-1648): a list, maybe empty, of a project and a folder's path on the machine. */
+export function memoryFoldersOf(value: unknown): Array<{ project: string; folder: string }> {
+  if (!Array.isArray(value)) throw fail('request.required', { field: 'folders' })
+  return value.map((item: unknown) => {
+    const entry = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
+    return { project: projectOf(entry), folder: textOf(entry.folder, 'folder') }
+  })
+}
+
 

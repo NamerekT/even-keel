@@ -5,8 +5,8 @@ import type { HubEnd } from './hub.js'
 import { isNonce } from './join-code.js'
 import type { JoinRequests } from './join-requests.js'
 import {
-  CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, REQUEST_ANSWER_PATH, REQUEST_PATH, SKILLS_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, isAbout, isRefusal, megabytes,
-  type CredentialsPost, type EventsPost, type Frame, type HookPost, type JoinPost, type MachineHello, type McpPost, type Refusal, type RequestAnswerPost, type RequestPost, type SkillsPost,
+  CREDENTIALS_PATH, EVENTS_PATH, GIT_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, REQUEST_ANSWER_PATH, REQUEST_PATH, SKILLS_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, isAbout, isRefusal, megabytes,
+  type CredentialsPost, type EventsPost, type GitPost, type Frame, type HookPost, type JoinPost, type MachineHello, type McpPost, type Refusal, type RequestAnswerPost, type RequestPost, type SkillsPost,
   type SnapshotPost, type TallyPost,
 } from './protocol.js'
 
@@ -117,6 +117,14 @@ function skillsPostOf(body: unknown): SkillsPost {
   return { connection: body.connection, install: body.install }
 }
 
+function gitPostOf(body: unknown): GitPost {
+  if (!isObject(body) || typeof body.connection !== 'string' || typeof body.project !== 'string' || !isObject(body.request)) throw new BadRequest(400, 'not a git request of a machine')
+  const { method, path, query } = body.request
+  const optional = ['contentType', 'contentEncoding', 'gitProtocol', 'body'].every((key) => body.request === undefined || (body.request as Record<string, unknown>)[key] === undefined || typeof (body.request as Record<string, unknown>)[key] === 'string')
+  if (typeof method !== 'string' || typeof path !== 'string' || typeof query !== 'string' || !optional) throw new BadRequest(400, 'not a git request of a machine')
+  return { connection: body.connection, project: body.project, request: body.request as unknown as GitPost['request'] }
+}
+
 function tallyOf(body: unknown): TallyPost {
   if (!isObject(body) || typeof body.connection !== 'string' || !isObject(body.rows)) throw new BadRequest(400, 'not Tally rows of a machine')
   return { connection: body.connection, rows: body.rows }
@@ -171,7 +179,7 @@ export function createHubServer(options: HubServerOptions): Server {
     const path = new URL(request.url ?? '/', 'https://hub').pathname
     const handled = (async () => {
       const asking = path === REQUEST_PATH || path === REQUEST_ANSWER_PATH
-      const known = [STREAM_PATH, EVENTS_PATH, SNAPSHOT_PATH, MCP_PATH, HOOK_PATH, TALLY_PATH, CREDENTIALS_PATH, SKILLS_PATH, JOIN_PATH].includes(path)
+      const known = [STREAM_PATH, EVENTS_PATH, SNAPSHOT_PATH, MCP_PATH, HOOK_PATH, TALLY_PATH, CREDENTIALS_PATH, SKILLS_PATH, GIT_PATH, JOIN_PATH].includes(path)
       if (!known && !(asking && options.requests !== undefined)) throw new BadRequest(404, 'no such path')
       if (request.method !== 'POST') throw new BadRequest(405, 'POST only')
       if (path === STREAM_PATH) return stream(options, request, response, limit)
@@ -188,6 +196,7 @@ export function createHubServer(options: HubServerOptions): Server {
       if (path === TALLY_PATH) return answerOf(response, await options.hub.tally(authorization, tallyOf(body)))
       if (path === CREDENTIALS_PATH) return answerOf(response, await options.hub.credentials(authorization, credentialsPostOf(body)))
       if (path === SKILLS_PATH) return answerOf(response, await options.hub.skills(authorization, skillsPostOf(body)))
+      if (path === GIT_PATH) return answerOf(response, await options.hub.git(authorization, gitPostOf(body)))
       if (path === JOIN_PATH) return answerOf(response, await options.hub.join(authorization, joinOf(body)))
       const post = postOf(body)
       const snapshot: SnapshotPost = { connection: post.connection, lastCommand: post.lastCommand, snapshot: post.snapshot }

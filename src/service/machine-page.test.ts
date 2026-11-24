@@ -182,3 +182,36 @@ describe("a machine's build beside the hub's (BTN-1609)", () => {
     expect(updates.update).not.toHaveBeenCalled()
   })
 })
+
+describe("a machine's folders bound to other projects' memory (BTN-1648)", () => {
+  const bound = (patch: Partial<NonNullable<MachinePageDeps['memory']>> = {}) => {
+    const memory = {
+      of: (machine: string) => (machine === 'srv' ? [{ project: 'p2', folder: '/home/example/p2' }] : []),
+      projects: () => ['p1', 'p2'],
+      set: vi.fn(async () => {}),
+      ...patch,
+    }
+    return { memory, control: machinePageControl(deps({ memory })) }
+  }
+
+  it("shows a machine elsewhere's bindings, and none for the own machine, whose folders are the hub's copies", async () => {
+    const { control } = bound()
+    expect((await control.view('srv')).memory).toEqual([{ project: 'p2', folder: '/home/example/p2' }])
+    expect((await control.view('own')).memory).toBeUndefined()
+  })
+
+  it('saves the bindings trimmed, once each', async () => {
+    const { control, memory } = bound()
+    await control.memoryFolders('srv', [{ project: 'p2', folder: ' /home/example/p2 ' }, { project: 'p2', folder: '/home/example/p2' }, { project: 'p1', folder: '/home/example/p1-copy' }])
+    expect(memory.set).toHaveBeenCalledWith('srv', [{ project: 'p2', folder: '/home/example/p2' }, { project: 'p1', folder: '/home/example/p1-copy' }])
+  })
+
+  it('refuses the own machine, a revoked one, a project not here and an empty folder', async () => {
+    const { control, memory } = bound()
+    await expect(control.memoryFolders('own', [])).rejects.toMatchObject({ notice: { code: 'machines.memoryOwn' } })
+    await expect(control.memoryFolders('gone', [])).rejects.toMatchObject({ notice: { code: 'machines.unknown' } })
+    await expect(control.memoryFolders('srv', [{ project: 'p9', folder: '/x' }])).rejects.toMatchObject({ notice: { code: 'machines.unknownProject' } })
+    await expect(control.memoryFolders('srv', [{ project: 'p1', folder: '  ' }])).rejects.toMatchObject({ notice: { code: 'request.required', params: { field: 'folder' } } })
+    expect(memory.set).not.toHaveBeenCalled()
+  })
+})

@@ -37,6 +37,8 @@ export interface MachineSideOptions {
   /** The hub of the same API asks for its build (BTN-1609): the installation's update process. */
   update?: MachineServices['update']
   heartbeatMs?: number
+  /** The hub's brief changed: what follows it (the memory folders, BTN-1648) applies it. */
+  briefed?: () => void
   /**
    * A machine of its own (BTN-1226): while the link is down it follows and guards the tasks the hub gave it, and keeps
    * the hub's last word on them and the hub's brief in its database. The hub's own machine never loses its link.
@@ -210,6 +212,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
       if (first) void machine.gitFound.checkAll().catch((error: unknown) => log(`git: the projects without git were not read: ${messageOf(error)}`))
       // A brief may name another folder or a project new to the machine: its branch is read with it.
       if (changed && options.alone === true) void checkouts.check()
+      if (changed) options.briefed?.()
     },
     works: () => machine.works.view(),
     diffs: () => machine.works.diffs(),

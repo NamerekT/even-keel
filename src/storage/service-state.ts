@@ -12,7 +12,8 @@ import type { Queryable } from './database.js'
  * `cli.downloaded` — the providers whose checked CLI copy was once downloaded with consent (`string[]`, BTN-1175);
  * `machines.certificate` — the hub's certificate and key for machines (`HubCertificate`, BTN-988, `hubIdentity`);
  * `machines.own` — the id of the machine this installation itself is (BTN-1216, `ownMachine`);
- * `memory.transferred` — the projects whose `memory_records` went into their memory folder on the hub (`string[]`, BTN-1646).
+ * `memory.transferred` — the projects whose `memory_records` went into their memory folder on the hub (`string[]`, BTN-1646);
+ * `memory.folders` — by machine, its folders outside the projects' pools bound to their memory (`MemoryFolder[]`, BTN-1648).
  */
 export type StateName =
   | 'updates.dismissed'
@@ -27,6 +28,7 @@ export type StateName =
   | 'machines.certificate'
   | 'machines.own'
   | 'memory.transferred'
+  | 'memory.folders'
 
 /** `undefined` — never written. */
 export async function stateValue(db: Queryable, name: StateName): Promise<unknown> {

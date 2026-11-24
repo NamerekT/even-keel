@@ -13,6 +13,7 @@ import { machineAbout } from './machine/about.js'
 import { sweptClis } from './machine/cli-report.js'
 import type { HubBrief } from './machine/brief.js'
 import { folderMarks } from './machine/marks.js'
+import { MachineMemory } from './machine/memory.js'
 import { machineValue } from './machine/state.js'
 import { machineMarks, startMachineTally } from './machine/tally.js'
 import { KEEP_WARM_TICK_MS } from './sessions/keepwarm.js'
@@ -88,6 +89,16 @@ const keptBrief = (await machineValue(machineDb, 'brief.kept')) as HubBrief | un
 if (keptBrief !== undefined) machine.brief.keep(keptBrief)
 
 const keepContact = contactKeeper(stateDir, log)
+// The memory folders of the pool and of the folders bound to a project, as working copies through the link (BTN-1648).
+const memory = new MachineMemory({
+  brief: () => (machine.brief.held ? machine.brief.whole : undefined),
+  globalDir: host.homes.global.dir,
+  send: async (project, request) => linked?.end.git(project, request),
+  linked: () => linked?.end.status().state === 'online',
+  author: hostname(),
+  log,
+})
+let wasOnline = false
 const side = wireMachineSide(machine, {
   transport: httpsTransport(token, { log }),
   store: new DatabaseMachineStore(machineDb),
@@ -101,7 +112,13 @@ const side = wireMachineSide(machine, {
   },
   versionRefused: (refusal) => void follower.refused(refusal).catch((error: unknown) => log(`link: the move to the hub's version failed: ${String(error)}`)),
   update: { follow: (build, force) => follower.asked(build, force) },
-  changed: (end) => keepContact(end.status().state === 'online', end.contact()),
+  changed: (end) => {
+    const online = end.status().state === 'online'
+    keepContact(online, end.contact())
+    if (online && !wasOnline) void memory.online()
+    wasOnline = online
+  },
+  briefed: () => void memory.apply(),
   alone: true,
   log,
 })
@@ -124,6 +141,8 @@ setInterval(() => void host.cliChecks.check(), CLI_CHECK_TICK_MS).unref()
 const pollWorks = assemblePollWorks(machine)
 setInterval(pollWorks, WORK_TICK_MS).unref()
 
+// On the brief kept from before as well: what hand sessions wrote while Even Keel was not running is committed now.
+await memory.start().catch((error: unknown) => log(`memory: the working copies did not start: ${String(error)}`))
 await side.end.settleMarks()
 // Before the link: a hub's move that comes at once must find the moves made without it read back.
 await side.moves.start()
@@ -145,6 +164,7 @@ stopOnSignals(async () => {
   side.moves.stop()
   side.checkouts.stop()
   host.cliChecks.stop()
+  await memory.stop()
   await Promise.allSettled([host.packages.close(), machine.writes.settled(), writes.settled()])
   await side.end.flushed().catch(() => {})
   side.end.stop()

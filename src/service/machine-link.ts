@@ -25,6 +25,9 @@ import { JoinRequests } from '../link/join-requests.js'
 import { MachineNetwork } from './machine-network.js'
 import { sessionTranscripts } from './session-transcripts.js'
 import { folderGitCredentials, hubGitCredentials } from './git-credentials.js'
+import { MemoryFolders } from '../memory/git/folders.js'
+import { hubMemoryGit } from '../memory/git/hub-git.js'
+import { placedIn } from '../machine/assignments.js'
 import { withCredentials } from '../git/credentials.js'
 import { runGit } from '../git/run.js'
 import { MachineTally } from '../stats/machine-tally.js'
@@ -128,6 +131,8 @@ export interface LinkedMachine {
   transcripts: TranscriptReads
   /** The door for machines elsewhere (BTN-1242): open while "Hub address for machines" is set. */
   network: MachineNetwork
+  /** The folders of machines elsewhere bound to a project's memory beyond their pools (BTN-1648); read at `start`. */
+  memoryFolders: MemoryFolders
   /** The machines asking at that door to join by the address (BTN-1620), waiting for the page. */
   requests: JoinRequests
   /** Whether a machine on the link polls `/usage` of the claude.ai account ("Account limits"). */
@@ -150,9 +155,10 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
  * the local port runs behind `MachineRunner`, and the two talk through `HubEnd` and `MachineEnd` over a carrier that
  * is a call. Nothing is connected until `start`.
  */
-export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext, 'runsOfProject' | 'demo' | 'machineDb' | 'packageHub' | 'protectionAudit' | 'mailRelay' | 'tally'>, machine: MachineContext): Promise<LinkedMachine> {
+export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext, 'runsOfProject' | 'demo' | 'machineDb' | 'packageHub' | 'protectionAudit' | 'mailRelay' | 'tally' | 'memory'>, machine: MachineContext): Promise<LinkedMachine> {
   const log = (line: string): void => console.log(line)
   const { machineDb } = ctx
+  const memoryFolders = new MemoryFolders(ctx.db)
   const hubStore = new DatabaseHubStore(ctx.db)
   const machineStore = new DatabaseMachineStore(machineDb)
   let own = ''
@@ -229,7 +235,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
    * elsewhere gets the hub's catalog of their packages too, the own one shares the hub's (BTN-1299).
    */
   const hubIdentities = new AccountIdentities()
-  const briefOf = (folders: Record<string, string>, settings: Record<string, MachineProjectSettings> = {}, elsewhere = false) => {
+  const briefOf = (folders: Record<string, string>, settings: Record<string, MachineProjectSettings> = {}, elsewhere?: string) => {
     const routes = ctx.packageHub.hubServers()
     return hubBrief({
       config: () => ctx.configStore.current,
@@ -248,7 +254,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
         const server = adapter?.mcpServer
         return server === undefined ? undefined : { server, required: !ctx.briefOn(project), ...(server !== TASKS_SERVER && servesTasks(adapter) ? { also: TASKS_SERVER } : {}) }
       },
-      ...(elsewhere ? { catalog: (projects: string[]) => ctx.packages.catalogFor(projects, routes) } : {}),
+      ...(elsewhere !== undefined ? { catalog: (projects: string[]) => ctx.packages.catalogFor(projects, routes), memory: () => memoryFolders.of(elsewhere) } : {}),
       accounts: () => briefAccounts(foldersHere(ctx, hubIdentities)),
     })
   }
@@ -423,7 +429,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     briefed: (machine) => afterGreen.back(machine),
     peers: {
       remote: (machine) => remoteOf(() => machine),
-      brief: (folders, settings) => briefOf(folders, settings, true),
+      brief: (folders, settings, machine) => briefOf(folders, settings, machine),
       changed: () => {
         steerLimits()
         // The page shows each machine's accounts and its sign-in under way (`MachineNetwork.signIns`).
@@ -435,6 +441,16 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       tally: (machine, rows) => machineTally.take(machine, rows),
       credentials: gitCredentialsOf,
       skills: (_machine, install) => ({ skills: ctx.packages.skillsOf(install) }),
+      git: hubMemoryGit({
+        placed: (project, machine) => placedIn(ctx.db, project, machine),
+        bound: (machine, project) => memoryFolders.allows(machine, project),
+        repository: (project) => ctx.memory.existingRepository(project),
+        pushed: (project) => {
+          ctx.memory.pushed(project)
+          void ctx.memory.syncAll(project)
+        },
+        log,
+      }),
       write: (machine, write) => hubMcp.write(machine, write),
     },
     takeOverOwn: async (project, owner) => {
@@ -595,12 +611,15 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     services,
     transcripts,
     network,
+    memoryFolders,
     requests,
     polled: (account) => polls.poller(account) !== undefined,
     differs: (account) => polls.differs(account),
     start: async () => {
       // Before the own machine's replayed records: the messages kept before rows knew their machine are its own.
       await adoptMail(ctx.db, own)
+      // Before the first brief of a machine elsewhere: one without its bound folders would stop their copies there.
+      await memoryFolders.load()
       await network.apply()
       await end.start()
       let waited: ReturnType<typeof setTimeout> | undefined

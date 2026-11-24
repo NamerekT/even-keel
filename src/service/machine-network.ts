@@ -459,6 +459,7 @@ export class MachineNetwork {
       credentials: (machine, project, urls) =>
         peers.credentials?.(machine, project, urls, this.clones.has(`${machine}\0${project}`)) ?? Promise.resolve({ credentials: [] }),
       skills: (machine, install) => peers.skills?.(machine, install) ?? { skills: null },
+      git: (machine, project, request) => peers.git?.(machine, project, request) ?? { status: 404, contentType: 'text/plain', body: '' },
       online: (machine) => changed(machine, true),
       offline: (machine) => {
         this.peers.get(machine)?.remote.lost()
@@ -478,7 +479,7 @@ export class MachineNetwork {
       changed: () => peers.changed(),
       briefNow: () => this.brief(machine),
     })
-    const made: Peer = { remote, port: remote.port(), capacity: 1, folders: {}, settings: {}, name: machine, briefs: new BriefSender(() => peers.brief(made.folders, made.settings), (brief) => remote.tellBrief(brief)) }
+    const made: Peer = { remote, port: remote.port(), capacity: 1, folders: {}, settings: {}, name: machine, briefs: new BriefSender(() => peers.brief(made.folders, made.settings, machine),(brief) => remote.tellBrief(brief)) }
     peer = made
     this.peers.set(machine, peer)
     return peer
