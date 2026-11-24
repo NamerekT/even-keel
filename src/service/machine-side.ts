@@ -12,9 +12,7 @@ import { MachineRecords } from '../machine/records.js'
 import { CheckoutWatch } from '../machine/branch-here.js'
 import { isPlain } from '../config.js'
 import { HANDOFF_EVENT, LEFTOVER_EVENT, MachineRunner, TRANSCRIPT_EVENT } from '../machine/runner.js'
-import { factsScope, scopedDeps, type FactsScope } from '../machine/scope.js'
-import { isCarryName, isFixName } from '../chain/fix.js'
-import { isChatName } from '../chats/model.js'
+import { briefAsks, factsScope, scopedDeps, type FactsScope } from '../machine/scope.js'
 import { byTrial } from '../sessions/cache.js'
 import type { SessionMail } from '../sessions/mail.js'
 import { steers } from '../sessions/view-index.js'
@@ -87,14 +85,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
   const scopeOf = (): FactsScope | undefined => {
     if (options.alone !== true) return undefined
     if (scoped !== undefined) return scoped
-    const { tasks, current, warm } = machine.brief.whole
-    const asked = new Set([...Object.values(tasks).flat(), ...Object.keys(current), ...warm.map((each) => each.task)])
-    return factsScope({
-      views: machine.sessions,
-      journal: machine.journal,
-      asked: (task) => asked.has(task) || isChatName(task) || isFixName(task) || isCarryName(task),
-      now: Date.now(),
-    })
+    return factsScope({ views: machine.sessions, journal: machine.journal, asked: briefAsks(machine.brief.whole), now: Date.now() })
   }
   const moves = new MachineMoves({
     local,

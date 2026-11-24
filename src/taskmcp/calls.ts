@@ -74,6 +74,11 @@ export interface TasksDeps {
    * history (BTN-1125), so a text changed after its entry label is told by the chain's list; `undefined` — none known.
    */
   editedOf(reader: string, task: string): TextEdit | undefined
+  /**
+   * Whether a machine may reach the project's tasks (`HubMcp.inPool`, BTN-1573): asked of each call on `/tasks` without a
+   * project that a machine carried; absent — every project.
+   */
+  inPool?(machine: string, project: string): Promise<boolean>
 }
 
 const LIST_LIMIT = 200
@@ -131,7 +136,7 @@ export class TasksTools {
   }
 
   private async list(args: Args, scope: TasksScope): Promise<string> {
-    const { readers } = this.projectOf(args, scope)
+    const { readers } = await this.projectOf(args, scope)
     const statuses = args.texts('status').map((each) => each.trim().toLocaleLowerCase())
     const milestone = args.text('milestone')?.trim().toLocaleLowerCase()
     const label = args.text('label')?.trim().toLocaleLowerCase()
@@ -177,7 +182,7 @@ export class TasksTools {
 
   private async read(args: Args, scope: TasksScope): Promise<string> {
     const key = args.required('key').trim().toUpperCase()
-    const reader = this.readerOfTask(key, scope)
+    const reader = await this.readerOfTask(key, scope)
     const rules = this.deps.rulesOf(reader.id)
     const { card, rev, terms, files, why } = await this.deps.run(reader.id, async (tracker) => {
       const editor = editorOf(tracker)
@@ -196,7 +201,7 @@ export class TasksTools {
   }
 
   private async create(args: Args, scope: TasksScope): Promise<string> {
-    const { readers, named } = this.projectOf(args, scope)
+    const { readers, named } = await this.projectOf(args, scope)
     // A blocker lives with the task it holds: by default the tracker of the session's task.
     const own = scope.task === null ? undefined : readers.find((each) => each.prefix === parseTaskId(scope.task!.toUpperCase())?.project)
     const reader = trackerArg(args, readers) ?? named ?? own ?? readers[0]!
@@ -339,7 +344,7 @@ export class TasksTools {
     const groups = new Map<string, { reader: TaskReader; at: number[] }>()
     for (const [index, key] of keys.entries()) {
       try {
-        const reader = this.readerOfTask(key, scope)
+        const reader = await this.readerOfTask(key, scope)
         const group = groups.get(reader.id) ?? { reader, at: [] }
         group.at.push(index)
         groups.set(reader.id, group)
@@ -470,7 +475,7 @@ export class TasksTools {
   private async comment(args: Args, scope: TasksScope): Promise<string> {
     const key = args.required('key').trim().toUpperCase()
     const body = args.required('text')
-    const reader = this.readerOfTask(key, scope)
+    const reader = await this.readerOfTask(key, scope)
     const model = this.modelOf(scope)
     const attach = args.texts('attach')
     const notes: string[] = []
@@ -508,28 +513,39 @@ export class TasksTools {
    * The trackers of the call's project: the address's, or in a hand session the project whose key — its own or a
    * feed's — `project` gives; `named` — the tracker that key gives.
    */
-  private projectOf(args: Args, scope: TasksScope): { readers: TaskReader[]; named: TaskReader | null } {
+  private async projectOf(args: Args, scope: TasksScope): Promise<{ readers: TaskReader[]; named: TaskReader | null }> {
     if (scope.project !== null) return { readers: this.deps.readers(scope.project), named: null }
     const key = args.text('project')?.trim().toUpperCase()
     if (key === undefined || key === '') throw new EditRefused('"project" is required: the key of the project, as in its task keys')
     const named = this.deps.readerOfPrefix(key)
     if (named === null) throw new EditRefused(`no project ${key} keeps its tasks where these tools reach`)
+    await this.checkPool(named, scope)
     return { readers: this.deps.readers(named.project), named }
   }
 
   /** The tracker of a task by its key's prefix: one of the address's project, or of any project in a hand session. */
-  private readerOfTask(key: string, scope: TasksScope): TaskReader {
+  private async readerOfTask(key: string, scope: TasksScope): Promise<TaskReader> {
     const parsed = parseTaskId(key)
     if (parsed === null) throw new EditRefused(`"${key}" is not a task key such as ABC-12`)
     if (scope.project === null) {
       const found = this.deps.readerOfPrefix(parsed.project)
       if (found === null) throw new EditRefused(`no project ${parsed.project} keeps its tasks where these tools reach`)
+      await this.checkPool(found, scope)
       return found
     }
     const readers = this.deps.readers(scope.project)
     const found = readers.find((each) => each.prefix === parsed.project)
     if (found === undefined) throw new EditRefused(`${key} is not a task of this project; its trackers give ${readers.map((each) => each.prefix).join(', ')} keys`)
     return found
+  }
+
+  /** A machine's call without the project in its address reaches only the projects of the machine's pool. */
+  private async checkPool(reader: TaskReader, scope: TasksScope): Promise<void> {
+    if (scope.machine === undefined || this.deps.inPool === undefined) return
+    if (await this.deps.inPool(scope.machine, reader.project)) return
+    throw new EditRefused(
+      `the project of ${reader.prefix} keys is not on this machine: its tasks are reached from the hub or a machine of the project; a person adds this machine in the project's machines ("Connect a machine")`,
+    )
   }
 }
 

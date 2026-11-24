@@ -116,6 +116,15 @@ describe('machineCards', () => {
     expect(cards[1]!.active).toBeNull()
   })
 
+  it("carries an account's sessions there and how its sessions run, for the accounts page of the machine's view (BTN-1570)", async () => {
+    const accounts = [{ ...entry('x', 'claude', half), sessions: ['s1', 's2'], transport: 'sdk' } as AccountEntry, { ...entry('y', 'codex', null), sessions: [] } as AccountEntry]
+    const cards = await machineCards(deps({ mirror: (machine) => (machine === 'laptop' ? mirror(accounts) : undefined) }))
+    expect(cards[1]!.accounts.map(({ key, sessions, transport }) => ({ key, sessions, transport }))).toEqual([
+      { key: 'x', sessions: ['s1', 's2'], transport: 'sdk' },
+      { key: 'y', sessions: undefined, transport: undefined },
+    ])
+  })
+
   it('has no accounts on a machine elsewhere before its first snapshot', async () => {
     const cards = await machineCards(deps())
     expect(cards[1]).toMatchObject({ accounts: [], active: null })

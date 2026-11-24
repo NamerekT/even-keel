@@ -1,4 +1,4 @@
-const DEPTH = 4
+const DEPTH = 8
 const SHOWN = 5
 
 const bytesOf = (value: unknown): number => Buffer.byteLength(JSON.stringify(value) ?? '')
@@ -19,6 +19,8 @@ function partsIn(value: unknown): Array<[string, unknown]> {
 /**
  * The largest parts of a post's body with their sizes, level by level down its largest part: what a line in the log
  * says of a post over the hub's limit (BTN-1559), e.g. `body: snapshot 9.1 MB, …; snapshot (3 parts): facts 9.0 MB, …`.
+ * Below the events of a post it goes into the largest event of the largest type, named by its type, so a `facts` event
+ * is told down to the sections of its patch and their keys (BTN-1563).
  */
 export function partsOf(body: unknown): string {
   const levels: string[] = []
@@ -29,9 +31,15 @@ export function partsOf(body: unknown): string {
     if (parts.length === 0) break
     const shown = parts.slice(0, SHOWN).map(({ key, bytes }) => `${key} ${sizeText(bytes)}`)
     levels.push(`${name} (${parts.length} parts): ${shown.join(', ')}${parts.length > SHOWN ? ', …' : ''}`)
-    if (Array.isArray(value)) break
-    name = depth === 0 ? parts[0]!.key : `${name}.${parts[0]!.key}`
-    value = parts[0]!.part
+    const { key, part } = parts[0]!
+    if (Array.isArray(value)) {
+      const events = part as unknown[]
+      name = key.slice(0, key.lastIndexOf(' ×'))
+      value = events.reduce((largest, each) => (bytesOf(each) > bytesOf(largest) ? each : largest))
+      continue
+    }
+    name = depth === 0 ? key : `${name}.${key}`
+    value = part
   }
   return levels.join('; ')
 }

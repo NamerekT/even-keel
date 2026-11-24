@@ -23,6 +23,11 @@
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+/* A place without git has no pick: its one way stands where the pick would. */
+.project-add__fixed {
+  font-size: var(--text-14);
+}
+
 /* Too narrow for the name beside the pick: under it, as the settings' rows do. */
 @container (max-width: 480px) {
   .project-add__pick .settings__line-main {
@@ -136,11 +141,17 @@
   border-top: 0;
 }
 
-.project-add__note {
+/* What the foot's button still waits for: a state, not an explanation. */
+.project-add__state {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-4) var(--space-12);
+}
+
+.project-add__missing {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
 }
 
 /* The summary: a task and its branch take two columns, the value is long. */

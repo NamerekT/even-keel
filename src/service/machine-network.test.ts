@@ -46,7 +46,9 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await db.exec(fixture(60))
     const settings = { address: null as string | null }
     const changes: number[] = []
+    const counted: number[] = []
     const network = new MachineNetwork({
+      poolCounted: () => void counted.push(1),
       ...(peers === undefined ? {} : { peers }),
       ...(takeOverOwn === undefined ? {} : { takeOverOwn }),
       db,
@@ -76,7 +78,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       await network.close()
       await db.close()
     })
-    return { db, network, settings, changes }
+    return { db, network, settings, changes, counted }
   }
 
   it('names a project folder inside the machine folder of projects the way the machine writes paths', () => {
@@ -173,6 +175,27 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await network.revoke(LAPTOP)
     expect(network.live()).toEqual([OWN])
     expect(Object.keys(network.names())).toContain(LAPTOP)
+  })
+
+  it("counts the project's machines for its width: every one of its list, turned on or off, the revoked ones apart (BTN-1571)", async () => {
+    const LAPTOP = '99999999-9999-4999-8999-999999999999'
+    const { db, network, counted } = await started()
+    expect(network.machinesIn(ABC)).toBeUndefined()
+    await network.refresh()
+    // The sample's laptop never joined: the own machine alone.
+    expect(network.machinesIn(ABC)).toBe(1)
+    expect(network.machinesIn('no-machines-named')).toBe(1)
+
+    await db.query('update machines set joined_at = 1794653000000, invite_expires = null where id = $1', [LAPTOP])
+    await network.refresh()
+    // The laptop is turned off in the pool and counts all the same.
+    expect(network.poolOf(ABC)).toEqual([OWN])
+    expect(network.machinesIn(ABC)).toBe(2)
+    expect(counted.length).toBe(2)
+
+    await network.revoke(LAPTOP)
+    expect(network.machinesIn(ABC)).toBe(1)
+    expect(counted.length).toBe(3)
   })
 
   it('gives the machine the colour the window picked with its string', async () => {

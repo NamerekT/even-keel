@@ -130,6 +130,10 @@ export interface MachineCardAccount extends MachineAccount {
   /** The name the person gave it on that machine. */
   name: string | null
   limits: import('../limits/model.js').RateLimits | null
+  /** The sessions its panel counts in the folder there, for the accounts page of its view (BTN-1570); none — none told. */
+  sessions?: string[]
+  /** How its new Claude sessions run there; absent for an agent with one way only. */
+  transport?: import('../account/model.js').AccountEntry['transport']
 }
 
 /** A machine of a project's pool, as the section "Machines" of its settings shows it (BTN-1271). */

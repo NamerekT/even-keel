@@ -373,7 +373,7 @@ function FolderLine({
             autoComplete="off"
             spellCheck={false}
             value={fields.folder}
-            placeholder={place?.name ?? ''}
+            placeholder={place?.name ?? (view.note === 'blank' ? t.creation.folderBlank(clone) : '')}
             aria-invalid={refusal !== null || undefined}
             onChange={(event) => set({ folder: event.target.value })}
           />
@@ -382,7 +382,7 @@ function FolderLine({
       <button type="button" className="link-button project-add__other" onClick={() => set(typed ? { other: false } : { other: true })}>
         {typed ? t.creation.own : t.creation.other}
       </button>
-      {view.note !== null && <span className="settings__hint">{view.note === 'checking' ? t.wizard.checking : t.creation.folderBlank(clone)}</span>}
+      {view.note === 'checking' && <span className="settings__hint">{t.wizard.checking}</span>}
       {place !== undefined && refusal === null && <PlaceState place={place} fields={fields} />}
       {place?.existing !== undefined && refusal === null && (
         <span className="project-add__gate">

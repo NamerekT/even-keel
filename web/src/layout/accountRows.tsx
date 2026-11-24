@@ -3,7 +3,7 @@ import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import { limitSpans, type LimitSpan, type LimitWindow, type ModelWeek } from '../../../src/limits/model.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import { agentLabel } from '../accountName.js'
-import { ACCESS_OWNER, accessGroups, accountGroups, entrySlot, PROVIDERS, tightestWindow, type Access, type Provider } from '../accounts.js'
+import { ACCESS_OWNER, accessGroups, accountGroups, PROVIDERS, tightestWindow, type Access, type Provider } from '../accounts.js'
 import { formatAgo, formatSpan, formatTokens } from '../format.js'
 import { overageTexts, say, t } from '../i18n/index.js'
 import { tokenTag } from '../longToken.js'
@@ -27,6 +27,10 @@ import { useLive } from '../live/context.js'
 import { OverageChip, OverageValue, OverageWarning } from './Overage.js'
 import './accountRows.css'
 import { copilotNote, hasCopilot } from '../../../src/opencode/support.js'
+import { InfoIcon } from '../ui/icons.js'
+import { useProjectLabel } from '../ui/ProjectLabel.js'
+import type { MachineUse } from '../machineAccountView.js'
+import { rowSlot, type MachineRows } from './machineRows.js'
 
 export interface RowsProps {
   view: AccountView
@@ -40,6 +44,8 @@ export interface RowsProps {
   marketplace?: PackagesView['marketplace']
   /** The page's "Machines" column (BTN-1309): the hub has machines elsewhere. */
   machines?: boolean
+  /** A machine elsewhere's view (BTN-1570): its accounts, with no control of the hub's folders. */
+  machine?: MachineRows
 }
 
 /** The name of a connection group; Copilot inside OpenCode's block says which GitHub product it is. */
@@ -57,20 +63,26 @@ function measureOf(rows: AccountEntry[]): Measure {
 
 /** A card per agent and inside it a block per connection, its stripe in the colour of who bills it (BTN-576). */
 export function AccountGroups({ entries, ...props }: RowsProps & { entries?: AccountEntry[] }) {
-  const { view, now, page = false, marketplace } = props
+  const { view, now, page = false, marketplace, machine } = props
   const openAdd = useOpenAdd()
   const signIns = useLive().state?.machineSignIns
-  const machines = page && (signIns?.length ?? 0) > 0
-  const groups = accountGroups({ ...view, accounts: entries ?? view.accounts }, now)
+  const machines = page && machine === undefined && (signIns?.length ?? 0) > 0
+  // A machine's view keeps the rows it is not signed in to at the end of their group: its own signed out, then the hub's.
+  const rank = (entry: AccountEntry) => [undefined, 'out', 'hub'].indexOf(machine?.away.get(entry.key)?.why)
+  const groups = accountGroups({ ...view, accounts: entries ?? view.accounts }, now).map((group) => machine === undefined ? group : {
+    ...group, entries: [...group.entries].sort((a, b) => rank(a) - rank(b)),
+  })
   return <div className={page ? `account-blocks account-blocks--page${machines ? ' account-blocks--machines' : ''}` : 'account-blocks'}>
     {groups.map(({ agent, entries: rows }) => <Card key={agent} className="account-provider" title={<>
       <span className="account-provider__icon"><AgentIcon agent={agent} /></span>
       {agentLabel(agent)}
-      <span className="account-provider__count">{t.account.accountCount(rows.length)}</span>
+      <span className="account-provider__count">{groupCount(rows, machine)}</span>
     </>} actions={page ? <>
-      {agent === 'claude' && marketplace != null && <AccountMarketplace marketplace={marketplace} send={props.send} sending={props.sending} />}
+      {agent === 'claude' && marketplace != null && machine === undefined && <AccountMarketplace marketplace={marketplace} send={props.send} sending={props.sending} />}
       {view.login === null && (PROVIDERS as readonly string[]).includes(agent) && <button type="button" className="button button--small"
-        onClick={() => openAdd(agent as Provider)}>+ {t.account.addHere}</button>}
+        disabled={machine?.addOff === true}
+        // A machine's "Add" opens the pick of the place, the machine picked: an opener naming the agent adds on the hub.
+        onClick={() => openAdd(machine === undefined ? agent as Provider : null)}>+ {t.account.addHere}</button>}
     </> : undefined}>
       {accessGroups(rows).map(({ access, entries: members }) => <AccessBlock key={access} agent={agent} access={access} rows={members} {...props} machines={machines} />)}
     </Card>)}
@@ -91,10 +103,65 @@ function AccessBlock({ agent, access, rows, ...props }: RowsProps & { agent: str
       <div className={`account-window-heads account-window-heads--${columns.length}`} aria-hidden="true">{columns.map((label) => <span key={label}>{label}</span>)}</div>
       {page && <><span aria-hidden="true">{overageTexts().column}</span><span aria-hidden="true">{t.account.sessionsLabel}</span><span aria-hidden="true">{t.account.runsThrough}</span></>}
     </div>
-    <ul className="account-rows">{rows.map((entry) => <li key={entry.key} id={accountAnchor(entry.key)} style={seriesStyle(entrySlot(view, entry))}>
-      <AccountRow entry={entry} access={access} named={measure === 'limits'} {...props} />
+    <ul className="account-rows">{rows.map((entry) => <li key={entry.key} id={accountAnchor(entry.key)} style={seriesStyle(rowSlot(view, entry, props.machine))}>
+      {props.machine === undefined ? <AccountRow entry={entry} access={access} named={measure === 'limits'} {...props} />
+        : <MachineRow entry={entry} machine={props.machine} now={props.now} page={page} />}
     </li>)}</ul>
   </section>
+}
+
+/** A group's count; in a machine's view, with a row it is not signed in to, how many of them are signed in there. */
+function groupCount(rows: AccountEntry[], machine: MachineRows | undefined): string {
+  const here = machine === undefined ? rows.length : rows.filter((entry) => !machine.away.has(entry.key)).length
+  return here === rows.length ? t.account.accountCount(rows.length) : t.machinePanel.view.accountsHere(here, rows.length)
+}
+
+/**
+ * A row of a machine elsewhere's view (BTN-1570): the limits the machine read and the levels it takes the account at,
+ * no menu of a hub folder. One the machine is not signed in to says so in a note's tone, with "Sign in" there.
+ */
+function MachineRow({ entry, machine, now, page }: { entry: AccountEntry; machine: MachineRows; now: Date; page: boolean }) {
+  const away = machine.away.get(entry.key)
+  const uses = machine.uses.get(entry.key) ?? []
+  const plan = planText(entry)
+  const chips = <div className="account-role-chips">
+    {away !== undefined && <span className="account-role account-role--away"><InfoIcon />{away.why === 'hub' ? t.machinePanel.view.hubOnly : t.machinePanel.view.signedOut}</span>}
+    {(away === undefined || !page) && <MachineUses uses={uses} none={away === undefined} />}
+  </div>
+  return <div className={`account-row account-row--machine${away === undefined ? '' : ' account-row--away'}`}>
+    <div className="account-grid">
+      <div className="account-who">
+        <div className="account-who__name"><AccountMark entry={entry} now={now} dot folder={machine.folders.get(entry.key) ?? null} />
+          <AccountName entry={entry} accounts={machine.view.accounts} whole={!page} />
+          {away === undefined && <OverageChip entry={entry} now={now} />}
+          {plan !== null && !entry.apiKey && entry.agent !== OPENCODE && <span className="tag account-plan">{plan}</span>}
+        </div>
+        {!page && chips}
+      </div>
+      {away !== undefined ? <>
+        {page && <div className="account-away">{chips}</div>}
+        <div className="account-away__sign">{machine.signIn(away)}</div>
+      </> : <>
+        {page && chips}
+        <div className="account-windows">
+          {limitSpans(entry.limits).map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} />)}
+          {entry.limits?.models?.weeks.map((week) => <ModelMeter key={`model:${week.model}`} entry={entry} week={week} now={now} />)}
+        </div>
+        {page && <><OverageValue entry={entry} now={now} /><div className="account-detail"><AccountWork entry={entry} view={machine.view} /></div><div className="account-detail"><TransportNote entry={entry} brief /></div></>}
+        <div className="account-compact"><CompactLimit entry={entry} now={now} bare /></div>
+      </>}
+    </div>
+  </div>
+}
+
+/** "Used by" of a machine's row: Even Keel, a project, a task — where the machine takes the account. */
+function MachineUses({ uses, none }: { uses: MachineUse[]; none: boolean }) {
+  const label = useProjectLabel()
+  if (uses.length === 0) return none ? <span className="account-role account-role--none">{t.account.rolesNone}</span> : null
+  return uses.map((use) => {
+    const text = use.source === 'shared' ? 'Even Keel' : use.source === 'task' ? t.machinePanel.view.useTask(use.task!) : label(use.project!)
+    return <span key={text} className={`account-role account-role--${use.source === 'shared' ? 'chain' : use.source}`}>{text}</span>
+  })
 }
 
 /** `named` — the head says only "Limits", so each value in the row names its window or period itself. */

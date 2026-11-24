@@ -79,6 +79,8 @@ export function wirePackageHub(ctx: AccountsContext): PackageHub {
         attachmentLimit: () => ctx.configStore.current.attachmentLimit * 1024 * 1024,
         editedOf: (reader, task) => ctx.readerTasks.get(reader)?.find((each) => each.id === task)?.edited,
         writeNote: (note) => writeHandoffNote(ctx.db, note),
+        // The machine link is wired after the packages; a machine's call comes only over it.
+        inPool: (machine, project) => ctx.machineLink.inPool(machine, project),
       },
       // `ctx.release` is set after the packages are wired.
       installed(root).version,

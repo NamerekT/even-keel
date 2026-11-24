@@ -43,9 +43,16 @@ function RefButton({ item, onOpen }: { item: TaskRef; onOpen: (task: string) => 
   )
 }
 
+/** The task and the field a search picks for: the service leaves out what it would refuse there (BTN-1589). */
+export interface SearchPurpose {
+  task: string
+  field: LinkKind | 'parent'
+}
+
 interface SearchProps {
   /** The project GUID to look in; `null` — every project of the built-in tracker. */
   project: string | null
+  purpose: SearchPurpose
   label: string
   refusal: Notice | null
   onPick: (task: string) => void
@@ -56,11 +63,12 @@ interface SearchProps {
 }
 
 /** A task by its key or a word of its title, asked of the service as it is typed. */
-export function TaskSearch({ project, label, refusal, onPick, onClose, focus = true }: SearchProps) {
+export function TaskSearch({ project, purpose, label, refusal, onPick, onClose, focus = true }: SearchProps) {
   const { query } = useLive()
   const [text, setText] = useState('')
   const [found, setFound] = useState<TaskRef[]>([])
   const box = useRef<HTMLDivElement>(null)
+  const { task, field } = purpose
 
   useEffect(() => {
     if (focus) box.current?.querySelector('input')?.focus()
@@ -69,7 +77,7 @@ export function TaskSearch({ project, label, refusal, onPick, onClose, focus = t
   useEffect(() => {
     let live = true
     const timer = setTimeout(() => {
-      query<TaskRef[]>('builtin/search', { text, project }).then(
+      query<TaskRef[]>('builtin/search', { text, project, for: { task, field } }).then(
         (answer) => live && setFound(answer),
         () => live && setFound([]),
       )
@@ -78,7 +86,7 @@ export function TaskSearch({ project, label, refusal, onPick, onClose, focus = t
       live = false
       clearTimeout(timer)
     }
-  }, [text, project])
+  }, [text, project, task, field])
 
   return (
     <div ref={box} className="task-card__search">
@@ -154,7 +162,7 @@ export function Relations({ card, editor, onOpen }: RelationsProps) {
                 setRefusal(null)
               }}
             />
-            <TaskSearch project={null} label={t.card.edit.addLink} refusal={refusal} onPick={(other) => void link(other)} onClose={close} focus={false} />
+            <TaskSearch project={null} purpose={{ task: card.id, field: kind }} label={t.card.edit.addLink} refusal={refusal} onPick={(other) => void link(other)} onClose={close} focus={false} />
           </div>
         ) : (
           <button type="button" className="task-card__ghost" onClick={() => setAdding(true)}>

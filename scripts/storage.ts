@@ -50,7 +50,8 @@ async function main(): Promise<void> {
       writeAtomic(path, await exportConfig(reader.db))
       console.log(`storage: wrote the settings of ${dir} to ${path}`)
     } else {
-      const { records, rows } = await importConfig(reader.db, raw)
+      const { records, rows, cut } = await importConfig(reader.db, raw)
+      for (const line of cut) console.log(`storage: ${line}`)
       console.log(`storage: ${path} is now the settings of ${dir}: ${records.length} projects, ${rows.length} settings; a running service applies them within seconds`)
     }
   } finally {

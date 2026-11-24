@@ -74,6 +74,7 @@ import { attachmentsDirOf } from '../builtin/files.js'
 import { BUILTIN } from '../builtin/model.js'
 import { isChatSession } from '../chats/model.js'
 import { runOf } from './demo.js'
+import { checkWidth } from './width-cap.js'
 
 export type HostingContext = Pick<ServiceContext,
   | 'CONFIG_POLL_MS'
@@ -356,6 +357,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
           if ('notice' in ready) throw fail('review.cannotEnable', { project }, { cause: ready.notice })
         }
         if (form.mergeInto !== base.mergeInto || form.repo !== base.repo) await ctx.checkMergeTarget(project, form)
+        checkWidth(form.width ?? 1, base.width ?? 1, ctx.machineLink.network.machinesIn(project))
         const write = () => ctx.configStore.saveProject(project, form, base, profileFor(ctx.profiles.current(), project, ctx.configStore.current.trackers[project]!)?.rules)
         // Another main branch moves the main checkout first; git's refusal leaves the config as it was (BTN-754).
         const branch = form.branch.trim() || DEFAULT_BRANCH

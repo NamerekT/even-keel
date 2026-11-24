@@ -187,6 +187,13 @@ export class ConfigStore {
     this.saveShared({ ...form, parallel }, form)
   }
 
+  /** The project's `width` alone: cut to its machines when one leaves its list (BTN-1571). */
+  saveWidth(project: string, width: number): void {
+    const form = this.view().projects[project]
+    if (form === undefined) throw fail('config.unknownProject', { key: project })
+    this.saveProject(project, { ...form, width }, form)
+  }
+
   saveCli(provider: string, source: CliSourceName): void {
     const form = this.view().shared
     this.saveShared({ ...form, cli: { ...form.cli, [provider]: source } }, form)

@@ -144,6 +144,31 @@
   display: none;
 }
 
+/* A machine elsewhere's level whose account is not signed in there (BTN-1570): a note with "Sign in", not a warning. */
+.account-card.account-levels--acts {
+  pointer-events: auto;
+}
+
+.account-level__away {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  color: var(--accent);
+  font-size: var(--text-12);
+}
+
+.account-level__away .icon {
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+
+.account-level__away-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .account-level__window {
   display: grid;
   grid-template-columns: 54px minmax(24px, 1fr) 38px 48px;

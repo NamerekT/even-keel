@@ -805,6 +805,8 @@ export const en = {
     `config: ${p.where} must be an object of status names: start and review a name or null, done a name`,
   'config.milestoneOrder': (p: { where: string }) => `config: ${p.where} must be a list of milestone names`,
   'config.width': (p: { where: string }) => `config: ${p.where} must be a whole number of tasks, 1 or more`,
+  'config.widthOverMachines': (p: { max: number }) =>
+    `"Project's tasks at once" can be up to ${p.max}, the project's machines: each task runs on a machine of its own. Connect another machine in the tab "Machines" for more`,
   'config.badge': (p: { where: string }) =>
     `config: ${p.where} must be null or { on, url, slug, fields }: on true or false, url an http(s) address, slug lower-case letters, digits and dashes, fields known badge fields`,
   'badge.url': () => 'The Worker address must start with https://, like https://even-keel-badge.example.workers.dev',

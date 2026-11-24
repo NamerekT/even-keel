@@ -19,21 +19,8 @@
   background: var(--series);
 }
 
-.machine-accounts__none {
-  color: var(--fg-muted);
-  font-size: var(--text-13);
-}
-
 .machine-accounts__panel {
   width: min(420px, calc(100vw - 2 * var(--gutter)));
-}
-
-.machine-accounts__head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  text-transform: none;
-  letter-spacing: 0;
 }
 
 .machine-accounts__email {
@@ -78,20 +65,6 @@
   padding: var(--space-6) 0;
 }
 
-.machine-accounts__list--wide .machine-accounts__row {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr);
-  align-items: center;
-  gap: var(--space-12);
-  padding: var(--space-8) 0;
-}
-
-@media (max-width: 760px) {
-  .machine-accounts__list--wide .machine-accounts__row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .machine-accounts__row + .machine-accounts__row {
   border-top: 1px solid var(--border);
 }
@@ -103,10 +76,6 @@
   gap: var(--space-6);
 }
 
-.machine-accounts__warn {
-  color: var(--warn-fg);
-  font-size: var(--text-12);
-}
 
 .machine-accounts__muted {
   color: var(--fg-muted);

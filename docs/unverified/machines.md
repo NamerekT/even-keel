@@ -341,11 +341,11 @@ To check, on the benches (entry 181): set a project's Repository folder on the b
 
 ## A machine elsewhere with years of sessions in its account folders (BTN-1559)
 
-`docs/machines.md`, "Machines elsewhere" ("What a machine elsewhere tells") and "Numbers and what is kept" ("The body limit"). A computer that served a project as a hub keeps hundreds of its old sessions in its account folders; joined as a machine and given that project, it told every one of them, and its snapshot went over the hub's 8 MB limit, so nothing of the machine reached the hub. Covered by `src/machine/scope.test.ts` (a machine with thousands of tasks and old sessions), `src/link/link.test.ts` and `src/link/body-size.test.ts` with sessions and posts made up in the test.
+`docs/machines.md`, "Machines elsewhere" ("What a machine elsewhere tells") and "Numbers and what is kept" ("The body limit"). A computer that served a project as a hub keeps hundreds of its old sessions in its account folders; joined as a machine and given that project, it told every one of them, and its snapshot went over the hub's 8 MB limit, so nothing of the machine reached the hub. Cut to the tasks the hub asks about, the snapshot passed, but the `facts` event two seconds after it was 10.5 MB and dropped (BTN-1563): the snapshot goes before the monitor has read the sessions, and the brief's lists hold the chain's archive of the last days — the tasks that computer did as the hub — so a closed task is now asked about only as one not listed (`briefAsks`, the brief's `closed`). Covered by `src/machine/scope.test.ts` (a machine with thousands of tasks and old sessions; the facts event after the sessions are read, with an archive of closed tasks), `src/link/link.test.ts` and `src/link/body-size.test.ts` with sessions and posts made up in the test.
 
-Assumed: nothing the hub reads of a machine elsewhere needs a task outside the scope — one the trackers no longer list, with only finished sessions older than a day — besides the history window of such a task, which no longer names its sessions; and a real machine's facts of the tasks left stay far under the limit. If not, a step or a chain on the hub waits for a fact the machine no longer tells, or the machine's page shows `link.tooLarge` and its log names the largest parts of the snapshot.
+Assumed: nothing the hub reads of a machine elsewhere needs a task outside the scope — one the trackers no longer list or list closed, with only finished sessions older than a day — besides the history window of such a task, which no longer names its sessions; and a real machine's facts of the tasks left stay far under the limit. If not, a step or a chain on the hub waits for a fact the machine no longer tells, or the machine's page shows `link.tooLarge` and its log names the largest parts of the snapshot, or a `facts` event `is not sent` with its parts down to the sections of its patch.
 
-To check, on the benches (entry 181): put a few hundred old transcripts of the project's tasks into a machine's account folder (copies of a real project's), connect the machine to that project and see "Repository" and the other steps pass, the machine stay online and its log show no `is not sent`; then open the history window of a task done more than a day ago on that machine.
+To check, on the benches (entry 181): put a few hundred old transcripts of the project's tasks into a machine's account folder (copies of a real project's, tasks closed within the last week), connect the machine to that project and see "Repository" and the other steps pass, the machine stay online and its log show no `is not sent`, also in the first minute after a restart of the machine; then open the history window of a task done more than a day ago on that machine.
 
 ## "+ Machine" on a hub with a revoked machine (BTN-1552)
 
@@ -394,3 +394,27 @@ To check, on the benches (entry 181): give a project the bench hub (capacity 3) 
 Assumed: a machine elsewhere answers `transcript.*` over a real link within the checkpoint hook's timeout on a loaded hub, and a finished session's machine is still known from its mirror or its launch's task. If not, the transcript of an old session elsewhere opens as "not found" again, or the hook still times out; the log names the request.
 
 To check, on the benches (entry 181): run a task on a machine elsewhere of the bench hub, open its session's transcript (record, transcript, a picture) from the hub's page and see the hub's log free of `did not answer GET /api/sessions/…/checkpoint`; take the machine off the link and see the window name it instead of "not found".
+
+## A hand session's tasks calls on a machine elsewhere (BTN-1573)
+
+`docs/machines.md`, "MCP through the hub". `/tasks` with no project is admitted for every machine, and the tasks server refuses a call whose project is outside the machine's pool. Covered by `src/taskmcp/calls.test.ts` (calls on the pool's project and its feed pass, every tool on another project is refused, a batch refuses only that line) and `src/service/hub-mcp.test.ts` (the pool by GUID, the own machine, the log once). No hand session on a real machine has called it yet.
+
+Assumed: a hand session on a machine reaches the hub's `/tasks` through the machine's gateway with the machine's header set by the hub's link, and every tool that names a project goes through the key's or `project`'s lookup. If not, a call on a project outside the pool goes through, or one in the pool is still refused; the hub's log says `called the tasks server on project …, outside its pool: refused`.
+
+To check, on the benches: give machine-1 of the bench hub one project's pool and not another's; from a hand session on machine-1 call `task_read` on a task of each and see the first answered, the second refused with "is not on this machine", and the hub's log line once.
+
+## A machine elsewhere's accounts in the hub's blocks (BTN-1570)
+
+`docs/machines.md`, "The header in a machine's view" and "The machine's accounts page". The header's block, its levels, the drawer and `/accounts` with a machine elsewhere picked are the hub's blocks over `machineAccountView`. Covered by `web/src/machineAccountView.test.ts` (the view, the levels, "Used by") and `src/service/machine-cards.test.ts` (sessions and transport on a card), and by `dev:fake` shots (`machines=many&machine=machine-1|machine-2`, `header=two`). No real machine has shown it yet.
+
+Assumed: a machine's panel names each account's e-mail as the hub's does (`sameEmail`), so the machine's folder maps to the hub's, and its panel's `sessions` and `transport` are those of that machine. If not, an account signed in there shows as "signed in on the hub, not here" beside its own row, a header level drops or names another account, or the sessions and "Runs through" columns stay empty.
+
+To check, on the benches: pick machine-1 of the bench hub in the header on a project page and on `/accounts`; compare the rows, the limits, the sessions count and "Runs through" with machine-1's own `/accounts`, point at the header's block and see the project's levels, and sign machine-1 out of one account to see its info chip and "Sign in".
+
+## A width cut when a machine leaves a project (BTN-1571)
+
+`docs/machines.md`, "The pool" ("Two numbers"). A project's width is at most the machines of its list, turned on or off; a revoke, a cancelled connection or any read of the pools cuts a width above them and writes it to the config, `config-import` stores the most. Covered by `src/service/width-cap.test.ts` (the fit and the refusal), `src/service/machine-network.test.ts` (the count, turned off and revoked), `src/settings/import.test.ts` and `web/src/pages/poolWidth.test.ts`. Not seen on a hub with machines elsewhere.
+
+Assumed: `poolCounted` runs after every change of a list, so a width never stays above the machines left; and the hub's own machine has its row in every project's list (`fillPool`). If not, a width stays above the machines after one goes, or a project with machines elsewhere is cut to 1 at the start; the log has `config: project … runs N task(s) at once, not M`.
+
+To check, on the benches: give a project of the bench hub two machines and width 2, turn one off in the pool and see the width stay; revoke it and see the width 1 in "Machines" and the log line; connect two machines again and see the field go up to 3 with the width still 1; type 4 and see 3; `config-import` a width of 5 and see 3 stored with its line.

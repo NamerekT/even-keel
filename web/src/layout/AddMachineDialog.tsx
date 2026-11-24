@@ -214,17 +214,19 @@ function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsPro
     <form className="add-package__form" onSubmit={submit}>
       <div className="add-package__body">
         <div className="add-package__field">
-          <label className="add-package__label" htmlFor={addressId}>
-            {t.machines.address}
-          </label>
-          <HubAddressField id={addressId} value={address} invalid={failure?.code === 'config.machinesAddress'} placeholder={t.machines.addressNone} onChange={setAddress} />
-          <p className="add-package__note">{t.machines.addressHint}</p>
-          {container && (
-            <p className="add-package__note add-machine__hinted">
-              {t.machines.addressContainer}
-              <HelpTip text={t.machines.addressContainerHint} align="start" />
-            </p>
-          )}
+          <span className="add-package__label-row">
+            <label className="add-package__label" htmlFor={addressId}>
+              {t.machines.address}
+            </label>
+            <HelpTip text={container ? `${t.machines.addressHint} ${t.machines.addressContainer} ${t.machines.addressContainerHint}` : t.machines.addressHint} align="start" />
+          </span>
+          <HubAddressField
+            id={addressId}
+            value={address}
+            invalid={failure?.code === 'config.machinesAddress'}
+            placeholder={container ? t.machines.addressDockerHost : t.machines.addressNone}
+            onChange={setAddress}
+          />
           <span className="add-machine__proxy">
             <label className="add-machine__proxy-label">
               <Switch checked={proxied} disabled={sending} label={t.machines.proxied} onChange={setProxied} />
@@ -234,14 +236,20 @@ function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsPro
           </span>
         </div>
         <div className="add-package__field">
-          <label className="add-package__label" htmlFor={nameId}>
-            {t.machines.name}
-          </label>
+          <span className="add-package__label-row">
+            <label className="add-package__label" htmlFor={nameId}>
+              {t.machines.name}
+            </label>
+            <HelpTip text={t.machines.nameHint} align="start" />
+          </span>
           <input id={nameId} className="add-package__input" value={name} maxLength={60} placeholder={t.machines.namePlaceholder} onChange={(event) => setName(event.target.value)} />
         </div>
         <div className="add-package__field">
-          <span className="add-package__label" id={colorId}>
-            {t.machines.color}
+          <span className="add-package__label-row">
+            <span className="add-package__label" id={colorId}>
+              {t.machines.color}
+            </span>
+            <HelpTip text={t.machines.colorHint} align="start" />
           </span>
           <span className="add-machine__colors" role="group" aria-labelledby={colorId}>
             {MACHINE_PALETTE.map((each) => (
@@ -256,7 +264,6 @@ function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsPro
               />
             ))}
           </span>
-          <p className="add-package__note">{t.machines.colorHint}</p>
         </div>
         {invite !== null && <CommandPart invite={invite} container={container} sending={sending} blank={blank} onAgain={() => void issue()} />}
       </div>
@@ -278,7 +285,6 @@ function InviteSteps({ state, taken, invite, onInvite, onClose }: InviteStepsPro
           </>
         ) : (
           <>
-            <span className="add-package__note add-machine__foot-note">{t.machines.closeNote}</span>
             <span className="add-package__spacer" />
             <button type="button" className="button" onClick={onClose}>
               {t.machines.close}
@@ -305,17 +311,20 @@ function CommandPart({ invite, container, sending, blank, onAgain }: { invite: M
     <>
       <div key={invite.machine} className="add-package__field add-machine__appear">
         <span className="add-machine__way">
-          <span className="add-package__label">{text.run}</span>
+          <span className="add-package__label-row">
+            <span className="add-package__label">{text.run}</span>
+            <HelpTip text={way === 'npx' ? text.needs : text.dockerNeeds} align="start" />
+          </span>
           <Segmented<Way> label={text.way} options={[['npx', text.wayNpx], ['docker', text.wayDocker]]} value={way} onChange={setWay} />
         </span>
         {way === 'npx' ? (
           <CommandBlock command={invite.command} copyLabel={text.copy} className="add-machine__command" />
         ) : (
           <>
-            <p className="add-package__note add-machine__hinted">
+            <span className="add-machine__step add-machine__hinted">
               {text.dockerFolder}
               <HelpTip text={text.dockerFolderHint} align="start" />
-            </p>
+            </span>
             <span className="add-machine__step">{text.dockerEnv}</span>
             <CommandBlock command={invite.docker.env} copyLabel={text.copy} className="add-machine__command" />
             <span className="add-machine__step">{text.dockerJoin}</span>
@@ -332,11 +341,10 @@ function CommandPart({ invite, container, sending, blank, onAgain }: { invite: M
             </button>
           </Tipped>
         </p>
-        <p className="add-package__note">{way === 'npx' ? text.needs : text.dockerNeeds}</p>
       </div>
       <p className={`add-machine__wait${expired ? ' add-machine__wait--expired' : ''}`} role="status">
         {!expired && <span className="add-machine__spinner" aria-hidden="true" />}
-        {expired ? t.machines.expired : t.machines.waiting}
+        <span>{expired ? t.machines.expired : `${t.machines.waiting} ${t.machines.closeNote}`}</span>
       </p>
     </>
   )

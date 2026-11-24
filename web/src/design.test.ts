@@ -4,8 +4,10 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import baselineText from './design-baseline.json?raw'
 import glueBaselineText from './glue-baseline.json?raw'
+import noteBaselineText from './note-baseline.json?raw'
 import { compareBaseline, cssViolations, violationCounts } from './ui/cssRules.js'
 import { glueCounts, glueScanned, glueSpots } from './ui/glueRules.js'
+import { noteCounts, noteScanned, noteSpots } from './ui/noteRules.js'
 
 // Read from the disk, not through `import.meta.glob`: vitest's module cache keeps a glob's file list from the transform
 // that first ran, so a file added later would stay unseen until this test changes.
@@ -21,6 +23,8 @@ const sheets = read((path) => path.endsWith('.css'))
 const sources = read((path) => path.endsWith('.tsx'))
 // The page code and stylesheets the glue guard reads (`glueScanned`).
 const pageFiles = read(glueScanned)
+// The page code the note guard reads (`noteScanned`).
+const codeFiles = read(noteScanned)
 
 /** The lines of every `add-package__body` div of a source, matched to its closing tag by counting divs. */
 function dialogBodies(source: string): { line: number; text: string }[] {
@@ -100,5 +104,15 @@ describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
     })
     expect(added, 'A fact glued with "·": put each value in a cell, a fact or a plaque (docs/design.md, "Facts are never glued")').toEqual([])
     expect(fewer, 'Fewer glued dots than the baseline: run `npm run design-baseline` and commit web/src/glue-baseline.json').toEqual([])
+  })
+  it('no file has more notes and hints under its fields than the baseline, and the baseline is not above what is left', () => {
+    const baseline = JSON.parse(noteBaselineText) as Record<string, number>
+    const { more, fewer } = compareBaseline(noteCounts(codeFiles), baseline)
+    const added = more.map((file) => {
+      const lines = noteSpots(file, codeFiles[file] ?? '').map((spot) => `  ${file}:${spot.line} ${spot.className}`)
+      return `${file}: ${lines.length} notes, the baseline allows ${baseline[file] ?? 0}\n${lines.join('\n')}`
+    })
+    expect(added, 'An explanation under a field: put it into the "?" of its heading, a state into its FieldStrip (docs/design.md, "Tip")').toEqual([])
+    expect(fewer, 'Fewer notes than the baseline: run `npm run design-baseline` and commit web/src/note-baseline.json').toEqual([])
   })
 })

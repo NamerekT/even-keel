@@ -2,6 +2,7 @@ import { hostname } from 'node:os'
 import { heldLongToken } from '../account/longToken.js'
 import { CLAUDE } from '../claude/name.js'
 import { chainOrder } from '../chain/order.js'
+import { isOpen } from '../tracker/model.js'
 import type { CliSourceName } from '../agent/cli-state.js'
 import type { LaunchEntry } from '../chain/dispatcher.js'
 import { launchLine } from '../chain/log.js'
@@ -11,7 +12,8 @@ import { AccountPolls } from '../limits/polls.js'
 import { AccountIdentities } from '../limits/identity.js'
 import { briefAccounts } from '../machine/account-here.js'
 import { foldersHere } from './folders-here.js'
-import { listenOf, localUrlOf, runSettings } from '../config.js'
+import { listenOf, localUrlOf, projectLabel, runSettings } from '../config.js'
+import { fitWidths } from './width-cap.js'
 import { inContainer, root, source } from '../locations.js'
 import { headOf } from '../updates/checkout.js'
 import { installed } from '../updates/watcher.js'
@@ -96,6 +98,8 @@ export interface LinkedMachine {
   mirror(machine: string): RemoteMachine | undefined
   /** The own machine's id; empty until `wireLinkedMachine` read its token. */
   own(): string
+  /** May the machine's call on `/tasks` without a project reach the project's tasks (`HubMcp.inPool`, BTN-1573)? */
+  inPool(machine: string, project: string): Promise<boolean>
   /**
    * The merge closer's question about a task a machine elsewhere runs (BTN-1313): the own commits of its branches that
    * machine's main has; none while it is off the link, so a tracker's read never waits for it. `undefined` — the task
@@ -210,6 +214,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       machineSettings: () => settings,
       runsOf: ctx.runsOfProject,
       tasksOf: (project) => (ctx.tasksByProject.get(project) ?? []).map((task) => task.id),
+      closedOf: (project) => (ctx.tasksByProject.get(project) ?? []).filter((task) => !isOpen(task.status)).map((task) => task.id),
       state: () => ctx.dispatcher.state,
       demoOwns: (project) => ctx.demo.owns(project),
       reports: ctx.checkReports,
@@ -360,6 +365,15 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     inContainer,
     version: installed(root).version,
     changed: () => ctx.hub.broadcast('machines', { changedAt: Date.now() }),
+    // A machine gone from a project's list cuts its width to the machines left; one connected raises none (BTN-1571).
+    poolCounted: () =>
+      fitWidths(Object.keys(ctx.configStore.current.projects), {
+        widthOf: (project) => ctx.configStore.current.settings[project]?.width ?? 1,
+        capOf: (project) => network.machinesIn(project),
+        save: (project, width) => ctx.configStore.saveWidth(project, width),
+        label: (project) => projectLabel(ctx.configStore.current, project),
+        log,
+      }),
     projectSettings: (project) => ctx.configStore.current.settings[project],
     servers: (project) => ctx.packages.localStdio(project),
     briefed: (machine) => afterGreen.back(machine),
@@ -506,6 +520,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     sessions: allSessions(() => [remote.page, ...network.pages()]),
     mirror: (machine) => (machine === own ? remote : network.remote(machine)),
     own: () => own,
+    inPool: (machine, project) => hubMcp.inPool(machine, project),
     mergedElsewhere: (project, task) => {
       const machine = assignments.machineOf(project, task)
       const at = machine === undefined || machine === own ? undefined : network.port(machine)

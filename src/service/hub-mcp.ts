@@ -32,8 +32,8 @@ const answerOf = (status: number): McpAnswer => ({ status, headers: {}, body: ''
 
 /**
  * The hub's side of the MCP servers a machine's gateway carries (BTN-990): a machine asks only the servers of the
- * projects it is briefed, and `/tasks` with no project only when it is briefed every project. That is every project of
- * the hub for the own machine and, for a machine elsewhere, each one with its row in the pool, turned on or off: a
+ * projects it is briefed, and on `/tasks` with no project each call reaches only such a project (BTN-1573). That is every
+ * project of the hub for the own machine and, for a machine elsewhere, each one with its row in the pool, turned on or off: a
  * machine turned off keeps the project in its brief, installs and probes its packages and finishes the task it holds
  * (BTN-1517).
  */
@@ -51,19 +51,37 @@ export class HubMcp {
     return (await this.scopeOf(machine, path)).admitted
   }
 
-  /** The project the path names (`*` for every one, the path itself for none) and whether the machine may ask it. */
+  /**
+   * May a call of the machine on `/tasks` without a project reach the project (`TasksDeps.inPool`, BTN-1573)? A hand
+   * session there names the project in each call, so the tasks server asks each call's project here.
+   */
+  async inPool(machine: string, project: string): Promise<boolean> {
+    const admitted = await this.placed(machine, project)
+    const key = `${machine}\u0000${project}`
+    if (admitted) this.refused.delete(key)
+    else if (!this.refused.has(key)) {
+      this.deps.log(`link: machine ${machine} called the tasks server on project ${project}, outside its pool: refused`)
+      this.refused.add(key)
+    }
+    return admitted
+  }
+
+  private async placed(machine: string, project: string): Promise<boolean> {
+    if (machine === this.deps.own()) return this.deps.projects().includes(project)
+    return placedIn(this.deps.db, project, machine)
+  }
+
+  /**
+   * The project the path names (`*` for `/tasks` alone, the path itself for none) and whether the machine may ask it.
+   * `/tasks` alone is every machine's: the tasks server checks the project of each of its calls (`inPool`).
+   */
   private async scopeOf(machine: string, path: string): Promise<{ scope: string; admitted: boolean }> {
     const pathname = new URL(path, 'http://hub').pathname
     const tasks = tasksProjectOf(pathname)
     const project = tasks !== undefined ? tasks : parseRoute(pathname)?.project
     if (project === undefined) return { scope: pathname, admitted: false }
-    const scope = project ?? '*'
-    const projects = this.deps.projects()
-    if (machine === this.deps.own()) return { scope, admitted: project === null || projects.includes(project) }
-    for (const each of project === null ? projects : [project]) {
-      if (!(await placedIn(this.deps.db, each, machine))) return { scope, admitted: false }
-    }
-    return { scope, admitted: true }
+    if (project === null) return { scope: '*', admitted: true }
+    return { scope: project, admitted: await this.placed(machine, project) }
   }
 
   /** The hub's gateway's answer to the machine's request, read whole. */

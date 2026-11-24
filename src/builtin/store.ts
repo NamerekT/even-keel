@@ -132,12 +132,14 @@ export class BuiltinStore {
 
   /**
    * Tasks of the projects whose title holds `text`, ignoring case, or whose number it is, by project and number; with no
-   * text, the newest first. At most `limit`.
+   * text, the newest first. At most `limit`, counted after `skip` has left its tasks out.
    */
-  async search(projects: readonly string[], text: string, limit = 20): Promise<BuiltinTask[]> {
+  async search(projects: readonly string[], text: string, limit = 20, skip: (task: TaskKey) => boolean = () => false): Promise<BuiltinTask[]> {
     const needle = text.trim().toLocaleLowerCase()
     const number = /^\d+$/.test(needle) ? Number(needle) : null
-    const found = (await this.read(projects)).filter((task) => needle === '' || task.number === number || task.title.toLocaleLowerCase().includes(needle))
+    const found = (await this.read(projects)).filter(
+      (task) => !skip(task) && (needle === '' || task.number === number || task.title.toLocaleLowerCase().includes(needle)),
+    )
     return (needle === '' ? found.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.number - a.number) : found).slice(0, limit)
   }
 

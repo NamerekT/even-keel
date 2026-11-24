@@ -330,7 +330,9 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
             )}
           </Section>
           <Section title={t.wizard.stepPlace} mark={dot('place')} className="project-add__step">
-            {!fields.git && <p className="settings__hint">{t.wizard.placePlain}</p>}
+            {!fields.git && (
+              <Row className="settings__field project-add__pick" label={t.wizard.place} hint={t.wizard.placePlain} control={<span className="project-add__fixed">{t.wizard.placePlainNow}</span>} />
+            )}
             {fields.git && (
               <Row
                 className="settings__field project-add__pick"
@@ -382,11 +384,11 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
           back={first ? { to: stepPath('stats'), label: t.setup.back } : { to: '/', label: t.wizard.back }}
           next={{ label: t.wizard.add, onNext: () => void add(), disabled: sending || job !== undefined || !ready }}
           note={
-            <span className="project-add__note">
+            <span className="project-add__state">
               {checking || missing === 'checking' ? (
-                <span className="settings__hint">{t.wizard.checking}</span>
+                <span className="project-add__missing">{t.wizard.checking}</span>
               ) : (
-                missing !== null && <span className="settings__hint">{missingText(missing, fields, state)}</span>
+                missing !== null && <span className="project-add__missing">{missingText(missing, fields, state)}</span>
               )}
               {draft !== undefined && !repoBlank(fields) && (
                 <button

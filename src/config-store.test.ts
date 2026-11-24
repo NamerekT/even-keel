@@ -57,6 +57,17 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     expect((await open()).view().projects['id-abc']!.testProject).toBe(true)
   })
 
+  it("writes the project's width alone, as the fit to its machines cuts it (BTN-1571)", async () => {
+    await seed({ projects: [abc({ prompt: 'Hi.' })] })
+    const store = await open()
+    store.saveWidth('id-abc', 2)
+    expect((await read()).projects).toEqual([{ id: 'id-abc', key: 'ABC', tracker: 'huly', repo: 'C:\\abc', prompt: 'Hi.', width: 2 }])
+    store.saveWidth('id-abc', 1)
+    expect(store.current.settings['id-abc']).toMatchObject({ width: 1, prompt: 'Hi.' })
+    expect((await read()).projects).toEqual([{ id: 'id-abc', key: 'ABC', tracker: 'huly', repo: 'C:\\abc', prompt: 'Hi.' }])
+    expect(() => store.saveWidth('id-none', 1)).toThrow()
+  })
+
   it('applies settings written past it at the next look, and keeps the last working ones while the stored ones do not parse', async () => {
     await seed({ projects: [abc()] })
     const config = await open()

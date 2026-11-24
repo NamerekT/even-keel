@@ -52,6 +52,8 @@ export class MachineNetwork {
   /** The machines revoked here and, by project, its pool turned on: read by `refresh`, so the chain asks without a query. */
   private revokedIds = new Set<string>()
   private pools = new Map<string, string[]>()
+  /** By project, every machine of its list, turned on or off; `undefined` until the first `refresh`. */
+  private listed: Map<string, string[]> | undefined
   private machineNames: Record<string, string> = {}
   /** The own machine and the joined ones, in the hub's order, as `refresh` last read them; `live` drops the revoked. */
   private joinedIds: string[] = []
@@ -122,6 +124,17 @@ export class MachineNetwork {
     return this.pools.get(project) ?? []
   }
 
+  /**
+   * How many machines the project's list "The project's machines" holds (BTN-1571): turned on or off, the own one too,
+   * the revoked and never joined ones apart, as `pool` shows them; at least 1, the own machine of a project with none.
+   * The most its width may be. `undefined` — not read yet.
+   */
+  machinesIn(project: string): number | undefined {
+    if (this.listed === undefined) return undefined
+    const live = new Set(this.live())
+    return Math.max(1, (this.listed.get(project) ?? []).filter((machine) => live.has(machine)).length)
+  }
+
   /** The hub's name of each machine it ever had, the own one and the revoked ones too, as `refresh` last read them. */
   names(): Record<string, string> {
     return this.machineNames
@@ -176,10 +189,16 @@ export class MachineNetwork {
     this.joinedIds = machines.filter((record) => record.id === own || record.joinedAt !== null).map((record) => record.id)
     this.colorsById = machineColors(machines)
     this.paletteById = machineColors(machines.map(({ id }) => ({ id })))
-    const { rows } = await this.options.db.query<{ project_id: string; machine_id: string }>('select project_id, machine_id from project_machines where enabled order by machine_id')
+    const { rows } = await this.options.db.query<{ project_id: string; machine_id: string; enabled: boolean }>('select project_id, machine_id, enabled from project_machines order by machine_id')
     const pools = new Map<string, string[]>()
-    for (const row of rows) pools.set(row.project_id, [...(pools.get(row.project_id) ?? []), row.machine_id])
+    const listed = new Map<string, string[]>()
+    for (const row of rows) {
+      listed.set(row.project_id, [...(listed.get(row.project_id) ?? []), row.machine_id])
+      if (row.enabled) pools.set(row.project_id, [...(pools.get(row.project_id) ?? []), row.machine_id])
+    }
     this.pools = pools
+    this.listed = listed
+    this.options.poolCounted?.()
   }
 
   /** How many of the hub's tasks the machine runs at once (BTN-993). */
@@ -602,6 +621,7 @@ export class MachineNetwork {
     this.taken.delete(record.id)
     this.revokedIds.add(record.id)
     this.options.log(`machines: machine ${record.id} (${record.name}) was revoked`)
+    this.options.poolCounted?.()
     this.options.changed()
   }
 

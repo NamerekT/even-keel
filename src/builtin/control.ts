@@ -16,6 +16,18 @@ import { BuiltinStore, type BuiltinTask, type FieldEdit, type TaskKey } from './
 
 const SEARCH_LIMIT = 20
 
+export const SEARCH_FIELDS = ['parent', 'blocks', 'blockedBy', 'relates'] as const
+export type SearchField = (typeof SEARCH_FIELDS)[number]
+
+/**
+ * What a task search is for (BTN-1589): a link of `task` of this kind leaves out the task and what it already links so; a
+ * parent leaves out the task, its parent and its subtasks at any depth. A loop of blockers stays the service's refusal.
+ */
+export interface SearchPurpose {
+  task: string
+  field: SearchField
+}
+
 /** A task as the page gets it: every task named by its `<KEY>-<N>`. */
 export interface BuiltinView extends Omit<BuiltinTask, 'parent' | 'blockedBy' | 'blocks' | 'related'> {
   id: string
@@ -68,9 +80,9 @@ export interface BuiltinControl {
   remove(task: string): Promise<void>
   /**
    * Tasks to link or to make a parent: by id, a word of the title or a number; in `project` alone, or in every project of
-   * the built-in tracker when it is `null`.
+   * the built-in tracker when it is `null`. With `purpose`, without the tasks the service would refuse for that field.
    */
-  search(text: string, project: string | null): Promise<TaskRef[]>
+  search(text: string, project: string | null, purpose?: SearchPurpose): Promise<TaskRef[]>
   /** The project has a task in the built-in tracker, whatever its status: its tracker is not swapped for another (BTN-769). */
   holds(project: string): Promise<boolean>
   /** Takes an upload as the task's attachment (BTN-773); refused past the attachment size limit. */
@@ -268,16 +280,21 @@ export function builtinControl({
       await store.remove(task)
       await refresh(task.project)
     },
-    async search(text, project) {
+    async search(text, project, purpose) {
       const { names, store } = open()
       const projects = project === null ? Object.keys(places()) : [project]
+      const left = purpose === undefined ? new Set<string>() : await leftOut(store, await find(names, store, purpose.task), purpose.field)
+      const skip = (task: TaskKey) => left.has(keyOf(task))
       const exact: BuiltinTask[] = []
       for (const key of [...names.candidates(text.trim()), ...names.candidates(text.trim().toUpperCase())]) {
-        if (exact.some((each) => each.project === key.project && each.number === key.number)) continue
+        if (skip(key) || exact.some((each) => each.project === key.project && each.number === key.number)) continue
         const task = projects.includes(key.project) ? await store.get(key) : undefined
         if (task !== undefined) exact.push(task)
       }
-      const found = [...exact, ...(await store.search(projects, text)).filter((task) => !exact.some((each) => each.project === task.project && each.number === task.number))]
+      const found = [
+        ...exact,
+        ...(await store.search(projects, text, SEARCH_LIMIT, skip)).filter((task) => !exact.some((each) => each.project === task.project && each.number === task.number)),
+      ]
       const listed = found.slice(0, SEARCH_LIMIT)
       const moved = await movedTasks(db, [...new Set(listed.map((task) => task.project))])
       return listed.map((task) => withMoved({ id: names.name(task), title: task.title, status: task.status }, moved.get(movedName(task.project, task.number))))
@@ -357,4 +374,23 @@ export function builtinControl({
       await refresh(project)
     },
   }
+}
+
+const keyOf = (task: TaskKey): string => `${task.project}:${task.number}`
+
+/** The tasks the service would refuse as `task`'s `field` (BTN-1589), as `keyOf` names them. */
+async function leftOut(store: BuiltinStore, task: BuiltinTask, field: SearchField): Promise<Set<string>> {
+  const left = new Set([keyOf(task)])
+  if (field !== 'parent') {
+    for (const other of field === 'blocks' ? task.blocks : field === 'blockedBy' ? task.blockedBy : task.related) left.add(keyOf(other))
+    return left
+  }
+  if (task.parent !== null) left.add(keyOf({ project: task.project, number: task.parent }))
+  const tasks = await store.list([task.project])
+  for (let level = [task.number]; level.length > 0; ) {
+    const next = tasks.filter((each) => each.parent !== null && level.includes(each.parent) && !left.has(keyOf(each)))
+    for (const each of next) left.add(keyOf(each))
+    level = next.map((each) => each.number)
+  }
+  return left
 }

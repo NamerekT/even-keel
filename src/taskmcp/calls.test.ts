@@ -908,6 +908,47 @@ describe("the project's feeds (BTN-892)", () => {
   })
 })
 
+describe("a hand session on a machine elsewhere, /tasks without a project (BTN-1573)", () => {
+  const MACHINE: TasksScope = { ...HAND, machine: 'm-a' }
+  const OFF_POOL = /^the project of XYZ keys is not on this machine/
+  let asked: string[]
+
+  beforeEach(async () => {
+    asked = []
+    tools = new TasksTools({ ...deps(), inPool: async (machine, project) => (asked.push(`${machine} ${project}`), project === ABC) })
+    await store.create({ project: XYZ, title: 'Away' })
+    await store.create({ project: GHI, title: 'Feed task' })
+  })
+
+  it("works the projects of the machine's pool, its feeds too, and refuses each call on another project", async () => {
+    expect(await call('task_read', { key: 'ABC-1' }, MACHINE)).toContain('# ABC-1 Parent')
+    expect(await call('task_read', { key: 'GHI-1' }, MACHINE)).toContain('# GHI-1 Feed task')
+    expect(await call('tasks_list', { project: 'ABC', tracker: 'GHI' }, MACHINE)).toBe('GHI-1 · Todo · Feed task')
+    expect(await call('tasks_create', { project: 'abc', tasks: [{ title: 'Here' }] }, MACHINE)).toBe('ABC-2 Here')
+    ran = []
+    expect(await refusal(call('task_read', { key: 'XYZ-1' }, MACHINE))).toMatch(OFF_POOL)
+    expect(await refusal(call('tasks_list', { project: 'XYZ' }, MACHINE))).toMatch(OFF_POOL)
+    expect(await refusal(call('tasks_create', { project: 'XYZ', tasks: [{ title: 'There' }] }, MACHINE))).toMatch(OFF_POOL)
+    expect(await refusal(call('task_comment', { key: 'XYZ-1', text: 'done' }, MACHINE))).toMatch(OFF_POOL)
+    expect(await refusal(call('task_update', { key: 'XYZ-1', priority: 'high' }, MACHINE))).toMatch(OFF_POOL)
+    expect(ran).toEqual([])
+    expect(asked.every((each) => each.startsWith('m-a '))).toBe(true)
+  })
+
+  it('refuses only the line of a task outside the pool in a batch', async () => {
+    expect((await call('task_update', { keys: ['ABC-1', 'XYZ-1'], priority: 'high' }, MACHINE)).split('\n')).toEqual([
+      'ABC-1: priority → high',
+      expect.stringMatching(OFF_POOL),
+    ])
+  })
+
+  it('asks no pool of a call from the hub itself or on an address that names the project', async () => {
+    expect(await call('task_read', { key: 'XYZ-1' }, HAND)).toContain('# XYZ-1 Away')
+    expect(await call('task_read', { key: 'ABC-1' }, { ...CHAIN, machine: 'm-a' })).toContain('# ABC-1 Parent')
+    expect(asked).toEqual([])
+  })
+})
+
 describe('components and attachments (BTN-895)', () => {
   type Props = Record<string, unknown>
   const toolsOf = async (scope: TasksScope) => {

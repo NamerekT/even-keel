@@ -73,6 +73,25 @@ function withParents(state: EvenKeelState): ProjectTask[] {
   return [...state.tasks, ...madeUp]
 }
 
+/** What the service leaves out of a search for a link or a parent (BTN-1589), as `builtinControl` does. */
+function leftOut(tasks: ProjectTask[], purpose: { task: string; field: string } | undefined): Set<string> {
+  if (purpose === undefined) return new Set()
+  const { task, field } = purpose
+  const left = new Set([task])
+  const own = tasks.find((each) => each.id === task)
+  if (field === 'blockedBy') own?.blockedBy.forEach((id) => left.add(id))
+  if (field === 'blocks') tasks.filter((each) => each.blockedBy.includes(task)).forEach((each) => left.add(each.id))
+  if (field === 'relates') tasks.filter((each) => related.has(pair(task, each.id))).forEach((each) => left.add(each.id))
+  if (field !== 'parent') return left
+  if (own !== undefined && own.parent !== null) left.add(own.parent)
+  for (let level = [task]; level.length > 0; ) {
+    const next = tasks.filter((each) => each.parent !== null && level.includes(each.parent) && !left.has(each.id)).map((each) => each.id)
+    next.forEach((id) => left.add(id))
+    level = next
+  }
+  return left
+}
+
 /**
  * `?description=html|long|empty` (BTN-772): a description holding raw HTML, so the visual editor is closed to it; one long
  * enough to scroll inside the editor; none, for the placeholder. Otherwise the shared card's text without its Huly HTML
@@ -192,8 +211,13 @@ export function fakeBuiltinQuery(state: EvenKeelState, name: string, body: Recor
     case 'builtin/search': {
       const text = String(body.text ?? '').trim().toLocaleLowerCase()
       const project = typeof body.project === 'string' ? body.project : null
-      const found = withParents(state).filter(
-        (each) => (project === null || each.project === project) && (text === '' || each.id.toLocaleLowerCase() === text || each.title.toLocaleLowerCase().includes(text)),
+      const tasks = withParents(state)
+      const left = leftOut(tasks, body.for as { task: string; field: string } | undefined)
+      const found = tasks.filter(
+        (each) =>
+          !left.has(each.id) &&
+          (project === null || each.project === project) &&
+          (text === '' || each.id.toLocaleLowerCase() === text || each.title.toLocaleLowerCase().includes(text)),
       )
       return { state, result: found.slice(0, 20).map(refOf) }
     }

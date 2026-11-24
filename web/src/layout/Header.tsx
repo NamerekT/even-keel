@@ -85,7 +85,7 @@ export function Header() {
                 </div>
               </div>
             )}
-            {live !== null && (ownAccounts ? <AccountBlock account={live.account} limits={live.limits} now={now} levels={levels} /> : <MachineAccountsBlock now={now} />)}
+            {live !== null && (ownAccounts ? <AccountBlock account={live.account} limits={live.limits} now={now} levels={levels} /> : <MachineAccountsBlock now={now} project={project} />)}
             <GearMenu now={now} />
           </div>
         )}
