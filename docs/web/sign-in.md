@@ -27,16 +27,18 @@ A blocked service (a broken config) has no book: there the cookie holds the key 
 
 `accessRoute` (`src/access/routes.ts`) answers `/api/auth/*`; an error is 400 `{ error, notice }` with an `auth.*` code.
 
-- Open to a visit: `GET state` (`AuthState`: signed in, key set, this device), `POST key { key }`, `POST passkey/options`, `POST passkey { response }`.
+- Open to a visit: `GET state` (`AuthState`: signed in, key set, a passkey made on this request's host name, this device), `POST key { key }`, `POST passkey/options`, `POST passkey { response }`.
 - Only signed in (else 401 `auth.signInFirst`): `POST passkey/register/options`, `POST passkey/register { response }`, `POST passkey/remove { id }`, `POST devices` (`DevicesView`; a POST as the page's other queries), `POST devices/revoke { id }`, `POST devices/revoke-others`, `POST sign-out`.
 
 A sign-in sets the cookie (`HttpOnly`, `SameSite=Strict`, a year) and revokes the token the browser held before, so one browser is one row.
 
 ## Passkeys
 
-WebAuthn through `@simplewebauthn/server` and `@simplewebauthn/browser`. The RP ID is the host name the page was opened by (`hostnameOf` of `Host`, which `allowedHosts` already admitted), the origin the browser's `Origin`: a passkey works only on the name it was made on, and its `host` is listed in its tip. Attestation `none`, discoverable credentials, user verification preferred. A challenge lives 5 minutes, is used once and is bound to its kind and host; at most 200 wait at once, since the routes are open.
+WebAuthn through `@simplewebauthn/server` and `@simplewebauthn/browser`. The RP ID is the host name the page was opened by (`hostnameOf` of `Host`, which `allowedHosts` already admitted), the origin the browser's `Origin`: a passkey works only on the name it was made on, and its row in the settings shows that name. Attestation `none`, discoverable credentials, user verification preferred. A challenge lives 5 minutes, is used once and is bound to its kind and host; at most 200 wait at once, since the routes are open.
 
-A passkey needs a secure context — HTTPS or `localhost`: on plain `http://<address>` the screen has no passkey button, only the key with a line saying why. It also needs a name: WebAuthn refuses an IP address as an RP ID, so on `http://127.0.0.1` or any v4/v6 address (`passkeyHost` in `src/access/passkey-host.ts`, shared with the page) neither the sign-in screen nor "Sign-in and devices" shows a passkey button, a line says to open `localhost` or an HTTPS name instead, and the server answers both options calls with `auth.passkeyByName` (BTN-1632). After a sign-in with the key, where passkeys work, the screen offers to add one on this device.
+A passkey needs a secure context — HTTPS or `localhost`: on plain `http://<address>` the screen has no passkey button, only the key with a line saying why. It also needs a name: WebAuthn refuses an IP address as an RP ID, so on `http://127.0.0.1` or any v4/v6 address (`passkeyHost` in `src/access/passkey-host.ts`, shared with the page) neither the sign-in screen nor "Sign-in and devices" shows a passkey button, a line says to open `localhost` or an HTTPS name instead, and the server answers both options calls with `auth.passkeyByName` (BTN-1632). Where passkeys work but the hub has none made on this name (`AuthState.passkeyHere`, BTN-1631), the button gives way to a line too: the browser's dialog would list only the phone and security keys. After a sign-in with the key, where passkeys work, the screen offers to add one on this device.
+
+A device signed in with a passkey keeps that passkey's host name (`access_tokens.passkey_host`): its row in the devices list tags it "passkey on `name`" instead of a bare "passkey", so two "Chrome on Windows" tell apart. Tokens made before BTN-1631 have none.
 
 A browser answers `NotAllowedError` both when the person closes its dialog and when it refuses with no dialog at all — Telegram's in-app browser on iOS has `PublicKeyCredential` and refuses at once (BTN-1630). `ceremony` in `web/src/pages/passkey.ts` tells them apart: a refusal within `NO_DIALOG_MS` (1 s) with the page never losing focus or visibility is the browser's, and the screen and the settings group say the browser cannot use passkeys and to open the page in Safari or Chrome; a slower one, or one after the page lost focus, is "No passkey was picked".
 
@@ -52,7 +54,7 @@ A stream the service ended after its 200 is reopened by the browser itself, and 
 
 ## dev:fake
 
-`/?signIn` draws the screen (`?signIn=nokey` — no owner key on the hub): the key is `owner-key`, a passkey always passes without the browser's dialog (`?signIn=nopasskeys` — refused at once, as by a browser without passkeys), and signing in drops the parameter. The settings group reads `web/src/live/fakeAuth.ts`: two passkeys and two devices, this browser one of them; its band follows the fake `EVEN_KEEL_TOKEN`.
+`/?signIn` draws the screen (`?signIn=nokey` — no owner key on the hub, `?signIn=elsewhere` — passkeys made only on other names): the key is `owner-key`, a passkey always passes without the browser's dialog (`?signIn=nopasskeys` — refused at once, as by a browser without passkeys), and signing in drops the parameter. The settings group reads `web/src/live/fakeAuth.ts`: three passkeys on two names and three devices, two of them "Chrome on Windows", this browser one of them; its band follows the fake `EVEN_KEEL_TOKEN`.
 
 ```sh
 npm run shot -- '/?signIn&lang=ru' .sign-in__card --size 390x844

@@ -1,6 +1,5 @@
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
-import { tokensOf } from '../access/store.js'
 import { insertRows, rowsOf } from './copy.js'
 import { fixture, readsWhole, schemaOf } from './database.fixture.js'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
@@ -16,7 +15,8 @@ it('step 80 marks a device token signed in with the owner key, none before it (B
     expect(await databaseVersion(frozen)).toBe(80)
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
     await readsWhole(frozen, 80, 80)
-    expect((await tokensOf(frozen, OWNER)).map((token) => [token.device, token.keyMark])).toEqual([
+    // Read as step 80 left the table: `tokensOf` follows the latest schema (step 81's `passkey_host`).
+    expect((await keyMarks(frozen)).map((token) => [token.device, token.key_mark])).toEqual([
       ['Firefox on Linux', '3f1c9a7e5b2d8f4a6c0e1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f2a4c6e8b0d1f3a'],
       ['Safari on iPhone', null],
     ])
@@ -25,8 +25,13 @@ it('step 80 marks a device token signed in with the owner key, none before it (B
     await upgraded.exec(fixture(79))
     await upgraded.exec(STEPS[77]!)
     expect(await schemaOf(upgraded)).toEqual(await schemaOf(made))
-    expect((await tokensOf(upgraded, OWNER)).map((token) => token.keyMark)).toEqual([null, null])
+    expect((await keyMarks(upgraded)).map((token) => token.key_mark)).toEqual([null, null])
   } finally {
     await Promise.all([frozen.close(), made.close(), upgraded.close()])
   }
 })
+
+async function keyMarks(db: PGlite) {
+  const { rows } = await db.query<{ device: string; key_mark: string | null }>('select device, key_mark from access_tokens where person_id = $1 order by created_at, id', [OWNER])
+  return rows
+}

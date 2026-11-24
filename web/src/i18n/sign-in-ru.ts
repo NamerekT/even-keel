@@ -4,6 +4,7 @@ export const signInRu = {
   passkeyWaiting: 'Ждём passkey…',
   noPasskeyHere:
     'Passkey работает только в защищённом контексте — по HTTPS или на localhost. Здесь страница открыта по голому http, так что вход только ключом.',
+  noPasskeyOnName: 'На этом адресе passkey ещё нет: войдите ключом, и страница предложит его добавить.',
   noPasskeyByIp: 'Passkey работают по имени: откройте localhost или HTTPS-имя.',
   or: 'или',
   key: 'Ключ владельца',
@@ -28,6 +29,7 @@ export const signInRu = {
   thisDevice: 'это устройство',
   byKey: 'ключом',
   byPasskey: 'passkey',
+  byPasskeyAt: (host: string) => `passkey на ${host}`,
   signOut: 'Выйти',
   signOutOthers: 'Выйти на всех, кроме этого',
   ownerKey: 'Вход ключом',
