@@ -1,27 +1,35 @@
 import { useEffect, useLayoutEffect, useRef, type MutableRefObject, type RefObject } from 'react'
 import type { ChainBlock } from '../state.js'
 import { stillMotion } from '../ui/landing.js'
-import { moveDelay, regroups, STEP_MS, type Motion } from '../ui/motion.js'
+import { FAST_MS, moveDelay, regroups, STEP_MS, type Motion } from '../ui/motion.js'
+import { reorderShifts } from '../ui/reorder.js'
 
-const GLIDE = 'group-glide'
+const GLIDE = 'row-glide'
 const CAPTION = '.chain__group-caption'
 
 /**
- * The rows that move into the running group or out of it (BTN-1613), and the group's frame. A row glides from where it
- * stood to its new place (FLIP on `translate`, so a drag's `transform` stays its own), the rows it passes with it; a row
- * on its way out is held in the frame until it moves. The frame is drawn around its rows as they are on screen, so it
- * stretches to meet a row coming in, and glides shut once a row has gone.
+ * The rows that change their place in the chain, and the frame of the running group. A row glides from where it stood
+ * to its new place (FLIP on `translate`, so a drag's `transform` stays its own), the rows it passes with it.
+ *
+ * A row moving into the running group or out of it (BTN-1613) goes on its motion's beat, in a step; a row on its way out
+ * is held in the frame until it moves. Any other order the server changed — another tab's drop, a rule, a lane taking a
+ * row that joins no group — glides at once in `--motion-fast` (BTN-1612); not during the user's own drag and its
+ * settling (`held`), nor in the render that switches the view. The frame is drawn around its rows as they are on screen,
+ * so it stretches to meet a row coming in, and glides shut once a row has gone.
  *
  * `play` is called from the motion's layout effect, before this hook's own one records the rows' new places: call the
  * hook after `useChainMotion`.
  */
-export function useGroupGlide(
+export function useRowGlide(
   listRef: RefObject<HTMLElement | null>,
   frameRef: RefObject<HTMLElement | null>,
   members: readonly string[],
   play: MutableRefObject<(motion: Motion<ChainBlock>) => void>,
+  view: string,
+  held: () => boolean,
 ): void {
   const tops = useRef(new Map<string, number>())
+  const lastView = useRef(view)
   const glides = useRef(new Map<string, Glide>())
   const rebasing = useRef(false)
   /** Rows kept in the frame until they move: those leaving and the one left alone, until when. */
@@ -117,11 +125,33 @@ export function useGroupGlide(
     })
   }
 
+  /** An order changed with no row moving into the group or out: the rows that changed places glide there at once. */
+  const reorder = (list: HTMLElement) => {
+    const rows = [...list.querySelectorAll<HTMLElement>('li[data-block]')]
+    const byId = new Map(rows.map((row) => [row.dataset.block!, row]))
+    // A row still gliding starts again from where it stands on screen.
+    const before = [...tops.current].map(([id, top]) => {
+      const row = byId.get(id)
+      return { id, top: row === undefined ? top : top + shiftOf(row) }
+    })
+    const after = rows.map((row) => ({ id: row.dataset.block!, top: row.offsetTop }))
+    const shifts = reorderShifts(before, after, stillMotion())
+    for (const { id, shift, lifted } of shifts) {
+      const row = byId.get(id)!
+      for (const animation of row.getAnimations()) if (animation.id === GLIDE) animation.cancel()
+      row.animate(glideFrames(shift, lifted ? 2 : 1), { duration: FAST_MS, easing: 'ease-out', fill: 'backwards' }).id = GLIDE
+    }
+    if (shifts.length > 0) track(performance.now() + FAST_MS)
+  }
+
   // After every render: the rows' places for the next motion, and the frame around its rows.
   useLayoutEffect(() => {
     const list = listRef.current
     if (list === null) return
+    const switched = lastView.current !== view
+    lastView.current = view
     if (rebasing.current) rebase(list, glides.current)
+    else if (!switched && !held()) reorder(list)
     record(list, tops.current)
     place()
   })

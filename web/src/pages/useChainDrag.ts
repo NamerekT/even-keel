@@ -70,6 +70,8 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
   const press = useRef<Press | null>(null)
   const active = useRef<Active | null>(null)
   const swallowClick = useRef(false)
+  /** Until when a drop's own glide plays: a landing waits two frames and settles, a reflow glides at once. */
+  const droppedUntil = useRef(0)
   const latest = useRef({ blocks, onDrop })
   latest.current = { blocks, onDrop }
 
@@ -215,6 +217,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
       const { dx, dy, target } = measure(state)
       const to = commit ? target : state.from
       setDrag(null)
+      droppedUntil.current = performance.now() + 2 * SETTLE_MS
       if (to === state.from) setLanding({ id: state.id, offset: { x: dx, y: dy } })
       else setReflow({ id: state.id, from: positions(list) })
       swallowClick.current = true
@@ -310,8 +313,10 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
   }, [listRef])
 
   const movable = (block: ChainBlock) => !disabled && reorderable(block)
+  /** A card is dragged, or its drop still glides: the rows are the drag's own (BTN-1612). */
+  const held = () => active.current !== null || performance.now() < droppedUntil.current
 
-  return { drag, landing, settling, movable }
+  return { drag, landing, settling, movable, held }
 }
 
 /**
