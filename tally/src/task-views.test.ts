@@ -4,7 +4,8 @@ import { migrate, pgliteDb } from './migrations.js'
 
 // The task of a message and of a session (BTN-79) on the whole schema in an in-memory PGlite.
 
-type Message = [id: string, session: string, task: string | null, at: string]
+// A message's task came from its branch when the branch is `<task>/…`, otherwise from its worktree folder.
+type Message = [id: string, session: string, task: string | null, at: string, branch?: string]
 
 describe('task of a message', () => {
   let db: PGlite
@@ -14,22 +15,36 @@ describe('task of a message', () => {
     await db.exec(`set timezone = 'UTC'`)
     await migrate(pgliteDb(db))
     await db.exec(`insert into sessions (session_id, account, launch_task) values
-      ('chain', 'a', 'ABC-1'), ('manual', 'a', null), ('plain', 'a', null)`)
+      ('chain', 'a', 'ABC-1'), ('manual', 'a', null), ('plain', 'a', null), ('visit', 'a', null),
+      ('started', 'a', null), ('mostly', 'a', null), ('half', 'a', null)`)
     const messages: Message[] = [
       ['c1', 'chain', null, '2026-10-01T10:00:00Z'],
       ['c2', 'chain', 'ABC-9', '2026-10-01T10:01:00Z'],
-      ['m1', 'manual', null, '2026-10-01T11:00:00Z'],
-      ['m2', 'manual', 'ABC-2', '2026-10-01T11:01:00Z'],
-      ['m3', 'manual', 'ABC-3', '2026-10-01T11:02:00Z'],
-      ['m4', 'manual', null, '2026-10-01T11:03:00Z'],
+      ['m1', 'manual', null, '2026-10-01T11:00:00Z', 'dev'],
+      ['m2', 'manual', 'ABC-2', '2026-10-01T11:01:00Z', 'abc-2/fix'],
+      ['m3', 'manual', 'ABC-3', '2026-10-01T11:02:00Z', 'abc-3/fix'],
+      ['m4', 'manual', null, '2026-10-01T11:03:00Z', 'dev'],
       ['p1', 'plain', null, '2026-10-01T12:00:00Z'],
       ['o1', 'orphan', 'ABC-4', '2026-10-01T13:00:00Z'],
+      // A manual session on the project's branch that ran one command in a task's worktree, then worked on a branch.
+      ['v1', 'visit', null, '2026-10-02T10:00:00Z', 'dev'],
+      ['v2', 'visit', 'ABC-5', '2026-10-02T10:01:00Z', 'dev'],
+      ['v3', 'visit', null, '2026-10-02T10:02:00Z', 'dev'],
+      ['v4', 'visit', null, '2026-10-02T10:03:00Z', 'dev'],
+      ['s1', 'started', 'ABC-6', '2026-10-02T11:00:00Z', 'dev'],
+      ['s2', 'started', null, '2026-10-02T11:01:00Z', 'dev'],
+      ['s3', 'started', null, '2026-10-02T11:02:00Z', 'dev'],
+      ['y1', 'mostly', null, '2026-10-02T12:00:00Z', 'dev'],
+      ['y2', 'mostly', 'ABC-7', '2026-10-02T12:01:00Z', 'dev'],
+      ['y3', 'mostly', 'ABC-7', '2026-10-02T12:02:00Z', 'dev'],
+      ['h1', 'half', null, '2026-10-02T13:00:00Z', 'dev'],
+      ['h2', 'half', 'ABC-8', '2026-10-02T13:01:00Z', 'dev'],
     ]
-    for (const [id, session, task, at] of messages) {
+    for (const [id, session, task, at, branch] of messages) {
       await db.query(
-        `insert into messages (message_id, session_id, account, task, at, input, cache_write_5m, cache_write_1h, cache_read, output)
-         values ($1, $2, 'a', $3, $4, 0, 0, 0, 0, 0)`,
-        [id, session, task, at],
+        `insert into messages (message_id, session_id, account, task, branch, at, input, cache_write_5m, cache_write_1h, cache_read, output)
+         values ($1, $2, 'a', $3, $4, $5, 0, 0, 0, 0, 0)`,
+        [id, session, task, branch ?? null, at],
       )
     }
   }, 30_000)
@@ -53,6 +68,26 @@ describe('task of a message', () => {
   it('gives every message of a manual session the task of its first message with one', async () => {
     const found = await tasks()
     expect([found.m1, found.m2, found.m3, found.m4]).toEqual(['ABC-2', 'ABC-2', 'ABC-2', 'ABC-2'])
+  })
+
+  it('gives a manual session no task of a worktree it only passed through', async () => {
+    const found = await tasks()
+    expect([found.v1, found.v2, found.v3, found.v4]).toEqual([null, null, null, null])
+  })
+
+  it('gives a session started in a worktree the task of that folder', async () => {
+    const found = await tasks()
+    expect([found.s1, found.s2, found.s3]).toEqual(['ABC-6', 'ABC-6', 'ABC-6'])
+  })
+
+  it('gives a session that spent most of its responses in a worktree the task of that folder', async () => {
+    const found = await tasks()
+    expect([found.y1, found.y2, found.y3]).toEqual(['ABC-7', 'ABC-7', 'ABC-7'])
+  })
+
+  it('gives a worktree no session that spent only half of its responses there', async () => {
+    const found = await tasks()
+    expect([found.h1, found.h2]).toEqual([null, null])
   })
 
   it('leaves a session without any task without one', async () => {
