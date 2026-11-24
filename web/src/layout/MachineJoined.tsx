@@ -136,11 +136,14 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
         )}
 
         <section className="add-machine__section">
-          <SectionLabel>{t.machines.projects}</SectionLabel>
+          <div className="add-machine__head">
+            <SectionLabel>{t.machines.projects}</SectionLabel>
+            {fresh.length > 0 && <HelpTip text={`${t.machines.placeHint} ${t.machines.checks}`} align="start" />}
+          </div>
           {about?.root == null ? (
-            <p className="add-package__note add-package__note--warn">{t.machines.noRoot}</p>
+            <p className="add-machine__problem">{t.machines.noRoot}</p>
           ) : state.projects.length === 0 ? (
-            <p className="add-package__note">{t.machines.projectsNone}</p>
+            <p className="add-machine__empty">{t.machines.projectsNone}</p>
           ) : (
             <ul className="add-machine__list">
               {state.projects.map((project) => {
@@ -174,18 +177,15 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
               })}
             </ul>
           )}
-          {fresh.length > 0 && (
-            <>
-              <p className="add-package__note">{t.machines.placeHint}</p>
-              <p className="add-package__note">{t.machines.checks}</p>
-            </>
-          )}
         </section>
 
         <section className="add-machine__section">
-          <SectionLabel>{t.machines.accounts}</SectionLabel>
+          <div className="add-machine__head">
+            <SectionLabel>{t.machines.accounts}</SectionLabel>
+            <HelpTip text={t.machines.accountsNote} align="start" />
+          </div>
           {accounts.length === 0 ? (
-            <p className="add-package__note">{t.machines.accountsNone}</p>
+            <p className="add-machine__empty">{t.machines.accountsNone}</p>
           ) : (
             <ul className="add-machine__list">
               {accounts.map(({ entry, gap, token: onToken }) => (
@@ -246,7 +246,6 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
         </p>
       )}
       <footer className="add-package__foot add-package__foot--wrap">
-        <span className="add-package__note add-machine__foot-note">{t.machines.accountsNote}</span>
         <span className="add-package__spacer" />
         <button type="button" className="button" onClick={onClose}>
           {t.machines.later}
