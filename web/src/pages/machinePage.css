@@ -113,13 +113,13 @@
 }
 
 .machine-page__empty,
-.machine-page__note {
+.machine-page__state {
   margin: 0;
   color: var(--fg-muted);
   font-size: var(--text-13);
 }
 
-.machine-page__note {
+.machine-page__state {
   font-size: var(--text-12);
 }
 
@@ -288,7 +288,7 @@ a.machine-page__name:hover {
   font-weight: 400;
 }
 
-.machine-page__note {
+.machine-page__state {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

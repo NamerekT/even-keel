@@ -34,7 +34,7 @@ export function MachineCliInstall({ machine, agent, back }: { machine: MachineSi
           <p>{command === undefined ? view.installNone(title, machine.name) : view.installLead(title, machine.name)}</p>
           {command !== undefined && <CommandBlock command={command} />}
           {install !== null && <InstallOutput install={install} title={title} />}
-          {hubCopy !== undefined && <p className="add-package__note">{hubChecked ? view.checkedComing(machine.name) : view.checkedNote}</p>}
+          {hubCopy !== undefined && <p className="cli-copy__aside">{hubChecked ? view.checkedComing(machine.name) : view.checkedNote}</p>}
         </div>
       </div>
       {failure && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}

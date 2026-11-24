@@ -115,6 +115,13 @@
   gap: var(--space-8);
 }
 
+.machine-sign__empty {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  line-height: 1.45;
+}
+
 .machine-sign__same {
   display: inline-flex;
   align-items: center;
