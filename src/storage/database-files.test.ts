@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
@@ -8,7 +8,7 @@ import { BuiltinStore } from '../builtin/store.js'
 import { backupDatabase } from './copy.js'
 import { ABC, fixture, readsWhole, schemaOf } from './database.fixture.js'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
-import { dataDirOf, filesDirOf } from './owner.js'
+import { dataDirOf, filesDirOf, memoryDirOf } from './owner.js'
 
 it('step 32 keeps a built-in task\'s attachments, and a task before it has none', { timeout: 120_000 }, async () => {
   const frozen = await PGlite.create()
@@ -57,5 +57,23 @@ it('a backup carries the attachments\' bytes, and the restored copy serves them'
     }
   } finally {
     await source.close()
+  }
+})
+
+it('a backup carries the memory repositories without git\'s lock files (BTN-1646)', { timeout: 120_000 }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ek-backup-memory-'))
+  const source = await openDatabase(undefined)
+  const memory = memoryDirOf(join(dir, 'even-keel'))
+  try {
+    mkdirSync(join(memory, 'p.git', 'refs'), { recursive: true })
+    writeFileSync(join(memory, 'p.git', 'HEAD'), 'ref: refs/heads/main\n')
+    writeFileSync(join(memory, 'p.git', 'refs', 'main.lock'), 'half')
+    const copy = join(dir, 'backup')
+    await backupDatabase(source, copy, undefined, memory)
+    expect(readFileSync(join(memoryDirOf(copy), 'p.git', 'HEAD'), 'utf8')).toBe('ref: refs/heads/main\n')
+    expect(existsSync(join(memoryDirOf(copy), 'p.git', 'refs', 'main.lock'))).toBe(false)
+  } finally {
+    await source.close()
+    rmSync(dir, { recursive: true, force: true })
   }
 })

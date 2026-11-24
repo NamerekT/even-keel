@@ -2,8 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, watch as wa
 import { join } from 'node:path'
 import { runGit } from '../../git/run.js'
 import type { Git, GitResult } from '../../git/types.js'
-import { MEMORY_INDEX, MIRROR_MARK } from '../mirror.js'
-import { fileHash, parseMemoryFile, type MemoryFact } from '../record.js'
+import { fileHash, MEMORY_INDEX, MIRROR_MARK, parseMemoryFile, type MemoryFact } from '../record.js'
 import { settleConflicts } from './conflicts.js'
 import { reindex } from './reindex.js'
 import { findSecrets } from './secrets.js'
@@ -96,6 +95,13 @@ export class MemorySync {
         return this.syncNow()
       })
     this.pending = next
+    this.current = next
+    return next
+  }
+
+  /** A change of the folder's files by Even Keel itself (the memory tools), run between two syncs, never inside one. */
+  edit<T>(step: () => T): Promise<T> {
+    const next = this.current.catch(() => {}).then(step)
     this.current = next
     return next
   }

@@ -481,7 +481,7 @@ const {
 } = machineHost
 /** The shared pool's Claude entry: whose `.claude.json` and tools the Claude-only checks read. */
 const claudeAccount = () => machine.configStore.current.accounts[CLAUDE]!
-/** The hub's project memory folders mirrored into the records chain sessions read and write (BTN-1029). */
+/** The projects' memory repositories and the hub's memory folders as their working copies (BTN-1646). */
 const memory = accountsService.wireMemory(context)
 const packageHub = accountsService.wirePackageHub(context)
 /**
