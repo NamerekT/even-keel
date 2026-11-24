@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
+import { ensureOwner } from './access/store.js'
 import { listenOf, mcpPortOf } from './config.js'
 import { startDiagnostics } from './diagnostics/start-watch.js'
 import { logFatalErrors } from './diagnostics/stop.js'
@@ -39,6 +40,7 @@ const ready = joinedHub(stateDirOf()) ? (await import('./machine-service.js'), f
     keepDatabase(database)
     await compactDatabase(database.db, (line) => console.log(line))
     await prepareSettings({ db: database.db, file: configPath(), log: (line) => console.log(line) })
+    await ensureOwner(database.db)
   },
   blocked: serveBlocked,
   log: (line) => console.log(line),

@@ -342,4 +342,37 @@ export const STEPS: readonly string[] = [
   alter table chain_lists drop constraint chain_lists_list_check;
   alter table chain_lists add constraint chain_lists_list_check check (list in ('orders', 'skipped', 'leftovers', 'released', 'shelved', 'ci', 'reviews', 'landings'));
   `,
+  // Who signs in to the page (BTN-1618, `docs/storage.md`): the people, each device's token with its rights and only the
+  // hash of its secret, and the passkeys, each bound to the host name it was made on. One person for now, the owner,
+  // made at the start (`ensureOwner`), not here: a copy inserts the source's rows into a database these steps made.
+  `
+  create table people (
+    id         text primary key,
+    name       text not null,
+    created_at text not null
+  );
+  create table access_tokens (
+    id          text primary key,
+    person_id   text not null references people (id) on delete cascade deferrable initially deferred,
+    rights      text not null check (rights in ('owner')),
+    secret_hash text not null unique,
+    device      text not null,
+    created_at  text not null,
+    seen_at     text,
+    seen_from   text,
+    revoked_at  text
+  );
+  create index access_tokens_person on access_tokens (person_id);
+  create table passkeys (
+    credential_id text primary key,
+    person_id     text not null references people (id) on delete cascade deferrable initially deferred,
+    public_key    text not null,
+    counter       bigint not null default 0,
+    host          text not null,
+    name          text not null,
+    created_at    text not null,
+    used_at       text
+  );
+  create index passkeys_person on passkeys (person_id);
+  `,
 ]
