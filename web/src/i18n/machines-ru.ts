@@ -81,4 +81,22 @@ export const machinesRu = {
   toastTitle: (name: string) => `Машина ${name} подключилась`,
   toastBody: 'Выберите, какие проекты она будет делать, и войдите в аккаунты.',
   toastOpen: 'Выбрать проекты',
+  byAddressHint:
+    'Машина попросит хаб пустить её: на этой странице откроется окно с кодом. Сверьте его с кодом в терминале машины и нажмите «Пустить».',
+  byString: 'Или строкой подключения',
+  byStringHint: 'Для машины, которая не достаёт хаб по имени, и для скриптов: строка пускает машину без подтверждения на странице.',
+  requestTitle: 'Новая машина хочет подключиться',
+  requestMore: (count: number) => `Ждут ещё: ${count}`,
+  requestHost: 'Машина',
+  requestFrom: 'Откуда',
+  requestRoot: 'Папка проектов',
+  requestRootDefault: 'По умолчанию, в папке данных',
+  requestDocker: 'Docker',
+  requestCode: 'Код',
+  requestCompare: 'Сверьте с терминалом',
+  requestCompareHint: (time: string) =>
+    `Машина напечатала такой же код. Другой код — значит, посередине кто-то есть: отклоните. Запрос ждёт до ${time}.`,
+  requestDecline: 'Отклонить',
+  requestAdmit: 'Пустить',
+  requestAdmitted: 'Машина пущена, ждём, пока она подключится…',
 }

@@ -114,11 +114,25 @@ export class HubEnd {
     for (const record of await store.listMachines()) {
       if (record.inviteExpires !== null && record.joinedAt === null && record.revokedAt === null) await store.revoke(record.id, this.now())
     }
+    const { machine, secret, expiresAt } = await this.admit(name)
+    return { line: encodeToken({ hub, fingerprint, machine, secret }), machine, expiresAt }
+  }
+
+  /**
+   * A secret to join with once, as a connection string's, without revoking the strings issued before: what a machine
+   * let in from the page gets for its request (BTN-1620). No name — the machine is named by its host when it joins.
+   */
+  async admit(name = ''): Promise<{ machine: string; secret: string; expiresAt: number }> {
     const machine = randomUUID()
     const secret = randomBytes(32).toString('base64url')
     const expiresAt = this.now() + INVITE_MS
-    await store.addMachine({ id: machine, name, secretHash: hashOf(secret), createdAt: this.now(), inviteExpires: expiresAt })
-    return { line: encodeToken({ hub, fingerprint, machine, secret }), machine, expiresAt }
+    await this.options.store.addMachine({ id: machine, name, secretHash: hashOf(secret), createdAt: this.now(), inviteExpires: expiresAt })
+    return { machine, secret, expiresAt }
+  }
+
+  /** The refusal of another API version, with the hub's build to catch up with; `undefined` — the hub's own. */
+  versionRefusal(api: number): Refusal | undefined {
+    return api === API_VERSION ? undefined : this.otherVersion()
   }
 
   /**

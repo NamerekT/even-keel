@@ -21,6 +21,7 @@ import { installed } from '../updates/watcher.js'
 import { machinesPortOf } from '../link/address.js'
 import { DatabaseHubStore } from '../link/hub-store.js'
 import { hubIdentity } from '../link/identity.js'
+import { JoinRequests } from '../link/join-requests.js'
 import { MachineNetwork } from './machine-network.js'
 import { sessionTranscripts } from './session-transcripts.js'
 import { folderGitCredentials, hubGitCredentials } from './git-credentials.js'
@@ -118,6 +119,8 @@ export interface LinkedMachine {
   transcripts: TranscriptReads
   /** The door for machines elsewhere (BTN-1242): open while "Hub address for machines" is set. */
   network: MachineNetwork
+  /** The machines asking at that door to join by the address (BTN-1620), waiting for the page. */
+  requests: JoinRequests
   /** Whether a machine on the link polls `/usage` of the claude.ai account ("Account limits"). */
   polled(account: string): boolean
   /** The account's long-token windows differ from its full sign-in's poll (BTN-1267). */
@@ -372,8 +375,17 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     notify: (told, machine) => ctx.eventLog.add({ level: 'warning', notice: told, place: { view: 'machine', machine } }),
     log,
   })
+  const requests: JoinRequests = new JoinRequests({
+    fingerprint: async () => (await hubIdentity(ctx.db)).fingerprint,
+    admit: () => network.hub.admit(),
+    versionRefusal: (api) => network.hub.versionRefusal(api),
+    // Every tab of the page shows the window of a waiting request.
+    changed: () => ctx.hub.broadcastSoon('state', () => ctx.getState()),
+    log,
+  })
   const network = new MachineNetwork({
     ...(hubCommit !== null && { commit: hubCommit }),
+    requests,
     seen: (machine, about) => void updates.seen(machine, about).catch((error: unknown) => log(`machines: the build of machine ${machine} was not compared: ${String(error)}`)),
     db: ctx.db,
     store: hubStore,
@@ -559,6 +571,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     services,
     transcripts,
     network,
+    requests,
     polled: (account) => polls.poller(account) !== undefined,
     differs: (account) => polls.differs(account),
     start: async () => {
@@ -593,6 +606,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       await end.flushed()
       end.stop()
       hub.stop()
+      requests.stop()
       await network.close()
       await machineDb.close()
     },

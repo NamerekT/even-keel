@@ -2,7 +2,7 @@ import type { Server } from 'node:https'
 import { networkInterfaces } from 'node:os'
 import { dockerJoinOf, installCommandOf } from '../cli-install.js'
 import { fail } from '../notice/notice.js'
-import { hubUrlOf } from '../link/address.js'
+import { hubUrlOf, writtenAddressOf } from '../link/address.js'
 import { colorOf, machineColors } from '../link/colors.js'
 import { createHubServer } from '../link/hub-server.js'
 import type { MachineRecord } from '../link/hub-store.js'
@@ -606,7 +606,7 @@ export class MachineNetwork {
    * address is a proxy that ends TLS with a public authority's certificate (BTN-1286): the string pins no fingerprint,
    * and an address without a port means 443, not the machines' port.
    */
-  async invite(name: string, given?: string, color?: string, proxied = false): Promise<Invite & Pick<MachineInvite, 'command' | 'docker'>> {
+  async invite(name: string, given?: string, color?: string, proxied = false): Promise<Invite & Pick<MachineInvite, 'command' | 'docker' | 'byAddress'>> {
     const painted = color === undefined ? undefined : colorOf(color)
     if (color !== undefined && painted === undefined) throw fail('request.required', { field: 'color' })
     const chosen = given?.trim().toLowerCase()
@@ -624,7 +624,13 @@ export class MachineNetwork {
       await this.refresh()
     }
     this.options.log(`machines: a connection string for "${name.trim() || '(its host)'}" was issued, good until ${new Date(invite.expiresAt).toISOString()}`)
-    return { ...invite, command: installCommandOf(this.options.version, invite.line), docker: dockerJoinOf(this.options.version, invite.line) }
+    const written = writtenAddressOf(url)
+    return {
+      ...invite,
+      command: installCommandOf(this.options.version, invite.line),
+      docker: dockerJoinOf(this.options.version, invite.line),
+      byAddress: { command: installCommandOf(this.options.version, written), docker: dockerJoinOf(this.options.version, written) },
+    }
   }
 
   async revoke(machine: string): Promise<void> {
@@ -862,7 +868,8 @@ export class MachineNetwork {
     this.listeningFor = address
     if (this.server !== undefined) return
     const certificate = await this.options.certificate()
-    const server = createHubServer({ hub: this.hub, certificate, log: this.options.log })
+    const { requests } = this.options
+    const server = createHubServer({ hub: this.hub, certificate, log: this.options.log, ...(requests !== undefined && { requests }) })
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject)
       server.listen(this.options.port, () => {

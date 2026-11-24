@@ -110,6 +110,7 @@ const COMMANDS: Record<string, Command> = {
   'huly/install': ({ hulyClient }) => hulyClient?.install(),
   'storage/backup': ({ backup }) => backup?.copyNow(),
   'machines/revoke': ({ machines }, body) => machines?.revoke(textOf(body.machine, 'machine')),
+  'machines/decline': ({ machineRequests }, body) => machineRequests?.decline(textOf(body.request, 'request')),
   'machines/join': ({ pool }, body) => pool?.join(textOf(body.machine, 'machine'), joinRequestsOf(body)),
   'machines/connect': ({ pool }, body) =>
     pool?.connect(projectOf(body), {
@@ -227,6 +228,10 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'project/trust': async ({ settings }, body) => settings.trust(projectOf(body), typeof body.account === 'string' && body.account !== '' ? body.account : null),
   'machines/addresses': async ({ machines }) => machines?.addresses() ?? [],
   'machines/list': async ({ machines }) => (await machines?.list()) ?? [],
+  'machines/admit': async ({ machineRequests }, body) => {
+    if (machineRequests === undefined) throw fail('machines.requestGone', {})
+    return { machine: await machineRequests.admit(textOf(body.request, 'request')) }
+  },
   'machines/pool': async ({ pool }, body) => (await pool?.view(projectOf(body))) ?? { machines: [], others: [], servers: [] },
   'machines/cards': async ({ machineCards }) => (await machineCards?.()) ?? [],
   'machines/folder': async ({ pool }, body) => {

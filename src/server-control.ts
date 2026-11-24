@@ -306,6 +306,11 @@ export interface ServerDeps {
     /** The long token the hub's folder `from` runs on, on a machine elsewhere (BTN-1501): the page never holds it. */
     sharedToken(machine: string, from: string): Promise<void>
   }
+  /** The machines asking to join by the address (BTN-1620): "Admit" answers the id of the machine it lets in. */
+  machineRequests?: {
+    admit(request: string): Promise<string>
+    decline(request: string): void
+  }
   /** The section "Machines" of a project's settings (BTN-1271): its pool, "Connect" as a job of steps, a machine turned on or off. */
   pool?: {
     view(project: string): Promise<ProjectPool>

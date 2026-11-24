@@ -76,6 +76,19 @@ export interface MachineInvite {
   command: string
   /** The same machine in a container (BTN-1440): the line of the Compose folder's `.env` and the join, before `up -d`. */
   docker: DockerJoin
+  /** The same two with the hub's address instead of the string (BTN-1620): the machine asks, the page lets it in. */
+  byAddress: { command: string; docker: DockerJoin }
+}
+
+/** A machine waiting to be let in (BTN-1620), in every tab of the page until a person decides or it expires. */
+export interface MachineRequest {
+  id: string
+  about: MachineAbout
+  /** What the machine's terminal shows too, when no one is in the middle. */
+  code: string
+  /** The address the request came from, as the hub saw it. */
+  from: string
+  expiresAt: number
 }
 
 export interface DockerJoin {

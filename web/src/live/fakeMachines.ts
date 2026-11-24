@@ -1,17 +1,20 @@
-import { notice } from '../../../src/notice/notice.js'
+import { fail, notice } from '../../../src/notice/notice.js'
+import { REQUEST_MS } from '../../../src/link/protocol.js'
 import { installCommand } from '../../../src/agent/install-command.js'
 import { FAKE_INSTALL_OUTPUT } from './fakeCliCopies.js'
 import { MACHINE_PALETTE, machineColors } from '../../../src/link/colors.js'
 import { JOIN_KIND, type JoinRequest } from '../../../src/jobs/model.js'
 import type { FolderProbe } from '../../../src/link/view.js'
-import type { EvenKeelState, JobStep, MachineAbout, MachineCard, MachineInvite, MachinePage, MachineProject, MachineSignIn, MachineView, PoolMachine, ProjectPool, StepJob } from '../../../src/state.js'
+import type { EvenKeelState, JobStep, MachineAbout, MachineCard, MachineInvite, MachinePage, MachineProject, MachineRequest, MachineSignIn, MachineView, PoolMachine, ProjectPool, StepJob } from '../../../src/state.js'
 
 /** A string issued in `dev:fake` is joined with this much later (BTN-1056). */
 const JOIN_MS = 3_000
 const INVITE_MS = 30 * 60_000
 /** The link's API and the commit of the fake hub (BTN-1609): only what the page compares. */
-const FAKE_API = 20
+const FAKE_API = 21
 const FAKE_HUB_COMMIT = '9f8e7d6c5b4a39281706f5e4d3c2b1a098765432'
+/** The hub's address for machines in `dev:fake`, as `even-keel join` takes it (BTN-1620). */
+const FAKE_HUB_ADDRESS = 'even-keel.example.ts.net'
 const FAKE_UPDATE_MS = 4_000
 
 const about = (host: string, patch: Partial<MachineAbout> = {}): MachineAbout => ({
@@ -79,10 +82,23 @@ export class FakeNetwork {
       for (const listener of this.listeners) listener()
     }, JOIN_MS)
     const line = `ek1_${btoa(id).replace(/=+$/, '')}example`
-    return {
-      line, machine: id, expiresAt: Date.now() + INVITE_MS, command: `npx even-keel@0.4.0 install --machine ${line}`,
-      docker: { env: 'EVEN_KEEL_IMAGE_TAG=0.4.0', join: `docker compose run --rm machine even-keel join ${line}` },
-    } satisfies MachineInvite
+    const join = (what: string) => ({ command: `npx even-keel@0.4.0 install --machine ${what}`, docker: { env: 'EVEN_KEEL_IMAGE_TAG=0.4.0', join: `docker compose run --rm machine even-keel join ${what}` } })
+    const address = String(body.address ?? '').trim() || FAKE_HUB_ADDRESS
+    return { line, machine: id, expiresAt: Date.now() + INVITE_MS, ...join(line), byAddress: join(address) } satisfies MachineInvite
+  }
+
+  /** "Admit" of a request (BTN-1620): it leaves the state and its machine joins `JOIN_MS` later, named by its host. */
+  admit(state: EvenKeelState, request: string): { state: EvenKeelState; machine: string } {
+    const asked = state.machineRequests?.find((each) => each.id === request)
+    if (asked === undefined) throw fail('machines.requestGone', {})
+    const id = `machine-${this.machines.length + 1}`
+    this.machines.push({ id, name: '', createdAt: Date.now(), revokedAt: null, inviteExpires: null, joinedAt: null, host: null, about: null, online: false, projects: [], taken: [] })
+    setTimeout(() => {
+      const report = asked.about
+      this.machines = this.machines.map((machine) => (machine.id === id ? { ...machine, name: report.host, joinedAt: Date.now(), host: report.host, about: report, online: true } : machine))
+      this.changed()
+    }, JOIN_MS)
+    return { state: { ...state, machineRequests: state.machineRequests!.filter((each) => each !== asked) }, machine: id }
   }
 
   private rows(project: string): PoolMachine[] {
@@ -535,8 +551,23 @@ const loginOf = (agent: string, target: string | null): MachineSignIn['login'] =
   deviceCode: null, output: 'Opening browser to sign in…\nPaste code here if prompted >', error: null, codeSent: false,
 })
 
+/**
+ * `?machineRequest=1|docker|many` (BTN-1620): a machine asks to join by the address — a server, in a container with
+ * `docker`, two more behind it with `many`.
+ */
+export function fakeMachineRequests(mode: string | null): MachineRequest[] | undefined {
+  if (mode === null) return undefined
+  const asking = (id: string, host: string, from: string, patch: Partial<MachineAbout> = {}): MachineRequest => ({
+    id, about: about(host, { agents: { claude: '2.1.322' }, ...patch }), code: 'K7Q-4M2', from, expiresAt: Date.now() + REQUEST_MS,
+  })
+  const first = asking('request-1', 'bench-box', '192.168.1.42', mode === 'docker' ? { container: true, root: '/home/node/.local/share/even-keel/projects' } : {})
+  if (mode !== 'many') return [first]
+  return [first, asking('request-2', 'example-mini', '192.168.1.43', { os: 'darwin 24.1.0' }), asking('request-3', 'example-tower', '192.168.1.44', { os: 'win32 10.0.26200', root: null })]
+}
+
 /** The machines' sign-in commands on the fake state; `null` — not one of them. */
 export function fakeMachineCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
+  if (name === 'machines/decline') return { ...state, machineRequests: (state.machineRequests ?? []).filter((each) => each.id !== body.request) }
   if (name === 'machines/connect') return { ...state, jobs: [...(state.jobs ?? []), connectJob(state, body)] }
   if (name === 'machines/join') return { ...state, jobs: [...(state.jobs ?? []), joinJob(state, body)] }
   const machines = state.machineSignIns

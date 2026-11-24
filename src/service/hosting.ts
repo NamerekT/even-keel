@@ -684,6 +684,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     dictation: new Dictation(() => ctx.db),
     backup: ctx.backups,
     machines: ctx.machineLink.network,
+    machineRequests: ctx.machineLink.requests,
     pool,
     machinePage,
     machineCards: cards,
