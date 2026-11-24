@@ -217,9 +217,7 @@ function BranchChoice({ current, main, take, onTake }: { current: string; main: 
   return (
     <Section title={text.branch} mark={<PartDot check="passed" first />} className="project-add__step">
       <p className="setup__lead">{text.branchLead(current, main)}</p>
-      <Row className="git-on__commit" label={text.takeBranch(current)} htmlFor="git-on-branch" control={<Switch id="git-on-branch" checked={take} onChange={onTake} />}>
-        <span className="settings__hint">{take ? text.takeHint : text.keepHint(main)}</span>
-      </Row>
+      <Row className="git-on__commit" label={text.takeBranch(current)} hint={take ? text.takeHint : text.keepHint(main)} htmlFor="git-on-branch" control={<Switch id="git-on-branch" checked={take} onChange={onTake} />} />
     </Section>
   )
 }
@@ -237,9 +235,7 @@ function GitChanges({ files, commit, onCommit }: { files: string[]; commit: bool
         ))}
         {files.length > shown.length && <li className="git-on__more">{text.changesMore(files.length - shown.length)}</li>}
       </ul>
-      <Row className="git-on__commit" label={text.commit} htmlFor="git-on-commit" control={<Switch id="git-on-commit" checked={commit} onChange={onCommit} />}>
-        <span className="settings__hint">{commit ? text.commitHint : text.noCommitHint}</span>
-      </Row>
+      <Row className="git-on__commit" label={text.commit} hint={commit ? text.commitHint : text.noCommitHint} htmlFor="git-on-commit" control={<Switch id="git-on-commit" checked={commit} onChange={onCommit} />} />
     </Section>
   )
 }

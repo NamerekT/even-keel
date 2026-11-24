@@ -133,13 +133,14 @@ export function useIdentityForm(git: GitSetupView, missing = false, machine?: st
 export type IdentityForm = ReturnType<typeof useIdentityForm>
 
 /** The two fields of git's name and e-mail; `id` keeps their ids apart where the step and a dialog may both be. */
-export function IdentityFields({ form, id = 'setup-git' }: { form: IdentityForm; id?: string }) {
+export function IdentityFields({ form, id = 'setup-git', hint }: { form: IdentityForm; id?: string; hint?: string }) {
   const text = t.setup.git
   return (
     <>
       <Row
         className="settings__field"
         label={text.name}
+        hint={hint}
         htmlFor={`${id}-name`}
         control={<input id={`${id}-name`} className="settings__text" value={form.name} placeholder="John Doe" autoComplete="name" onChange={(event) => form.setName(event.target.value)} />}
       />

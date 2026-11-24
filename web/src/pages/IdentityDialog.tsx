@@ -105,8 +105,7 @@ function IdentityDialog({ git, machine, onClose, onSaved }: { git: GitSetupView;
           </button>
         </header>
         <div className="add-package__body">
-          <p className="add-package__note">{machine === undefined ? text.identityLead : text.identityLeadMachine(machine.name)}</p>
-          <IdentityFields form={form} id="identity-dialog" />
+          <IdentityFields form={form} id="identity-dialog" hint={machine === undefined ? text.identityLead : text.identityLeadMachine(machine.name)} />
         </div>
         {form.failure !== null && (
           <p role="alert" className="notice notice--error add-package__failure">
