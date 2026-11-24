@@ -347,6 +347,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 316 | [A task pinned to machines](unverified/machines.md#a-task-pinned-to-machines-btn-1623) | hubs with machines elsewhere and a task pinned to some of them | a pinned task runs on a machine off its list, or waits while its machine is free; clear the pin on the card | — |
 | 317 | [Sign-in with a passkey and the owner key in a real browser](unverified/page.md#sign-in-with-a-passkey-and-the-owner-key-in-a-real-browser-btn-1619) | hubs with the owner key set, reached by a proxy's name or from another machine | a passkey is not made or not accepted, or a proxy's request goes without a sign-in; sign in with the owner key | — |
 | 318 | [A machine joining by the hub's address](unverified/machines.md#a-machine-joining-by-the-hubs-address-btn-1620) | a hub with "Hub address for machines" set and a machine running `even-keel join <address>` | the codes differ and a good machine is declined (the string still joins it), or the window never comes and the request expires | — |
+| 319 | [The checkpoint hook of a machine elsewhere over a slow Tally](unverified/machines.md#the-checkpoint-hook-of-a-machine-elsewhere-over-a-slow-tally-btn-1634) | hubs with machines elsewhere and Tally on | a session there gets its context nudge a tool call or more late; nothing to do, the next call brings it | — |
 
 ### Waiting for the event / not checked by choice
 

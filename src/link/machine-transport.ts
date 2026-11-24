@@ -118,7 +118,12 @@ async function postTo<T>(token: ConnectionToken, path: string, body: unknown, wh
   try {
     const response = await new Promise<IncomingMessage>((resolve, reject) => {
       const sent = sendTo(token, socket, path, body, text)
-      sent.setTimeout(answerMs, () => sent.destroy(new Error(`no answer from the hub in ${answerMs} ms`)))
+      // Rejected before the destroy: over TLS the request's own error would be only "socket hang up" (BTN-1634).
+      sent.setTimeout(answerMs, () => {
+        const error = new Error(`no answer from the hub in ${answerMs} ms`)
+        reject(error)
+        sent.destroy(error)
+      })
       sent.once('response', resolve)
       sent.once('error', reject)
     })

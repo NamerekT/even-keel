@@ -450,3 +450,11 @@ To check, on the benches: a project of the bench hub with machine-1 in its pool 
 Assumed: a real machine elsewhere going off the link and back turns the row's chip from "waits for …" to the launch there within a pull, the other lanes going on meanwhile; a pin set from the card or by the tasks server by name reaches the chain at its next step without a restart; and a revoked machine in a pin shows its chip with the button to the card. If not, a pinned task stays unseen by its machine, or runs elsewhere.
 
 To check, on the benches: a project of the bench hub with machine-1 in its pool and width 2, three ready tasks; pin the first to machine-1 from the card and the second to the hub by name through the tasks server (`run.machines`); see each start only on its machine, the third on whichever is free. Then stop machine-1's service with a fourth task pinned to it: the row says "waits for machine-1", the hub goes on; start it and see the task launch there.
+
+## The checkpoint hook of a machine elsewhere over a slow Tally (BTN-1634)
+
+`docs/sessions/checkpoint.md`, the calibration line. The hub's `/checkpoint` waited for Tally whenever its one-minute cache expired, past the link's 1.8 s, and the machine's log had `link: a hook's request GET /api/sessions/<id>/checkpoint did not get through: socket hang up` about once a minute per working session (2026-11-23…24, the hub on a server). Now the hub answers from the last measures after `CHECKPOINT_WAIT_MS`, and a late answer is logged as `no answer from the hub in 1800 ms`. Unit tests (`src/stats/reader-cache.test.ts`, `src/link/carrier.test.ts`) cover both; the hub's real Tally and the real distance were not run.
+
+Assumed: Tally's read and the context read through the machine's link are what kept the answer late, and nothing else on the route takes over a second. If not, the machine's log keeps lines for `/checkpoint`, now with "no answer from the hub in 1800 ms".
+
+To check, once the hub and the machine run this version: the machine's log through an hour of a working session has no `did not get through` line for `/checkpoint` outside the hub's restarts.
