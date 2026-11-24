@@ -2,18 +2,22 @@ import type { Queryable } from '../storage/database.js'
 import type { StoredRun } from './runs.js'
 
 export async function loadTaskRuns(db: Queryable): Promise<StoredRun[]> {
-  const { rows } = await db.query<{ project_id: string; task: string; provider: string | null; model: string | null; effort: string | null }>(
-    'select project_id, task, provider, model, effort from task_runs order by project_id, task',
+  const { rows } = await db.query<{ project_id: string; task: string; provider: string | null; model: string | null; effort: string | null; machines: string | null }>(
+    'select project_id, task, provider, model, effort, machines from task_runs order by project_id, task',
   )
-  return rows.map((row) => ({ project: row.project_id, task: row.task, provider: row.provider, model: row.model, effort: row.effort }))
+  return rows.map((row) => {
+    const machines = row.machines === null ? [] : (JSON.parse(row.machines) as string[])
+    return { project: row.project_id, task: row.task, provider: row.provider, model: row.model, effort: row.effort, ...(machines.length > 0 && { machines }) }
+  })
 }
 
 /** Starts its write at the call: see `Writes`. */
 export async function saveTaskRun(db: Queryable, run: StoredRun): Promise<void> {
+  const machines = run.machines === undefined || run.machines.length === 0 ? null : JSON.stringify(run.machines)
   await db.query(
-    `insert into task_runs (project_id, task, provider, model, effort) values ($1, $2, $3, $4, $5)
-       on conflict (project_id, task) do update set provider = excluded.provider, model = excluded.model, effort = excluded.effort`,
-    [run.project, run.task, run.provider, run.model, run.effort],
+    `insert into task_runs (project_id, task, provider, model, effort, machines) values ($1, $2, $3, $4, $5, $6)
+       on conflict (project_id, task) do update set provider = excluded.provider, model = excluded.model, effort = excluded.effort, machines = excluded.machines`,
+    [run.project, run.task, run.provider, run.model, run.effort, machines],
   )
 }
 

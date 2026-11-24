@@ -950,4 +950,9 @@ export const STEPS: readonly string[] = [
   alter table chain_lists drop constraint chain_lists_list_check;
   alter table chain_lists add constraint chain_lists_list_check check (list in ('orders', 'skipped', 'leftovers', 'released', 'shelved', 'ci', 'reviews', 'landings'));
   `,
+  // The machines of the pool a task is pinned to (BTN-1623, `docs/storage.md`), a JSON list of machine ids; `null` — any
+  // machine, as every run before the step.
+  `
+  alter table task_runs add column machines text;
+  `,
 ]

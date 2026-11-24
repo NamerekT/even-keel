@@ -54,6 +54,19 @@ describe('chainMachines', () => {
     expect(machines.runs('p', 'A-5', 'pc')).toBe(true)
   })
 
+  it('gives a pinned task only to a machine of its list, the one holding it too; an empty list is any (BTN-1623)', () => {
+    const pinned: Record<string, string[]> = { 'A-5': ['server'], 'A-1': ['pc'], 'C-1': ['pc'] }
+    const { machines } = machinesOf({ pinned: (_project, task) => pinned[task] })
+    expect(machines.runs('p', 'A-5', 'pc')).toBe(false)
+    expect(machines.runs('p', 'A-5', 'server')).toBe(true)
+    expect(machines.runs('p', 'A-6', 'pc')).toBe(true)
+    // Held by a machine off its new list: the pin moves nothing that was launched, only Reassign does.
+    expect(machines.runs('p', 'A-1', 'server')).toBe(true)
+    // The pinned machine lacks the task's agent: it falls back to another, never to a machine off the list.
+    expect(machines.runs('p', 'C-1', 'pc')).toBe(true)
+    expect(machines.runs('p', 'C-1', 'server')).toBe(false)
+  })
+
   it('lets a machine fall back to another agent when no machine of the pool has the task\'s', () => {
     const { machines } = machinesOf({ agents: () => ['claude'] })
     expect(machines.runs('p', 'C-1', 'pc')).toBe(true)

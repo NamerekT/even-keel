@@ -12,6 +12,11 @@ export interface TaskRun {
   model: string | null
   /** One of `EFFORTS` of the provider; `null` — Even Keel passes none. */
   effort: string | null
+  /**
+   * The machines of the pool the task is pinned to, by id, each once (BTN-1623, `docs/machines.md`, "A task pinned to
+   * machines"): the chain gives it to no other. Absent — any machine; never an empty list.
+   */
+  machines?: string[]
 }
 
 export interface StoredRun extends TaskRun {
@@ -25,10 +30,11 @@ const blank = (value: unknown): boolean => value === undefined || value === null
  * The run a page command or a tasks server call names, checked; `null` — nothing is set, the task runs as its project
  * says. Throws `run.*` notices.
  */
-export function taskRunOf(raw: { provider?: unknown; model?: unknown; effort?: unknown }): TaskRun | null {
+export function taskRunOf(raw: { provider?: unknown; model?: unknown; effort?: unknown; machines?: unknown }): TaskRun | null {
   for (const field of ['provider', 'model', 'effort'] as const) {
     if (!blank(raw[field]) && typeof raw[field] !== 'string') throw fail('request.required', { field })
   }
+  const machines = machinesOf(raw.machines)
   const provider = blank(raw.provider) ? null : (raw.provider as string).trim().toLowerCase()
   const model = blank(raw.model) ? null : (raw.model as string).trim()
   const effort = blank(raw.effort) ? null : (raw.effort as string).trim().toLowerCase()
@@ -38,13 +44,21 @@ export function taskRunOf(raw: { provider?: unknown; model?: unknown; effort?: u
     const known = provider === null ? [...new Set(Object.values(EFFORTS).flat())] : (EFFORTS[provider] ?? [])
     if (!known.includes(effort)) throw fail('run.unknownEffort', { effort, provider: provider ?? '', known: [...known] })
   }
-  return provider === null && effort === null ? null : { provider, model, effort }
+  if (provider === null && effort === null && machines.length === 0) return null
+  return { provider, model, effort, ...(machines.length > 0 && { machines }) }
+}
+
+/** The machine ids a run names, trimmed, each once; none — `[]`. */
+function machinesOf(raw: unknown): string[] {
+  if (raw === undefined || raw === null) return []
+  if (!Array.isArray(raw) || raw.some((each) => typeof each !== 'string')) throw fail('request.required', { field: 'machines' })
+  return [...new Set((raw as string[]).map((each) => each.trim()).filter((each) => each !== ''))]
 }
 
 export const RUN_FIELDS = ['provider', 'model', 'effort'] as const
 
-/** A change of a run: the fields named, `null` to clear one. */
-export type RunPatch = Partial<Record<(typeof RUN_FIELDS)[number], string | null>>
+/** A change of a run: the fields named, `null` to clear one; `machines` are ids here, a tasks server call's names resolved. */
+export type RunPatch = Partial<Record<(typeof RUN_FIELDS)[number], string | null>> & { machines?: string[] | null }
 
 /**
  * The run after a change, checked as `taskRunOf` checks it; `null` — nothing is left set. A new provider drops the
@@ -55,11 +69,18 @@ export function patchedRun(current: TaskRun | undefined, patch: RunPatch): TaskR
   const moved = 'provider' in patch && (patch.provider ?? null)?.trim().toLowerCase() !== (current?.provider ?? null)
   const model = 'model' in patch ? patch.model : moved ? null : current?.model
   const effort = 'effort' in patch ? patch.effort : current?.effort
-  return taskRunOf({ provider, model, effort })
+  const machines = 'machines' in patch ? patch.machines : current?.machines
+  return taskRunOf({ provider, model, effort, machines })
 }
 
 export function sameRun(one: TaskRun | null | undefined, other: TaskRun | null | undefined): boolean {
-  return RUN_FIELDS.every((field) => (one?.[field] ?? null) === (other?.[field] ?? null))
+  const pins = (run: TaskRun | null | undefined) => [...(run?.machines ?? [])].sort().join('\n')
+  return RUN_FIELDS.every((field) => (one?.[field] ?? null) === (other?.[field] ?? null)) && pins(one) === pins(other)
+}
+
+/** The run's fields without its record's project and task, the machines only where there are some. */
+export function runFields(run: TaskRun): TaskRun {
+  return { provider: run.provider, model: run.model, effort: run.effort, ...(run.machines !== undefined && run.machines.length > 0 && { machines: [...run.machines] }) }
 }
 
 /** The effort a session of the provider gets for the run: none where the provider does not take that level. */
@@ -109,7 +130,7 @@ export class TaskRuns {
 
   of(project: string, task: string): TaskRun | undefined {
     const run = this.runs.get(keyOf(project, task))
-    return run === undefined ? undefined : { provider: run.provider, model: run.model, effort: run.effort }
+    return run === undefined ? undefined : runFields(run)
   }
 
   /** `null` — the task runs as its project says again. */
@@ -118,7 +139,7 @@ export class TaskRuns {
       if (this.runs.delete(keyOf(project, task))) this.store.drop(project, task)
       return
     }
-    const stored = { project, task, provider: run.provider, model: run.model, effort: run.effort }
+    const stored = { project, task, ...runFields(run) }
     this.runs.set(keyOf(project, task), stored)
     this.store.save(stored)
   }
@@ -126,7 +147,7 @@ export class TaskRuns {
   /** The runs of the project's tasks by task id, for the page. */
   ofProject(project: string): Record<string, TaskRun> {
     const found: Record<string, TaskRun> = {}
-    for (const run of this.runs.values()) if (run.project === project) found[run.task] = { provider: run.provider, model: run.model, effort: run.effort }
+    for (const run of this.runs.values()) if (run.project === project) found[run.task] = runFields(run)
     return found
   }
 
@@ -181,7 +202,7 @@ export class TaskRuns {
       const to = run.project === project ? names.get(run.task) : undefined
       if (to === undefined || to === run.task) continue
       this.set(project, run.task, null)
-      this.set(project, to, { provider: run.provider, model: run.model, effort: run.effort })
+      this.set(project, to, runFields(run))
     }
   }
 }
