@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest'
-import { cancelled, ceremony, NO_DIALOG_MS, type PageWatch } from './passkey.js'
+import { cancelled, ceremony, NO_DIALOG_MS, openedByIp, type PageWatch } from './passkey.js'
+
+it('tells a page opened by an IP address, v4 or v6, from one opened by a name (BTN-1632)', () => {
+  for (const ip of ['127.0.0.1', '192.168.1.20', '[::1]', '::1', '[fe80::1]']) expect(openedByIp(ip)).toBe(true)
+  for (const name of ['localhost', 'hub.example.com', 'pc.tail1234.ts.net']) expect(openedByIp(name)).toBe(false)
+})
 
 const refused = () => Object.assign(new Error('The operation either timed out or was not allowed.'), { name: 'NotAllowedError' })
 

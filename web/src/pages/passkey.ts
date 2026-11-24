@@ -1,11 +1,17 @@
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
+import { passkeyHost } from '../../../src/access/passkey-host.js'
 
 /** Posts one `/api/<name>` sign-in call and gives its answer; a refusal throws a `NoticeError`. */
 export type AuthPost = <T>(name: string, body: object) => Promise<T>
 
-/** A passkey needs a secure context (HTTPS or `localhost`) and a browser with WebAuthn. */
+/** A passkey needs a secure context (HTTPS or `localhost`), a host name rather than an IP address and a browser with WebAuthn. */
 export function passkeysWork(): boolean {
-  return typeof window !== 'undefined' && window.isSecureContext && typeof PublicKeyCredential === 'function'
+  return typeof window !== 'undefined' && window.isSecureContext && !openedByIp() && typeof PublicKeyCredential === 'function'
+}
+
+/** The page is open by an IP address, v4 or v6: WebAuthn refuses it as an RP ID even in a secure context (BTN-1632). */
+export function openedByIp(hostname: string | undefined = typeof location === 'undefined' ? undefined : location.hostname): boolean {
+  return hostname !== undefined && !passkeyHost(hostname)
 }
 
 /**

@@ -10,7 +10,7 @@ import { Band } from '../ui/blocks.js'
 import { PlusIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
-import { addPasskey, passkeysWork, type AuthPost } from './passkey.js'
+import { addPasskey, openedByIp, passkeysWork, type AuthPost } from './passkey.js'
 import { PageToken } from './SettingsSecrets.js'
 import { FieldNote, Section } from './settingsParts.js'
 import './signInSettings.css'
@@ -95,13 +95,18 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
                   ))}
                 </ul>
               )}
-              {passkeysWork() && view.current !== null && (
-                <div className="sign-ins__actions">
-                  <button type="button" className="button" disabled={busy} onClick={() => void act(add)}>
-                    <PlusIcon />
-                    {t.signIn.add}
-                  </button>
-                </div>
+              {openedByIp() ? (
+                <p className="sign-ins__empty">{t.signIn.noPasskeyByIp}</p>
+              ) : (
+                passkeysWork() &&
+                view.current !== null && (
+                  <div className="sign-ins__actions">
+                    <button type="button" className="button" disabled={busy} onClick={() => void act(add)}>
+                      <PlusIcon />
+                      {t.signIn.add}
+                    </button>
+                  </div>
+                )
               )}
             </Section>
             <Section title={t.signIn.devices} hint={t.signIn.devicesHint}>

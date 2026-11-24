@@ -5,7 +5,7 @@ import { Card } from '../ui/blocks.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import { KeyIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
-import { addPasskey, passkeysWork, signInWithPasskey, type AuthPost, type Refusal } from './passkey.js'
+import { addPasskey, openedByIp, passkeysWork, signInWithPasskey, type AuthPost, type Refusal } from './passkey.js'
 import { HelpTip } from './settingsParts.js'
 import './settings.css'
 import './signIn.css'
@@ -76,7 +76,7 @@ export function SignIn({ keySet, post, entered }: { keySet: boolean; post: AuthP
               {busy && failure === null && key === '' ? t.signIn.passkeyWaiting : t.signIn.passkey}
             </button>
           ) : (
-            <p className="sign-in__state">{t.signIn.noPasskeyHere}</p>
+            <p className="sign-in__state">{openedByIp() ? t.signIn.noPasskeyByIp : t.signIn.noPasskeyHere}</p>
           )}
           {band}
           {keySet && (

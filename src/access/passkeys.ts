@@ -11,6 +11,7 @@ import {
 import { decodeClientDataJSON, isoBase64URL } from '@simplewebauthn/server/helpers'
 import { fail } from '../notice/notice.js'
 import type { Db } from '../storage/database.js'
+import { passkeyHost } from './passkey-host.js'
 import { addPasskey, passkeyById, passkeysOf, passkeyUsed, removePasskey, type Passkey } from './store.js'
 
 /** How long a challenge waits for the browser's answer. */
@@ -49,6 +50,7 @@ export class PasskeyDesk {
   }
 
   async registrationOptions(host: string): Promise<PublicKeyCredentialCreationOptionsJSON> {
+    byName(host)
     const existing = (await this.list()).filter((passkey) => passkey.host === host)
     const options = await generateRegistrationOptions({
       rpName: RP_NAME,
@@ -89,6 +91,7 @@ export class PasskeyDesk {
   }
 
   async authenticationOptions(host: string): Promise<PublicKeyCredentialRequestOptionsJSON> {
+    byName(host)
     const options = await generateAuthenticationOptions({ rpID: host, userVerification: 'preferred' })
     this.hold(options.challenge, 'signIn', host)
     return options
@@ -132,4 +135,9 @@ export class PasskeyDesk {
     if (held === undefined || held.kind !== kind || held.host !== host || held.expires <= this.clock().getTime()) throw fail('auth.passkeyRefused', {})
     return challenge
   }
+}
+
+/** A page opened by an IP address gets no ceremony: the browser would refuse the RP ID (BTN-1632). */
+function byName(host: string): void {
+  if (!passkeyHost(host)) throw fail('auth.passkeyByName', {})
 }

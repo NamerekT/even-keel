@@ -5,6 +5,7 @@ export const signInEn: typeof signInRu = {
   passkey: 'Sign in with a passkey',
   passkeyWaiting: 'Waiting for the passkey…',
   noPasskeyHere: 'A passkey works only in a secure context — over HTTPS or on localhost. This page is open over plain http, so only the key signs in.',
+  noPasskeyByIp: 'Passkeys work by a name: open the page by localhost or an HTTPS name.',
   or: 'or',
   key: 'Owner key',
   keyHint: 'EVEN_KEEL_TOKEN in the .env of the hub. Whoever can open that file on the server can always sign in: lost every passkey — sign in with the key and add a new one.',

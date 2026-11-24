@@ -4,6 +4,7 @@ export const signInRu = {
   passkeyWaiting: 'Ждём passkey…',
   noPasskeyHere:
     'Passkey работает только в защищённом контексте — по HTTPS или на localhost. Здесь страница открыта по голому http, так что вход только ключом.',
+  noPasskeyByIp: 'Passkey работают по имени: откройте localhost или HTTPS-имя.',
   or: 'или',
   key: 'Ключ владельца',
   keyHint: 'EVEN_KEEL_TOKEN в .env хаба. Кто может открыть этот файл на сервере, тот всегда войдёт: потерял все passkey — вошёл ключом и добавил новый.',
