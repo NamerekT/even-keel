@@ -34,6 +34,7 @@ import { remotesIn, repositoryRemotes, sameRepository } from '../projects/remote
 import { onMachines, poolControl } from './machine-pool.js'
 import { machinePageControl } from './machine-page.js'
 import { machineCards } from './machine-cards.js'
+import { machineAccountCommands } from './machine-account-commands.js'
 import { machineAbout } from '../machine/about.js'
 import { sweptClis } from '../machine/cli-report.js'
 import type { MachineAbout } from '../link/view.js'
@@ -695,6 +696,15 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     dictation: new Dictation(() => ctx.db),
     backup: ctx.backups,
     machines: ctx.machineLink.network,
+    machineAccounts: machineAccountCommands({
+      online: (machine) => network.connected(machine),
+      control: (machine) => network.accountsOf(machine),
+      panel: (machine) => network.remote(machine)?.page.panel(),
+      name: (machine) => network.names()[machine] ?? machine,
+      hubView: () => ctx.getState().account,
+      hub: ctx.machineLink.services.account,
+      log: (line) => console.log(line),
+    }),
     machineRequests: ctx.machineLink.requests,
     pool,
     machinePage,

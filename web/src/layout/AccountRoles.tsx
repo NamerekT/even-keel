@@ -117,15 +117,18 @@ export function AccountRoles({ entry, view, sending, send, compact = false }: Ro
   )
 }
 
-/** The Even Keel role on any account, moving the shared provider with it; the apps only on Claude's. */
-export function rolesOf(entry: AccountEntry, view: AccountView, send: Send): Role[] {
+/**
+ * The Even Keel role on any account, moving the shared provider with it; the apps only on Claude's. `switchOff` — why
+ * Even Keel can not move to it besides `switchProblem` (a machine's account the hub lacks, BTN-1584).
+ */
+export function rolesOf(entry: AccountEntry, view: AccountView, send: Send, switchOff?: Notice): Role[] {
   const active = view.accounts.find((each) => each.key === view.active)
   const running = (view.loginBlock?.chains.length ?? 0) > 0
   const evenKeel: Role = {
     label: 'Even Keel',
     icon: EvenKeelIcon,
     held: view.active === entry.key,
-    problem: view.active === entry.key ? undefined : switchProblem(view, entry.key),
+    problem: view.active === entry.key ? undefined : (switchOff ?? switchProblem(view, entry.key)),
     note:
       active !== undefined && active.agent !== entry.agent
         ? t.account.providerHere(agentLabel(entry.agent))

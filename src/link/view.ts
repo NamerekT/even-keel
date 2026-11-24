@@ -151,6 +151,8 @@ export interface MachineCard {
   accounts: MachineCardAccount[]
   /** The account folder its panel names as the launch choice; `null` — none, or not told yet. */
   active: string | null
+  /** The apps on its accounts there (VS Code), for its view's row menu (BTN-1584); none — not told yet. */
+  apps?: import('../account/apps.js').AppAccount[]
 }
 
 /** An account of a machine's card: no token and no credentials. */
@@ -162,6 +164,10 @@ export interface MachineCardAccount extends MachineAccount {
   sessions?: string[]
   /** How its new Claude sessions run there; absent for an agent with one way only. */
   transport?: import('../account/model.js').AccountEntry['transport']
+  /** "Remove" was pressed in its view: the machine removes the folder once its sessions there end (BTN-1584). */
+  removing?: true
+  /** It pays from a key there: its removal asks "Remove the folder with the key?" (BTN-1584). */
+  apiKey?: true
 }
 
 /** A machine of a project's pool, as the section "Machines" of its settings shows it (BTN-1271). */
