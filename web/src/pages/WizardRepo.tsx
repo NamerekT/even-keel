@@ -6,8 +6,11 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
 import { Segmented } from '../stats/common.js'
+import { FieldStrip } from '../ui/FieldStrip.js'
+import type { StripLine } from '../ui/fieldStripFit.js'
+import { Tipped } from '../ui/Tipped.js'
 import { BranchIcon, ClonesIcon, PlusIcon } from '../ui/icons.js'
-import { BranchField, BranchMoveLine } from './BranchField.js'
+import { BranchField, branchStrip } from './BranchField.js'
 import { NoticeFixButton } from './FixButtons.js'
 import { cloneTyped, folderView, pathTyped, type WizardFields } from './projectWizard.js'
 import { RefusalWords } from './RefusalWords.js'
@@ -96,10 +99,8 @@ export function RepoStep({ state, fields, set, repoCheck, repoPending, current, 
       label={t.settings.branch}
       hint={t.settings.branchHint}
       htmlFor="wizard-branch"
-      control={<BranchField id="wizard-branch" value={fields.branch} repo={clone ? null : branches} remote={remote} placeholder={current ?? 'main'} invalid={badBranch} onChange={(branch) => set({ branch })} />}
-    >
-      <BranchMoveLine repo={clone ? null : branches} remote={remote} value={fields.branch} />
-    </Row>
+      control={<BranchField id="wizard-branch" value={fields.branch} repo={clone ? null : branches} remote={remote} placeholder={current ?? 'main'} invalid={badBranch} onChange={(branch) => set({ branch })} line={branchStrip(clone ? null : branches, remote, fields.branch)} />}
+    />
   )
   return (
     <>
@@ -163,14 +164,15 @@ export function RepoStep({ state, fields, set, repoCheck, repoPending, current, 
                 <FolderLine state={state} fields={fields} set={set} repo={repo} pending={repoPending} hideRefusal={!folderRefusal} bare />
               ) : (
                 <p className="wizard-machines__from">
-                  <bdi className="project-add__path">{repo?.root ?? fields.target.trim()}</bdi>
-                  <span className="settings__hint">{t.pool.wizard.fromField}</span>
+                  <Tipped inline focusable tip={t.pool.wizard.fromField}>
+                    <bdi className="project-add__path">{repo?.root ?? fields.target.trim()}</bdi>
+                  </Tipped>
                 </p>
               )
             }
           />
         )}
-      {repoCheck?.trusted === false && <p className="settings__hint">{trustTexts().pending}</p>}
+      {repoCheck?.trusted === false && <Status plain>{trustTexts().pending}</Status>}
       {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
     </>
   )
@@ -339,11 +341,24 @@ function FolderLine({
   if (place !== undefined && clone) heard.current = address
   const view = folderView(fields, { answer: place !== undefined || refusal !== null, remoteHeard: heard.current === address, pending })
   if (!view.shown) return null
+  const holds = fields.git && place?.state === 'filled' ? place.holds : undefined
+  // The folder's state glued under it; what the first commit takes in stays a paragraph of its own under the field.
+  const stripLine: StripLine | null =
+    view.note === 'checking'
+      ? { tone: 'plain', text: t.wizard.checking }
+      : place === undefined || refusal !== null
+        ? null
+        : place.existing !== undefined
+          ? { tone: 'plain', text: t.creation.cloneThere(place.existing) }
+          : holds !== undefined
+            ? null
+            : { tone: 'ok', text: t.creation.states[place.state] }
   const dir = typed ? null : (place?.dir ?? lastDir.current)
   const separator = dir !== null && !dir.includes('\\') ? '/' : state.platform === 'win32' ? '\\' : '/'
   return (
     <div className="settings__field">
       {!bare && <FieldHead label={t.creation.folder} hint={hint} htmlFor="wizard-folder" />}
+      <FieldStrip line={stripLine} wide>
       {typed ? (
         <input
           id="wizard-folder"
@@ -379,27 +394,17 @@ function FolderLine({
           />
         </span>
       )}
+      </FieldStrip>
       <button type="button" className="link-button project-add__other" onClick={() => set(typed ? { other: false } : { other: true })}>
         {typed ? t.creation.own : t.creation.other}
       </button>
-      {view.note === 'checking' && <span className="settings__hint">{t.wizard.checking}</span>}
-      {place !== undefined && refusal === null && <PlaceState place={place} fields={fields} />}
+      {place !== undefined && refusal === null && holds !== undefined && <p className="project-add__open">{t.creation.firstCommit(holds.files, holds.bytes, holds.capped)}</p>}
       {place?.existing !== undefined && refusal === null && (
-        <span className="project-add__gate">
-          <span className="settings__hint">{t.creation.cloneThere(place.existing)}</span>
-          <button type="button" className="button button--small" onClick={() => set({ target: place.existing!, other: false })}>
-            {t.creation.takeIt}
-          </button>
-        </span>
+        <button type="button" className="button button--small project-add__other" onClick={() => set({ target: place.existing!, other: false })}>
+          {t.creation.takeIt}
+        </button>
       )}
       <Refusal refusal={refusal} />
     </div>
   )
-}
-
-function PlaceState({ place, fields }: { place: NonNullable<ProjectCheck['repo']['place']>; fields: WizardFields }) {
-  if (place.state === 'filled' && fields.git && place.holds !== undefined) {
-    return <p className="project-add__open">{t.creation.firstCommit(place.holds.files, place.holds.bytes, place.holds.capped)}</p>
-  }
-  return <Status ok>{t.creation.states[place.state]}</Status>
 }

@@ -154,13 +154,12 @@ function ProfilePick({ ids, profiles, fields, profileHint, profileLocked = false
     return (
       <div className="settings__field">
         <FieldHead label={t.profiles.field} hint={profileHint} soon={profileLocked ? soon : undefined} mark={profileMark} />
-        <FieldStrip line={null}>
+        <FieldStrip line={keyFixed ? null : { tone: 'plain', text: t.wizard.noProfiles }}>
           <button type="button" id={ids('profile')} className="button tracker-fields__add" aria-haspopup="dialog" disabled={profileLocked} onClick={onAdd}>
             <PlusIcon />
             {t.wizard.addProfile}
           </button>
         </FieldStrip>
-        {!keyFixed && <span className="settings__hint">{t.wizard.noProfiles}</span>}
         {profileNote}
       </div>
     )
@@ -310,7 +309,7 @@ function TextField({ id, label, hint, value, placeholder, upper = false, disable
 /** Whom the profile signs in as, or why it does not. */
 export function ProfileState({ profile }: { profile: ProfileView }) {
   const line = profileLine(profile, Date.now())
-  return line.tone === 'plain' ? <span className="settings__hint">{line.text}</span> : <Status ok={line.tone === 'ok'}>{line.text}</Status>
+  return <Status ok={line.tone === 'ok'} plain={line.tone === 'plain'}>{line.text}</Status>
 }
 
 /** The fields as the tracker reads them once the key is fixed: a blank tracker project or team is the key's. */
@@ -385,9 +384,11 @@ function useProjects(profile: ProfileView | undefined, text: string, keepPicked:
   return lookup
 }
 
-export function Status({ ok = false, children }: { ok?: boolean; children: ReactNode }) {
+/** A state line: an error by default, a check mark with `ok`, neither with `plain` (a wait or a fact that is no fault). */
+export function Status({ ok = false, plain = false, children }: { ok?: boolean; plain?: boolean; children: ReactNode }) {
+  const calm = ok || plain
   return (
-    <span className={ok ? 'tracker-fields__status tracker-fields__status--ok' : 'tracker-fields__status'} role={ok ? undefined : 'alert'}>
+    <span className={ok ? 'tracker-fields__status tracker-fields__status--ok' : plain ? 'tracker-fields__status tracker-fields__status--plain' : 'tracker-fields__status'} role={calm ? undefined : 'alert'}>
       {children}
     </span>
   )

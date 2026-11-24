@@ -5,6 +5,7 @@ export const signInRu = {
   noPasskeyHere:
     'Passkey работает только в защищённом контексте — по HTTPS или на localhost. Здесь страница открыта по голому http, так что вход только ключом.',
   noPasskeyOnName: 'На этом адресе passkey ещё нет: войдите ключом, и страница предложит его добавить.',
+  noPasskeyByIp: 'Passkey работают по имени: откройте localhost или HTTPS-имя.',
   or: 'или',
   key: 'Ключ владельца',
   keyHint: 'EVEN_KEEL_TOKEN в .env хаба. Кто может открыть этот файл на сервере, тот всегда войдёт: потерял все passkey — вошёл ключом и добавил новый.',
@@ -14,6 +15,7 @@ export const signInRu = {
   offerAdd: 'Добавить passkey',
   offerLater: 'Позже',
   cancelled: 'Passkey не выбран.',
+  unsupported: 'Этот браузер не умеет passkey: откройте страницу в Safari или Chrome.',
   // The "Sign-in and devices" settings group.
   passkeys: 'Passkey',
   passkeysHint: 'Passkey работает только на том имени, по которому страница была открыта, когда его добавили.',

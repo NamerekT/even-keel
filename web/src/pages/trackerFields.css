@@ -9,6 +9,10 @@
   color: var(--fg-muted);
 }
 
+.tracker-fields__status--plain {
+  color: var(--fg-muted);
+}
+
 .tracker-fields__status--ok::before {
   content: '✓ ';
   color: var(--lamp-done);

@@ -72,6 +72,6 @@ function Ready({ state, provider }: { state: EvenKeelState; provider: string }) 
         {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       </>
     )
-  if (ready.entry.status === null) return <span className="settings__hint">{t.setup.checking(name)}</span>
+  if (ready.entry.status === null) return <Status plain>{t.setup.checking(name)}</Status>
   return <Status ok>{t.setup.ready(name)}</Status>
 }

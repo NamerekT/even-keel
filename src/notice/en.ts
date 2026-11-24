@@ -904,6 +904,7 @@ export const en = {
   'auth.noKey': () => 'sign-in: the owner key is not set on the hub; set EVEN_KEEL_TOKEN in its .env',
   'auth.passkeyRefused': () => 'sign-in: the passkey was not accepted; try again or sign in with the owner key',
   'auth.passkeyUnknown': () => 'sign-in: this passkey is not one of this page; sign in with the owner key and add it again',
+  'auth.passkeyByName': () => 'sign-in: passkeys work by a name, not an IP address; open the page by localhost or an HTTPS name',
   'auth.signInFirst': () => 'sign-in: sign in on this device first',
   'auth.deviceUnknown': () => 'sign-in: that device is signed out already',
   'config.modelPromptPlaceholder': (p: { model: string; placeholder: string }) =>

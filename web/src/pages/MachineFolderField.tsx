@@ -3,8 +3,9 @@ import { noticeOf } from '../../../src/notice/notice.js'
 import type { FolderProbe } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { FieldStrip } from '../ui/FieldStrip.js'
+import type { StripLine } from '../ui/fieldStripFit.js'
 import { machineFolder, separatorOf, type FolderPick } from './machinePicks.js'
-import { Status } from './TrackerFields.js'
 import './settings.css'
 import './folderField.css'
 
@@ -70,6 +71,7 @@ export function MachineFolderField({ labels, root, pick, hubName, probe, disable
   const invalid = probe?.state === 'taken' || undefined
   return (
     <>
+      <FieldStrip line={stripOf(folder, probe)} wide>
       {other ? (
         <input
           className="settings__text settings__text--mono"
@@ -103,17 +105,20 @@ export function MachineFolderField({ labels, root, pick, hubName, probe, disable
           />
         </span>
       )}
+      </FieldStrip>
       {root !== null && (
         <button type="button" className="link-button project-add__other" disabled={disabled} onClick={() => onChange({ other: !pick.other })}>
           {pick.other ? t.pool.wizard.rootFolder : t.creation.other}
         </button>
       )}
-      {folder !== null && (probe === undefined ? <span className="settings__hint">{t.wizard.checking}</span> : <ProbeLine probe={probe} />)}
     </>
   )
 }
 
-function ProbeLine({ probe }: { probe: FolderProbe }) {
-  if (probe.state === 'taken') return <Status>{say(probe.notice)}</Status>
-  return <Status ok>{probe.state === 'clone' && probe.notice !== undefined ? say(probe.notice) : t.pool.wizard.states[probe.state]}</Status>
+/** What the folder is now, as the strip under it; nothing while there is no folder to ask about. */
+function stripOf(folder: string | null, probe: FolderProbe | undefined): StripLine | null {
+  if (folder === null) return null
+  if (probe === undefined) return { tone: 'plain', text: t.wizard.checking }
+  if (probe.state === 'taken') return { tone: 'error', text: say(probe.notice) }
+  return { tone: 'ok', text: probe.state === 'clone' && probe.notice !== undefined ? say(probe.notice) : t.pool.wizard.states[probe.state] }
 }

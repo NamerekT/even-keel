@@ -885,6 +885,7 @@ export const noticesRu: NoticeTexts = {
   'auth.noKey': () => 'Ключ владельца на хабе не задан: задайте EVEN_KEEL_TOKEN в его .env',
   'auth.passkeyRefused': () => 'Passkey не принят: попробуйте ещё раз или войдите ключом владельца',
   'auth.passkeyUnknown': () => 'Этот passkey не от этой страницы: войдите ключом владельца и добавьте его заново',
+  'auth.passkeyByName': () => 'Passkey работают по имени: откройте localhost или HTTPS-имя',
   'auth.signInFirst': () => 'Сначала войдите на этом устройстве',
   'auth.deviceUnknown': () => 'Это устройство уже вышло',
   'config.modelPromptPlaceholder': (p) => `в modelPrompts.${p.model} подстановка ${p.placeholder}, а промт модели передаётся как есть`,

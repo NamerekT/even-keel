@@ -103,7 +103,7 @@ export function Summary({ summary }: { summary: StepSummary }) {
         <span className="wizard__step-text">{text}</span>
         {more !== undefined && more > 0 && <span className="wizard__step-more">(+{more})</span>}
       </span>
-      {note !== undefined && <span className="wizard__step-note">{note}</span>}
+      {note !== undefined && <span className="wizard__step-aside">{note}</span>}
     </>
   )
   if (tip === undefined || tip.length === 0) return <span className="wizard__step-summary">{lines}</span>

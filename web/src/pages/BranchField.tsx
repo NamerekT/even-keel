@@ -6,6 +6,8 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { noticeId, NoticeButtons } from '../layout/NoticeButtons.js'
 import { Band } from '../ui/blocks.js'
+import { FieldStrip } from '../ui/FieldStrip.js'
+import type { StripLine } from '../ui/fieldStripFit.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { branchOffers, cloneLine, moveLine, remoteOffers } from './branchLines.js'
 
@@ -49,11 +51,14 @@ interface BranchFieldProps {
   placeholder?: string
   invalid?: boolean
   disabled?: boolean
+  /** What saving does to the checkout, glued under the field (`branchStrip`). */
+  line?: StripLine | null
 }
 
 /** The main branch with the checkout's branches offered, or a clone's remote's. */
-export function BranchField({ id, value, repo, remote, loading, onChange, placeholder, invalid, disabled }: BranchFieldProps) {
+export function BranchField({ id, value, repo, remote, loading, onChange, placeholder, invalid, disabled, line = null }: BranchFieldProps) {
   return (
+    <FieldStrip line={line} fold wide>
     <SuggestField
       id={id}
       className="settings__text settings__text--mono"
@@ -67,27 +72,17 @@ export function BranchField({ id, value, repo, remote, loading, onChange, placeh
       disabled={disabled}
       onChange={onChange}
     />
+    </FieldStrip>
   )
 }
 
-/** What saving the field does to the checkout, under the field's row; for a clone, which branch it takes. */
-export function BranchMoveLine({ repo, remote, value }: { repo: RepoBranches | null; remote?: RemoteBranchList; value: string }) {
-  if (remote !== undefined) {
-    const lines = [cloneLine(remote, value), remote.total > remote.branches.length ? branchTexts().many(remote.total) : null].filter((line) => line !== null)
-    if (lines.length === 0) return null
-    return (
-      <p className="settings__hint">
-        {lines.map((line, index) => (
-          <span key={line}>
-            {index > 0 && <br />}
-            {line}
-          </span>
-        ))}
-      </p>
-    )
-  }
-  const line = moveLine(repo, value)
-  return line === null ? null : <p className="settings__hint">{line}</p>
+/** What saving the field does to the checkout, as the strip under the field; for a clone, which branch it takes. */
+export function branchStrip(repo: RepoBranches | null, remote: RemoteBranchList | undefined, value: string): StripLine | null {
+  const lines = remote !== undefined
+    ? [cloneLine(remote, value), remote.total > remote.branches.length ? branchTexts().many(remote.total) : null]
+    : [moveLine(repo, value)]
+  const shown = lines.filter((line) => line !== null)
+  return shown.length === 0 ? null : { tone: 'plain', text: shown.join(' ') }
 }
 
 /**
