@@ -746,9 +746,16 @@ export function issueLink(urls: TrackerUrls, task: string): string | null {
   return template === null ? null : template.replaceAll('{id}', task).replaceAll('{number}', task.slice(prefix.length + 1))
 }
 
+/**
+ * The session a task's card shows: an unfinished one, else the latest started. The list is no time order: the hub's sessions
+ * come before those of machines elsewhere (BTN-1626).
+ */
 export function taskSession(sessions: SessionView[], task: string): SessionView | undefined {
   const own = sessions.filter((view) => view.task === task)
-  return own.find((view) => view.lamp !== 'finished') ?? own.at(-1)
+  return (
+    own.find((view) => view.lamp !== 'finished') ??
+    own.reduce<SessionView | undefined>((latest, view) => (latest === undefined || Date.parse(view.startedAt) >= Date.parse(latest.startedAt) ? view : latest), undefined)
+  )
 }
 
 /**
