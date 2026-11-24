@@ -13,19 +13,18 @@ export interface MemoryFact {
   body: string
 }
 
-/** A fact as the hub keeps it: its version grows with each change, a deleted one stays as a mark. */
+/** The index of a memory folder, as the CLI loads it; never a record itself. */
+export const MEMORY_INDEX = 'MEMORY.md'
+
+/** The mark the records' mirror of BTN-1556 left in a hub folder; kept out of the memory repository. */
+export const MIRROR_MARK = '.even-keel-memory'
+
+/** A fact as a file of the hub's working copy holds it (`src/memory/files.ts`). */
 export interface MemoryRecord extends MemoryFact {
+  /** Its file in the folder. */
+  file: string
+  /** Changes with every change of the file's text (`textVersion`). */
   version: number
-  deleted: boolean
-  /** The file of the hub's memory folder that mirrors it; `null` — not mirrored. */
-  file: string | null
-  /** The hash of that file as last mirrored either way (`fileHash`). */
-  fileHash: string | null
-  /** The task whose session wrote it last; `null` — a session started by hand, through the folder. */
-  task: string | null
-  machine: string | null
-  /** ISO */
-  at: string
 }
 
 /** A name a session may give a record: it is also the file name in the hub's folder. */
@@ -87,13 +86,13 @@ function wordsOf(fact: Pick<MemoryFact, 'name' | 'description'>): Set<string> {
 }
 
 /**
- * The live records that look like the same fact as `fact` (BTN-1029, "the index grows"): at least two words of name and
+ * The records that look like the same fact as `fact` (BTN-1029, "the index grows"): at least two words of name and
  * description in common, half of the shorter one's; closest first, five at most.
  */
-export function similarRecords<R extends MemoryRecord>(fact: Pick<MemoryFact, 'name' | 'description'>, records: readonly R[]): R[] {
+export function similarRecords<R extends Pick<MemoryFact, 'name' | 'description'>>(fact: Pick<MemoryFact, 'name' | 'description'>, records: readonly R[]): R[] {
   const own = wordsOf(fact)
   const scored = records.flatMap((record) => {
-    if (record.deleted || record.name === fact.name) return []
+    if (record.name === fact.name) return []
     const theirs = wordsOf(record)
     const common = [...own].filter((word) => theirs.has(word)).length
     const share = common / Math.max(1, Math.min(own.size, theirs.size))

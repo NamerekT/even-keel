@@ -9,7 +9,7 @@ import { BackupError, backupDirOf, lastChecked, makeCopy, ownName, rotate, type 
 import { DEFAULT_BACKUP_KEEP, MAX_BACKUP_KEEP, type BackupView } from './backup-model.js'
 import { rowsTextOf } from './copy.js'
 import { databaseVersion, type BeforeSteps } from './database.js'
-import { databaseDirOf, filesDirOf } from './owner.js'
+import { databaseDirOf, filesDirOf, memoryDirOf } from './owner.js'
 
 // The service's daily copy of the state database (BTN-1083): the rows are read here, the copy is written and checked
 // on its own thread. `docs/storage.md`, "Backup, export, rollback".
@@ -32,6 +32,8 @@ export interface BackupsOptions {
   db: PGlite
   /** The attachments' folder of the database. */
   files: string
+  /** The memory repositories' folder of the database. */
+  memory?: string
   /** Read at each copy and each view: the settings change on the fly. */
   settings: () => BackupSettings
   /** Writes and checks the copy away from the event loop; `signal` aborts it at the service's stop. */
@@ -116,7 +118,7 @@ export class Backups {
   }
 
   private async copy(): Promise<void> {
-    const { db, files, run, log } = this.options
+    const { db, files, memory, run, log } = this.options
     const { dir, keep } = this.options.settings()
     let target: string | null = null
     try {
@@ -126,7 +128,7 @@ export class Backups {
       const version = await databaseVersion(db)
       log(`storage: the backup read the database in ${Math.round(performance.now() - from)} ms`)
       target = join(dir, ownName(this.now(), version))
-      const check = await run({ rows, version, dir: target, files }, this.abort.signal)
+      const check = await run({ rows, version, dir: target, files, memory }, this.abort.signal)
       const gone = rotate(dir, keep)
       log(`storage: the backup ${target} is checked: ${Object.keys(check.tables).length} tables, ${check.files} files${gone.length > 0 ? `; removed ${gone.join(', ')}` : ''}`)
       this.failure = null
@@ -170,7 +172,7 @@ export function copyBeforeSteps(stateDir: string, log: (line: string) => void): 
     const target = join(dir, ownName(new Date(), from))
     try {
       mkdirSync(dir, { recursive: true })
-      const check = await makeCopy({ rows: await rowsTextOf(db), version: from, dir: target, files: filesDirOf(databaseDirOf(stateDir)) })
+      const check = await makeCopy({ rows: await rowsTextOf(db), version: from, dir: target, files: filesDirOf(databaseDirOf(stateDir)), memory: memoryDirOf(databaseDirOf(stateDir)) })
       const gone = rotate(dir, keep)
       log(`storage: the copy before the schema steps from ${from} is checked in ${target}: ${check.files} files${gone.length > 0 ? `; removed ${gone.join(', ')}` : ''}`)
     } catch (error) {

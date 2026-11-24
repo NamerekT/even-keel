@@ -54,6 +54,8 @@ export interface CopyJob {
   dir: string
   /** The source's attachments' folder. */
   files?: string
+  /** The source's folder of memory repositories. */
+  memory?: string
   /** The trial restore's folder, made and removed by the check; a fresh temporary one by default. */
   temp?: string
 }
@@ -75,7 +77,7 @@ export async function makeCopy(job: CopyJob): Promise<CopyCheck> {
   try {
     const rows = JSON.parse(job.rows) as Rows
     tables = Object.fromEntries(Object.entries(rows).map(([table, list]) => [table, list.length]))
-    await writeRows(rows, job.dir, job.files, STEPS.slice(0, job.version - SQLITE_VERSIONS))
+    await writeRows(rows, job.dir, job.files, STEPS.slice(0, job.version - SQLITE_VERSIONS), job.memory)
   } catch (error) {
     rmSync(job.dir, { recursive: true, force: true })
     throw new BackupError('copy', messageOf(error))

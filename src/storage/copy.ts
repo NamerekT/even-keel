@@ -1,7 +1,7 @@
 import { cpSync, existsSync, readdirSync } from 'node:fs'
 import type { PGlite } from '@electric-sql/pglite'
 import { insertList, inTransaction, openDatabase, refuseNewer, SQLITE_VERSIONS, STEPS, type Db, type Queryable } from './database.js'
-import { dataDirOf, filesDirOf } from './owner.js'
+import { dataDirOf, filesDirOf, memoryDirOf } from './owner.js'
 
 /** The rows of a database, by table: what a copy carries over. */
 export type Rows = Record<string, Record<string, unknown>[]>
@@ -50,9 +50,10 @@ export async function rowsTextOf(db: Db): Promise<string> {
 
 /**
  * Writes the rows into a new database in `dataDir` of the schema `steps` bring it to, then the attachments' bytes
- * `files` (the source's folder) into `filesDir`, without half-written uploads.
+ * `files` (the source's folder) into `filesDir`, without half-written uploads, and the memory repositories `memory`
+ * into `memoryDir`, without git's lock files.
  */
-export async function writeRows(rows: Rows, dir: string, files: string | undefined, steps: readonly string[] = STEPS): Promise<void> {
+export async function writeRows(rows: Rows, dir: string, files: string | undefined, steps: readonly string[] = STEPS, memory?: string): Promise<void> {
   const copy = await openDatabase(dataDirOf(dir), steps)
   try {
     await insertRows(copy, rows)
@@ -60,6 +61,7 @@ export async function writeRows(rows: Rows, dir: string, files: string | undefin
     await copy.close()
   }
   if (files !== undefined && existsSync(files)) cpSync(files, filesDirOf(dir), { recursive: true, filter: (path) => !/\.tmp$/.test(path) })
+  if (memory !== undefined && existsSync(memory)) cpSync(memory, memoryDirOf(dir), { recursive: true, filter: (path) => !/\.lock$/.test(path) })
 }
 
 /** Inserts the rows into the tables of the same names and moves the counters of the id columns past them. */
@@ -81,11 +83,11 @@ export async function insertRows(db: Db, rows: Rows): Promise<void> {
  * A copy of the database into the new folder `dir`, laid out as the database folder of the state folder: to restore it,
  * stop the service and put it in place of `state/even-keel`. The source is of this code's version (`checkVersion`).
  * `files` — the source's folder of attachments' bytes, copied after the rows: a record is written after its file, so
- * every record of the copy finds its bytes.
+ * every record of the copy finds its bytes. `memory` — the source's folder of memory repositories (BTN-1646).
  */
-export async function backupDatabase(source: Queryable, dir: string, files?: string): Promise<void> {
+export async function backupDatabase(source: Queryable, dir: string, files?: string, memory?: string): Promise<void> {
   if (existsSync(dir) && readdirSync(dir).length > 0) throw new Error(`storage: ${dir} exists; give a new folder`)
-  await writeRows(await rowsOf(source), dir, files)
+  await writeRows(await rowsOf(source), dir, files, STEPS, memory)
 }
 
 /**

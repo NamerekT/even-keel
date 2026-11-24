@@ -17,6 +17,7 @@ import { TaskRuns, type TaskRun } from '../sessions/runs.js'
 import { inferredTallyMode } from '../stats/mode.js'
 import { Backups, copyOnThread } from '../storage/backup-schedule.js'
 import { backupDirOf } from '../storage/backup.js'
+import { databaseDirOf, memoryDirOf } from '../storage/owner.js'
 import { ADAPTERS } from '../tracker/adapters.js'
 import type { TrackerLink } from '../tracker/link.js'
 import { profileStatusesOf } from '../tracker/statuses.js'
@@ -40,6 +41,8 @@ export function assembleBackups(ctx: Pick<ServiceContext, 'db' | 'attachmentsDir
   return new Backups({
     db: ctx.db,
     files: ctx.attachmentsDir,
+    // Not `ctx.stateDir`: the backups are assembled before the service's own `stateDir` is set.
+    memory: memoryDirOf(databaseDirOf(stateDirOf())),
     settings: () => ({ dir: backupDirOf(stateDirOf(), ctx.configStore.current.backup.dir), keep: ctx.configStore.current.backup.keep }),
     run: copyOnThread,
     log: (line) => console.log(line),

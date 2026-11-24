@@ -132,6 +132,7 @@ export type HostingContext = Pick<ServiceContext,
   | 'lockedReaders'
   | 'mailRelay'
   | 'mailbox'
+  | 'memory'
   | 'models'
   | 'monitor'
   | 'noAccountFor'
@@ -786,6 +787,7 @@ export async function wireConfigStore(ctx: HostingContext): Promise<ConfigStore>
       ctx.updates.configChanged()
       void ctx.applyTally()
       void ctx.machineLink.network.apply()
+      void ctx.memory.apply()
       ctx.eventLog.settingsSeen(ctx.configStore.raw())
       ctx.hub.broadcastSoon('state', ctx.getState)
     },

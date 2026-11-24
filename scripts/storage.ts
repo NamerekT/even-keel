@@ -18,7 +18,7 @@ import { englishOf, NoticeError, noticeOf } from '../src/notice/notice.js'
 import { exportConfig, importConfig } from '../src/settings/import.js'
 import { writeAtomic } from '../src/storage/atomic.js'
 import { backupDatabase } from '../src/storage/copy.js'
-import { databaseDirOf, filesDirOf, readStateDatabase } from '../src/storage/owner.js'
+import { databaseDirOf, filesDirOf, memoryDirOf, readStateDatabase } from '../src/storage/owner.js'
 import { exportState, STATE_FILES } from '../src/storage/state-files.js'
 
 const COMMANDS = ['backup', 'export', 'config-export', 'config-import'] as const
@@ -41,7 +41,7 @@ async function main(): Promise<void> {
   if (reader === undefined) throw new Error(`storage: there is no database in ${dir}; start the service once to make it`)
   try {
     if (command === 'backup') {
-      await backupDatabase(reader.db, path, filesDirOf(dir))
+      await backupDatabase(reader.db, path, filesDirOf(dir), memoryDirOf(dir))
       console.log(`storage: copied ${dir} to ${path}`)
     } else if (command === 'export') {
       await exportState(reader.db, path)
