@@ -380,4 +380,9 @@ export const STEPS: readonly string[] = [
   );
   create index passkeys_person on passkeys (person_id);
   `,
+  // A device token signed in with the owner key keeps the key's mark (BTN-1619, `docs/storage.md`): a new key signs out
+  // every such device, a passkey's sign-in (null) stays.
+  `
+  alter table access_tokens add column key_mark text;
+  `,
 ]

@@ -15,6 +15,7 @@ The area is split by subtopic, a file each in `docs/web/`: read this table, then
 | [`hotkeys.md`](web/hotkeys.md) | Hotkeys: actions, the forms' Ctrl+S and Ctrl+Z with the draft's history, the window, storage by browser |
 | [`language.md`](web/language.md) | Language |
 | [`config.md`](web/config.md) | Live config and shared settings |
+| [`sign-in.md`](web/sign-in.md) | Sign-in to the page: who is asked, passkeys, the owner key, device tokens and their revoke |
 | [`project-settings.md`](web/project-settings.md) | Project settings |
 | [`setup.md`](web/setup.md) | The first run's setup and the project wizard |
 | [`fake-states.md`](web/fake-states.md) | Fake states |

@@ -37,6 +37,8 @@ interface Sent {
 export class EventHub {
   private readonly subscribers = new Set<Subscriber>()
   private readonly ends = new Map<Subscriber, () => void>()
+  /** The device token a page's stream came with: revoking it closes the stream (BTN-1619). */
+  private readonly tags = new Map<Subscriber, string>()
   private readonly last = new Map<string, string>()
   private readonly sent = new Map<string, Sent>()
   private readonly soon = new Map<string, { produce: () => unknown }>()
@@ -53,13 +55,11 @@ export class EventHub {
   }
 
   /** `end` closes the subscriber's stream when the hub lets every page go. */
-  subscribe(subscriber: Subscriber, end?: () => void): () => void {
+  subscribe(subscriber: Subscriber, end?: () => void, tag?: string): () => void {
     this.subscribers.add(subscriber)
     if (end !== undefined) this.ends.set(subscriber, end)
-    return () => {
-      this.subscribers.delete(subscriber)
-      this.ends.delete(subscriber)
-    }
+    if (tag !== undefined) this.tags.set(subscriber, tag)
+    return () => this.drop(subscriber)
   }
 
   /** Closes every stream: the pages connect again and meet the guard as it is now (a new token). */
@@ -67,17 +67,33 @@ export class EventHub {
     const ends = [...this.ends.values()]
     this.subscribers.clear()
     this.ends.clear()
+    this.tags.clear()
     for (const end of ends) end()
+  }
+
+  /** Closes the streams of these tags: the devices just signed out meet the guard again. */
+  closeTagged(tags: readonly string[]): void {
+    const wanted = new Set(tags)
+    const gone = [...this.tags].filter(([, tag]) => wanted.has(tag)).map(([subscriber]) => subscriber)
+    const ends = gone.flatMap((subscriber) => this.ends.get(subscriber) ?? [])
+    for (const subscriber of gone) this.drop(subscriber)
+    for (const end of ends) end()
+  }
+
+  private drop(subscriber: Subscriber): void {
+    this.subscribers.delete(subscriber)
+    this.ends.delete(subscriber)
+    this.tags.delete(subscriber)
   }
 
   /**
    * Subscribes a page with the data it starts from, sent whole. The pages already there get the same data as a patch
    * first, so that every page's base is what the hub last sent.
    */
-  join(event: string, data: unknown, subscriber: Subscriber, end?: () => void): () => void {
+  join(event: string, data: unknown, subscriber: Subscriber, end?: () => void, tag?: string): () => void {
     this.broadcast(event, data)
     subscriber(formatEvent(event, data))
-    return this.subscribe(subscriber, end)
+    return this.subscribe(subscriber, end, tag)
   }
 
   broadcast(event: string, data: unknown): void {

@@ -674,7 +674,7 @@ By default the page listens on `127.0.0.1` only, and nothing else on the network
 - an `Origin`, if the request has one, must be the page's own: the same name and port as its `Host` (`https://name` matches a `Host` of `name` without a port, as an HTTPS proxy sends it). So neither another site open in your browser nor another app on the same name — a dev server on `localhost:5173`, a service on another port of your tailnet name — can post to the page. Requests without `Origin` (the plugins' hooks, `curl`) pass;
 - a `POST` to `/api/` must be `Content-Type: application/json`, otherwise it gets 415: a browser cannot send that type to another site without asking it first. A script posting to the API sends the header, as `curl -H 'Content-Type: application/json'` does.
 
-Open Even Keel directly in a tab or its installed app: the page and the access-token form cannot be embedded in a frame, even on the same site.
+Open Even Keel directly in a tab or its installed app: the page and its sign-in screen cannot be embedded in a frame, even on the same site.
 
 Its content security policy permits scripts and connections only from its own origin, with inline styles and local/data/blob images and media. The page sends no referrer.
 
@@ -682,12 +682,19 @@ If using a reverse proxy, preserve these response headers. An already open tab r
 
 Two ways to reach it from elsewhere:
 
-- **A proxy on the same machine** (recommended). For example a Tailscale Service, `tailscale serve --service=svc:even-keel --https=443 http://localhost:4747`, which also gives the page HTTPS, so it can be installed as an app. The proxy forwards the name it was reached by, so put that name into `allowedHosts`: `"allowedHosts": ["even-keel.example.ts.net"]`. Its requests come from loopback, so the page asks them for no token: who gets in is decided by the tailnet's access rules.
-- **Listening on the network.** Set `EVEN_KEEL_HOST` in `.env` to `0.0.0.0` or the machine's address, put the names or addresses you open it by into `allowedHosts` (the configured address itself is let in), and set `EVEN_KEEL_TOKEN` in `.env`. Without the token the service does not start. A request from another machine then needs the token: open the page once as `http://<address>:4747/?token=<token>`, and the service keeps it in an `HttpOnly`, `SameSite=Strict` cookie and drops it from the address; scripts send `Authorization: Bearer <token>`. Plain HTTP shows the token to anyone on the way, so prefer a proxy with HTTPS.
+- **A proxy on the same machine** (recommended). For example a Tailscale Service, `tailscale serve --service=svc:even-keel --https=443 http://localhost:4747`, which also gives the page HTTPS, so it can be installed as an app. The proxy forwards the name it was reached by, so put that name into `allowedHosts`: `"allowedHosts": ["even-keel.example.ts.net"]`. Set the owner key too (`EVEN_KEEL_TOKEN` in `.env`, below): then a request by the proxy's name is asked to sign in, though it comes from loopback. Without the key who gets in is decided by the proxy alone — the tailnet's access rules — and the settings say "Sign-in is not set up".
+- **Listening on the network.** Set `EVEN_KEEL_HOST` in `.env` to `0.0.0.0` or the machine's address, put the names or addresses you open it by into `allowedHosts` (the configured address itself is let in), and set `EVEN_KEEL_TOKEN` in `.env`. Without the key the service does not start. Plain HTTP shows the key to anyone on the way and has no passkeys, so prefer a proxy with HTTPS.
 
-Any proxy or tunnel running on the same machine must control who can reach Even Keel.
+#### Signing in
 
-The page does not ask for a token on connections from this machine, through loopback or its own address, even when `EVEN_KEEL_TOKEN` is set.
+`EVEN_KEEL_TOKEN` is the **owner key**: 16+ characters, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Once it is set, a browser that is not signed in gets the sign-in screen:
+
+- **Passkey** — one button: the browser's own passkey dialog (Face ID, Windows Hello, a phone, a security key). It needs HTTPS or `localhost`; on plain `http://<address>` the screen offers only the key and says why. A passkey works only on the name the page was opened by when it was added.
+- **Owner key** — the first sign-in and the way back in: whoever can read the hub's `.env` can always sign in, so lost every passkey — sign in with the key and add a new one. After the key the screen offers to add a passkey on this device.
+
+Each sign-in gives the browser a token of its own in an `HttpOnly`, `SameSite=Strict` cookie. Settings → **Sign-in and devices** lists the passkeys (add, remove) and the devices signed in — when each was last seen and from where — with "Sign out" on each and "Sign out everywhere but here"; a device signed out loses its open page at once and is asked to sign in again. Changing the owner key signs out every device that signed in with the old key; passkey sign-ins stay. An old link with `?token=<key>` still works: it signs the browser in and drops the key from the address. Scripts send `Authorization: Bearer <key>`.
+
+Requests by a loopback name — `localhost`, `127.0.0.1`, `[::1]` — go without a sign-in: the sessions' hooks reach the page so, and so does a browser on the machine itself. Any proxy or tunnel on the same machine that forwards a loopback name, or runs without the owner key, must control who can reach Even Keel itself.
 
 Once the forwarded name is accepted by the `Host` check, a public tunnel without its own authentication lets anyone who knows its address drive the page and start sessions with automatic permissions.
 

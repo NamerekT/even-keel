@@ -67,6 +67,7 @@
     "@hcengineering/rank": "0.7.423",
     "@hcengineering/text-core": "0.7.423",
     "@hcengineering/text-markdown": "0.7.423",
+    "@simplewebauthn/browser": "^14.0.0",
     "@tiptap/core": "3.32.2",
     "@tiptap/extension-code": "3.32.2",
     "@tiptap/extension-code-block": "3.32.2",
@@ -102,6 +103,7 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.5.17",
     "@electric-sql/pglite-socket": "^0.2.20",
+    "@simplewebauthn/server": "^14.1.0",
     "pg": "^8.23.1",
     "undici": "^8.12.4"
   },

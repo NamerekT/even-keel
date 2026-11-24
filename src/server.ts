@@ -10,7 +10,8 @@ import { CLAUDE } from './claude/name.js'
 import { DEFAULT_BRANCH, RULE_KEYS } from './config.js'
 import { DICTATION_BODY_BYTES } from './dictation/transcribe.js'
 import { formatEvent } from './events.js'
-import type { GuardSettings } from './guard.js'
+import type { GuardSettings, Visitor } from './guard.js'
+import { accessRoute } from './access/routes.js'
 import { isLanguage } from './language.js'
 import { englishOf, fail, type Notice } from './notice/notice.js'
 import { oauthCallback, PROFILE_QUERIES } from './profiles/routes.js'
@@ -269,7 +270,7 @@ const BODY_LIMITS: Record<string, number> = {
 }
 
 export function createEvenKeelServer(deps: ServerDeps): Server {
-  return guardedServer(deps.guard, (request, response) => route(deps, request, response))
+  return guardedServer(deps.guard, (request, response, visitor) => route(deps, request, response, visitor))
 }
 
 /**
@@ -289,9 +290,16 @@ export function createBlockedServer(deps: { guard: () => GuardSettings; publicDi
   })
 }
 
-async function route(deps: ServerDeps, request: IncomingMessage, response: ServerResponse): Promise<void> {
+async function route(deps: ServerDeps, request: IncomingMessage, response: ServerResponse, visitor: Visitor): Promise<void> {
   const url = new URL(request.url ?? '/', 'http://localhost')
   const path = url.pathname
+
+  if (await accessRoute(deps.access, request, response, visitor)) return
+  // A visitor not signed in gets the page's files only: the guard lets nothing else through, this holds it twice.
+  if (!visitor.signedIn && (request.method !== 'GET' || path.startsWith('/api/'))) {
+    response.writeHead(401, { 'cache-control': 'no-store' }).end()
+    return
+  }
 
   if (request.method === 'GET' && path === '/api/profiles/oauth/callback') return oauthCallback(deps.profiles, url.searchParams, response)
 
@@ -684,7 +692,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
   }
 
   if (request.method === 'GET' && path === '/api/events') {
-    streamEvents(deps, response)
+    streamEvents(deps, response, visitor.device?.id)
     return
   }
 
@@ -710,14 +718,10 @@ async function activeTimeOf(stats: ServerDeps['stats'], task: string): Promise<n
   }
 }
 
-function streamEvents(deps: ServerDeps, response: ServerResponse): void {
+/** Tagged by the device's token: signing the device out closes its stream (`EventHub.closeTagged`). */
+function streamEvents(deps: ServerDeps, response: ServerResponse, device: string | undefined): void {
   const writer = eventWriter(response)
-  const unsubscribe = deps.hub.join(
-    'state',
-    deps.getState(),
-    writer.write,
-    writer.end,
-  )
+  const unsubscribe = deps.hub.join('state', deps.getState(), writer.write, writer.end, device)
   response.once('close', unsubscribe)
 }
 

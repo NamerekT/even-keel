@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
+import { isLanguage } from '../../src/language.js'
 import { asNotice, NoticeError } from '../../src/notice/notice.js'
 import type { Feed } from '../../src/sessions/transcript.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft, SessionRecord } from '../../src/state.js'
@@ -9,10 +10,14 @@ import type { StatsAnswer } from '../../src/stats/model.js'
 import type { ToolsView } from '../../src/tools/model.js'
 import type { TaskCard } from '../../src/tracker/card.js'
 import type { TrackerVocabulary } from '../../src/tracker/source.js'
+import type { AuthState } from '../../src/access/view.js'
 import { App } from './App.js'
+import { pickLanguage, setLanguage } from './i18n/index.js'
 import { LiveConnection, type AttachedFile, type LiveSource, type QueryOptions } from './live/connection.js'
 import { LiveProvider } from './live/context.js'
 import { fitsKeepalive } from './pages/cardDrafts.js'
+import type { AuthPost } from './pages/passkey.js'
+import { SignIn } from './pages/SignIn.js'
 import { pageIdle, reloadOnMissingChunk, watchBuild } from './live/reload.js'
 import { watchTheme } from './theme.js'
 import './styles.css'
@@ -133,14 +138,59 @@ async function createSource(): Promise<LiveSource> {
   return connection
 }
 
+/** The sign-in screen instead of the page while this browser is not in (`docs/web/sign-in.md`); `false` — go on to the page. */
+async function signInShown(): Promise<boolean> {
+  const fake = import.meta.env.MODE === 'fake'
+  const asked = fake ? await fakeSignIn() : await realSignIn()
+  if (asked === null) return false
+  // The configured language is behind the sign-in: the browser's, or `dev:fake`'s `?lang=`.
+  const wanted = fake ? new URLSearchParams(location.search).get('lang') : null
+  setLanguage(pickLanguage(wanted !== null && isLanguage(wanted) ? wanted : null, navigator.languages))
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <SignIn {...asked} />
+    </StrictMode>,
+  )
+  return true
+}
+
+type SignInProps = Parameters<typeof SignIn>[0]
+
+async function realSignIn(): Promise<SignInProps | null> {
+  const response = await fetch('/api/auth/state', { cache: 'no-store' }).catch(() => null)
+  // No answer or no sign-in on this hub: the page itself says what is wrong.
+  if (response === null || !response.ok) return null
+  const state = (await response.json()) as AuthState
+  if (state.signedIn) return null
+  const post: AuthPost = async <T,>(name: string, body: object) => (await sendQuery(name, body)) as T
+  return { keySet: state.keySet, post, entered: () => location.reload() }
+}
+
+/** `dev:fake` shows the screen on `?signIn` (`?signIn=nokey` — no owner key on the hub); signing in drops the parameter. */
+async function fakeSignIn(): Promise<SignInProps | null> {
+  const search = new URLSearchParams(location.search)
+  if (!search.has('signIn')) return null
+  const { fakeSignInPost } = await import('./live/fakeAuth.js')
+  const post: AuthPost = async <T,>(name: string, body: object) => {
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    return fakeSignInPost(name, body as Record<string, unknown>) as T
+  }
+  const keySet = search.get('signIn') !== 'nokey'
+  search.delete('signIn')
+  const rest = search.toString()
+  return { keySet, post, entered: () => location.replace(`${location.pathname}${rest === '' ? '' : `?${rest}`}`) }
+}
+
 watchTheme()
-const source = await createSource()
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <LiveProvider source={source}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </LiveProvider>
-  </StrictMode>,
-)
+if (!(await signInShown())) {
+  const source = await createSource()
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <LiveProvider source={source}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </LiveProvider>
+    </StrictMode>,
+  )
+}

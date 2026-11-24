@@ -876,6 +876,12 @@ export const noticesRu: NoticeTexts = {
     `host ${p.host} виден из сети, поэтому странице нужен токен: задайте EVEN_KEEL_TOKEN в .env (от 16 символов) и перезапустите службу, ` +
     'или поставьте host 127.0.0.1',
   'config.tokenShape': () => 'EVEN_KEEL_TOKEN должен быть от 16 символов из A-Z a-z 0-9 . _ ~ + / = -',
+  'auth.wrongKey': () => 'Это не ключ владельца (EVEN_KEEL_TOKEN в .env хаба)',
+  'auth.noKey': () => 'Ключ владельца на хабе не задан: задайте EVEN_KEEL_TOKEN в его .env',
+  'auth.passkeyRefused': () => 'Passkey не принят: попробуйте ещё раз или войдите ключом владельца',
+  'auth.passkeyUnknown': () => 'Этот passkey не от этой страницы: войдите ключом владельца и добавьте его заново',
+  'auth.signInFirst': () => 'Сначала войдите на этом устройстве',
+  'auth.deviceUnknown': () => 'Это устройство уже вышло',
   'config.modelPromptPlaceholder': (p) => `в modelPrompts.${p.model} подстановка ${p.placeholder}, а промт модели передаётся как есть`,
   'config.contextPercents': () => 'context.warn и context.danger должны быть процентами, 0 < warn < danger <= 100',
   'config.compareKey': (p) => `stats.compare.${p.key} — не настройка сравнения`,

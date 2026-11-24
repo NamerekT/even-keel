@@ -895,6 +895,12 @@ export const en = {
   'config.token': (p: { host: string }) =>
     `config: host ${p.host} is reachable from the network, so the page needs a token: set EVEN_KEEL_TOKEN in .env (16+ characters) and restart, or set host to 127.0.0.1`,
   'config.tokenShape': () => 'config: EVEN_KEEL_TOKEN must be 16+ characters of A-Z a-z 0-9 . _ ~ + / = -',
+  'auth.wrongKey': () => 'sign-in: that is not the owner key (EVEN_KEEL_TOKEN in the .env of the hub)',
+  'auth.noKey': () => 'sign-in: the owner key is not set on the hub; set EVEN_KEEL_TOKEN in its .env',
+  'auth.passkeyRefused': () => 'sign-in: the passkey was not accepted; try again or sign in with the owner key',
+  'auth.passkeyUnknown': () => 'sign-in: this passkey is not one of this page; sign in with the owner key and add it again',
+  'auth.signInFirst': () => 'sign-in: sign in on this device first',
+  'auth.deviceUnknown': () => 'sign-in: that device is signed out already',
   'config.modelPromptPlaceholder': (p: { model: string; placeholder: string }) =>
     `config: modelPrompts.${p.model} has the substitution ${p.placeholder}, but a model prompt is passed on as it is`,
   'config.contextPercents': () => 'config: context.warn and context.danger must be percents with 0 < warn < danger <= 100',

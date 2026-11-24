@@ -25,6 +25,19 @@ describe('EventHub', () => {
     expect(hub.size).toBe(1)
   })
 
+  it('closes only the streams of the tags signed out', () => {
+    const hub = new EventHub()
+    const ended: string[] = []
+    hub.subscribe(() => {}, () => ended.push('phone'), 'token-phone')
+    hub.subscribe(() => {}, () => ended.push('laptop'), 'token-laptop')
+    hub.subscribe(() => {}, () => ended.push('local'))
+
+    hub.closeTagged(['token-phone', 'token-gone'])
+
+    expect(ended).toEqual(['phone'])
+    expect(hub.size).toBe(2)
+  })
+
   it('does not repeat an event whose data has not changed since its last broadcast', () => {
     const hub = new EventHub()
     const frames: string[] = []

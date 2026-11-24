@@ -4,6 +4,7 @@ import { toolsRU, packagesRU, chainRU, cardRU } from './workspace-ru.js'
 import { accountRu } from './account-ru.js'
 import { addAccount } from './add-account-ru.js'
 import { sharedRu } from './shared-ru.js'
+import { signInRu } from './sign-in-ru.js'
 import { helpRu } from './help-ru.js'
 import { sessionRu } from './session-ru.js'
 import { ciRu, ciKindsRu } from './ci-ru.js'
@@ -433,6 +434,7 @@ export const ru = {
   packages: packagesRU,
   settings: settingsRU,
   shared: sharedRu,
+  signIn: signInRu,
   secrets: {
     variable: (name: string) => `В .env: ${name}.`,
     outerHint: 'Задано в окружении самой службы, а не в .env, и перекрывает файл: меняйте там.',
@@ -440,10 +442,10 @@ export const ru = {
     kept: 'задан — пустое оставит его',
     save: 'Сохранить',
     remove: 'Удалить',
-    token: 'Токен доступа',
-    tokenSet: 'задан — введите новый, чтобы заменить',
+    token: 'Ключ владельца',
+    tokenSet: 'задан в .env хаба — введите новый, чтобы заменить',
     tokenHint:
-      'Его спрашивают страницы, открытые с других машин; от 16 символов. После смены они попросят новый. Пока служба слушает не только localhost, токен не удалить.',
+      'Первый вход на устройстве и путь обратно, если потеряны все passkey; скрипты шлют его как Authorization: Bearer. От 16 символов. Смена ключа выходит на всех устройствах, вошедших ключом; passkey остаются. Пока служба слушает не только localhost, ключ не удалить.',
     classifier: 'Классификатор отрезков',
     classifierHint: 'Tally раскладывает отрезки сессий по видам моделью за OpenAI-совместимым адресом, например LiteLLM. Без адреса или ключа классификатор пропускается.',
     llmUrl: 'Адрес',

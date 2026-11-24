@@ -6,6 +6,8 @@ const TOKEN = 'f00dfeedcafe0123456789ab'
 
 const local: GuardSettings = { hosts: guardHosts('127.0.0.1', []), token: null }
 const open: GuardSettings = { hosts: guardHosts('0.0.0.0', ['pult.example.com']), token: TOKEN }
+/** A proxy's name without the key: Host and Origin alone decide (BTN-1619 asks a sign-in of it once the key is set). */
+const proxyNoKey: GuardSettings = { ...open, token: null }
 
 const request = (fields: Partial<GuardRequest> = {}): GuardRequest => ({
   method: 'GET',
@@ -75,7 +77,7 @@ describe('guard: Host', () => {
   })
 
   it('lets a name from allowedHosts in, as a proxy on the same machine sends it', () => {
-    expect(guard(open, request({ host: 'pult.example.com' }))).toEqual({ kind: 'pass' })
+    expect(guard(proxyNoKey, request({ host: 'pult.example.com' }))).toEqual({ kind: 'pass' })
   })
 })
 
@@ -91,9 +93,9 @@ describe('guard: Origin', () => {
   })
 
   it('lets the page in through an HTTPS proxy that sends the name without a port', () => {
-    expect(guard(open, request({ method: 'POST', host: 'pult.example.com', origin: 'https://pult.example.com' }))).toEqual({ kind: 'pass' })
-    expect(guard(open, request({ method: 'POST', host: 'pult.example.com:443', origin: 'https://pult.example.com' }))).toEqual({ kind: 'pass' })
-    expect(guard(open, request({ method: 'POST', host: 'pult.example.com:80', origin: 'http://pult.example.com' }))).toEqual({ kind: 'pass' })
+    expect(guard(proxyNoKey, request({ method: 'POST', host: 'pult.example.com', origin: 'https://pult.example.com' }))).toEqual({ kind: 'pass' })
+    expect(guard(proxyNoKey, request({ method: 'POST', host: 'pult.example.com:443', origin: 'https://pult.example.com' }))).toEqual({ kind: 'pass' })
+    expect(guard(proxyNoKey, request({ method: 'POST', host: 'pult.example.com:80', origin: 'http://pult.example.com' }))).toEqual({ kind: 'pass' })
   })
 
   it('refuses another site posting to the page', () => {
@@ -166,11 +168,13 @@ describe('guard: token', () => {
     expect(guard(open, fromNetwork({ url: callback, origin: 'https://evil.example.net', cookie }))).toMatchObject({ kind: 'refuse', status: 403 })
   })
 
-  it('does not ask a request from this machine for it', () => {
-    expect(guard(open, request({ host: 'pult.example.com', remote: '::ffff:127.0.0.1' }))).toEqual({ kind: 'pass' })
+  it('does not ask a request from this machine to a loopback name for it, and asks one by another name (BTN-1619)', () => {
+    expect(guard(open, request({ host: 'localhost:4747', remote: '::ffff:127.0.0.1' }))).toEqual({ kind: 'pass' })
+    expect(guard(open, request({ host: 'pult.example.com', remote: '::ffff:127.0.0.1' }))).toMatchObject({ kind: 'refuse', status: 401 })
     expect(guard(open, request({ host: '192.0.2.1:4747', remote: '192.0.2.1', local: '192.0.2.1' }))).toMatchObject({ kind: 'refuse', status: 403 })
-    expect(guard({ ...open, hosts: guardHosts('192.0.2.1', []) }, request({ host: '192.0.2.1:4747', remote: '::ffff:192.0.2.1', local: '::ffff:192.0.2.1' }))).toEqual({
-      kind: 'pass',
+    expect(guard({ ...open, hosts: guardHosts('192.0.2.1', []) }, request({ host: '192.0.2.1:4747', remote: '::ffff:192.0.2.1', local: '::ffff:192.0.2.1' }))).toMatchObject({
+      kind: 'refuse',
+      status: 401,
     })
   })
 

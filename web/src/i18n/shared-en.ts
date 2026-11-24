@@ -99,6 +99,7 @@ export const sharedEn = {
   attachmentLimit: 'Attachment size limit, MB',
   attachmentLimitHint: 'The largest file a task Even Keel keeps itself takes, pasted or dropped into its description, and the largest a session attaches to a task of any tracker.',
   page: 'Interface',
+  signIn: 'Sign-in and devices',
   backup: 'Backups',
   backupCopies: 'Copies',
   backupDir: 'Copies folder',

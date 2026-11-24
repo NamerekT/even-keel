@@ -25,7 +25,7 @@ The trackers' and the CIs' credentials are not here but in the profiles (see [Tr
 
 On the first start Even Keel turns the tracker variables it finds in `.env` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_TOKEN`; `LINEAR_TOKEN`; `GITLAB_TOKEN` and optional `GITLAB_URL` (default `https://gitlab.com`, the web address without `/api/v4`); `JIRA_URL`, `JIRA_EMAIL` and `JIRA_TOKEN`, with the optional `JIRA_MCP_TOKEN` of the Jira plugin; `FORGEJO_TOKEN` and optional `FORGEJO_URL`, a profile per Forgejo host) into the default profile of each tracker, once, and says so in the log; after that it no longer reads them.
 
-Most variables below can also be set on the page, where they belong: the page token on `/settings` → **Interface** → **Page access**, the stats database under **Your own Postgres** on **Stats**, the span classifier in its section on **Stats** (a blank key keeps the saved one).
+Most variables below can also be set on the page, where they belong: the owner key on `/settings` → **Sign-in and devices**, the stats database under **Your own Postgres** on **Stats**, the span classifier in its section on **Stats** (a blank key keeps the saved one).
 
 The page edits only those lines of `.env`, comments and order kept.
 
@@ -38,7 +38,7 @@ A variable set in the service's own environment rather than in `.env` cannot be 
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT` | `127.0.0.1` and `4747` | where the page listens. Any other address than loopback needs `EVEN_KEEL_TOKEN` ([Reaching the page from another machine](setup.md#reaching-the-page-from-another-machine)). Changed, the page moves to the new address; if it cannot listen there, it stays on the old one and says so on the page. Sessions get the address as `EVEN_KEEL_URL` for the packages' hooks; sessions already running keep the old one. `host` and `port` left in an older config are not imported, the log says so once |
-| `EVEN_KEEL_TOKEN` | — | the page's token for requests from other machines; required when `EVEN_KEEL_HOST` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Changed, open pages ask for the new one |
+| `EVEN_KEEL_TOKEN` | — | the owner key: the first sign-in to the page and the way back in when every passkey is lost; scripts send it as `Authorization: Bearer`. Set, a request by any name but a loopback one — another machine, or a proxy on this one — is asked to sign in ([Signing in](setup.md#signing-in)). Required when `EVEN_KEEL_HOST` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Changed, every device signed in with the old key is signed out; passkey sign-ins stay |
 | `EVEN_KEEL_MCP_PORT` | `4748` | port of the local MCP gateway the chain sessions reach their packages' servers through; always on `127.0.0.1`. Read at startup |
 | `EVEN_KEEL_MACHINES_PORT` | `4749` | port the hub listens on, on all interfaces, for other machines while `machinesAddress` is set; machines elsewhere do not run tasks yet. Read at startup |
 | `EVEN_KEEL_DATA` | the clone's own folder, or the platform's one of an npm install | the data folder — `.env`, `state/`, `logs/`. Set in the environment of the service or the terminal, not in `.env`, which is in it |

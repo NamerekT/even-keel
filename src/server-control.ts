@@ -1,3 +1,4 @@
+import type { AccessControl } from './access/routes.js'
 import type { CloudConnection } from './account/cloud.js'
 import type { TokenAccountOf } from './account/model.js'
 import type { EditChoice } from './account/settingsLayer.js'
@@ -273,6 +274,8 @@ export interface TallyControl {
 }
 
 export interface ServerDeps {
+  /** The page's sign-in, `/api/auth/*` (BTN-1619); without it those routes answer 404. */
+  access?: AccessControl
   cli?: { download(agent: string, source: 'checked' | 'latest'): void; system(agent: string): void; checked(agent: string): void; check(): Promise<void> }
   /** The Huly client installed on demand (BTN-666): "Retry" after a failed install. */
   hulyClient?: { install(): void }
