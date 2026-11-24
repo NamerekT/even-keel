@@ -28,7 +28,7 @@
 }
 
 .status-check__state,
-.status-check__note {
+.status-check__aside {
   margin: 0;
 }
 
@@ -73,7 +73,7 @@
   margin-top: calc((1lh - 8px) / 2);
 }
 
-.status-check__note {
+.status-check__aside {
   margin-top: calc(-1 * var(--space-8));
   padding-left: var(--space-16);
   color: var(--fg-muted);

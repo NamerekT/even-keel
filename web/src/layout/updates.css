@@ -40,13 +40,13 @@
   font-size: var(--text-13);
 }
 
-.update-window__notes {
+.update-window__releases {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.update-window__note {
+.update-window__release {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -54,13 +54,13 @@
   border-top: 1px solid var(--border);
 }
 
-.update-window__note-head {
+.update-window__release-head {
   display: flex;
   align-items: baseline;
   gap: 12px;
 }
 
-.update-window__note-head h3,
+.update-window__release-head h3,
 .update-window__previous h3 {
   flex: 1;
   margin: 0;
@@ -68,13 +68,13 @@
   font-weight: 600;
 }
 
-.update-window__note-head a {
+.update-window__release-head a {
   color: var(--accent);
   font-size: var(--text-13);
   text-decoration: none;
 }
 
-.update-window__note-head a:hover {
+.update-window__release-head a:hover {
   text-decoration: underline;
 }
 

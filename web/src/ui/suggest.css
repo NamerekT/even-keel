@@ -4,7 +4,7 @@
 }
 
 /* What the value is, beside it: a tracker project's name next to its key. */
-.suggest__note {
+.suggest__aside {
   margin-left: var(--space-8);
   color: var(--fg-muted);
   font-family: var(--font);

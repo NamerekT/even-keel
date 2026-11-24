@@ -117,7 +117,7 @@ export function GroupBox({ group, count = group.packages.length, column, childre
     <section className="packages__group" aria-label={title ?? undefined}>
       <header className="packages__group-head">
         <span className="packages__group-title">{title}</span>
-        {group.kind !== 'mcp' && group.kind !== 'own' && <span className="packages__group-note">{t.packages.kind.plugin}</span>}
+        {group.kind !== 'mcp' && group.kind !== 'own' && <span className="packages__group-aside">{t.packages.kind.plugin}</span>}
         <span className="packages__group-count">{count}</span>
         <span className="packages__group-column">{column}</span>
       </header>

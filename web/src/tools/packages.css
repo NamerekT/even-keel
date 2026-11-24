@@ -148,7 +148,7 @@
   text-overflow: ellipsis;
 }
 
-.packages__group-note,
+.packages__group-aside,
 .packages__group-count {
   color: var(--fg-muted);
   font-size: var(--text-12);

@@ -1,9 +1,1 @@
-{
-  "hotkeys/HotkeysDialog.tsx": 1,
-  "layout/Updates.tsx": 1,
-  "pages/StatusPage.tsx": 1,
-  "tools/AddPackage.tsx": 4,
-  "tools/PackagesParts.tsx": 1,
-  "ui/SuggestField.tsx": 1,
-  "ui/blocks.tsx": 1
-}
+{}
