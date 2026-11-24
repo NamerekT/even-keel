@@ -99,7 +99,7 @@ export class FakeNetwork {
         const root = machine.about?.root ?? '/home/example/projects'
         return { id: machine.id, name: machine.name, own: false, online: machine.online, folder: `${root}/${folderName(this.repoOf(project))}`, root }
       })
-    const rows = machines.map((row) => ({ ...row, afterGreen: row.settings.afterGreen ?? FAKE_COMMANDS.afterGreen }))
+    const rows = machines.map((row) => ({ ...row, afterGreen: row.settings.afterGreenOff === true ? [] : (row.settings.afterGreen ?? FAKE_COMMANDS.afterGreen) }))
     return { machines: rows, others, servers: FAKE_SERVERS, commands: FAKE_COMMANDS }
   }
 

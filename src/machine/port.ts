@@ -76,8 +76,9 @@ export interface MachinePort {
   /** Command. Runs the project's check on main in the place of the task about to start, which keeps it for the launch. */
   checkMain: (project: string, task: string, commit: string) => Promise<MainCheckRun>
   /**
-   * Command. Runs `commands.afterGreen` in the project's checkout, if it is on main at `commit`; `forward` — a machine
-   * elsewhere's clone, whose main is first brought up to `commit` by fast-forward (BTN-994).
+   * Command. Runs `commands.afterGreen` in the project's checkout, if it is on main at `commit`; `forward` — its main is
+   * first brought up to `commit` by fast-forward (`fastForwardTo`): a machine elsewhere's clone (BTN-994) and the own
+   * checkout, which another machine of the pool may have pushed past (BTN-1597).
    */
   runAfterGreen: (project: string, commit: string, forward?: boolean) => Promise<AfterGreenRun>
   /** Query. The commit main is at in the project's checkout; `null` — unknown. `machine` — the pool's only: whose checkout. */

@@ -54,6 +54,12 @@ describe('the CI panel glues no facts with a dot (BTN-1378)', () => {
     expect(failed).toContain('ci__after-ago')
   })
 
+  it("names the hub's machine the after-green commands ran on, where the hub has several (BTN-1597)", () => {
+    const run = { commit: '78dde6c0000000', since: '2026-10-12T11:50:00Z', running: false, end: { at: '2026-10-12T11:50:00Z', state: 'done' as const } }
+    expect(html(createElement(AfterGreen, { run, held: false, now: NOW, machine: 'Example server' }))).toContain('Example server')
+    expect(html(createElement(AfterGreen, { run, held: false, now: NOW }))).not.toContain('class="tag"')
+  })
+
   it("shows a mirror's length as a clock cell beside \"same commit\"", () => {
     const markup = html(createElement(MirrorTime, { length: 470_000 }))
     expect(markup).not.toContain('·')

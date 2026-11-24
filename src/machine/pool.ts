@@ -69,7 +69,7 @@ export function machinePool(deps: PoolDeps): MachinePort {
     sync: (project, machine) => at(machine).sync(project),
     prepare: (project, task) => byTask(project, task).prepare(project, task),
     checkMain: (project, task, commit) => byTask(project, task).checkMain(project, task, commit),
-    runAfterGreen: (project, commit) => own().runAfterGreen(project, commit),
+    runAfterGreen: (project, commit, forward) => own().runAfterGreen(project, commit, forward),
     head: (project, machine) => at(machine).head(project),
     tree: (project, commit, machine) => at(machine).tree(project, commit),
     merged: (project, task, local) => byTask(project, task).merged(project, task, local),

@@ -98,6 +98,14 @@ describe('machinePool', () => {
     expect(pool.trackerMissing('p')).toBe('own')
   })
 
+  it("passes the bringing up of main to the own machine's commands after a green main (BTN-1597)", async () => {
+    const asked: unknown[][] = []
+    const own = { runAfterGreen: async (...args: unknown[]) => (asked.push(args), { state: 'done' }) } as unknown as MachinePort
+    const { pool } = poolOf({ port: (machine) => (machine === 'own' ? own : undefined) })
+    await pool.runAfterGreen('p', 'c2', true)
+    expect(asked).toEqual([['p', 'c2', true]])
+  })
+
   it("reads whether a task's sessions are read on its machine, and a machine with no snapshot since the hub started as unread (BTN-1610)", () => {
     const { pool, calls } = poolOf()
     expect(pool.sessionsRead('A-1')).toBe('server')

@@ -32,4 +32,14 @@ describe("a machine's own values in a project (BTN-994)", () => {
     expect(afterGreenOn(PROJECT, {})).toEqual(['npm run deploy'])
     expect(afterGreenOn(undefined, {})).toEqual([])
   })
+
+  it("runs none of the project's commands after a green main on a machine that turned them off (BTN-1597)", () => {
+    expect(cleanMachineSettings({ afterGreenOff: true, afterGreen: ['./deploy.sh'] })).toEqual({ afterGreenOff: true })
+    expect(cleanMachineSettings({ afterGreenOff: false })).toEqual({})
+    expect(() => cleanMachineSettings({ afterGreenOff: 'yes' })).toThrow(/not commands and servers/)
+    expect(settingsFromColumn(settingsColumn({ afterGreenOff: true }))).toEqual({ afterGreenOff: true })
+    expect(afterGreenOn(PROJECT, { afterGreenOff: true })).toEqual([])
+    const on = settingsOnMachine(PROJECT, { afterGreenOff: true, check: ['make check'] })
+    expect([on.beforeStart, on.check, on.afterGreen]).toEqual([['npm install'], ['make check'], []])
+  })
 })

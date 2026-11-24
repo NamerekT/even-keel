@@ -35,6 +35,11 @@ export function cleanMachineSettings(raw: unknown): MachineProjectSettings {
     const lines = value.map((line) => line.trim()).filter((line) => line !== '')
     if (lines.length > 0) settings[key] = lines
   }
+  if (input.afterGreenOff !== undefined && typeof input.afterGreenOff !== 'boolean') throw fail('machines.badSettings', {})
+  if (input.afterGreenOff === true) {
+    delete settings.afterGreen
+    settings.afterGreenOff = true
+  }
   if (input.servers !== undefined) {
     if (typeof input.servers !== 'object' || input.servers === null || Array.isArray(input.servers)) throw fail('machines.badSettings', {})
     const servers: NonNullable<MachineProjectSettings['servers']> = {}
@@ -74,10 +79,13 @@ export async function machineSettingsOf(db: Queryable, project: string, machine:
 /** The project's settings as they run on a machine: each command list of its own in place of the project's. */
 export function settingsOnMachine(project: ProjectSettings, own: MachineProjectSettings): ProjectSettings {
   const replaced = MACHINE_COMMANDS.filter((key) => (own[key]?.length ?? 0) > 0)
-  return replaced.length === 0 ? project : { ...project, ...Object.fromEntries(replaced.map((key) => [key, own[key]!])) }
+  const lists = Object.fromEntries(replaced.map((key) => [key, own[key]!]))
+  if (own.afterGreenOff === true) lists.afterGreen = []
+  return Object.keys(lists).length === 0 ? project : { ...project, ...lists }
 }
 
-/** The commands after a green main a machine runs: its own, else the project's. */
+/** The commands after a green main a machine runs: none when it turned them off, else its own, else the project's. */
 export function afterGreenOn(project: Pick<ProjectSettings, 'afterGreen'> | undefined, own: MachineProjectSettings): string[] {
+  if (own.afterGreenOff === true) return []
   return (own.afterGreen?.length ?? 0) > 0 ? own.afterGreen! : (project?.afterGreen ?? [])
 }

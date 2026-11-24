@@ -48,16 +48,20 @@ export function mainMachineDeps(deps: MainMachineDeps): MachineMainPort {
       if (local === true) return mergedCommits(deps.git, deps.repo(project), task, deps.main(project))
       return landedCommits(deps.git, deps.repo(project), task, deps.main(project), deps.pullRequests?.(project) === true)
     },
-    // The only place the dispatcher touches the project's own checkout, so only when it stands on main at the green commit.
-    // A machine elsewhere's clone is the dispatcher's: its main is brought up to the commit first (BTN-994).
+    // The commands run only in a checkout on main at the green commit. With `forward` main is first brought up to it by
+    // fast-forward (BTN-994): another machine of the pool may have pushed it (BTN-1597).
     async runAfterGreen(project, commit, forward = false) {
       const repo = deps.repo(project)
       const branch = deps.main(project)
-      if (forward) await deps.forward?.(project, commit)
+      const outcome = forward ? await deps.forward?.(project, commit) : undefined
       const [on, head] = await Promise.all([deps.git(repo, ['symbolic-ref', '--quiet', '--short', 'HEAD']), revision(repo, 'HEAD')])
       const current = on.code === 0 ? on.out.trim() : null
       if (current !== branch) return { state: 'skipped', reason: notice('afterGreen.offBranch', { branch, on: current }) }
-      if (head !== commit) return { state: 'skipped', reason: notice('afterGreen.pastCommit', { head: shortCommit(head ?? 'nothing') }) }
+      if (head !== commit) {
+        const shown = shortCommit(head ?? 'nothing')
+        const stuck = outcome === 'dirty' || outcome === 'merging' || outcome === 'notFastForward'
+        return { state: 'skipped', reason: stuck ? notice('afterGreen.notForwarded', { head: shown, why: outcome }) : notice('afterGreen.pastCommit', { head: shown }) }
+      }
       const failure = await deps.runAfterGreen(project, repo)
       return failure === null ? { state: 'done' } : { state: 'failed', failure }
     },

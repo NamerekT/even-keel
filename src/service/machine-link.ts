@@ -437,6 +437,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     ready: (machine) => network.connected(machine),
     port: (machine) => network.port(machine),
     green: (project) => ((ctx.configStore.current.settings[project]?.ci ?? DEFAULT_CI).guard ? ctx.dispatcher.state.ci[project]?.green : undefined),
+    name: (machine) => network.names()[machine] ?? machine,
     log,
   })
 

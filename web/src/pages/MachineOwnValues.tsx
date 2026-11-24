@@ -10,6 +10,8 @@ const COMMANDS: Command[] = ['beforeStart', 'check', 'afterGreen']
 /** The form's text: a command list a line a command, a server's command and its arguments a line each. */
 interface Draft {
   lists: Record<Command, string>
+  /** "Do not run" the commands after a green main: the list stays in the form but is not saved (BTN-1597). */
+  afterGreenOff: boolean
   servers: Record<string, { command: string; args: string }>
 }
 
@@ -32,7 +34,7 @@ export function draftOf(settings: MachineProjectSettings, servers: ProjectPool['
     const own = settings.servers?.[each.package]?.[each.server]
     return [serverKey(each.package, each.server), { command: own?.command ?? '', args: (own?.args ?? []).join('\n') }] as const
   })
-  return { lists, servers: Object.fromEntries(entries) }
+  return { lists, afterGreenOff: settings.afterGreenOff === true, servers: Object.fromEntries(entries) }
 }
 
 /** What the form saves: a list or a field left blank is the project's and is left out. */
@@ -40,8 +42,9 @@ export function settingsOf(draft: Draft, servers: ProjectPool['servers']): Machi
   const result: MachineProjectSettings = {}
   for (const key of COMMANDS) {
     const list = lines(draft.lists[key])
-    if (list.length > 0) result[key] = list
+    if (list.length > 0 && !(key === 'afterGreen' && draft.afterGreenOff)) result[key] = list
   }
+  if (draft.afterGreenOff) result.afterGreenOff = true
   for (const each of servers) {
     const own = draft.servers[serverKey(each.package, each.server)]
     if (own === undefined) continue
@@ -87,8 +90,15 @@ export function MachineOwnValues({ project, row, pool, onSaved }: { project: str
             spellCheck={false}
             value={draft.lists[key]}
             placeholder={placeholder(key)}
+            disabled={key === 'afterGreen' && draft.afterGreenOff}
             onChange={(event) => setDraft({ ...draft, lists: { ...draft.lists, [key]: event.target.value } })}
           />
+          {key === 'afterGreen' && (
+            <label className="settings__check">
+              <input type="checkbox" checked={draft.afterGreenOff} onChange={(event) => setDraft({ ...draft, afterGreenOff: event.target.checked })} />
+              {own.afterGreenOff}
+            </label>
+          )}
         </div>
       ))}
       {pool.servers.length > 0 && (

@@ -167,14 +167,21 @@ step `machine-packages` also refuses a server whose command it does not find on 
 BTN-994: a green `main` runs `commands.afterGreen` on every machine of the pool that has any, its own or the project's.
 
 - **The own machine** runs them in the project's checkout as before (BTN-156): `MainCheck` marks the commit, runs them
-  only on main at that commit, and the next launch waits for them.
+  only on main at that commit, and the next launch waits for them. Another machine of the pool may have merged and
+  pushed the commit, so the own checkout's main is brought up to it first as a clone's is below (BTN-1597,
+  `runAfterGreen(project, commit, true)`); one that cannot be brought up skips with the reason (`afterGreen.notForwarded`:
+  changes, a merge under way, commits the green one lacks). With several machines the CI panel's "After green" row names
+  the hub's machine.
 - **A machine elsewhere** is told by `MainCheckDeps.green` (`PoolAfterGreen`, `src/service/pool-after-green.ts`): for
   each machine of the pool turned on, online and of the hub's version, with commands, the hub writes the commit into
   `project_machines.after_green` (step 60) and sends `runAfterGreen(project, commit, true)`. The machine first brings
   its clone's main up to the commit by fast-forward (`fastForwardTo`, `src/git/sync.ts`: fetch every remote, never past
   the commit; a clone off main, with changes or diverged is left and the run skips as on the hub), then runs its
   commands. One run at a time per machine and project; a green commit during one runs next, the latest only. No launch
-  waits for it; its end is a line in the log.
+  waits for it; its end is a line in the log, which names the machine by the hub's name for it.
+- **"Do not run"** (`MachineProjectSettings.afterGreenOff`, BTN-1597): a machine elsewhere whose project's commands do
+  not belong there (the hub's own deploy, say) turns them off in its own values; its row has no commands then, the hub
+  sends it no run, and its brief's `afterGreen` is empty. An empty list of its own still means the project's.
 - **A machine off the link** catches up once: when it is back and briefed (`MachineNetwork` option `briefed`), each
   project of its pool whose last green commit (`ChainState.ci[project].green`, with the guard on) is not its
   `after_green` runs once, on that commit only.

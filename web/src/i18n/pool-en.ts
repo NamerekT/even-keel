@@ -10,6 +10,8 @@ export const poolEn: Messages['pool'] = {
   afterGreen: 'After a green main:',
   afterGreenProject: "The project's commands after a green main: the machine runs them in its clone once it has the green commit there.",
   afterGreenOwn: "The machine's own commands after a green main, in place of the project's; they change in the machine's settings in the project.",
+  afterGreenOff: 'none',
+  afterGreenOffTip: "The machine runs no commands after a green main, neither its own nor the project's; this is set in the machine's settings in the project.",
   slots: (count) => `${count} slots`,
   slotsTip: 'Tasks work in slot folders; their number is on the Repository tab.',
   enable: (name) => `The project's tasks on ${name}`,

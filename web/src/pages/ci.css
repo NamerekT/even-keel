@@ -272,9 +272,14 @@
   white-space: nowrap;
 }
 
+/* The hub's machine the commands ran on, where it has several: a tag the text flows after, a space apart. */
+.ci__after-machine {
+  white-space: nowrap;
+}
+
 .ci__after-text {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* The "i" after the text: the tip says the next task waits for the commands. */

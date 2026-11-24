@@ -176,6 +176,8 @@ export interface MachineProjectSettings {
   beforeStart?: string[]
   check?: string[]
   afterGreen?: string[]
+  /** The machine runs no commands after a green main, neither its own nor the project's (BTN-1597); never with `afterGreen`. */
+  afterGreenOff?: true
   /** By package, then server: the stdio command that runs there instead of the catalog's. */
   servers?: Record<string, Record<string, ServerOverride>>
 }

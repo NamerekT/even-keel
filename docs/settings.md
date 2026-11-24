@@ -38,6 +38,8 @@ the task: `commands.beforeStart`, `commands.check` and `commands.afterGreen`, an
 stdio server of the project's packages (`MachineProjectSettings`, `src/link/view.ts`). They are kept in
 `project_machines.settings` (step 60, `docs/storage.md`), not in `setting_values`, so `config-export` leaves them out.
 
+- **"Do not run" the commands after a green main** is `afterGreenOff: true` (BTN-1597): the machine runs neither its own
+  nor the project's, and its own `afterGreen` list is dropped on save. Off or out — the list rule below.
 - **A list replaces the project's whole list**; a list left empty or out is the project's. A server's `command` and
   `args` replace the catalog's each on its own; one left out is the catalog's. Paths go into the arguments.
 - **The own machine has none**: its values are the project's. The settings tab of a machine elsewhere in the machine's
