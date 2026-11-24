@@ -225,7 +225,7 @@ function ConflictWindow({ theirs, mine, busy, onKeep, onTake }: { theirs: string
         </header>
         <div className="add-package__body">
           <p className="add-package__question">{t.card.edit.describe.overwritten(lost)}</p>
-          <p className="description__hint">{t.card.edit.describe.conflictLegend}</p>
+          <p className="description__hint description__conflict-note">{t.card.edit.describe.conflictLegend}</p>
           <div className="description__diff" role="document" aria-label={t.card.edit.describe.conflictTitle} tabIndex={0}>
             <DiffLines lines={lines} />
           </div>

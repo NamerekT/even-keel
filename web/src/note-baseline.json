@@ -23,7 +23,7 @@
   "pages/BranchField.tsx": 2,
   "pages/BuiltinExport.tsx": 2,
   "pages/BuiltinImport.tsx": 5,
-  "pages/CardDescription.tsx": 2,
+  "pages/CardDescription.tsx": 1,
   "pages/CardFields.tsx": 1,
   "pages/CardJournal.tsx": 2,
   "pages/ChatStatus.tsx": 1,

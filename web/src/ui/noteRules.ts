@@ -24,7 +24,13 @@ export interface NoteException {
  * The lines that stay on view under a field: a short warning without which something that cannot be undone is easy to
  * break, each with its reason. A state — a check's answer, an error — is a field strip (`FieldStrip`), not an exception.
  */
-export const NOTE_EXCEPTIONS: NoteException[] = []
+export const NOTE_EXCEPTIONS: NoteException[] = [
+  {
+    file: 'pages/CardDescription.tsx',
+    className: 'description__conflict-note',
+    why: 'the colour legend of a description conflict: which side is lost on "Keep mine" cannot be read from the diff without it, and the lost version does not come back',
+  },
+]
 
 /** A note's or a hint's class; `--modifiers` of one ride on its base class. */
 const NOTE = /^[a-z][a-z0-9_-]*(?:__|-)(?:note|hint)$/
