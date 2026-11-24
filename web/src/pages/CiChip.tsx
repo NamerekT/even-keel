@@ -7,6 +7,7 @@ import type { ActiveChain, MainCiView, PushBy } from '../../../src/chain/model.j
 import {
   leadRun,
   pushesOf,
+  pushLabel,
   pushStatus,
   runDurationMs,
   runLook,
@@ -381,10 +382,21 @@ function CiBody({ view, now, urls, fixes, extras }: { view: CiView; now: Date; u
         </p>
       ))}
       {hold('pushed')}
-      {view.current !== null && <Push current={view.current} medians={view.medians} busy={view.busy} now={now} urls={urls} fixes={fixes} hold={hold('push')} />}
+      {view.current !== null && (
+        <Push
+          current={view.current}
+          brought={view.current.manual ? undefined : view.brought?.[view.current.commit]}
+          medians={view.medians}
+          busy={view.busy}
+          now={now}
+          urls={urls}
+          fixes={fixes}
+          hold={hold('push')}
+        />
+      )}
       {extras.afterGreen !== null && <AfterGreen run={extras.afterGreen} held={extras.held} now={now} {...(extras.machine !== undefined && { machine: extras.machine })} />}
       {view.history.length > 0 ? (
-        <History runs={view.history} medians={view.medians} now={now} marked={fixes.marked} pushes={fixes.pushes} />
+        <History runs={view.history} medians={view.medians} now={now} marked={fixes.marked} pushes={fixes.pushes} brought={view.brought ?? {}} urls={urls} />
       ) : (
         view.checkedAt !== null && view.health === 'ok' && <p className="ci__state">{t.ci.noRuns}</p>
       )}
@@ -408,6 +420,7 @@ function waitText(busy: BusyRunner | undefined): string {
  */
 function Push({
   current,
+  brought,
   medians,
   busy,
   now,
@@ -416,6 +429,8 @@ function Push({
   hold,
 }: {
   current: CurrentRun
+  /** The commits the push brought, merges left out (BTN-1586); absent — unknown. */
+  brought: string[] | undefined
   medians: Record<string, number>
   busy: BusyRunner | undefined
   now: Date
@@ -430,19 +445,22 @@ function Push({
   const status = pushStatus(runs)
   const single = current.runs.length === 1 ? current.runs[0]! : null
   const fix = fixes.episodes.find((episode) => episode.end?.how === 'landed' && episode.end.commit === current.commit)
-  const tasks = current.tasks.filter((task) => !isOwnName(task))
-  const fixed = fix !== undefined || tasks.length < current.tasks.length
+  const own = current.tasks.filter((task) => !isOwnName(task))
+  const fixed = fix !== undefined || own.length < current.tasks.length
+  // The keys the title names are not listed again under it.
+  const tasks = pushLabel(current.title, brought).kind === 'tasks' ? [] : own
   const event = eventsOf(runs)
   const by = fixes.pushes[current.commit]
   return (
     <div className="ci__block">
-      <a className={fixes.marked.has(current.commit) ? 'ci__run ci__run--fix' : 'ci__run'} href={lead.url} target="_blank" rel="noreferrer" title={t.ci.openRun}>
+      <div className={fixes.marked.has(current.commit) ? 'ci__run ci__run--fix' : 'ci__run'}>
+        <a className="ci__stretch" href={lead.url} target="_blank" rel="noreferrer" title={brought !== undefined && brought.length > 0 ? brought.join('\n') : t.ci.openRun} aria-label={t.ci.openRun} />
         {/* A finished push's colour is the head's dot already; only one still going says so in words. */}
         {(status === 'running' || status === 'queued') && (
           <span className={`ci-status ci-status--${status}`}>{status === 'queued' && single !== null ? waitText(busy) : t.ci.status[status]}</span>
         )}
-        <span className="ci__title">{current.title}</span>
-      </a>
+        <PushTitle className="ci__title" title={current.title} brought={brought} urls={urls} />
+      </div>
       <div className="ci__meta">
         <span className="ci__seg ci__commit" title={current.commit}>
           {short(current.commit)}
@@ -653,12 +671,16 @@ function History({
   now,
   marked,
   pushes: by,
+  brought,
+  urls,
 }: {
   runs: CiRun[]
   medians: Record<string, number>
   now: Date
   marked: ReadonlySet<string>
   pushes: Record<string, PushBy>
+  brought: Record<string, string[]>
+  urls: TrackerUrls
 }) {
   const [more, setMore] = useState(false)
   const pushes = pushesOf(runs)
@@ -680,7 +702,7 @@ function History({
         <>
           <ul className="ci__history">
             {(all ? pushes : pushes.slice(0, HISTORY_SHOWN)).map((push) => (
-              <PushRow key={push.key} push={push} medians={medians} now={now} marked={marked.has(push.commit)} by={by[push.commit]} />
+              <PushRow key={push.key} push={push} medians={medians} now={now} marked={marked.has(push.commit)} by={by[push.commit]} brought={brought[push.commit]} urls={urls} />
             ))}
           </ul>
           {!all && (
@@ -694,8 +716,8 @@ function History({
   )
 }
 
-/** A past push's tip: its state, event, who pushed it and its runs, "caption: value" a line. */
-export function pushTip(push: PushRuns, by: PushBy | undefined): string {
+/** A past push's tip: its state, event, who pushed it and its runs, "caption: value" a line, then the commits it brought. */
+export function pushTip(push: PushRuns, by: PushBy | undefined, brought?: string[]): string {
   const event = eventsOf(push.runs)
   const rows: [string, string | null][] = [
     [t.ci.facts.status, t.ci.status[pushStatus(push.runs)]],
@@ -703,21 +725,77 @@ export function pushTip(push: PushRuns, by: PushBy | undefined): string {
     [t.ci.facts.by, by === undefined ? null : t.ci.pushedBy[by]],
     [t.ci.facts.runs, push.runs.map((run) => `${run.workflow} #${run.number}`).join(', ')],
   ]
-  return rows.flatMap(([caption, value]) => (value === null ? [] : [`${caption}: ${value}`])).join('\n')
+  const facts = rows.flatMap(([caption, value]) => (value === null ? [] : [`${caption}: ${value}`]))
+  return [...facts, ...(brought === undefined || brought.length === 0 ? [] : [`${t.ci.facts.commits}:`, ...brought])].join('\n')
+}
+
+/**
+ * What a push brought, in place of its top commit's title (BTN-1586): the task keys, each a link where the tracker has one,
+ * else the first commit and "+N", or "sync" for a push of merges alone.
+ */
+export function PushTitle({ title, brought, urls, className }: { title: string; brought: string[] | undefined; urls: TrackerUrls; className: string }) {
+  const label = pushLabel(title, brought)
+  if (label.kind === 'title') return <span className={className}>{label.title}</span>
+  if (label.kind === 'sync') return <span className={`${className} ci__sync`}>{t.ci.sync}</span>
+  if (label.kind === 'commit')
+    return (
+      // Only the subject gives way to a narrow line: "+N" stays in view.
+      <span className={`${className} ci__brought`}>
+        <span className="ci__subject">{label.subject}</span>
+        {label.more > 0 && <span className="ci__more-commits">{t.ci.more(label.more)}</span>}
+      </span>
+    )
+  return (
+    <span className={className}>
+      {label.keys.map((key, index) => {
+        const href = issueLink(urls, key)
+        return (
+          <span key={key}>
+            {index > 0 && ', '}
+            {href === null ? (
+              <span className="ci__key">{key}</span>
+            ) : (
+              <a className="ci__key ci__key--over" href={href} target="_blank" rel="noreferrer">
+                {key}
+              </a>
+            )}
+          </span>
+        )
+      })}
+    </span>
+  )
 }
 
 /** The push's state, commit, title, a dot per workflow when there are several, its time and when; the event and run numbers are its tip. */
-function PushRow({ push, medians, now, marked, by }: { push: PushRuns; medians: Record<string, number>; now: Date; marked: boolean; by: PushBy | undefined }) {
+function PushRow({
+  push,
+  medians,
+  now,
+  marked,
+  by,
+  brought,
+  urls,
+}: {
+  push: PushRuns
+  medians: Record<string, number>
+  now: Date
+  marked: boolean
+  by: PushBy | undefined
+  brought: string[] | undefined
+  urls: TrackerUrls
+}) {
   const look = pushStatus(push.runs)
   const lead = leadRun(push.runs, medians, now)
   const length = runDurationMs(lead, now)
-  const tip = pushTip(push, by)
+  const tip = pushTip(push, by, brought)
   return (
     <li>
-      <a className={marked ? 'ci__past ci__past--fix' : 'ci__past'} href={lead.url} target="_blank" rel="noreferrer" title={tip}>
+      <div className={marked ? 'ci__past ci__past--fix' : 'ci__past'}>
+        {/* The whole row opens the run; the task keys over it open the tasks. */}
+        <a className="ci__stretch" href={lead.url} target="_blank" rel="noreferrer" title={tip} aria-label={t.ci.openRun} />
         <span className={`ci-status-dot ci-status-dot--${look}`} aria-label={t.ci.status[look]} role="img" />
         <span className="ci__past-commit">{short(push.commit)}</span>
-        <span className="ci__past-title">{push.title}</span>
+        <PushTitle className="ci__past-title" title={push.title} brought={push.manual ? undefined : brought} urls={urls} />
         <span className="ci__dots">
           {push.runs.length > 1 &&
             push.runs.map((run) => (
@@ -732,7 +810,7 @@ function PushRow({ push, medians, now, marked, by }: { push: PushRuns; medians: 
         </span>
         <span className="ci__line-time">{length === null ? '' : formatClock(length)}</span>
         <span className="ci__past-ago">{formatAgo(push.runs.at(-1)!.createdAt, now)}</span>
-      </a>
+      </div>
     </li>
   )
 }

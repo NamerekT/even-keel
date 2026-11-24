@@ -102,6 +102,23 @@ function forgejo(over: Partial<CiView> = {}): CiView {
   }
 }
 
+const MERGE = "Merge remote-tracking branch 'origin/dev' into dev"
+
+/**
+ * Every push topped by a sync merge (BTN-1586): push 5 brought two tasks, 4 one, 3 commits without keys, 2 merges alone;
+ * push 1 is the oldest, with no previous push to count from, so it keeps its merge title.
+ */
+function mergesView(): CiView {
+  const view = forgejo()
+  const brought: Record<string, string[]> = {
+    [sha(5)]: ['[ABC-5] Экспорт отчёта', '[ABC-6] Импорт из CSV', '[ABC-5] Тесты экспорта'],
+    [sha(4)]: ['[ABC-4] Ретраи загрузки'],
+    [sha(3)]: ['Fix a typo in the README', 'Bump dependencies', 'Lint'],
+    [sha(2)]: [],
+  }
+  return { ...view, current: { ...view.current!, title: MERGE, tasks: ['ABC-5', 'ABC-6'] }, history: view.history.map((each) => ({ ...each, title: MERGE })), brought }
+}
+
 const github = (fake: Omit<Fake, 'url'>) => run(fake.workflow === 'macOS' ? fake.push + 186 : fake.workflow === 'Nightly' ? 88 + fake.push : fake.push + 743, { ...fake, url: GITHUB })
 
 /** GitHub runs two workflows on each push and a nightly one by hand; the project does not count it (only Forgejo). */
@@ -185,6 +202,7 @@ export function fakeCi(kind: string | null): Record<string, CiView[]> {
     error: { ...finished, health: 'error', error: notice('ci.unreachable', { ci: 'Forgejo' }, { detail: 'connect ETIMEDOUT 100.64.0.1:443' }), checkedAt: ago(30) },
     off: { ...forgejo(), health: 'off', error: notice('ci.noToken', { kind: 'forgejo' }), checkedAt: null, current: null, history: [], medians: {} },
     late: forgejo({ current: current([[untaken, [notTakenJob]]], ['ABC-5']), history: [untaken, ...HISTORY] }),
+    merges: mergesView(),
     after: finished,
     afterfailed: finished,
     afterskipped: finished,

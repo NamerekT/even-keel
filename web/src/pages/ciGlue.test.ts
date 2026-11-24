@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { CiRun, PushRuns } from '../../../src/ci/model.js'
 import { t } from '../i18n/index.js'
-import { AfterGreen, MirrorTime, pushTip, Timing } from './CiChip.js'
+import { AfterGreen, MirrorTime, PushTitle, pushTip, Timing } from './CiChip.js'
 
 const NOW = new Date('2026-10-12T12:00:00Z')
 
@@ -79,5 +79,29 @@ describe('the CI panel glues no facts with a dot (BTN-1378)', () => {
       `${t.ci.facts.runs}: Tests #41, macOS #186`,
     ])
     expect(pushTip({ ...push, runs: [run({ event: undefined })] }, undefined).split('\n')).toEqual([`${t.ci.facts.status}: ${t.ci.status.success}`, `${t.ci.facts.runs}: Tests #41`])
+  })
+
+  it('lists the commits a push brought after its facts (BTN-1586)', () => {
+    const push: PushRuns = { key: 'k', commit: '78dde6c0000000', title: 'Merge', manual: false, runs: [run({ event: undefined })] }
+    expect(pushTip(push, undefined, ['[ABC-1] One', 'Two']).split('\n').slice(2)).toEqual([`${t.ci.facts.commits}:`, '[ABC-1] One', 'Two'])
+    expect(pushTip(push, undefined, [])).not.toContain(t.ci.facts.commits)
+  })
+})
+
+describe("a push's line names what it brought (BTN-1586)", () => {
+  const urls = { default: 'https://tracker.example.com/{id}', projects: {}, pages: {} }
+  const title = (brought: string[] | undefined) => html(createElement(PushTitle, { title: "Merge remote-tracking branch 'origin/dev' into dev", brought, urls, className: 'ci__title' }))
+
+  it('links each task key instead of the merge title', () => {
+    const markup = title(['[ABC-1] One', '[ABC-2] Two'])
+    expect(markup).toContain('href="https://tracker.example.com/ABC-1"')
+    expect(markup).toContain('href="https://tracker.example.com/ABC-2"')
+    expect(markup).not.toContain('Merge')
+  })
+
+  it('says the first commit and +N, a sync for merges alone, the title when unknown', () => {
+    expect(title(['Fix a typo', 'Lint'])).toContain(`<span class="ci__subject">Fix a typo</span><span class="ci__more-commits">${t.ci.more(1)}</span>`)
+    expect(title([])).toContain(t.ci.sync)
+    expect(title(undefined)).toContain('Merge remote-tracking branch')
   })
 })

@@ -10,6 +10,8 @@ import {
   runOfJobs,
   STUCK_MS,
   stuckSince,
+  broughtOf,
+  pushLabel,
   taskIdsOf,
   waitingJobs,
   type CiJob,
@@ -238,5 +240,32 @@ describe('waitingJobs (BTN-1576)', () => {
 describe('taskIdsOf', () => {
   it('takes the ids in brackets once each', () => {
     expect(taskIdsOf(['[BTN-102] CI panel', "Merge branch 'btn-102/task'", '[BTN-102] Docs', '[CBL-7] Fix'])).toEqual(['BTN-102', 'CBL-7'])
+  })
+})
+
+describe('broughtOf', () => {
+  it('takes the tasks of every subject and the subjects of the commits that are no merges (BTN-1586)', () => {
+    const lines = ["p3 p4\tMerge remote-tracking branch 'origin/dev' into dev", 'p2\t[BTN-1573] Panel', "p1 p0\tMerge branch 'btn-1573/task' into dev", 'p0\tFix a typo', '']
+    expect(broughtOf(lines)).toEqual({ tasks: ['BTN-1573'], subjects: ['[BTN-1573] Panel', 'Fix a typo'] })
+  })
+
+  it('keeps a tab inside a subject and reads a root commit as no merge', () => {
+    expect(broughtOf(['\tFirst\tcommit'])).toEqual({ tasks: [], subjects: ['First\tcommit'] })
+  })
+})
+
+describe('pushLabel', () => {
+  it('names the tasks the push brought, once each, without its merges', () => {
+    expect(pushLabel("Merge remote-tracking branch 'origin/dev' into dev", ['[BTN-1573] Panel', '[BTN-1578] Docs', '[BTN-1573] Tests'])).toEqual({ kind: 'tasks', keys: ['BTN-1573', 'BTN-1578'] })
+  })
+
+  it('names the first commit and how many more when no subject has a task', () => {
+    expect(pushLabel('Merge', ['Fix a typo', 'Bump deps', 'Lint'])).toEqual({ kind: 'commit', subject: 'Fix a typo', more: 2 })
+    expect(pushLabel('Merge', ['Fix a typo'])).toEqual({ kind: 'commit', subject: 'Fix a typo', more: 0 })
+  })
+
+  it('calls a push of merges alone a sync, and keeps the title when the commits are unknown', () => {
+    expect(pushLabel("Merge remote-tracking branch 'origin/dev' into dev", [])).toEqual({ kind: 'sync' })
+    expect(pushLabel('[BTN-1] Start', undefined)).toEqual({ kind: 'title', title: '[BTN-1] Start' })
   })
 })

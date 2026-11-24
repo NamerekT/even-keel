@@ -37,7 +37,7 @@ function setup(
   const refs: string[] = []
   let runs = options.runs ?? [run(2), run(1)]
   let failure: Error | null = null
-  const calls = { runs: 0, jobs: [] as number[] }
+  const calls = { runs: 0, jobs: [] as number[], log: [] as string[] }
   const logs: string[] = []
   let changes = 0
   let recovered = 0
@@ -61,7 +61,10 @@ function setup(
       refs.push(args.at(-1)!)
       return { code: 0, out: head }
     }
-    if (args[0] === 'log') return { code: 0, out: args.includes('sha1..sha2') ? '[ABC-2] Second\n[ABC-1] Merged in' : '[ABC-9] Other' }
+    if (args[0] === 'log') {
+      calls.log.push(args.slice(1).join(' '))
+      return { code: 0, out: args.includes('sha1..sha2') ? "p1\t[ABC-2] Second\np2 p3\t[ABC-1] Merged in\np4 p5\tMerge branch 'dev'" : 'p0\t[ABC-9] Other' }
+    }
     return { code: 1, out: '' }
   }
   const watch = new CiWatch({
@@ -124,12 +127,35 @@ describe('CiWatch', () => {
     expect(t.watch.view).toMatchObject({ kind: 'forgejo', remote: 'origin', repository: 'john/app', counted: true, url: 'https://forgejo.example.com/john/app/actions', health: 'ok', medians: { 'test.yml': 180_000 }, pushed: null })
     expect(t.watch.view.current).toMatchObject({ commit: 'sha2', title: 'run 2', manual: false, runs: [{ run: { id: 2 } }], tasks: ['ABC-2', 'ABC-1'] })
     expect(t.watch.view.history.map((each) => each.id)).toEqual([2, 1])
-    expect(t.calls).toEqual({ runs: 1, jobs: [2] })
+    expect(t.calls).toMatchObject({ runs: 1, jobs: [2] })
     expect(t.changes()).toBe(1)
 
     t.advance(POLL_MS * 10)
     await t.watch.tick()
     expect(t.calls.runs).toBe(1)
+  })
+
+  it('gives each push of the history the commits it brought, merges left out, and reads each range once (BTN-1586)', async () => {
+    const t = setup()
+    await t.watch.tick()
+    // The oldest push has no previous one: only its own tasks, what it brought stays unknown.
+    expect(t.watch.view.brought).toEqual({ sha2: ['[ABC-2] Second'] })
+    expect(t.calls.log).toEqual(['--format=%P%x09%s -50 sha1..sha2', '--format=%P%x09%s -1 sha1'])
+
+    t.setRuns([run(3), run(2), run(1)])
+    t.watch.want()
+    t.advance(POLL_MS)
+    await t.watch.tick()
+    expect(t.calls.log.slice(2)).toEqual(['--format=%P%x09%s -50 sha2..sha3'])
+    expect(t.watch.view.brought).toEqual({ sha3: ['[ABC-9] Other'], sha2: ['[ABC-2] Second'] })
+    expect(t.watch.view.current?.tasks).toEqual(['ABC-9'])
+  })
+
+  it('takes the previous push past a run by hand, and gives a run by hand nothing it brought', async () => {
+    const t = setup({ runs: [run(2), run(5, { commit: 'sha9', event: 'manual' }), run(1)] })
+    await t.watch.tick()
+    expect(t.calls.log[0]).toBe('--format=%P%x09%s -50 sha1..sha2')
+    expect(t.watch.view.brought).toEqual({ sha2: ['[ABC-2] Second'] })
   })
 
   it('polls a finished history while the chain wants a fresh verdict, as for a rerun (EKR-88), and goes quiet once it stops asking', async () => {
@@ -171,7 +197,7 @@ describe('CiWatch', () => {
     t.advance(1)
     t.setRuns([run(3), run(2)])
     await t.watch.tick()
-    expect(t.calls).toEqual({ runs: 2, jobs: [3, 3] })
+    expect(t.calls).toMatchObject({ runs: 2, jobs: [3, 3] })
     expect(t.watch.view.current?.runs[0]?.run.status).toBe('success')
     t.advance(POLL_MS)
     await t.watch.tick()
@@ -338,7 +364,7 @@ describe('CiWatch and runs no runner took (BTN-761)', () => {
     t.advance(POLL_MS)
     t.watch.want()
     await t.watch.tick()
-    expect(t.calls).toEqual({ runs: 2, jobs: [3, 2] })
+    expect(t.calls).toMatchObject({ runs: 2, jobs: [3, 2] })
     expect(t.watch.view.history.map((each) => each.notTaken)).toEqual([true, true])
   })
 
