@@ -38,7 +38,6 @@ export const machinePanelRu = {
     accounts: 'Аккаунты',
     accountsAll: (count: number) => `Аккаунты, которые использует Even Keel: ${count}. Лимиты и машины, где они вошли`,
     accountsUnused: 'Even Keel пока не использует ни одного аккаунта',
-    allAccounts: 'Все аккаунты',
     accountsNone: 'Машина ещё не прислала аккаунты',
     accountsEmpty: (name: string) => `На «${name}» нет ни одного аккаунта`,
     hubOnly: 'на хабе вошёл, здесь — нет',

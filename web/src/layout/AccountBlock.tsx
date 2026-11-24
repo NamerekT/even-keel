@@ -5,7 +5,8 @@ import { limitSpans, type LimitWindow, type RateLimits } from '../../../src/limi
 import { formatSpan, formatTokens } from '../format.js'
 import { t } from '../i18n/index.js'
 import { accountBadge } from '../state.js'
-import { AccountPanel } from './Account.js'
+import { AccountsDrawer } from '../pages/Accounts.js'
+import { useMachineFilter } from './MachineFilter.js'
 import { spendsByKey, spendText, useSpend, useTokens, type Spend, type Tokens } from './accountParts.js'
 import { seriesStyle } from '../ui/series.js'
 import { FULL_PERCENT, WARM_PERCENT, windowValue } from './Limits.js'
@@ -50,7 +51,7 @@ export function AccountBlock({ account, now, levels = [{ account: account.active
       </span>
     </button>
     {!open && <AccountLevels account={account} levels={levels} now={now} spend={spend} tokens={tokens} machine={machine} />}
-    {open && <AccountPanel account={account} spend={spend} tokens={tokens} onClose={() => setOpen(false)} machine={machine} />}
+    {open && <AccountsDrawer card={machine?.card ?? null} onClose={() => setOpen(false)} />}
   </div>
 }
 
@@ -94,11 +95,10 @@ export function Ring({ percent }: { percent: number }) {
   </svg>
 }
 
-/** A single entry in the burger opens the full accounts drawer. */
+/** A single entry in the burger opens the accounts drawer of the view, as the header's block does on a wide screen. */
 export function AccountSheet({ account, now }: BlockProps) {
   const { open, setOpen, rootRef } = usePopover()
-  const spend = useSpend(account)
-  const tokens = useTokens(account)
+  const { selected } = useMachineFilter()
   const active = account.accounts.find((entry) => entry.key === account.active)
   return <div ref={rootRef}>
     <button type="button" className="gear__item account-sheet-button" aria-expanded={open} aria-controls="account-panel" onClick={() => setOpen(!open)}>
@@ -106,6 +106,6 @@ export function AccountSheet({ account, now }: BlockProps) {
       {account.accounts.some((entry) => entry.needsLogin || entry.error !== null) && <span className="account-problem-dot" aria-label={t.account.checkFailedShort} />}
       <span className="sheet__chevron" aria-hidden="true">›</span>
     </button>
-    {open && <AccountPanel account={account} spend={spend} tokens={tokens} onClose={() => setOpen(false)} />}
+    {open && <AccountsDrawer card={selected} onClose={() => setOpen(false)} />}
   </div>
 }

@@ -60,7 +60,6 @@ export const accountEn = {
     runsThrough: 'Runs through',
     checkConnection: 'Check connection',
     title: 'Accounts',
-    all: 'All accounts',
     problems: (count: number) => (count === 1 ? { before: 'Account ', after: ' has problems' } : { before: 'Accounts with problems: ', after: '' }),
     back: 'Back',
     agents: { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode', copilot: 'GitHub Copilot' },

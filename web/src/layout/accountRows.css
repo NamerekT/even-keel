@@ -1,8 +1,16 @@
 .account-blocks { display: flex; flex-direction: column; gap: var(--space-16); }
 .account-blocks--page { gap: var(--space-24); }
-.drawer.account-drawer { width: min(640px, 100vw); }
-.account-drawer .drawer__title { font-size: var(--text-22); font-weight: 600; }
-.account-drawer .drawer__head { padding-right: var(--space-4); }
+/* The header's accounts drawer holds the page's own table (BTN-1587): as wide as its columns need, the whole width on a phone. */
+.drawer.account-drawer { width: min(1240px, 100vw); gap: var(--space-16); }
+.account-drawer .account-blocks--page { gap: var(--space-16); }
+.account-drawer .drawer__title { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: var(--space-8); min-width: 0; font-size: var(--text-22); font-weight: 600; }
+.account-drawer .drawer__head { flex-wrap: wrap; padding-right: var(--space-4); }
+.account-drawer__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }
+.account-drawer__actions .button { white-space: nowrap; }
+/* A phone: the title and × on the first line, the head's buttons under them. */
+@media (max-width: 760px) {
+  .account-drawer__actions { order: 1; flex-basis: 100%; }
+}
 .account-provider.ui-card { min-width: 0; }
 .account-provider > .ui-card__head { align-items: center; }
 .account-marketplace { min-width: 0; }

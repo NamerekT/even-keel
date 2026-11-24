@@ -19,8 +19,14 @@
   background: var(--series);
 }
 
-.machine-accounts__panel {
+/* "All machines": the accounts card on pointing or keyboard focus, as the hub's levels (BTN-1587); pressing opens the drawer. */
+.account-card.machine-accounts__card {
   width: min(420px, calc(100vw - 2 * var(--gutter)));
+}
+
+.machine-accounts:hover .machine-accounts__card,
+.machine-accounts .account-block__toggle:focus-visible + .machine-accounts__card {
+  display: block;
 }
 
 .machine-accounts__email {
@@ -36,18 +42,6 @@
 .machine-accounts__who .icon {
   flex: none;
   color: var(--fg-muted);
-}
-
-.machine-accounts__all-link {
-  align-self: flex-start;
-  padding-top: var(--space-8);
-  color: var(--accent);
-  font-size: var(--text-13);
-  text-decoration: none;
-}
-
-.machine-accounts__all-link:hover {
-  text-decoration: underline;
 }
 
 .machine-accounts__list {

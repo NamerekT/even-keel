@@ -1,4 +1,3 @@
-import { Link } from 'react-router'
 import type { MachineCard, MachineSignIn } from '../../../src/state.js'
 import { entrySlot } from '../accounts.js'
 import { headerAccounts, type HeaderAccount } from '../headerAccounts.js'
@@ -11,6 +10,7 @@ import { machineLogin } from '../machineSignIn.js'
 import { MachineLabels } from '../ui/MachineLabel.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
+import { AccountsDrawer } from '../pages/Accounts.js'
 import { AccountBlock } from './AccountBlock.js'
 import { agentLabel } from '../accountName.js'
 import { AgentIcon } from './accountParts.js'
@@ -39,6 +39,7 @@ function MachineBlock({ card, now, project }: { card: MachineCard; now: Date; pr
   return <AccountBlock account={rows.view} limits={null} now={now} levels={levels.length > 0 ? levels : [{ account: rows.view.active, source: 'shared' }]} machine={rows} />
 }
 
+/** "All machines": pointing shows a block per account, pressing opens the hub's accounts drawer (BTN-1587). */
 function AllMachines({ now }: { now: Date }) {
   const { cards } = useMachineFilter()
   const { state } = useLive()
@@ -47,15 +48,12 @@ function AllMachines({ now }: { now: Date }) {
   const label = t.machinePanel.view.accountsAll(blocks.length)
   return (
     <div className="queue-menu machine-accounts" ref={rootRef}>
-      <button type="button" className="hblock account-block__toggle" aria-expanded={open} aria-controls="machine-accounts" aria-label={label} title={label} onClick={() => setOpen(!open)}>
+      <button type="button" className="hblock account-block__toggle" aria-expanded={open} aria-controls="account-panel" aria-label={label}
+        aria-describedby={open ? undefined : 'machine-accounts'} onClick={() => setOpen(!open)}>
         <AllToggle blocks={blocks} />
       </button>
-      {open && (
-        <div id="machine-accounts" className="queue machine-accounts__panel" role="dialog" aria-label={label}
-          onClickCapture={(event) => (event.target as Element).closest('a') !== null && setOpen(false)}>
-          <AccountBlocks blocks={blocks} now={now} />
-        </div>
-      )}
+      {!open && <div id="machine-accounts" className="account-card machine-accounts__card" role="tooltip"><AccountBlocks blocks={blocks} now={now} /></div>}
+      {open && <AccountsDrawer card={null} onClose={() => setOpen(false)} />}
     </div>
   )
 }
@@ -74,32 +72,28 @@ function AllToggle({ blocks }: { blocks: HeaderAccount[] }) {
   )
 }
 
-/** "All machines": an account a block — its e-mail, its limits once, the machines it is signed in on — then the page of all. */
+/** "All machines": an account a block — its e-mail, its limits once, the machines it is signed in on. */
 function AccountBlocks({ blocks, now }: { blocks: HeaderAccount[]; now: Date }) {
   const { state } = useLive()
   const view = t.machinePanel.view
+  if (blocks.length === 0) return <p className="queue__empty">{view.accountsUnused}</p>
   return (
-    <>
-      {blocks.length === 0 ? <p className="queue__empty">{view.accountsUnused}</p> : (
-        <ul className="machine-accounts__list">
-          {blocks.map((block) => (
-            <li key={block.id} className="machine-accounts__row" style={seriesStyle(block.entry === undefined || state === null ? null : entrySlot(state.account, block.entry))}>
-              <span className="machine-accounts__who">
-                <AgentIcon agent={block.agent} />
-                <span className="machine-accounts__dot" aria-hidden="true" />
-                <span className="machine-accounts__email">{block.email ?? block.entry?.name ?? block.key}</span>
-              </span>
-              {block.limits !== null && <Limits limits={block.limits} now={now} bare />}
-              <MachineLabels items={block.machines.map((machine) => ({
-                id: machine.id, name: machine.name, color: machine.color, kind: machine.token ? 'token' : 'in',
-                ...(machine.token && { tip: t.account.machineOnTokenTip(machine.name) }),
-              }))} />
-            </li>
-          ))}
-        </ul>
-      )}
-      <Link to="/accounts" className="machine-accounts__all-link">{view.allAccounts}</Link>
-    </>
+    <ul className="machine-accounts__list">
+      {blocks.map((block) => (
+        <li key={block.id} className="machine-accounts__row" style={seriesStyle(block.entry === undefined || state === null ? null : entrySlot(state.account, block.entry))}>
+          <span className="machine-accounts__who">
+            <AgentIcon agent={block.agent} />
+            <span className="machine-accounts__dot" aria-hidden="true" />
+            <span className="machine-accounts__email">{block.email ?? block.entry?.name ?? block.key}</span>
+          </span>
+          {block.limits !== null && <Limits limits={block.limits} now={now} bare />}
+          <MachineLabels items={block.machines.map((machine) => ({
+            id: machine.id, name: machine.name, color: machine.color, kind: machine.token ? 'token' : 'in',
+            ...(machine.token && { tip: t.account.machineOnTokenTip(machine.name) }),
+          }))} />
+        </li>
+      ))}
+    </ul>
   )
 }
 

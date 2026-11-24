@@ -60,7 +60,6 @@ export const accountRu = {
     runsThrough: 'Запуск через',
     checkConnection: 'Проверить подключение',
     title: 'Аккаунты',
-    all: 'Все аккаунты',
     problems: (count: number) => (count === 1 ? { before: 'Аккаунт ', after: ': есть проблемы' } : { before: 'Есть проблемы у аккаунтов: ', after: '' }),
     back: 'Назад',
     agents: { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode', copilot: 'GitHub Copilot' },
