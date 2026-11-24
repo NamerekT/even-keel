@@ -388,6 +388,8 @@ export interface DispatcherDeps {
   rules: (project: string, task?: string) => ChainRules
   /** The project's current `fillMilestone` setting; absent means off. */
   fillsMilestone?: (project: string) => boolean
+  /** The project's current `landingHold` setting (BTN-1582), read on every launch; absent means on. */
+  landingHold?: (project: string) => boolean
   /** The project's saved milestone order by label (BTN-792); empty or absent — the automatic one. */
   milestoneOrder?: (project: string) => readonly string[]
   /**

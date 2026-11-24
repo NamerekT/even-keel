@@ -454,6 +454,9 @@ export const settingsEN: Messages['settings'] = {
     fillMilestone: 'Give the active milestone to tasks without one',
     fillMilestoneHint:
       'A task that enters the chain without a milestone gets, in the tracker, the milestone of the current task, or the earliest one in the chain. Once: a milestone you change or clear afterwards stays as you left it.',
+    landingHold: 'Wait while a task resolves its landing',
+    landingHoldHint:
+      "While Even Keel has handed a task's landing in the main branch back to its session (a conflict with the remote or a red check), the project's next task does not start. Tasks already running go on.",
     intakeLabel: 'Take in GitHub issues with the label',
     intakeLabelHint:
       "An open issue of the project's GitHub repository with this label becomes a task of its tracker, with a link back; put the label on only after reading the issue. Comments of the repository's collaborators and of the issue's author are copied to the task, the author's as information; others' are not. When the task is done the issue gets one line — the version that ships it — and is closed once that release is out. The token of the GitHub profile needs Issues: Read and write.",

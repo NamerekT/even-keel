@@ -1,9 +1,10 @@
-import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
+import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { LandOutcome } from '../git/landing.js'
 import type { ForwardOutcome } from '../git/sync.js'
 import type { TaskMoves } from '../machine/tasks.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, Landing } from './model.js'
-import { LANDING_ROUNDS, landingPrompt } from './prompts.js'
+import { isOwnName } from './fix.js'
+import { LANDING_ROUNDS, landingPrompt, PROMPTS } from './prompts.js'
 import { warmSince } from './relay.js'
 
 /** The waits after the first network failures of a landing, then `REMOTE_WAIT_MS` between tries while the remote stays away. */
@@ -256,6 +257,34 @@ export class Landings {
     record.message = landingPrompt(facts, this.deps.promptLanguage(task))
     this.deps.save(this.state)
     return this.deliver(chain, current, record)
+  }
+
+  /**
+   * The task "Close without pushing" may close (BTN-1582): a task of the chain, current in a lane of the project, whose
+   * landing waits for the remote. Anything else is refused.
+   */
+  unpushed(project: string, task: string): void {
+    const current = this.state.active.some((chain) => chain.project === project && chain.current?.task === task)
+    if (!current || isOwnName(task) || this.deps.unchanged === undefined || landingOf(this.state, project, task)?.waitingRemote !== true) {
+      throw fail('landing.notWaiting', { task })
+    }
+  }
+
+  /**
+   * "Close without pushing" (BTN-1582): the task goes to Done with a comment while its merge is only in the local main,
+   * and the chain's Done cleans up; its sync of main pushes, a failure the warning as before. The session is not touched.
+   */
+  async closeUnpushed(project: string, task: string): Promise<void> {
+    this.unpushed(project, task)
+    const main = this.deps.mainBranch(task)
+    this.deps.log(`chain: ${task}: the user closed it without pushing ${main}, the remote being out of reach; the next sync pushes it`)
+    try {
+      await this.deps.unchanged!.complete(project, task, PROMPTS[this.deps.promptLanguage(task)].landing.unpushed(main))
+    } catch (error) {
+      throw fail('landing.notClosed', { task }, { cause: noticeOf(error) })
+    }
+    this.deps.log(`chain: ${task} is moved to done in the tracker`)
+    await this.deps.refresh(project).catch(() => undefined)
   }
 
   /**

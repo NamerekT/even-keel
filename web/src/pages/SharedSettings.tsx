@@ -92,7 +92,7 @@ const GROUPS = [
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), ...Object.values(WINDOW_KEYS), 'cliCheck', 'prompt', 'modelPrompts', 'promptLanguage'],
   },
   { id: 'sessions', keys: ['protection', 'hiddenSkills', 'warn', 'danger', 'contextHandoffs', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl', 'keepWarm'] },
-  { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask', 'rerun'] },
+  { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask', 'rerun', 'landingHold'] },
   // The catalog of packages (BTN-802): each change is sent at once, no draft.
   { id: 'packages', keys: [] },
   { id: 'page', keys: ['language', 'allowedHosts', 'machinesAddress', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
@@ -573,6 +573,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {check('fixTask', t.settings.fixTask, t.settings.fixTaskHint, unguarded)}
           {check('rerun', t.settings.rerunFailed, t.settings.rerunFailedHint, unguarded)}
         </div>
+        {check('landingHold', t.settings.landingHold, `${t.settings.landingHoldHint} ${t.shared.forProjects}`)}
       </Section>
     ),
     page: () => (

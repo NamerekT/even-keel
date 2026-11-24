@@ -219,6 +219,10 @@ export const en: Messages = {
       `Main of the remote is red at ${commit}; ${project} has been fixing it since ${since} — the next task starts when its fix is green.`,
     gateway: (error: string) => `The chains wait: the MCP gateway does not run — ${error}`,
     closingHold: (task: string) => `${task} is done — the next task starts once its session ends its turn and its folder is cleaned up.`,
+    landingHold: (task: string) => `${task} resolves a conflict of its landing in the main branch — the next task starts once it lands.`,
+    remoteHold: (task: string) => `${task} waits for the remote to push its main branch — it closes once the push goes through.`,
+    closeUnpushed: 'Close without pushing',
+    closeUnpushedTip: 'The task is closed now; the next sync of the main branch pushes it.',
     gatewayHold: 'The next task waits for the MCP gateway, which does not run: the banner above says why.',
     packagesHold: (packages: string) => `The next task waits for its packages: ${packages} — it starts once they answer.`,
     packagesSilentHold: (packages: string) =>
@@ -347,7 +351,7 @@ export const en: Messages = {
     position: (position: number) => `Place in the queue: ${position}`,
     waiting: 'waiting',
     waitsFor: (what: string) => `Waiting for: ${what}`,
-    waitFor: { closing: 'closing', ci: 'main', limits: 'limits poll', limit: 'limit', model: 'model week', gateway: 'MCP gateway', packages: 'packages', machinePackages: 'machine packages', slot: 'slot', folder: 'folder' },
+    waitFor: { landing: 'landing', remote: 'the remote', closing: 'closing', ci: 'main', limits: 'limits poll', limit: 'limit', model: 'model week', gateway: 'MCP gateway', packages: 'packages', machinePackages: 'machine packages', slot: 'slot', folder: 'folder' },
   },
   lamp: {
     done: 'done',

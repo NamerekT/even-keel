@@ -226,6 +226,10 @@ export const ru = {
       `main общего remote красный на ${commit}; его с ${since} чинит ${project} — следующая задача запустится, когда починка позеленеет.`,
     gateway: (error: string) => `Цепочки ждут: шлюз MCP не работает — ${error}`,
     closingHold: (task: string) => `${task} готова — следующая задача запустится, когда её сессия закончит ход и папку уберут.`,
+    landingHold: (task: string) => `${task} разбирает конфликт посадки в основную ветку — следующая задача запустится, когда она сядет.`,
+    remoteHold: (task: string) => `${task} ждёт remote, чтобы запушить основную ветку, — закроется, когда пуш пройдёт.`,
+    closeUnpushed: 'Закрыть без пуша',
+    closeUnpushedTip: 'Задача закроется сейчас, пуш повторит следующая синхронизация основной ветки.',
     gatewayHold: 'Следующая задача ждёт шлюз MCP: он не работает, почему — в плашке выше.',
     packagesHold: (packages: string) => `Следующая задача ждёт пакеты: ${packages} — запустится, когда они ответят.`,
     packagesSilentHold: (packages: string) =>
@@ -353,7 +357,7 @@ export const ru = {
     position: (position: number) => `Место в очереди: ${position}`,
     waiting: 'ждёт',
     waitsFor: (what: string) => `Ждёт: ${what}`,
-    waitFor: { closing: 'закрытие', ci: 'main', limits: 'опрос лимитов', limit: 'лимит', model: 'неделя модели', gateway: 'шлюз MCP', packages: 'пакеты', machinePackages: 'пакеты машины', slot: 'слот', folder: 'папка' },
+    waitFor: { landing: 'посадка', remote: 'remote', closing: 'закрытие', ci: 'main', limits: 'опрос лимитов', limit: 'лимит', model: 'неделя модели', gateway: 'шлюз MCP', packages: 'пакеты', machinePackages: 'пакеты машины', slot: 'слот', folder: 'папка' },
   },
   lamp: {
     done: 'готово',

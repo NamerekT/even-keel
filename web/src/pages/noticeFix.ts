@@ -116,14 +116,14 @@ const PROJECT_TABS: Record<ProjectTab, readonly string[]> = {
   repo: ['repo', 'branch', 'mergeInto', 'carryAgent', 'slot', 'changelog', 'color'],
   tracker: ['tracker', 'trackerProject', 'fillMilestone', 'chain'],
   sessions: ['provider', 'models', 'accounts', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'cacheTtl', 'autoCompactWindow', 'codexAutoCompactWindow', 'openCodeAutoCompactWindow', 'contextHandoffs', 'checkpointTokens', 'checkpointShares'],
-  ci: ['check', 'afterGreen', 'ci', 'pullRequests'],
+  ci: ['check', 'afterGreen', 'ci', 'landingHold', 'pullRequests'],
 }
 
 const SHARED_TABS: Record<Exclude<SharedTab, 'trackers'>, readonly string[]> = {
   chain: ['parallel', 'switchOnLimit', 'brief', 'fillMilestone', 'defaultGit', 'chain'],
   models: ['provider', 'models', 'accounts', 'autoCompactWindow', 'codexAutoCompactWindow', 'openCodeAutoCompactWindow', 'execution', 'cli', 'cliCheck', 'modelPrompts', 'promptLanguage'],
   sessions: ['hiddenSkills', 'context', 'contextHandoffs', 'checkpointTokens', 'checkpointShares', 'cacheTtl', 'keepWarm'],
-  ci: ['ci'],
+  ci: ['ci', 'landingHold'],
   page: ['language', 'allowedHosts', 'attachmentLimit'],
   backup: ['backupDir', 'backupKeep', 'backup'],
   stats: ['stats'],

@@ -50,6 +50,10 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       projects: orders,
       skipped: ctx.dispatcher.state.skipped,
       leftovers: ctx.dispatcher.state.leftovers,
+      landings: Object.fromEntries(Object.entries(ctx.dispatcher.state.landings).map(([project, landings]) => [
+        project,
+        landings.map(({ task, resolving, waitingRemote }) => ({ task, ...(resolving && { resolving }), ...(waitingRemote && { waitingRemote }) })),
+      ])),
     },
     tasks: Object.keys(ctx.configStore.current.projects).flatMap((project) => shownTasks(ctx, project).map((task) => ({ ...task, project }))),
     archiveMore: archiveMore(ctx),

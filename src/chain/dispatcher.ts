@@ -421,6 +421,15 @@ export class Dispatcher {
     return this.talks.accept(project, task, sessionId)
   }
 
+  /** "Close without pushing" (BTN-1582): checked now and again in turn, since a step before it may have landed the task. */
+  async closeUnpushed(project: string, task: string): Promise<void> {
+    this.requireProject(project)
+    this.landings.unpushed(project, task)
+    const closed = this.work.then(() => this.landings.closeUnpushed(project, task))
+    this.work = closed.catch(() => undefined)
+    return closed
+  }
+
   /**
    * Pauses the lane whose current task is `task`, the task staying current and its session untouched: the merge hook
    * refused an outsider's branch (BTN-1207). `false` — no lane of the project runs the task.

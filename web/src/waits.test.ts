@@ -77,3 +77,31 @@ describe('chainWaits', () => {
     expect(chainWaits(stateOf(running({ fixOnly: true }), packages), 'ABC')).toEqual([])
   })
 })
+
+describe('chainWaits of landings (BTN-1582)', () => {
+  const working = (task: string): ActiveChain => running({ current: { task, sessionId: 's', since: '2026-11-01T04:00:00.000Z' } })
+  const landed = (lanes: ActiveChain[], landings: unknown[], landingHold?: boolean) =>
+    ({
+      chain: { active: lanes, landings: { ABC: landings } },
+      packages: packagesOf(),
+      ...(landingHold !== undefined && { config: { projects: { ABC: { landingHold } } } }),
+    }) as unknown as Parameters<typeof chainWaits>[0]
+
+  it('names the task resolving its landing first, even while the head lane works a task', () => {
+    const state = landed([working('ABC-1'), running({ closing: 'ABC-0' })], [{ task: 'ABC-1', resolving: true }])
+    expect(chainWaits(state, 'ABC')).toEqual([{ kind: 'landing', task: 'ABC-1' }])
+    expect(chainWaits(landed([running({ closing: 'ABC-0' }), working('ABC-1')], [{ task: 'ABC-1', resolving: true }]), 'ABC')).toEqual([
+      { kind: 'landing', task: 'ABC-1' },
+      { kind: 'closing', task: 'ABC-0' },
+    ])
+  })
+
+  it('has no landing wait with the setting off, nor for a task no lane works', () => {
+    expect(chainWaits(landed([working('ABC-1')], [{ task: 'ABC-1', resolving: true }], false), 'ABC')).toEqual([])
+    expect(chainWaits(landed([working('ABC-2')], [{ task: 'ABC-1', resolving: true }]), 'ABC')).toEqual([])
+  })
+
+  it('names a task waiting for the remote whatever the setting', () => {
+    expect(chainWaits(landed([working('ABC-1')], [{ task: 'ABC-1', waitingRemote: true }], false), 'ABC')).toEqual([{ kind: 'remote', task: 'ABC-1' }])
+  })
+})

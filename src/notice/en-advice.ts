@@ -22,6 +22,7 @@ export const ADVICE = {
   'review.noToken': (p) => `add a ${FORGES[p.kind]} profile for its host`,
   'accept.notChecked': () => 'try again in a moment',
   'accept.notCompleted': () => 'try again, or close it in the tracker yourself',
+  'landing.notClosed': () => 'try again, or close it in the tracker yourself',
   'task.relabelFailed': () => "check the tracker profile's permission to edit issues and labels, then try again",
   'codex.hooksUntrusted': () => 'update Even Keel, or for now run the task on another provider',
   'copilot.binaryMissing': () => "set Copilot's CLI version to Checked in Settings → Providers and models, then resume the chain",

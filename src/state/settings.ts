@@ -59,6 +59,8 @@ export interface ProjectSettings {
   carryAgent: boolean
   /** A task that enters the chain without a milestone gets the active one in the tracker. */
   fillMilestone: boolean
+  /** No new task starts while a session of the project resolves its landing (BTN-1582), the shared one filled in. */
+  landingHold: boolean
   /** The project's own milestone order by label (BTN-792), read only: `project/milestone-order` writes it; empty — automatic. */
   milestoneOrder?: string[]
   /** How many of the project's tasks run at once, each on a machine with a free place (BTN-993); the form leaves it alone. */
@@ -115,6 +117,7 @@ export interface OwnValues {
   'ci.fixTask'?: boolean
   'ci.rerunFailed'?: boolean
   fillMilestone?: boolean
+  landingHold?: boolean
   promptLanguage?: Language
   cacheTtl?: CacheTtl | null
   autoCompactWindow?: number | null
@@ -239,9 +242,10 @@ export interface SharedForm {
   cliCheck: boolean
   /** A task not started yet goes to a machine with limit left (BTN-996); off by default, behind a warning. */
   switchOnLimit: boolean
-  /** What a project without its own `ci` keys or `fillMilestone` runs on. */
+  /** What a project without its own `ci` keys, `fillMilestone` or `landingHold` runs on. */
   ci: CiSettings
   fillMilestone: boolean
+  landingHold: boolean
   allowedHosts: string[]
   /** The name machines reach the hub by; `null` — the hub does not listen for machines. */
   machinesAddress: string | null

@@ -104,6 +104,8 @@ export interface EvenKeelConfig {
   /** The shared `ci` keys and `fillMilestone`; what each project ends up with is in `settings`. */
   ci: CiSettings
   fillMilestone: boolean
+  /** No new task of a project starts while a session resolves its landing (BTN-1582); what each project ends up with is in `settings`. */
+  landingHold: boolean
   /** Chains run at once; the rest wait in the queue. */
   parallel: number
   /** Hours a waiting chain session's cache is kept warm after its last answer (BTN-437); 0 — off. */
@@ -364,6 +366,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     contextHandoffs: shared.contextHandoffs as boolean,
     ci: ciOf(shared),
     fillMilestone: shared.fillMilestone as boolean,
+    landingHold: shared.landingHold as boolean,
     parallel: shared.parallel as number,
     keepWarm: shared.keepWarm as number,
     attachmentLimit: shared.attachmentLimit as number,
@@ -427,6 +430,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     mergeInto: git ? (values.mergeInto as string | null) : null,
     carryAgent: values.carryAgent as boolean,
     fillMilestone: values.fillMilestone as boolean,
+    landingHold: values.landingHold as boolean,
     milestoneOrder: values.milestoneOrder as string[],
     width: values.width as number,
     componentLanes: values.componentLanes as boolean,

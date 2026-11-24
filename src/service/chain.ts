@@ -174,6 +174,7 @@ export async function wireDispatcher(ctx: ChainContext, machine: MachinePort): P
     machines: ctx.machineLink.machines,
     rules: ctx.rulesOf,
     fillsMilestone: (project) => ctx.configStore.current.settings[project]?.fillMilestone ?? false,
+    landingHold: (project) => ctx.configStore.current.settings[project]?.landingHold ?? true,
     milestoneOrder: (project) => ctx.configStore.current.settings[project]?.milestoneOrder ?? [],
     blocked: (project, task) => {
       const reason = ctx.profileBlock(project) ?? ctx.pullBlock(project)

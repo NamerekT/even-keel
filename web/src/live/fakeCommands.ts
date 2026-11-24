@@ -12,6 +12,7 @@ import { fakeSettingsCommand } from './fakeConfig.js'
 import { fakeCliCommand, syncFakeCliSources } from './fakeCliCopies.js'
 import { fakeMoveMilestone, fakeReady, fakeRelabel, fakeSetRun, fakeUnready } from './fakeCards.js'
 import { fakeResolve } from './fakeCarry.js'
+import { withoutLanding } from './fakeLandings.js'
 import { fakeAnswer, fakeDismissMail } from './fakeChat.js'
 import { fakePackagesCommand } from './fakePackages.js'
 import { fakeSecretsCommand, fakeTally } from './fakeSecrets.js'
@@ -316,6 +317,7 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
   if (name === 'chain/restart') return restart(state, String(body.project), String(body.task), body.confirmed)
   // The task goes to Done: the chain lets it go as the cleanup after Done would.
   if (name === 'chain/accept') return closeCurrent(state)
+  if (name === 'chain/closeUnpushed') return closeCurrent(withoutLanding(state, String(body.project), String(body.task)))
   if (name === 'chain/unattended') return { ...state, unattended: body.on === true }
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
   if (name === 'view/tests') return { ...state, showTests: { ...state.showTests, [body.page === 'stats' ? 'stats' : 'home']: body.on === true } }

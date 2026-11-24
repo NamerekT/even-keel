@@ -262,6 +262,8 @@ export const en = {
   'landing.refused': (p: { task: string; main: string }) => `the landing of ${p.task} into ${p.main} of the remote was refused`,
   'landing.exhausted': (p: { task: string; main: string; rounds: number }) =>
     `${p.task} came back from its landing into ${p.main} of the remote ${p.rounds} times, and its session is not told again`,
+  'landing.notWaiting': (p: { task: string }) => `${p.task} does not wait for the remote any more: it landed, left the chain or was closed`,
+  'landing.notClosed': (p: { task: string }) => `${p.task} was not closed without pushing: the tracker did not move it to done`,
   'git.readOnly': (p: { profile: string; url: string }) =>
     `the token of the profile ${p.profile} may not push to ${p.url}: give the token write access to the repository's contents in Trackers and CI`,
 

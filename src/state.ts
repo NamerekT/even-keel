@@ -3,6 +3,7 @@ export type { Standard, ProjectSettings, OwnKey, OwnValues, CiSettings, SlotClea
 import type { AccountView } from './account/model.js'
 import type { BadgeStatus } from './badge/status.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
+import type { LandingFacts } from './chain/landing-hold.js'
 import type { LimitSpent } from './chain/limitNotice.js'
 import type { FixEpisode, LaunchDay, TaskSession } from './chain/launches.js'
 import type { MainCiView } from './chain/model.js'
@@ -338,6 +339,8 @@ export interface EvenKeelState {
     projects: Record<string, ProjectOrder>
     skipped: Record<string, string[]>
     leftovers: Record<string, Leftover[]>
+    /** By project, its landings not gone through yet (BTN-1582), without the message for the session; none — no key. */
+    landings?: Record<string, LandingFacts[]>
   }
   /** The tasks of every project with its project: a task of a tracker project two projects share is here for each. */
   tasks: ProjectTask[]

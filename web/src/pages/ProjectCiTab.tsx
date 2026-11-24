@@ -97,6 +97,8 @@ function GitCiTab({ fields, project, state, shared }: { fields: PanelFields; pro
           {inheritedSwitch('fixTask', t.settings.fixTask, t.settings.fixTaskHint, shared.ci.fixTask, unguarded)}
           {inheritedSwitch('rerun', t.settings.rerunFailed, t.settings.rerunFailedHint, shared.ci.rerunFailed, unguarded)}
         </div>
+        {/* The landing holds without the guard too: outside the greyed part. */}
+        {inheritedSwitch('landingHold', t.settings.landingHold, t.settings.landingHoldHint, shared.landingHold)}
       </Section>
       <Section title={t.settings.sections.pulls}>
         <SwitchField

@@ -58,6 +58,7 @@ export const FULL = {
       badge: { on: true, url: 'https://badge.example.com/', slug: 'example', fields: ['context', 'chain', 'title'] },
       intakeLabel: ' accepted ',
       fillMilestone: true,
+      landingHold: false,
       changelog: '\\docs\\CHANGELOG.md',
       standards: [{ doc: 'docs\\design.md', files: ['web/**/*.tsx', ' web/**/*.css'], except: ['**/*.test.*'], shots: true }],
       provider: 'claude',

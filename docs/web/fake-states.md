@@ -37,6 +37,7 @@ CLI copy selectors resolve only known providers, including when a URL supplies a
 | `?chain=machineLimits` | ABC's lane went to Example laptop and its next task waits for the first limits poll of the laptop's account `laptop` (BTN-1521): the same band as `limitsUnread`, the next poll in 4 minutes |
 | `?chain=packagesPause` | ABC's chain paused with `chain.packagesNotReady` (BTN-657): forgejo lacks its key; "Open the project's packages" beside the reason |
 | `?chain=ci` | the chain is waiting for the CI of a pushed main |
+| `?landing=resolving\|remote` | ABC's current task resolves its landing (BTN-1582, `fakeLandings.ts`): "waiting" under Start/Stop, the task in its tip; `remote` — it waits for the remote, the line under the head with "Close without pushing", whose press closes the task |
 | `?chain=check` | the chain is running the project's own check on a pushed main in the next task's folder |
 | `?chain=afterGreen` | the chain is waiting for the project's commands after a green main |
 | `?chain=remoteFix` | main of the remote is red and DEMO, a project of the same remote, is fixing it: ABC's next launch waits |

@@ -20,6 +20,8 @@ export type LandingReturn =
 export interface LandingTexts {
   conflict: (facts: { remote: string; main: string; round: number; files: string[] }) => string
   red: (facts: { remote: string; main: string; round: number; command: string; code: number; output: string }) => string
+  /** The comment on a task closed with "Close without pushing" while its landing waited for the remote (BTN-1582). */
+  unpushed: (main: string) => string
 }
 
 /** The text of a landing's return, by what made it. */
@@ -259,6 +261,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
           fill`- Это круг ${String(round)} из ${String(LANDING_ROUNDS)}: после последнего Even Keel поставит цепочку на паузу и спросит пользователя.`,
           ...(output.trim() === '' ? [] : ['- Вывод проверки (конец):', ...carryOutput(tailOf(output))]),
         ].join('\n'),
+      unpushed: (main) =>
+        fill`Задача закрыта в Even Keel кнопкой «Закрыть без пуша»: её мерж есть в ${main} основного чекаута, а remote был недоступен. Пуш повторит следующая синхронизация ${main}.`,
     },
     worktree: (path) => fill`- Worktree готов: ${path} — работай в нём, новый worktree не создавай.`,
     slotTemp: (patterns) => fill`- Это постоянный слот: после Done Even Keel удаляет в нём временные файлы (${patterns}). Нужное оттуда забери до мержа.`,
@@ -445,6 +449,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
           fill`- This is round ${String(round)} of ${String(LANDING_ROUNDS)}: after the last one Even Keel pauses the chain and asks the user.`,
           ...(output.trim() === '' ? [] : ["- The check's output (its end):", ...carryOutput(tailOf(output))]),
         ].join('\n'),
+      unpushed: (main) =>
+        fill`The task is closed in Even Keel with "Close without pushing": its merge is in ${main} of the main checkout, and the remote was out of reach. The next sync of ${main} pushes it.`,
     },
     worktree: (path) => fill`- Worktree is ready: ${path} — work in it, do not create a new worktree.`,
     slotTemp: (patterns) => fill`- This is a permanent slot: after Done Even Keel deletes its temporary files (${patterns}). Copy out what you need before the merge.`,

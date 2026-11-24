@@ -17,7 +17,7 @@ export const GROUPS = [
     id: 'sessions',
     keys: ['protection', 'provider', ...providerKeys('models'), ...providerKeys('accounts'), 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'standards', 'cacheTtl', 'ownAutoCompact', 'autoCompactWindow', 'ownCodexCompact', 'codexAutoCompactWindow', 'ownOpenCodeCompact', 'openCodeAutoCompactWindow','contextHandoffs', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
   },
-  { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'rerun', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
+  { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'rerun', 'landingHold', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
   // Shown only where the hub has a machine elsewhere (BTN-1271); the pool's switches apply at once, the width and
   // "Lanes by component" (BTN-1273) are drafted.
   { id: 'machines', keys: ['width', 'componentLanes'] },

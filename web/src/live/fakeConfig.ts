@@ -92,6 +92,7 @@ export const FAKE_SHARED: SharedForm = {
   updates: { check: true, notify: true },
   ci: CI_ALL,
   fillMilestone: false,
+  landingHold: true,
 }
 
 const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
@@ -118,6 +119,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   mergeInto: null,
   carryAgent: false,
   fillMilestone: false,
+  landingHold: true,
   changelog: 'CHANGELOG.md',
   standards: [],
   provider: null,

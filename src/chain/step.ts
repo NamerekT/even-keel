@@ -11,6 +11,7 @@ import type { MainFix } from './mainfix.js'
 import type { MainWait } from './mainwait.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, ReleaseReason } from './model.js'
 import { openBlockers } from './order.js'
+import { resolvingLanding } from './landing-hold.js'
 import { dropLanding, type Landings } from './landings.js'
 import type { LaunchPauses } from './pauses.js'
 import type { LanePlacement } from './placement.js'
@@ -260,6 +261,8 @@ export async function launchNext(host: StepHost, chain: ActiveChain, tasks: Task
     return 'end'
   }
 
+  if (own === undefined && heldByLanding(host, chain)) return 'end'
+
   const lastTry = chain.slotWait === undefined ? undefined : Date.parse(chain.slotWait.at)
   if (lastTry !== undefined && deps.now().getTime() - lastTry < SLOT_RETRY_MS) return 'end'
 
@@ -278,6 +281,28 @@ export async function launchNext(host: StepHost, chain: ActiveChain, tasks: Task
   await startTask(state, deps, chain, starting, fix, carry, feedback,
     () => reviews.delivered(chain.project, task), (failure) => host.halt(chain, failure))
   return 'end'
+}
+
+/** The task each held lane was last logged waiting on, so a wait is logged once. */
+const loggedHolds = new WeakMap<ActiveChain, string>()
+
+/**
+ * With `landingHold` on, a fresh start waits while a session of the project resolves its landing (BTN-1582); a live or
+ * returned session, a fix of main and a carry do not.
+ */
+function heldByLanding(host: StepHost, chain: ActiveChain): boolean {
+  const { state, deps } = host
+  if (deps.landingHold?.(chain.project) === false) return false
+  const resolving = resolvingLanding(state.landings[chain.project], lanesOf(state, chain.project))
+  if (resolving === undefined) {
+    loggedHolds.delete(chain)
+    return false
+  }
+  if (loggedHolds.get(chain) !== resolving) {
+    loggedHolds.set(chain, resolving)
+    deps.log(`chain: ${chain.project}: the next task waits while ${resolving} resolves its landing`)
+  }
+  return true
 }
 
 /**

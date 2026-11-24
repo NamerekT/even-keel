@@ -50,6 +50,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/dismiss': ({ control }, body) => control.dismiss(projectOf(body), taskOf(body)),
   'chain/reassign': ({ control }, body) => control.reassign(projectOf(body), taskOf(body)),
   'chain/accept': ({ control }, body) => control.accept(projectOf(body), taskOf(body), textOf(body.sessionId, 'sessionId')),
+  'chain/closeUnpushed': ({ control }, body) => control.closeUnpushed(projectOf(body), taskOf(body)),
   'chain/unattended': ({ control }, body) => control.setUnattended(flagOf(body)),
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),
   'chain/refresh': ({ tasks }, body) => tasks.refresh(projectOf(body)),

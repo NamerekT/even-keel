@@ -127,6 +127,7 @@ The project wizard includes its started milestone row when adding the project.
 | `chain.requiredMilestones` | `[]` | a task belongs to the project only in one of these milestones; empty — in any. A task left out is not the project's at all: not read, shown or closed by it. On the page: **Project tasks** → "Only milestones" (this key) or "All except" (the next one) |
 | `chain.excludedMilestones` | `[]` | a task in one of these milestones is not the project's. Two projects on one tracker project must split it with these two keys, so that no task is both's: say, a release project requires `v0.1` and the main one excludes it |
 | `fillMilestone` | `false` | shared and per project (`projects[].fillMilestone`): `true` — a task that enters the chain without a milestone gets, in the tracker, the milestone of the current task, or the earliest one in the chain; once, so a milestone you change or clear afterwards stays |
+| `landingHold` | `true` | shared and per project (`projects[].landingHold`): while a task's session resolves the conflict or the red check of its landing, the project starts no new task; tasks already running go on. `false` — the next task starts anyway |
 
 Statuses are matched by name, case-insensitively.
 

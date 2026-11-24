@@ -57,6 +57,7 @@ export const valuesOf = (form: SharedForm): Values => ({
   updatesCheck: form.updates.check,
   updatesNotify: form.updates.notify,
   fillMilestone: form.fillMilestone,
+  landingHold: form.landingHold,
   defaultGit: form.defaultGit === null ? '' : String(form.defaultGit),
   // No field of its own: the setup writes it, the form carries it as it is.
   setupPassed: form.setupPassed,
@@ -139,5 +140,6 @@ export function formOf(values: Values): SharedForm | undefined {
       rerunFailed: values.rerun as boolean,
     },
     fillMilestone: values.fillMilestone as boolean,
+    landingHold: values.landingHold as boolean,
   }
 }

@@ -283,6 +283,8 @@ export const noticesRu: NoticeTexts = {
   'landing.notReset': (p) => `посадка: ${p.main} не удалось откатить на ${p.commit}, до мержа сессии — откатите вручную`,
   'landing.refused': (p) => `посадку ${p.task} в ${p.main} ремоута отклонили`,
   'landing.exhausted': (p) => `${p.task} ${p.rounds} раза вернулась из посадки в ${p.main} ремоута, больше её сессии не пишем`,
+  'landing.notWaiting': (p) => `${p.task} больше не ждёт ремоут: она села, ушла из цепочки или закрыта`,
+  'landing.notClosed': (p) => `${p.task} не закрыта без пуша: трекер не перевёл её в готовые`,
   'git.readOnly': (p) =>
     `токену профиля ${p.profile} не дают пушить в ${p.url}: дайте токену запись в содержимое репозитория в «Трекеры и CI»`,
 

@@ -276,6 +276,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     mergeInto: null,
     carryAgent: false,
     fillMilestone: state.config.shared.fillMilestone,
+    landingHold: state.config.shared.landingHold,
     changelog: 'CHANGELOG.md',
     standards: [],
     provider: null,

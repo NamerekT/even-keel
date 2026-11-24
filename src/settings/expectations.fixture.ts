@@ -13,6 +13,7 @@ const common = {
   protection: { disabled: [], claude: [], codex: [], copilot: [], opencode: [] },
   ci: { guard: true, kinds: ['forgejo', 'github', 'gitlab'], waitMinutes: null, recheckMain: true, fixTask: false, rerunFailed: true },
   fillMilestone: false,
+  landingHold: true,
   notices: {},
 } satisfies Partial<ProjectSettings>
 

@@ -2,6 +2,8 @@ import { Fragment } from 'react'
 import { Link } from 'react-router'
 import { formatMoment } from '../format.js'
 import { t } from '../i18n/index.js'
+import { useCommand } from '../live/useCommand.js'
+import { Tipped } from '../ui/Tipped.js'
 import { machinePath } from '../machineColor.js'
 import { ciWaitText, limitsWaitText, limitWaitText } from '../state.js'
 import { problemText } from '../tools/packageView.js'
@@ -23,8 +25,21 @@ export function ChainWaits({ project, waits, className, compact = false }: { pro
       {/* The machine's page holds its packages of the project (BTN-1524). */}
       {wait.kind === 'machinePackages' && !wait.passing && <Link className="button button--small notice-fix" to={machinePath(wait.machine)}>{t.fix.machine}</Link>}
       {(wait.kind === 'slot' || wait.kind === 'folder') && <NoticeFixButton project={project} notice={wait.notice} />}
+      {wait.kind === 'remote' && !compact && <CloseUnpushed project={project} task={wait.task} />}
     </Fragment>
   ))
+}
+
+/** Closes a task whose landing waits for the remote (BTN-1582): the next sync of the main branch pushes it. */
+function CloseUnpushed({ project, task }: { project: string; task: string }) {
+  const { send, sending } = useCommand()
+  return (
+    <Tipped tip={t.banner.closeUnpushedTip} inline>
+      <button type="button" className="button button--small notice-fix" disabled={sending} onClick={() => void send('chain/closeUnpushed', { project, task })}>
+        {t.banner.closeUnpushed}
+      </button>
+    </Tipped>
+  )
 }
 
 const namedPackages = (packages: WaitedPackage[]) => packages.map((each) => `${each.name} — ${each.problems.map(problemText).join(', ')}`).join('; ')
@@ -32,6 +47,10 @@ const namedPackages = (packages: WaitedPackage[]) => packages.map((each) => `${e
 export function WaitLine({ wait, compact }: { wait: ChainWait; compact: boolean }) {
   const now = new Date()
   switch (wait.kind) {
+    case 'landing':
+      return t.banner.landingHold(wait.task)
+    case 'remote':
+      return t.banner.remoteHold(wait.task)
     case 'closing':
       return t.banner.closingHold(wait.task)
     case 'ci':

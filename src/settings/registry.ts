@@ -450,6 +450,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   // The statuses the project's main tracker moves its tasks into (BTN-554), over its profile's; a feed keeps its own.
   { key: 'statusMoves', kind: 'json', scopes: ['project'], lands: ['settings'], default: {}, check: (value, place) => statusMovesOf(value, at(place, 'statusMoves')) },
   { key: 'fillMilestone', kind: 'boolean', scopes: ['global', 'project'], lands: ['settings'], default: false, check: boolean('fillMilestone') },
+  { key: 'landingHold', kind: 'boolean', scopes: ['global', 'project'], lands: ['landingHold', 'settings'], default: true, check: boolean('landingHold') },
   // How many of the project's tasks run at once, each on a machine with a free place (BTN-993).
   { key: 'width', kind: 'integer', scopes: ['project'], lands: ['settings'], default: 1, check: (value, place) => {
     if (!Number.isInteger(value) || (value as number) < 1) throw fail('config.width', { where: at(place, 'width') })
@@ -481,7 +482,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
 export const CHECKPOINT_SHARE_KEYS = ['stats.checkpointShares.first', 'stats.checkpointShares.late', 'stats.checkpointShares.hard'] as const satisfies readonly OwnKey[]
 
 /** The keys of `ProjectSettings.own`: set at both levels, shown by the project's panel as its own or "as shared". */
-export const OWN_KEYS: readonly OwnKey[] = ['protection', 'ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'ci.rerunFailed', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'autoCompactWindow', 'codexAutoCompactWindow', 'openCodeAutoCompactWindow', 'contextHandoffs', 'stats.checkpointTokens', ...CHECKPOINT_SHARE_KEYS]
+export const OWN_KEYS: readonly OwnKey[] = ['protection', 'ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'ci.rerunFailed', 'fillMilestone', 'landingHold', 'promptLanguage', 'cacheTtl', 'autoCompactWindow', 'codexAutoCompactWindow', 'openCodeAutoCompactWindow', 'contextHandoffs', 'stats.checkpointTokens', ...CHECKPOINT_SHARE_KEYS]
 
 /** The nested objects of the file whose parts are settings of their own. */
 export const OBJECTS: Readonly<Record<string, ObjectDefinition>> = {

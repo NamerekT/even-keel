@@ -53,6 +53,7 @@ import { fakeTaskHistory, withHistoryLeft } from './fakeHistory.js'
 import { fakeArchiveCount, fakeArchivePage, withFakeArchive } from './fakeArchive.js'
 import { fakeOutside } from './fakeOutside.js'
 import { withFeeds, withLongNames, withMixedNames } from './fakeLong.js'
+import { withFakeLanding } from './fakeLandings.js'
 import { fakeLaunches, fakeState, withFakeSpent, KEY_LIMIT_AGENTS } from './fakeState.js'
 
 const TICK_MS = 2_000
@@ -112,6 +113,7 @@ export function createFakeSource(search: string): LiveSource {
   if (current.state !== null) current.state.chain.active = current.state.chain.active.map((lane) => withFakeSpent(current.state!, lane))
   if (params.has('badgeState') && current.state !== null) current.state = withFakeBadge(current.state, params.get('badgeState')!)
   if (params.has('fillMilestone') && current.state !== null) current.state = withMilestonePreview(current.state, params.get('fillMilestone')!)
+  if (params.has('landing') && current.state !== null) current.state = withFakeLanding(current.state, params.get('landing')!)
   if (params.get('models') === 'many' && current.state !== null) current.state.config.shared.modelPrompts = MANY_MODEL_PROMPTS
   const builtinTracker = params.get('tracker') === 'builtin'
   if (builtinTracker && current.state !== null) current.state = withBuiltinTracker(current.state)
