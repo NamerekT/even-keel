@@ -12,7 +12,7 @@ import { isRework, railsOf } from '../ui/look.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { seriesStyle } from '../ui/series.js'
 import { Forge } from './Forge.js'
-import { LockIcon as BlockLockIcon, PlayIcon } from './ChainList.js'
+import { LockIcon as BlockLockIcon, PlayIcon } from './ChainRow.js'
 
 function Sign({ sample, wide = false, children }: { sample: ReactNode; wide?: boolean; children: ReactNode }) {
   return (
