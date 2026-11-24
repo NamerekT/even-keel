@@ -208,37 +208,45 @@ const TASKS = `${PERIOD}, cur as (
   ${agentRequests(`ranged r join messages m on m.message_id = r.message_id where r.agent_id <> '' and r.task is not null`, 'r', 'r.task, r.cur')}
 ), agent_misses as (
   select task, count(*) as misses, sum(cost) as cost from agent_requests where cur and ${AGENT_MISS} group by task
+), per_task as materialized (
+  -- The messages are summed per task before the task-level joins: joined per message, task_times and warm were
+  -- nested loops over every message of the period (40 s and more for BTN's week after Tally's step 23).
+  select c.task, min(c.project) as project,
+    sum(coalesce(pd.paid, c.cost)) as cost, sum(c.cost) as list_cost, count(pd.message_id) as paid_messages,
+    sum(sv.share) as share, count(sv.share) as shares,
+    count(distinct c.session_id) as sessions,
+    count(distinct c.session_id) filter (where c.launch_reason = 'relay') as relays,
+    count(distinct c.session_id) filter (where c.launch_reason = 'checkpoint') as checkpoints,
+    count(distinct c.session_id) filter (where c.launch_reason = 'restart') as restarts,
+    mode() within group (order by ${familyOf('c.model')}) as model
+  -- Supply ordered inputs for both message_id joins. For a single project Postgres can estimate only a few
+  -- messages and weekly shares, then rescan the shares for every message in the project.
+  from (select * from cur order by message_id) c
+  left join seven sv on sv.message_id = c.message_id
+  left join paid pd on pd.message_id = c.message_id
+  group by c.task
 )
-select c.task, min(c.project) as project, t.title, t.status, t.url,
-  coalesce(sum(coalesce(pd.paid, c.cost)), 0) + coalesce(max(w.cost), 0) as cost,
-  case when count(pd.message_id) > 0 then coalesce(sum(c.cost), 0) + coalesce(max(w.cost), 0) end as price_estimate,
-  case when count(sv.share) > 0 or max(w.share) is not null then coalesce(sum(sv.share), 0) + coalesce(max(w.share), 0) end as limit_share,
-  max(w.cost) as warm_cost, coalesce(max(w.pings), 0) as warm_pings,
-  max(am.cost) as agent_miss_cost, coalesce(max(am.misses), 0) as agent_misses,
-  count(distinct c.session_id) as sessions,
-  count(distinct c.session_id) filter (where c.launch_reason = 'relay') as relays,
-  count(distinct c.session_id) filter (where c.launch_reason = 'checkpoint') as checkpoints,
-  count(distinct c.session_id) filter (where c.launch_reason = 'restart') as restarts,
-  coalesce(max(st.spans), 0) as spans,
-  coalesce(max(cp.compacts_auto), 0) as compacts_auto,
-  coalesce(max(cp.compacts_manual), 0) as compacts_manual,
+select p.task, p.project, t.title, t.status, t.url,
+  coalesce(p.cost, 0) + coalesce(w.cost, 0) as cost,
+  case when p.paid_messages > 0 then coalesce(p.list_cost, 0) + coalesce(w.cost, 0) end as price_estimate,
+  case when p.shares > 0 or w.share is not null then coalesce(p.share, 0) + coalesce(w.share, 0) end as limit_share,
+  w.cost as warm_cost, coalesce(w.pings, 0) as warm_pings,
+  am.cost as agent_miss_cost, coalesce(am.misses, 0) as agent_misses,
+  p.sessions, p.relays, p.checkpoints, p.restarts,
+  coalesce(st.spans, 0) as spans,
+  coalesce(cp.compacts_auto, 0) as compacts_auto,
+  coalesce(cp.compacts_manual, 0) as compacts_manual,
   -- Rework is the built-in tracker's label (BTN-767).
   coalesce(t.labels && array['Переделка', 'Rework'], false) as rework,
-  t.estimate_h, tt.active_s, tt.wait_s, tt.total_s, t.done, t.component,
-  mode() within group (order by ${familyOf('c.model')}) as model
--- Supply ordered inputs for both message_id joins. For a single project Postgres can estimate only a few
--- messages and weekly shares, then rescan the shares for every message in the project.
-from (select * from cur order by message_id) c
-left join seven sv on sv.message_id = c.message_id
-left join paid pd on pd.message_id = c.message_id
-left join tasks t on t.task = c.task
-left join task_times tt on tt.task = c.task
-left join stuck st on st.task = c.task
-left join compacted cp on cp.task = c.task
-left join warm w on w.task = c.task
-left join agent_misses am on am.task = c.task
-group by c.task, t.title, t.status, t.url, t.labels, t.estimate_h, t.done, t.component, tt.active_s, tt.wait_s, tt.total_s
-order by cost desc, c.task`
+  t.estimate_h, tt.active_s, tt.wait_s, tt.total_s, t.done, t.component, p.model
+from per_task p
+left join tasks t on t.task = p.task
+left join task_times tt on tt.task = p.task
+left join stuck st on st.task = p.task
+left join compacted cp on cp.task = p.task
+left join warm w on w.task = p.task
+left join agent_misses am on am.task = p.task
+order by cost desc, p.task`
 
 // Project chats (BTN-1233): sessions without a task, counted per project of their folder next to the tasks.
 const CHATS = `${PERIOD}, paid as (
