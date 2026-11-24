@@ -1,0 +1,55 @@
+/* The window of a machine asking to join by the address (BTN-1620). */
+.machine-request .add-package__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+/* Three facts in a row while they fit, two on a phone, so an address never breaks inside. */
+.machine-request .ui-facts {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.machine-request__path {
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+  font-size: var(--text-13);
+}
+
+/* The code to compare with the machine's terminal: its caption, the code large, what to do with it. */
+.machine-request__code-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+  padding: var(--space-12) var(--space-16);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+}
+
+.machine-request__caption {
+  color: var(--fg-muted);
+  font-size: var(--text-11);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.machine-request__code {
+  font-family: var(--mono);
+  font-size: var(--text-24);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.machine-request__aside {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-6);
+  min-width: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}

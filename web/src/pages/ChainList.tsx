@@ -6,7 +6,7 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { blockMetered, sessionCache, taskTitle, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
-import { inOrder, withOrder } from '../ui/chainOrder.js'
+import { inOrder, underWayFirst, withOrder } from '../ui/chainOrder.js'
 import { ActionMeter, CacheRing } from '../ui/BlockMetrics.js'
 import { ChevronIcon, IntoChainIcon, OutOfChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
@@ -108,7 +108,7 @@ export function ChainList(props: Props) {
   const served = openIds(chain).join(',')
   useEffect(() => setPending(null), [served])
 
-  const ordered = pending === null ? chain : withOrder(chain, pending)
+  const ordered = pending === null ? underWayFirst(chain) : withOrder(chain, pending)
   const target = ghost?.id ?? arrival?.id ?? focus
   const older = useArchivePages(project, focus, (id) => ordered.some((block) => block.id === id))
   const archive = archiveView(withGhost(ordered, ghost), archivePages, target, older)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ABC } from '../storage/database.fixture.js'
 import type { SessionView } from '../state.js'
-import { setup, view } from './chats.fixture.js'
+import { FAR, FAR_FOLDER, OWN, setup, view } from './chats.fixture.js'
 import { ARCHIVE_AFTER_MS } from './model.js'
 
 describe('ProjectChats', { timeout: 120_000 }, () => {
@@ -32,6 +32,21 @@ describe('ProjectChats', { timeout: 120_000 }, () => {
       expect(chats.list(ABC)[0]?.state).toBe('starting')
       await chats.send(id, { text: 'And the tests?', files: [] })
       expect(calls[1]).toEqual(['send', ABC, id, { model: 'opus', effort: null, prompt: 'And the tests?\n' }])
+    } finally {
+      await close()
+    }
+  })
+
+  it('starts a chat on the machine of the pool the window named, in its folder there, and keeps it there (BTN-1614)', async () => {
+    const { chats, store, calls, close } = await setup()
+    try {
+      const card = await chats.create(ABC, { account: 'global', model: null, effort: null }, FAR)
+      expect(card.machine).toBe(FAR)
+      await chats.send(card.id, { text: 'Hello', files: [] })
+      expect(calls[0]).toEqual(['launch', ABC, FAR_FOLDER, card.id, expect.objectContaining({ account: 'global' })])
+      expect(store.get(card.id)?.machine).toBe(FAR)
+      await expect(chats.create(ABC, { account: 'global', model: null, effort: null }, 'machine-other')).rejects.toMatchObject({ notice: { code: 'chats.notInPool' } })
+      expect((await chats.create(ABC, { account: 'global', model: null, effort: null })).machine).toBe(OWN)
     } finally {
       await close()
     }

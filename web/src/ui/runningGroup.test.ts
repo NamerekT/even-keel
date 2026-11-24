@@ -20,6 +20,16 @@ describe('runningGroup', () => {
     expect(runningGroup([row('A-1', false)])).toBeNull()
   })
 
+  it('holds the fix of main with the task of another lane, and leaves out the one it interrupted under them (BTN-1617)', () => {
+    const rows = [row('A-FIX.3', true), row('A-5', true), { ...row('A-2', false, 'stopped'), interrupted: true }, row('A-7', false)]
+    expect(runningGroup(rows)?.members).toEqual(['A-FIX.3', 'A-5'])
+  })
+
+  it('leaves out the current task of a paused lane whose session stands, as a red after the fix gives it back', () => {
+    expect(runningGroup([{ ...row('A-2', true, 'stopped'), halted: true }, row('A-5', true), row('A-6', true)])?.members).toEqual(['A-5', 'A-6'])
+    expect(runningGroup([{ ...row('A-2', true, 'stopped'), halted: true }, row('A-5', true)])).toBeNull()
+  })
+
   it('takes the first unbroken run only', () => {
     const rows = [row('A-1', true), row('A-2', true), row('A-3', false), row('A-4', true)]
     expect(runningGroup(rows)?.members).toEqual(['A-1', 'A-2'])

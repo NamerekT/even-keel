@@ -23,7 +23,8 @@ describe('commandOf', () => {
     expect(commandOf(['join', 'ekm1.abc'])).toEqual({ command: 'join', line: 'ekm1.abc', root: null })
     expect(commandOf(['join', 'ekm1.abc', '--root', '/srv/projects'])).toEqual({ command: 'join', line: 'ekm1.abc', root: '/srv/projects' })
     expect(commandOf(['join', '--root', 'D:\\projects', 'ekm1.abc'])).toEqual({ command: 'join', line: 'ekm1.abc', root: 'D:\\projects' })
-    expect(commandOf(['join'])).toEqual({ command: 'help', error: 'join takes one connection string' })
+    expect(commandOf(['join', 'hub.example.com'])).toEqual({ command: 'join', line: 'hub.example.com', root: null })
+    expect(commandOf(['join'])).toEqual({ command: 'help', error: 'join takes one hub address or connection string' })
     expect(commandOf(['join', 'ekm1.abc', '--root'])).toEqual({ command: 'help', error: '--root needs a folder' })
     expect(commandOf(['status'])).toEqual({ command: 'status' })
     expect(commandOf(['status', 'now'])).toEqual({ command: 'help', error: 'status takes no arguments' })
@@ -41,8 +42,9 @@ describe('commandOf', () => {
   })
 
   it('refuses a machine install without its string, and a folder of projects without a machine', () => {
-    expect(commandOf(['install', '--machine'])).toEqual({ command: 'help', error: '--machine needs the connection string the hub issued' })
-    expect(commandOf(['install', '--machine', '--service'])).toEqual({ command: 'help', error: '--machine needs the connection string the hub issued' })
+    const needs = '--machine needs the hub address for machines or the connection string the hub issued'
+    expect(commandOf(['install', '--machine'])).toEqual({ command: 'help', error: needs })
+    expect(commandOf(['install', '--machine', '--service'])).toEqual({ command: 'help', error: needs })
     expect(commandOf(['install', '--machine', 'ekm1.abc', '--root'])).toEqual({ command: 'help', error: '--root needs a folder' })
     expect(commandOf(['install', '--root', '/srv/projects'])).toEqual({ command: 'help', error: '--root is the folder of projects of a machine: give --machine <string> too' })
     expect(commandOf(['install', '--machine', 'a', '--machine', 'b'])).toEqual({ command: 'help', error: '--machine is given twice' })

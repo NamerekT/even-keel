@@ -63,6 +63,14 @@ Assumed: Windows Firewall asks once about node listening on all interfaces, and 
 
 To check, on the benches: set the address to the hub's Tailscale IP, issue a string, run `even-keel join` on a second computer with a clean installation and see it in `machines/list` with its report; join with the same string again (refused as used), wait 30 min with another (expired), issue twice (the first refused); attach it to a project and see the consent in its `consents` and the folder under its root.
 
+## A machine joining by the hub's address (BTN-1620)
+
+`even-keel join <address>` asks the hub to let the machine in, prints a code and waits; the hub's page shows the request window with the same code, Admit or Decline (`docs/machines.md`, "The request by the address"). The direct join between containers on one Docker network is checked (BTN-1622, [verified](../verified/machines.md)): the code, Admit, Decline, the expiry, a hub restart and a second request. Left: a machine on another computer, across a real network; a task taken by a machine joined this way (the checked one had no account signed in); and the join behind a proxy — no bench has a hub behind a proxy with a public certificate.
+
+Assumed: behind a proxy with a public certificate the machine sends an empty fingerprint and the hub computes the code from the nonce alone, so the codes match there too; the proxy's socket address is the requests' one, so the hub takes one request at a time. If the codes differ behind the proxy, the person declines a good machine and can join only by the string; if the proxy holds the polls, `join` waits 10 minutes and says the request expired.
+
+To check: a hub behind a proxy with a public certificate, the switch "Behind a proxy with a public certificate" in "Add a machine", `even-keel join <the proxy's address>` on another computer: the same code in the terminal and the window, Admit, a second request while one waits (refused at once); then a task on Haiku on that machine.
+
 ## A machine's own process against a live hub (BTN-1247)
 
 An installation that joined starts as a machine alone (`docs/machines.md`, "The machine's process"): the machine's assembly and its end of the link over HTTPS, no state database or page; the hub keeps its own mirror of it, sends it a brief of its pool's projects, plans its account limits and relays its MCP requests. `src/service/machine-network.test.ts` runs a `MachineEnd` over the real HTTPS carrier on loopback into that mirror, brief and plan; `src/service/machine-process.test.ts` the claim of the installation and `contactAt`. The process itself was started only with a link file and no token (it exits saying to join again); it has never connected to a hub from another computer.

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import type { AccountEntry } from '../../../src/account/model.js'
 import { EFFORTS } from '../../../src/agent/providers.js'
 import type { ChatCard, ChatChoice } from '../../../src/chats/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
@@ -8,7 +9,6 @@ import { formatAgo, formatSpan, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { spanNames } from '../layout/Limits.js'
 import { useNow } from '../layout/useNow.js'
-import { useLive } from '../live/context.js'
 import { Segmented } from '../stats/common.js'
 import '../tools/addPackage.css'
 import { useBackdropClose } from '../ui/backdrop.js'
@@ -24,6 +24,8 @@ import './chats.css'
 
 interface Props {
   chat: ChatCard
+  /** The accounts of the chat's machine (`useChatAccounts`): the new session stays there. */
+  accounts: AccountEntry[]
   renewal: ChatRenewal
   /** The user's message as the field holds it: its words, else the names of its files. */
   message: string
@@ -72,14 +74,12 @@ export function RenewWhy({ renewal, now }: { renewal: ChatRenewal; now: Date }) 
  * A message to a project chat whose cache went cold or whose account is at a limit (BTN-1232): one line of why, the
  * message quoted, the account, model and effort of the new session in one row; the rest in the main button's "?".
  */
-export function ChatRenewDialog({ chat, renewal, message, choice, busy, failure, onReply, onRenew, onClose }: Props) {
-  const { state } = useLive()
+export function ChatRenewDialog({ chat, accounts, renewal, message, choice, busy, failure, onReply, onRenew, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
   const primary = useRef<HTMLButtonElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
   const now = useNow(30_000)
-  const accounts = state?.account.accounts ?? []
   const [account, setAccount] = useState(choice.account)
   const [model, setModel] = useState(choice.model ?? '')
   const [effort, setEffort] = useState(choice.effort ?? 'medium')

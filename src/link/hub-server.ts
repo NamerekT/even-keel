@@ -2,9 +2,12 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createServer, type Server } from 'node:https'
 import type { HubCertificate } from './cert.js'
 import type { HubEnd } from './hub.js'
+import { isNonce } from './join-code.js'
+import type { JoinRequests } from './join-requests.js'
 import {
-  CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, SKILLS_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, isAbout, isRefusal, megabytes,
-  type CredentialsPost, type EventsPost, type Frame, type HookPost, type JoinPost, type MachineHello, type McpPost, type Refusal, type SkillsPost, type SnapshotPost, type TallyPost,
+  CREDENTIALS_PATH, EVENTS_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, REQUEST_ANSWER_PATH, REQUEST_PATH, SKILLS_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, isAbout, isRefusal, megabytes,
+  type CredentialsPost, type EventsPost, type Frame, type HookPost, type JoinPost, type MachineHello, type McpPost, type Refusal, type RequestAnswerPost, type RequestPost, type SkillsPost,
+  type SnapshotPost, type TallyPost,
 } from './protocol.js'
 
 /** An MCP call carries the files a session attaches, each up to the attachment limit, as base64. */
@@ -15,10 +18,15 @@ export interface HubServerOptions {
   certificate: Pick<HubCertificate, 'cert' | 'key'>
   log: (line: string) => void
   maxBodyBytes?: number
+  /** The machines asking to join by the address (BTN-1620); none — the door takes only connection strings. */
+  requests?: Pick<JoinRequests, 'ask' | 'answer'>
 }
 
 /** The status a refusal travels under: the machine reads the body, a person reading a proxy's log reads this. */
-const STATUS: Record<Refusal['refused'], number> = { token: 401, version: 426, connection: 409, expired: 410, used: 410 }
+const STATUS: Record<Refusal['refused'], number> = { token: 401, version: 426, connection: 409, expired: 410, used: 410, busy: 429, full: 429, declined: 403 }
+
+/** A request asks with no sign-in: a small body is all it may carry. */
+const REQUEST_BODY_BYTES = 64 * 1024
 
 class BadRequest extends Error {
   constructor(readonly status: number, message: string) {
@@ -53,6 +61,16 @@ function helloOf(body: unknown): MachineHello {
 function joinOf(body: unknown): JoinPost {
   if (!isObject(body) || !isCount(body.api) || !isAbout(body.about)) throw new BadRequest(400, 'not a join of a machine')
   return { api: body.api, about: body.about }
+}
+
+function requestOf(body: unknown): RequestPost {
+  if (!isObject(body) || !isCount(body.api) || !isAbout(body.about) || !isNonce(body.nonce) || typeof body.public !== 'boolean') throw new BadRequest(400, 'not a request to join')
+  return { api: body.api, about: body.about, nonce: body.nonce, public: body.public }
+}
+
+function requestAnswerOf(body: unknown): RequestAnswerPost {
+  if (!isObject(body) || typeof body.request !== 'string' || !isNonce(body.nonce)) throw new BadRequest(400, 'not a request to join')
+  return { request: body.request, nonce: body.nonce }
 }
 
 function postOf(body: unknown): { connection: string; lastCommand: number } & Record<string, unknown> {
@@ -152,9 +170,16 @@ export function createHubServer(options: HubServerOptions): Server {
   return createServer({ cert: options.certificate.cert, key: options.certificate.key }, (request, response) => {
     const path = new URL(request.url ?? '/', 'https://hub').pathname
     const handled = (async () => {
-      if (![STREAM_PATH, EVENTS_PATH, SNAPSHOT_PATH, MCP_PATH, HOOK_PATH, TALLY_PATH, CREDENTIALS_PATH, SKILLS_PATH, JOIN_PATH].includes(path)) throw new BadRequest(404, 'no such path')
+      const asking = path === REQUEST_PATH || path === REQUEST_ANSWER_PATH
+      const known = [STREAM_PATH, EVENTS_PATH, SNAPSHOT_PATH, MCP_PATH, HOOK_PATH, TALLY_PATH, CREDENTIALS_PATH, SKILLS_PATH, JOIN_PATH].includes(path)
+      if (!known && !(asking && options.requests !== undefined)) throw new BadRequest(404, 'no such path')
       if (request.method !== 'POST') throw new BadRequest(405, 'POST only')
       if (path === STREAM_PATH) return stream(options, request, response, limit)
+      if (asking) {
+        const asked = await bodyOf(request, REQUEST_BODY_BYTES)
+        if (path === REQUEST_ANSWER_PATH) return answerOf(response, options.requests!.answer(requestAnswerOf(asked)))
+        return answerOf(response, await options.requests!.ask(request.socket.remoteAddress ?? '', requestOf(asked)))
+      }
       const body = await bodyOf(request, path === MCP_PATH ? mcpLimit : limit)
       const { authorization } = request.headers
       if (path === EVENTS_PATH) return answerOf(response, await options.hub.events(authorization, eventsOf(body)))

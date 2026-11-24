@@ -21,16 +21,17 @@ import { installed } from './updates/watcher.js'
 
 const usage = `usage: even-keel [command]
   (none)      run Even Keel in this terminal; from npx: install it globally and install the service
-  install [--machine <string> [--root <folder>]] [--service]
+  install [--machine <address or string> [--root <folder>]] [--service]
               install the service: on Windows a start at sign-in with an icon in the tray, no administrator;
               --service: the Windows service EvenKeel instead, from PowerShell 7 as administrator; --machine:
               join the hub first (as join below) and run as its machine, with no page of its own
   uninstall   remove the service; the package and the data folder stay
   update [v]  stop the service, install version v with npm, start it again; with no v the newest of the
               dist-tag latest and, for a release candidate, next; nothing when none is newer
-  join <string> [--root <folder>]
-              make this installation a machine of a hub: the string is the hub's connection string, the folder
-              the one its projects go into (by default projects/ in the data folder); stop the service first
+  join <address or string> [--root <folder>]
+              make this installation a machine of a hub: the hub's address for machines (the hub page lets the
+              machine in, the terminal shows the code to compare) or its connection string; the folder the one
+              its projects go into (by default projects/ in the data folder); stop the service first
   status      whether this installation is a machine, of which hub, and when it last heard the hub
 data folder: ${home}`
 

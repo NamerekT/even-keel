@@ -7,6 +7,9 @@ import type { ChatPast } from './prompt.js'
 import { ChatStore } from './store.js'
 
 export const OWN = 'machine-own'
+/** A machine elsewhere of the project's pool, with the project in its own folder. */
+export const FAR = 'machine-far'
+export const FAR_FOLDER = '/home/john/example-project'
 
 export const view = (task: string, sessionId: string, fields: Partial<SessionView> = {}): SessionView => ({
   task,
@@ -87,8 +90,13 @@ export async function setup(options: SetupOptions = {}) {
   }
   const deps: ProjectChatsDeps = {
     store,
-    placeOf: async () => ({ machine: OWN, folder: 'C:\\repos\\example-project' }),
-    services: (machine) => (machine === OWN && !switches.offline ? services : undefined),
+    placeOf: async (_project, machine) => {
+      if (machine === undefined || machine === OWN) return { machine: OWN, folder: 'C:\\repos\\example-project' }
+      if (machine === FAR) return { machine: FAR, folder: FAR_FOLDER }
+      throw fail('chats.notInPool', {})
+    },
+    machines: async () => ({ machines: [], picked: OWN }),
+    services: (machine) => ((machine === OWN || machine === FAR) && !switches.offline ? services : undefined),
     sessions: () => sessions,
     accounts: () => [{ key: 'global', agent: 'claude' }, { key: 'codex-work', agent: 'codex' }],
     language: () => 'en',

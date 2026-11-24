@@ -3,6 +3,7 @@ import type { HubLongToken } from '../account/longToken.js'
 import type { TokenAccountOf } from '../account/model.js'
 import type { HubCertificate } from '../link/cert.js'
 import type { HubStore } from '../link/hub-store.js'
+import type { JoinRequests } from '../link/join-requests.js'
 import type { CredentialsAnswer, HookAnswer, HookRequest, McpAnswer, McpRequest, SkillsAnswer, TallyAnswer } from '../link/protocol.js'
 import type { MachineAbout, MachineProjectSettings, PoolServer } from '../link/view.js'
 import type { HubBrief } from '../machine/brief.js'
@@ -58,6 +59,8 @@ export interface MachineNetworkOptions {
   db: Queryable
   store: HubStore
   certificate: () => Promise<HubCertificate>
+  /** The machines asking to join by the address (BTN-1620), taken at the same door; none — only connection strings. */
+  requests?: Pick<JoinRequests, 'ask' | 'answer'>
   /** The hub's own machine: served through the local link, never over the network. */
   own: () => string
   /** "Hub address for machines", read live. */

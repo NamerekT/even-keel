@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
-import type { MachineAbout, MachineSignIn, MachineView } from '../../src/state.js'
+import type { MachineAbout, MachineRequest, MachineSignIn, MachineView } from '../../src/state.js'
 import { HUB_PLACE } from './accountAdd.js'
-import { addMachineOf, defaultPlace, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsChecking, machineAccountsEmpty, machineAddChoices, machineAgents, machineChecks, osLabel, sharedTokens, signInOf, takenColors, tokenAccounts, withAddMachine } from './machineAdd.js'
+import { addMachineOf, defaultPlace, hubGapsOn, joinedMachine, joinRequests, machineAccounts, machineAccountsChecking, machineAccountsEmpty, machineAddChoices, machineAgents, machineChecks, osLabel, sharedTokens, shownRequests, signInOf, takenColors, tokenAccounts, withAddMachine } from './machineAdd.js'
 
 describe('the colours machines have', () => {
   it('are those of the own machine and every joined one not revoked', () => {
@@ -203,5 +203,21 @@ describe('where "Add account" signs in (BTN-1308)', () => {
     expect(sharedTokens(accounts, on, NOW).map((each) => each.from)).toEqual(['token', 'token-2'])
     expect(sharedTokens(accounts, on, NOW)[0]).toEqual({ from: 'token', who: 'Work token' })
     expect(sharedTokens([entry()], on, NOW)).toEqual([])
+  })
+})
+
+describe('the machines asking to join a tab shows (BTN-1620)', () => {
+  const request = (id: string, expiresAt: number): MachineRequest => ({
+    id, code: 'K7Q-4M2', from: '192.168.1.42', expiresAt,
+    about: { host: 'example-box', os: 'linux 6.8.0', evenKeel: '0.4.0', node: '24.11.0', git: '2.47.0', agents: {}, gitUser: true, root: null },
+  })
+
+  it('shows the waiting ones in their order, none before the service sends them', () => {
+    expect(shownRequests([request('a', 2_000), request('b', 3_000)], 1_000, new Set()).map((each) => each.id)).toEqual(['a', 'b'])
+    expect(shownRequests(undefined, 1_000, new Set())).toEqual([])
+  })
+
+  it('hides one past its time by the tab clock and one closed in this tab', () => {
+    expect(shownRequests([request('a', 1_000), request('b', 3_000), request('c', 3_000)], 1_000, new Set(['b'])).map((each) => each.id)).toEqual(['c'])
   })
 })

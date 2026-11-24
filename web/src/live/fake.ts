@@ -44,8 +44,9 @@ import { fakeChats, fakeDictation } from './fakeChats.js'
 import { fakeProfiles, fakeProfileStatuses, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeTrackerProblems, withFeedScopeRefusal, withOrgScopeRefusal, withProfileOff, withPublicSources, withScopeRefusal, withTemplateLabels, withTrackerDown } from './fakeTrackers.js'
 import { fakeJob } from './fakeCreation.js'
-import { FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineLaneWait, fakeMachineNames, fakeMachineSignIns } from './fakeMachines.js'
+import { FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineLaneWait, fakeMachineNames, fakeMachineRequests, fakeMachineSignIns } from './fakeMachines.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
+import { fixGroupSteps, withFixGroupBase } from './fakeFixGroup.js'
 import { GROUP_STEP_MS, GROUP_STEPS, withGroupBase } from './fakeGroup.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeMachineDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
@@ -154,6 +155,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.machineNames = fakeMachineNames(params.get('machines'))
     Object.assign(current.state, fakeMachineColors(current.state.machineNames))
   }
+  if (params.has('machineRequest') && current.state !== null) current.state.machineRequests = fakeMachineRequests(params.get('machineRequest'))
   if (params.get('git') === 'plain' && current.state !== null) {
     const { projects } = current.state.config
     projects.OPS = { ...projects.OPS!, git: false, repo: 'C:/Users/EvenKeelSvc/AppData/Local/even-keel/projects/ops-3f9a1c2e', ci: { ...projects.OPS!.ci, guard: false }, pullRequests: false, slot: 0 }
@@ -326,8 +328,12 @@ export function createFakeSource(search: string): LiveSource {
     state.taskSessions['ABC-4'] = [run('lanes-2', 120, 'srv'), run('lanes-1', 300, 'pc')]
   }
   // The running group "Under way" through its steps (BTN-1613); `&group=<n>` starts with the first n done.
-  const groupFrom = params.get('chain') === 'group' && active ? Math.min(Number(params.get('group') ?? 0), GROUP_STEPS.length) : null
-  if (groupFrom !== null) current.state = GROUP_STEPS.slice(0, groupFrom).reduce((state, step) => step(state), withGroupBase(current.state!))
+  // A fix of main in the group and the task it interrupted under it (BTN-1617): the same steps and `&group=<n>`.
+  const fixGroup = params.get('chain') === 'fixGroup'
+  const groupSteps = fixGroup ? fixGroupSteps(params.get('fixEnd')) : GROUP_STEPS
+  const groupFrom = (params.get('chain') === 'group' || fixGroup) && active ? Math.min(Number(params.get('group') ?? 0), groupSteps.length) : null
+  const groupBase = fixGroup ? withFixGroupBase : withGroupBase
+  if (groupFrom !== null) current.state = groupSteps.slice(0, groupFrom).reduce((state, step) => step(state), groupBase(current.state!))
   // A task on the home server whose new session has already ended its first turn (BTN-1314): the state carries the
   // session from that machine's mirror, so the row shows its lamp and the panel the session, not the start.
   if (params.get('chain') === 'elsewhere' && active) {
@@ -647,7 +653,7 @@ export function createFakeSource(search: string): LiveSource {
 
   if (groupFrom !== null) {
     const gap = Number(params.get('gap') ?? GROUP_STEP_MS)
-    GROUP_STEPS.slice(groupFrom).forEach((step, index) => {
+    groupSteps.slice(groupFrom).forEach((step, index) => {
       setTimeout(() => {
         current = { ...current, state: step(current.state!) }
         notify()
@@ -826,6 +832,12 @@ export function createFakeSource(search: string): LiveSource {
         const page = network.page(String(body.machine), current.state)
         if (page === undefined) throw fail('machines.unknown', {})
         return page as T
+      }
+      if (name === 'machines/admit') {
+        const admitted = network.admit(current.state, String(body.request))
+        current = { ...current, state: admitted.state }
+        notify()
+        return { machine: admitted.machine } as T
       }
       const chat = chats.query(current.state, name, body)
       if (chat !== undefined) {

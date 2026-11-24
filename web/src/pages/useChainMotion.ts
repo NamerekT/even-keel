@@ -4,6 +4,7 @@ import { isClosedLamp, type ChainBlock } from '../state.js'
 import { archiveView } from '../ui/archive.js'
 import { stillMotion } from '../ui/landing.js'
 import { motionOf, motionSpan, stageOf, type Frame, type Motion, type Stage } from '../ui/motion.js'
+import { underWay } from '../ui/runningGroup.js'
 
 /** The last frame of each view of a chain the user saw; it outlives the page, so coming back from another page or view plays what changed. */
 const seen = new Map<string, Frame<ChainBlock>>()
@@ -80,7 +81,7 @@ function frameOf(chain: ChainBlock[], shown: ReadonlySet<string>, grouped: Reado
     shown,
     closed: new Set(chain.filter((block) => isClosedLamp(block.lamp)).map((block) => block.id)),
     current: chain.find((block) => block.current)?.id ?? null,
-    running: new Set(chain.filter((block) => block.current).map((block) => block.id)),
+    running: new Set(chain.filter(underWay).map((block) => block.id)),
     grouped,
   }
 }
