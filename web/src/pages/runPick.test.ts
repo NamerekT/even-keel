@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { effortsOf, rememberModel, runPickChange, runPickOf, withProvider } from './runPick.js'
+import { effortsOf, rememberModel, runPickChange, runPickOf, toggleMachine, withProvider } from './runPick.js'
 
 describe("what the card's run fields show", () => {
   it('shows a task without a run as the project says', () => {
-    expect(runPickOf(undefined)).toEqual({ provider: '', model: '', effort: '' })
-    expect(runPickOf(null)).toEqual({ provider: '', model: '', effort: '' })
+    expect(runPickOf(undefined)).toEqual({ provider: '', model: '', effort: '', machines: [] })
+    expect(runPickOf(null)).toEqual({ provider: '', model: '', effort: '', machines: [] })
   })
 
   it('shows each field of the run, an unset one empty', () => {
-    expect(runPickOf({ provider: 'claude', model: 'opus', effort: 'high' })).toEqual({ provider: 'claude', model: 'opus', effort: 'high' })
-    expect(runPickOf({ provider: null, model: null, effort: 'low' })).toEqual({ provider: '', model: '', effort: 'low' })
+    expect(runPickOf({ provider: 'claude', model: 'opus', effort: 'high' })).toEqual({ provider: 'claude', model: 'opus', effort: 'high', machines: [] })
+    expect(runPickOf({ provider: null, model: null, effort: 'low' })).toEqual({ provider: '', model: '', effort: 'low', machines: [] })
   })
 })
 
@@ -78,5 +78,26 @@ describe('the run a pick asks for', () => {
 
   it('names no model without a provider', () => {
     expect(runPickChange({ provider: 'claude', model: 'opus', effort: null }, { provider: '', model: 'opus', effort: '' })?.model).toBeNull()
+  })
+})
+
+describe('the machines of a pick (BTN-1623)', () => {
+  const none = { provider: '', model: '', effort: '' }
+  it('shows the pinned machines, none for any machine', () => {
+    expect(runPickOf({ provider: null, model: null, effort: null, machines: ['pc'] })).toEqual({ ...none, machines: ['pc'] })
+    expect(runPickOf(undefined).machines).toEqual([])
+  })
+
+  it('asks for the machines picked, none for any, and nothing when they are the same in another order', () => {
+    expect(runPickChange(undefined, { ...none, machines: ['pc'] })).toEqual({ provider: null, model: null, effort: null, machines: ['pc'] })
+    expect(runPickChange({ provider: null, model: null, effort: null, machines: ['pc', 'srv'] }, { ...none, machines: ['srv', 'pc'] })).toBeNull()
+    expect(runPickChange({ provider: 'claude', model: null, effort: null, machines: ['pc'] }, { ...none, provider: 'claude', machines: [] })).toEqual({
+      provider: 'claude', model: null, effort: null,
+    })
+  })
+
+  it('toggles a machine, and "any" clears the list', () => {
+    expect(toggleMachine([], 'pc')).toEqual(['pc'])
+    expect(toggleMachine(['pc', 'srv'], 'pc')).toEqual(['srv'])
   })
 })

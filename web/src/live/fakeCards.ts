@@ -121,7 +121,7 @@ export function fakeRelabel(state: EvenKeelState, id: string, change: LabelChang
 }
 
 /** The `task/run` command: the run kept for the task, or dropped when nothing is set. */
-export function fakeSetRun(state: EvenKeelState, id: string, body: { provider?: unknown; model?: unknown; effort?: unknown }): EvenKeelState {
+export function fakeSetRun(state: EvenKeelState, id: string, body: { provider?: unknown; model?: unknown; effort?: unknown; machines?: unknown }): EvenKeelState {
   const project = state.tasks.find((task) => task.id === id)?.project
   if (project === undefined) return state
   const run = taskRunOf(body)

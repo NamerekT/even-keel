@@ -99,18 +99,26 @@ export class Args {
     return { add: inner.texts('add'), remove: inner.texts('remove') }
   }
 
-  /** `{ provider, model, effort }` of a task's run: the fields named, `null` to clear one; `null` — clear the run. */
+  /**
+   * `{ provider, model, effort, machines }` of a task's run: the fields named, `null` to clear one; `null` — clear the
+   * run. `machines` are still the names or ids the call gave (`pinnedPatch` resolves them), `[]` clears them too.
+   */
   run(name: string): RunPatch | null | undefined {
     const value = this.raw[name]
     if (value === undefined || value === null) return value
-    if (typeof value !== 'object' || Array.isArray(value)) throw new EditRefused(`"${name}" must be {provider, model, effort}`)
-    const unknown = Object.keys(value).filter((key) => !(RUN_FIELDS as readonly string[]).includes(key))
-    if (unknown.length > 0) throw new EditRefused(`"${name}" takes ${RUN_FIELDS.join(', ')}, not ${unknown.join(', ')}`)
+    const fields = [...RUN_FIELDS, 'machines']
+    if (typeof value !== 'object' || Array.isArray(value)) throw new EditRefused(`"${name}" must be {${fields.join(', ')}}`)
+    const unknown = Object.keys(value).filter((key) => !fields.includes(key))
+    if (unknown.length > 0) throw new EditRefused(`"${name}" takes ${fields.join(', ')}, not ${unknown.join(', ')}`)
     const inner = new Args(value as Record<string, unknown>)
     const patch: RunPatch = {}
     for (const field of RUN_FIELDS) {
       const given = inner.nullable(field)
       if (given !== undefined) patch[field] = given === null || given.trim() === '' ? null : given
+    }
+    if ('machines' in value) {
+      const machines = (value as { machines: unknown }).machines
+      patch.machines = machines === null ? null : inner.texts('machines').filter((each) => each.trim() !== '')
     }
     return patch
   }

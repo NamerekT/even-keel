@@ -10,6 +10,8 @@ interface BlockTailProps {
   run: TaskRun | null
   /** The machines the task ran on (`ChainBlock.machines`); absent — one machine. */
   machines?: TaskMachine[] | undefined
+  /** `machines` are the ones its run pins it to (`ChainBlock.pinned`, BTN-1623). */
+  pinned?: boolean
   links: TaskLinks
   onCard: (task: string) => void
   /** "To the backlog" or "To Todo", always at the end. */
@@ -21,7 +23,7 @@ interface BlockTailProps {
  * their figures and without a zero (BTN-1365), and the row's button. When the run would be cut, the lock and the key
  * fold away together first.
  */
-export function BlockTail({ run, machines, links, onCard, children }: BlockTailProps) {
+export function BlockTail({ run, machines, pinned = false, links, onCard, children }: BlockTailProps) {
   const box = useRef<HTMLDivElement>(null)
   const linksBox = useRef<HTMLSpanElement>(null)
   const linksWidth = useRef(0)
@@ -55,7 +57,7 @@ export function BlockTail({ run, machines, links, onCard, children }: BlockTailP
 
   return (
     <div ref={box} className={folded ? 'block__tail block__tail--folded' : 'block__tail'}>
-      {machines !== undefined && <MachineTag machines={machines} />}
+      {machines !== undefined && <MachineTag machines={machines} pinned={pinned} />}
       {run !== null && <RunLabelTag run={run} />}
       {linked && (
         <span ref={linksBox} className="block__tail-links">

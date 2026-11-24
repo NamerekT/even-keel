@@ -434,3 +434,11 @@ To check, on the benches (entry 181): give a project the bench hub and machine-1
 Assumed: a machine that comes back on the link after the hub's restart posts a snapshot with its sessions read, so the lane goes on within seconds of its return; and nothing else of the chain asks a lane's machine before that. If not, a lane elsewhere stays still after a hub restart while its machine is online (no Done, handoff or stop after its turn; the page shows its session working), or, as before, stops mid-turn with `stopped after its session's turn, as asked` in the log; restart the machine's service, or Stop and Start the chain.
 
 To check, on the benches: a project of the bench hub with machine-1 in its pool and width 2, both lanes mid-turn; press "Stop", restart the bench hub and see neither lane stop until its session's turn ends; repeat with machine-1's service stopped across the hub's restart and started a minute later.
+
+## A task pinned to machines (BTN-1623)
+
+`docs/machines.md`, "A task pinned to machines". A task's run names the machines it may run on; the chain gives it to no machine off the list, waits while they are busy or off the link and shows why on the row. Unit tests (`src/chain/pinned.test.ts`, `src/machine/pins.test.ts`) and one end-to-end case (`src/e2e/elsewhere.test.ts`: pinned to the machine elsewhere while the hub's own is free) cover it on the fake clock.
+
+Assumed: a real machine elsewhere going off the link and back turns the row's chip from "waits for …" to the launch there within a pull, the other lanes going on meanwhile; a pin set from the card or by the tasks server by name reaches the chain at its next step without a restart; and a revoked machine in a pin shows its chip with the button to the card. If not, a pinned task stays unseen by its machine, or runs elsewhere.
+
+To check, on the benches: a project of the bench hub with machine-1 in its pool and width 2, three ready tasks; pin the first to machine-1 from the card and the second to the hub by name through the tasks server (`run.machines`); see each start only on its machine, the third on whichever is free. Then stop machine-1's service with a fourth task pinned to it: the row says "waits for machine-1", the hub goes on; start it and see the task launch there.

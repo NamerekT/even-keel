@@ -7,6 +7,12 @@ import { databaseVersion, openDatabase, STEPS } from './database.js'
 
 const STEP = STEPS[44]!
 
+/** The rows of step 47's columns: today's `loadTaskRuns` reads the later `machines` too (step 78). */
+const stepRuns = async (db: PGlite) =>
+  (await db.query<{ project_id: string; task: string; provider: string | null; model: string | null; effort: string | null }>(
+    'select project_id, task, provider, model, effort from task_runs order by project_id, task',
+  )).rows.map((row) => ({ project: row.project_id, task: row.task, provider: row.provider, model: row.model, effort: row.effort }))
+
 describe('step 47: the tasks’ runs (BTN-983)', { timeout: 120_000 }, () => {
   it('makes the tables of the frozen sample and reads its rows', async () => {
     const frozen = await PGlite.create()
@@ -16,7 +22,7 @@ describe('step 47: the tasks’ runs (BTN-983)', { timeout: 120_000 }, () => {
       expect(await databaseVersion(frozen)).toBe(47)
       expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
       await readsWhole(frozen, 47, 47)
-      expect(await loadTaskRuns(frozen)).toEqual([
+      expect(await stepRuns(frozen)).toEqual([
         { project: ABC, task: 'ABC-2', provider: 'claude', model: 'opus', effort: 'high' },
         { project: ABC, task: 'ABC-3', provider: null, model: null, effort: 'low' },
       ])
@@ -41,7 +47,7 @@ describe('step 47: the tasks’ runs (BTN-983)', { timeout: 120_000 }, () => {
       `)
       await db.exec(STEP)
       expect(await loadRunImports(db)).toEqual([ABC, SECOND_ABC])
-      expect(await loadTaskRuns(db)).toEqual([])
+      expect(await stepRuns(db)).toEqual([])
       const left = await db.query("select 1 from setting_values where key = 'modelLabels' union all select 1 from setting_definitions where key = 'modelLabels'")
       expect(left.rows).toEqual([])
     } finally {

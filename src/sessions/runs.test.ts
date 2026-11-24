@@ -32,6 +32,15 @@ describe('taskRunOf', () => {
     expect(codeOf(() => taskRunOf({ effort: 'extreme' }))).toBe('run.unknownEffort')
     expect(codeOf(() => taskRunOf({ provider: 7 }))).toBe('request.required')
   })
+
+  it('keeps the machines the task is pinned to, each once, and a pin alone is a run (BTN-1623)', () => {
+    expect(taskRunOf({ machines: [' m-pc ', 'm-server', 'm-pc'] })).toEqual({ provider: null, model: null, effort: null, machines: ['m-pc', 'm-server'] })
+    expect(taskRunOf({ provider: 'claude', machines: [] })).toEqual({ provider: 'claude', model: null, effort: null })
+    expect(taskRunOf({ machines: ['', ' '] })).toBeNull()
+    expect(taskRunOf({ machines: null })).toBeNull()
+    expect(codeOf(() => taskRunOf({ machines: 'm-pc' }))).toBe('request.required')
+    expect(codeOf(() => taskRunOf({ machines: [7] }))).toBe('request.required')
+  })
 })
 
 describe('patchedRun', () => {
@@ -55,6 +64,14 @@ describe('patchedRun', () => {
     expect(patchedRun(current, { provider: null })).toEqual({ provider: null, model: null, effort: 'high' })
     expect(patchedRun(current, { provider: null, model: null, effort: null })).toBeNull()
   })
+
+  it('pins and unpins machines, keeping them through a change of the other fields (BTN-1623)', () => {
+    const pinned = patchedRun(current, { machines: ['m-pc'] })
+    expect(pinned).toEqual({ ...current, machines: ['m-pc'] })
+    expect(patchedRun(pinned!, { provider: 'codex', effort: null })).toEqual({ provider: 'codex', model: null, effort: null, machines: ['m-pc'] })
+    expect(patchedRun(pinned!, { machines: null })).toEqual(current)
+    expect(patchedRun({ provider: null, model: null, effort: null, machines: ['m-pc'] }, { machines: [] })).toBeNull()
+  })
 })
 
 describe('sameRun', () => {
@@ -64,6 +81,13 @@ describe('sameRun', () => {
     expect(sameRun(run, { ...run, effort: 'high' })).toBe(false)
     expect(sameRun(undefined, null)).toBe(true)
     expect(sameRun(undefined, run)).toBe(false)
+  })
+
+  it('compares the machines as a set, none being an empty list (BTN-1623)', () => {
+    const run = { provider: null, model: null, effort: null }
+    expect(sameRun({ ...run, machines: ['a', 'b'] }, { ...run, machines: ['b', 'a'] })).toBe(true)
+    expect(sameRun({ ...run, machines: [] }, run)).toBe(true)
+    expect(sameRun({ ...run, machines: ['a'] }, run)).toBe(false)
   })
 })
 
@@ -110,6 +134,13 @@ describe('TaskRuns', () => {
     expect(runs.ofProject('p1')).toEqual({})
     expect(runs.ofProject('p2')).toEqual({ 'ABC-1': { provider: 'codex', model: null, effort: 'high' } })
     expect(kept.calls).toEqual(['save ABC-1 codex|null|high', 'drop ABC-1'])
+  })
+
+  it('keeps the machines of a run and moves them with its task (BTN-1623)', () => {
+    const runs = new TaskRuns([{ project: 'p1', task: 'ABC-1', provider: null, model: null, effort: null, machines: ['m-pc'] }])
+    expect(runs.of('p1', 'ABC-1')).toEqual({ provider: null, model: null, effort: null, machines: ['m-pc'] })
+    runs.rename('p1', new Map([['ABC-1', 'GH-1']]))
+    expect(runs.ofProject('p1')).toEqual({ 'GH-1': { provider: null, model: null, effort: null, machines: ['m-pc'] } })
   })
 
   it("moves the project's runs to their tasks' new ids, leaving other projects and unnamed tasks (BTN-1074)", () => {

@@ -389,6 +389,7 @@ export const fakeMachineColors = (names: Record<string, string>): Pick<EvenKeelS
  * waits for the first limits poll of the laptop's account, the next one in 4 minutes.
  */
 export function fakeMachineLaneWait(state: EvenKeelState, mode: string): void {
+  if (mode === 'pins') return fakePins(state)
   type Lane = NonNullable<(typeof state.chain.active)[number]>
   const lane = state.chain.active[0]
   const waits: Record<string, Partial<Lane>> = {
@@ -402,6 +403,20 @@ export function fakeMachineLaneWait(state: EvenKeelState, mode: string): void {
   state.machineNames = { ...FAKE_MACHINE_NAMES, ...state.machineNames }
   Object.assign(state, fakeMachineColors(state.machineNames))
   state.chain.active = [{ ...lane, machine: 'machine-1', current: null, ...wait }, ...state.chain.active.slice(1)]
+}
+
+/**
+ * `?chain=pins` (BTN-1623): the first project's pool is the three machines, and four of its queued tasks are pinned —
+ * ABC-6 to the laptop, free, ABC-7 to the laptop, busy, ABC-8 to the desktop, off the link, ABC-9 to a machine revoked.
+ */
+function fakePins(state: EvenKeelState): void {
+  state.machineNames = { ...FAKE_MACHINE_NAMES, 'machine-9': 'Old tower', ...state.machineNames }
+  Object.assign(state, fakeMachineColors(state.machineNames))
+  state.liveMachines = Object.keys(FAKE_MACHINE_NAMES)
+  state.pools = { ABC: Object.keys(FAKE_MACHINE_NAMES) }
+  const pin = (machine: string) => ({ provider: null, model: null, effort: null, machines: [machine] })
+  state.runs = { ...state.runs, ABC: { ...state.runs['ABC'], 'ABC-6': pin('machine-1'), 'ABC-7': pin('machine-1'), 'ABC-8': pin('machine-2'), 'ABC-9': pin('machine-9') } }
+  state.pinWaits = { ABC: { 'ABC-7': 'busy', 'ABC-8': 'offline', 'ABC-9': 'gone' } }
 }
 
 const folderName = (path: string): string => path.split(/[\\/]/).filter((part) => part !== '').pop() ?? 'project'

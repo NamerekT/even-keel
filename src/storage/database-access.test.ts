@@ -7,15 +7,15 @@ import { databaseVersion, openDatabase, STEPS } from './database.js'
 
 const OWNER = 'a1000000-0000-4000-8000-000000000001'
 
-it('step 78 adds the people, their device tokens and passkeys, none before it (BTN-1618)', { timeout: 120_000 }, async () => {
+it('step 79 adds the people, their device tokens and passkeys, none before it (BTN-1618)', { timeout: 120_000 }, async () => {
   const frozen = await PGlite.create()
-  const made = await openDatabase(undefined, STEPS.slice(0, 76))
+  const made = await openDatabase(undefined, STEPS.slice(0, 77))
   const upgraded = await PGlite.create()
   try {
-    await frozen.exec(fixture(78))
-    expect(await databaseVersion(frozen)).toBe(78)
+    await frozen.exec(fixture(79))
+    expect(await databaseVersion(frozen)).toBe(79)
     expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
-    await readsWhole(frozen, 78, 78)
+    await readsWhole(frozen, 79, 79)
     expect(await ensureOwner(frozen)).toEqual({ id: OWNER, name: 'Owner', createdAt: '2026-11-24T08:00:00.000Z' })
     expect((await tokensOf(frozen, OWNER)).map((token) => [token.device, token.rights, token.revokedAt])).toEqual([
       ['Firefox on Linux', 'owner', null],
@@ -35,8 +35,8 @@ it('step 78 adds the people, their device tokens and passkeys, none before it (B
     ])
     await insertRows(made, await rowsOf(frozen))
     expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
-    await upgraded.exec(fixture(77))
-    await upgraded.exec(STEPS[75]!)
+    await upgraded.exec(fixture(78))
+    await upgraded.exec(STEPS[76]!)
     expect(await schemaOf(upgraded)).toEqual(await schemaOf(made))
     expect((await upgraded.query('select * from people')).rows).toEqual([])
   } finally {

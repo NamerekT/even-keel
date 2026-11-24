@@ -1,4 +1,4 @@
--- Frozen sample at schema version 78 (BTN-1618): the sample of 77 with the owner, two device tokens (one revoked) and a passkey.
+-- Frozen sample at schema version 78 (BTN-1623): the sample of 77 with ABC-3 pinned to the example server.
 -- Frozen sample; never edit a merged sample.
 create table schema_version (
   only_row    boolean primary key default true check (only_row),
@@ -531,11 +531,12 @@ create table task_runs (
   provider   text,
   model      text,
   effort     text,
+  machines   text,
   primary key (project_id, task)
 );
-insert into task_runs (project_id, task, provider, model, effort) values
-  ('11111111-1111-4111-8111-111111111111', 'ABC-2', 'claude', 'opus', 'high'),
-  ('11111111-1111-4111-8111-111111111111', 'ABC-3', null, null, 'low');
+insert into task_runs (project_id, task, provider, model, effort, machines) values
+  ('11111111-1111-4111-8111-111111111111', 'ABC-2', 'claude', 'opus', 'high', null),
+  ('11111111-1111-4111-8111-111111111111', 'ABC-3', null, null, 'low', '["88888888-8888-4888-8888-888888888888"]');
 create table run_label_imports (
   project_id text primary key
 );
@@ -796,37 +797,3 @@ alter table tracker_exports add column failed text;
 update tracker_exports set failed = '{"code":"export.failed","params":{"tracker":"GitHub"},"detail":"github: HTTP 502"}' where project_id = '11111111-1111-4111-8111-111111111111';
 alter table tracker_import_tasks add column seen text;
 update tracker_import_tasks set seen = '{"at":1795600000000,"comments":1,"changes":2,"files":1}' where task_ref = 'huly-issue-7';
-create table people (
-  id         text primary key,
-  name       text not null,
-  created_at text not null
-);
-insert into people (id, name, created_at) values ('a1000000-0000-4000-8000-000000000001', 'Owner', '2026-11-24T08:00:00.000Z');
-create table access_tokens (
-  id          text primary key,
-  person_id   text not null references people (id) on delete cascade deferrable initially deferred,
-  rights      text not null check (rights in ('owner')),
-  secret_hash text not null unique,
-  device      text not null,
-  created_at  text not null,
-  seen_at     text,
-  seen_from   text,
-  revoked_at  text
-);
-create index access_tokens_person on access_tokens (person_id);
-insert into access_tokens (id, person_id, rights, secret_hash, device, created_at, seen_at, seen_from, revoked_at) values
-  ('t1000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000001', 'owner', '6c2f0b1a8a0e3f7d5b9c4e2a1d8f6b3c7e9a0d2f4b6c8e1a3d5f7b9c0e2a4d6f', 'Firefox on Linux', '2026-11-24T08:10:00.000Z', '2026-11-24T09:15:00.000Z', '192.0.2.7', null),
-  ('t1000000-0000-4000-8000-000000000002', 'a1000000-0000-4000-8000-000000000001', 'owner', '0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e', 'Safari on iPhone', '2026-11-24T08:20:00.000Z', null, null, '2026-11-24T09:30:00.000Z');
-create table passkeys (
-  credential_id text primary key,
-  person_id     text not null references people (id) on delete cascade deferrable initially deferred,
-  public_key    text not null,
-  counter       bigint not null default 0,
-  host          text not null,
-  name          text not null,
-  created_at    text not null,
-  used_at       text
-);
-create index passkeys_person on passkeys (person_id);
-insert into passkeys (credential_id, person_id, public_key, counter, host, name, created_at, used_at) values
-  ('Y3JlZGVudGlhbC1leGFtcGxl', 'a1000000-0000-4000-8000-000000000001', 'cHVibGljLWtleS1leGFtcGxl', 3, 'hub.example.com', 'Laptop', '2026-11-24T08:05:00.000Z', '2026-11-24T09:00:00.000Z');

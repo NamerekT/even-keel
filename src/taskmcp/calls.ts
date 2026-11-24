@@ -6,7 +6,8 @@ import type { Tracker } from '../tracker/source.js'
 import { didNotAnswer } from '../tracker/link.js'
 import type { TaskComment, TrackerCard } from '../tracker/card.js'
 import { changedAfterEntry, entryLabels, requiredOn, sameName, type ChainRules } from '../chain/rules.js'
-import { patchedRun, sameRun, taskRunText, type TaskRun } from '../sessions/runs.js'
+import { patchedRun, sameRun, type RunPatch, type TaskRun } from '../sessions/runs.js'
+import { pinnedPatch, runLine, type PoolMachine } from './run-machines.js'
 import { Args, checkToolArgs } from './args.js'
 import { TaskRetries, unsavedRetry, type Retry } from './retries.js'
 import { rolesLine, termsOf, vocabularyFor, type TrackerTerms } from './vocabulary.js'
@@ -65,6 +66,13 @@ export interface TasksDeps {
   /** The run of the project's task (`TaskRuns`), and its change; `null` — as the project says again. */
   runOf(project: string, task: string): TaskRun | undefined
   setRun(project: string, task: string, run: TaskRun | null): void
+  /**
+   * The machines of the project's pool a run may be pinned to (BTN-1623): the pool's machines turned on and not revoked,
+   * the own one of a project with none; absent — none, and a pin is refused.
+   */
+  poolMachines?(project: string): PoolMachine[]
+  /** The hub's name of each machine it ever had, for a pin's line; absent — the ids. */
+  machineNames?(): Record<string, string>
   /** The project's tasks changed: the chain reads them anew. */
   refresh(project: string): Promise<unknown>
   /** The attachment size limit, bytes, read per call: the setting is live. */
@@ -196,8 +204,9 @@ export class TasksTools {
     })
     const run = this.deps.runOf(reader.project, key)
     const shutBy = why === null ? null : { why, labels: why === 'unlabelled' ? entryNames(rules) : requiredOn(rules, card).join(', ') }
-    const text = cardText(card, rev, args.flag('comments'), terms === null ? null : rolesLine(terms), files, run === undefined ? null : taskRunText(run), shutBy)
-    return args.flag('history') ? `${text}\n\n${historyText(card)}` : text
+    const text = cardText(card, rev, args.flag('comments'), terms === null ? null : rolesLine(terms), files, run === undefined ? null : this.runText(run), shutBy)
+    const names = this.deps.machineNames?.() ?? {}
+    return args.flag('history') ? `${text}\n\n${historyText(card, (id) => names[id] ?? id)}` : text
   }
 
   private async create(args: Args, scope: TasksScope): Promise<string> {
@@ -213,7 +222,7 @@ export class TasksTools {
     const batch = async (tracker: Tracker): Promise<string> => {
       const editor = editorOf(tracker)
       const terms = await this.termsOf(tracker, project)
-      const planned = items.map((item, index) => plannedTask(item, index, items.length, terms, reader.prefix))
+      const planned = items.map((item, index) => plannedTask(item, index, items.length, terms, reader.prefix, (run) => this.pinned(reader.project, run)))
       // Every file is read before anything is created: a refused path refuses the whole batch.
       const uploads = await Promise.all(
         planned.map((each) => (each.attach.length === 0 ? [] : this.uploads(each.attach, scope))),
@@ -251,7 +260,7 @@ export class TasksTools {
               if (each.run !== null) {
                 this.deps.setRun(reader.project, retry.ids[index]!, each.run)
                 await editor.noteRun?.(retry.ids[index]!, null, each.run)
-                notes[index]!.push(`run ${taskRunText(each.run)}`)
+                notes[index]!.push(`run ${this.runText(each.run)}`)
               }
             } catch (error) {
               // The tracker took the task and refused only the rest of it: it is created, and a repeat must skip it (BTN-1166).
@@ -383,12 +392,12 @@ export class TasksTools {
       if (run !== undefined) {
         // The run is Even Keel's record, not the tracker's: the tracker is asked only that the task exists.
         const current = this.deps.runOf(project, key)
-        const next = run === null ? null : patchedRun(current, run)
+        const next = run === null ? null : patchedRun(current, this.pinned(project, run))
         if (!sameRun(current, next)) {
           if ((await tracker.tasks([key])).length === 0) throw new EditRefused(`there is no task ${key}`)
           this.deps.setRun(project, key, next)
           await editor.noteRun?.(key, current ?? null, next)
-          said.push(`run → ${next === null ? 'as the project says' : taskRunText(next)}`)
+          said.push(`run → ${next === null ? 'as the project says' : this.runText(next)}`)
         }
       }
       if (whole !== undefined && (await editor.describe(key, whole, rev!, notes))) said.push('description replaced', ...notes)
@@ -499,6 +508,17 @@ export class TasksTools {
     return scope.task === null || scope.project === null ? null : this.deps.modelOf(scope.project, scope.task)
   }
 
+  /** The run's change with its machines named by id, as the project's pool names them. */
+  private pinned(project: string, run: RunPatch): RunPatch {
+    return pinnedPatch(run, this.deps.poolMachines?.(project) ?? [])
+  }
+
+  /** The run in a line, its machines by the hub's names. */
+  private runText(run: TaskRun): string {
+    const names = this.deps.machineNames?.() ?? {}
+    return runLine(run, (id) => names[id] ?? id)
+  }
+
   /** The files `paths` names, read from the session's working folder. */
   private async uploads(paths: string[], scope: TasksScope) {
     if (scope.files === undefined) throw new EditRefused("this session's working folder is not known: nothing can be attached; name the file in the text instead")
@@ -594,7 +614,7 @@ interface PlannedTask {
 }
 
 /** Checks every name and reference of a batch's task before anything is created. */
-function plannedTask(item: Args, index: number, count: number, terms: TrackerTerms, prefix: string): PlannedTask {
+function plannedTask(item: Args, index: number, count: number, terms: TrackerTerms, prefix: string, pinned: (run: RunPatch) => RunPatch): PlannedTask {
   const ref = (value: string, earlier: boolean): string => {
     const trimmed = value.trim()
     if (!trimmed.startsWith('#')) {
@@ -627,7 +647,7 @@ function plannedTask(item: Args, index: number, count: number, terms: TrackerTer
   const run = item.run('run')
   return {
     attach,
-    run: run == null ? null : (task(() => patchedRun(undefined, run)) as TaskRun | null),
+    run: run == null ? null : (task(() => patchedRun(undefined, pinned(run))) as TaskRun | null),
     draft: {
       title: item.required('title').trim(),
       description: item.text('description') ?? '',

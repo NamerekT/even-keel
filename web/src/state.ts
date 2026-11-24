@@ -18,13 +18,13 @@ import type { Lamp } from '../../src/sessions/agents.js'
 import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../src/limits/usage.js'
 import { notice, type Notice } from '../../src/notice/notice.js'
-import type { EvenKeelState, ContextScale, ProjectTask, SessionView, TaskWork, TrackerUrls } from '../../src/state.js'
+import type { EvenKeelState, ContextScale, PinWait, ProjectTask, SessionView, TaskWork, TrackerUrls } from '../../src/state.js'
 import { formatMoment } from './format.js'
 import { say, t } from './i18n/index.js'
 import { shownWork } from '../../src/shown-work.js'
 import { taskLamp } from './taskLamp.js'
 import { completionTasks, needsReply } from './completion.js'
-import { laneOfTask, lanesOf, taskMachines, type TaskMachine } from './lanes.js'
+import { laneOfTask, lanesOf, pinnedMachines, taskMachines, type TaskMachine } from './lanes.js'
 
 type CiWait = NonNullable<ActiveChain['ciWait']>
 type LimitsWait = NonNullable<ActiveChain['limitsWait']>
@@ -89,6 +89,10 @@ export interface ChainBlock {
   answering?: string
   /** The machines it ran on, oldest first, its lane's now last (`taskMachines`); absent — one machine. */
   machines?: TaskMachine[]
+  /** `machines` are the ones its run pins it to, not those it ran on (BTN-1623): it has run nowhere yet. */
+  pinned?: true
+  /** Why the task pinned to machines waits, and the names of its machines (`state.pinWaits`); absent — it waits for none. */
+  pinWait?: { why: PinWait; machines: string[] }
   /** A machine gone holds the task (BTN-1270): its name, and whether the task's branch is on the remote so it can move. */
   stranded?: { machine: string; pushed: boolean | null }
   /** A red main stopped the task's session; it goes on once main is fixed. */
@@ -535,7 +539,10 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
           ? { ...seen, lamp: 'working' as const }
           : seen
     const sessions = state.taskSessions[id] ?? []
+    const pins = state.runs[project]?.[id]?.machines
     const machines = taskMachines(state, sessions, lane)
+    const pinned = machines === undefined ? pinnedMachines(state, pins) : undefined
+    const pinWait = state.pinWaits?.[project]?.[id]
     const stranded = lane === undefined ? state.stranded?.[project]?.[id] : undefined
     const lamp = taskLamp(task, session, refused.has(id))
     const left = (state.chain.leftovers[project] ?? []).filter((each) => each.task === id)
@@ -567,6 +574,8 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       ...startOf(lane, ownRun, seen, sessions, now),
       ...(ownRun !== null && answeringSince(ownRun)),
       ...(machines !== undefined && { machines }),
+      ...(pinned !== undefined && { machines: pinned, pinned: true as const }),
+      ...(pinWait !== undefined && pins !== undefined && { pinWait: { why: pinWait, machines: pins.map((pin) => state.machineNames?.[pin] ?? pin) } }),
       ...(stranded !== undefined && { stranded: { machine: state.machineNames?.[stranded.machine] ?? stranded.machine, pushed: stranded.pushed } }),
       ...(id === active?.interrupted?.task && { interrupted: true as const }),
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),

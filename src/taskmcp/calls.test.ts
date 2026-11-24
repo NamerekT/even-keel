@@ -482,10 +482,49 @@ describe('the run of a task (BTN-983)', () => {
   it('refuses a model without a provider, an unknown field and a task that is not there, and keeps nothing', async () => {
     expect(await refusal(call('tasks_create', { tasks: [{ title: 'A', run: { model: 'opus' } }] }))).toMatch(/^task 1: .*opus/)
     expect(await refusal(call('task_update', { key: 'ABC-1', run: { model: 'opus' } }))).toMatch(/opus/)
-    expect(await refusal(call('task_update', { key: 'ABC-1', run: { speed: 'fast' } }))).toBe('"run" takes provider, model, effort, not speed')
+    expect(await refusal(call('task_update', { key: 'ABC-1', run: { speed: 'fast' } }))).toBe('"run" takes provider, model, effort, machines, not speed')
     expect(await refusal(call('task_update', { key: 'ABC-9', run: { provider: 'codex' } }))).toMatch(/there is no task ABC-9/)
     expect(await store.get({ project: ABC, number: 2 })).toBeUndefined()
     expect(runs.ofProject(ABC)).toEqual({})
+  })
+})
+
+describe('a run pinned to machines (BTN-1623)', () => {
+  const POOL = [{ id: 'pc-0001', name: 'Desk-PC' }, { id: 'srv-0002', name: 'home-server' }]
+  beforeEach(() => {
+    tools = new TasksTools({ ...deps(), poolMachines: () => POOL, machineNames: () => ({ 'pc-0001': 'Desk-PC', 'srv-0002': 'home-server', 'old-0003': 'Old-Box' }) })
+  })
+
+  it('takes machines by name in any case or by id, keeps their ids, and task_read names them', async () => {
+    expect(await call('tasks_create', { tasks: [{ title: 'Check', run: { machines: ['desk-pc'] } }] })).toBe('ABC-2 Check (run machines Desk-PC)')
+    expect(runs.of(ABC, 'ABC-2')).toEqual({ provider: null, model: null, effort: null, machines: ['pc-0001'] })
+    expect(await call('task_update', { key: 'ABC-1', run: { provider: 'claude', machines: ['srv-0002', 'Desk-PC', 'home-server'] } })).toBe(
+      'ABC-1: run → Claude · machines home-server, Desk-PC',
+    )
+    expect(runs.of(ABC, 'ABC-1')?.machines).toEqual(['srv-0002', 'pc-0001'])
+    expect((await call('task_read', { key: 'ABC-1' })).split('\n\n')[1]).toContain('run Claude · machines home-server, Desk-PC')
+  })
+
+  it('a change of the model keeps the pin, null or an empty list clears it', async () => {
+    runs.set(ABC, 'ABC-1', { provider: 'claude', model: null, effort: null, machines: ['pc-0001'] })
+    expect(await call('task_update', { key: 'ABC-1', run: { effort: 'high' } })).toBe('ABC-1: run → Claude · high · machines Desk-PC')
+    expect(await call('task_update', { key: 'ABC-1', run: { machines: null } })).toBe('ABC-1: run → Claude · high')
+    runs.set(ABC, 'ABC-1', { provider: null, model: null, effort: null, machines: ['pc-0001'] })
+    expect(await call('task_update', { key: 'ABC-1', run: { machines: [] } })).toBe('ABC-1: run → as the project says')
+    expect(runs.of(ABC, 'ABC-1')).toBeUndefined()
+  })
+
+  it('a machine off the pool is refused with the names of the pool, and nothing is kept', async () => {
+    expect(await refusal(call('task_update', { key: 'ABC-1', run: { machines: ['Old-Box'] } }))).toBe('"Old-Box" is no machine of the project\'s pool (Desk-PC, home-server)')
+    expect(await refusal(call('tasks_create', { tasks: [{ title: 'A', run: { machines: ['nope'] } }] }))).toMatch(/^task 1: "nope" is no machine/)
+    expect(await refusal(call('task_update', { key: 'ABC-1', run: { machines: 'Desk-PC, home-server' } }))).toMatch(/is no machine/)
+    expect(await refusal(call('task_update', { key: 'ABC-1', run: { machines: [1] } }))).toBe('"machines" must be a list of strings')
+    expect(runs.ofProject(ABC)).toEqual({})
+  })
+
+  it('a pinned machine gone from the hub shows by its id', async () => {
+    runs.set(ABC, 'ABC-1', { provider: null, model: null, effort: null, machines: ['gone-0009'] })
+    expect((await call('task_read', { key: 'ABC-1' })).split('\n\n')[1]).toContain('run machines gone-0009')
   })
 })
 

@@ -9,7 +9,7 @@ import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { Tipped } from '../ui/Tipped.js'
 import { modelOf } from '../../../src/agent/model-slots.js'
-import { effortsOf, rememberModel, runPickChange, runPickOf, withProvider, type RunPick } from './runPick.js'
+import { effortsOf, rememberModel, runPickChange, runPickOf, toggleMachine, withProvider, type RunPick } from './runPick.js'
 import { accountVendor, providerName } from './settingsRun.js'
 import { modelsReading, offersOf, useModelCatalog } from './useModels.js'
 
@@ -30,7 +30,10 @@ function AsProject({ value }: { value: string }) {
   )
 }
 
-/** What the task's sessions run on, as a provider, a model and an effort pick (BTN-983): Even Keel keeps it, the tracker does not. */
+/**
+ * What the task's sessions run on, as a provider, a model and an effort pick (BTN-983), and the machines of the pool
+ * it is pinned to (BTN-1623): Even Keel keeps it, the tracker does not.
+ */
 export function TaskRunPick({ task, live, onChanged }: Props) {
   const { state } = useLive()
   const { send, sending, failure } = useCommand()
@@ -41,7 +44,14 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
   const effortId = useId()
   // The model typed for each provider while the card is open: picking a provider again brings its model back (BTN-984).
   const [typed, setTyped] = useState<Record<string, string>>({})
-  useEffect(() => setDraft(shown), [`${shown.provider}|${shown.model}|${shown.effort}`])
+  useEffect(() => setDraft(shown), [`${shown.provider}|${shown.model}|${shown.effort}|${(shown.machines ?? []).join(',')}`])
+  // The machines it may be pinned to (BTN-1623): the project's pool, and a pinned one gone from it so it can be unticked.
+  const pinned = shown.machines ?? []
+  const picked = draft.machines ?? []
+  const pool = state?.pools?.[project] ?? []
+  const choices = [...pool, ...pinned.filter((id) => !pool.includes(id))]
+  const names = state?.machineNames ?? {}
+  const colors = state?.machineColors ?? {}
 
   const shared = state?.config.shared
   const form = state?.config.projects[project]
@@ -116,6 +126,28 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
               onChange={(effort) => setDraft({ ...draft, effort })}
             />
           </div>
+        )}
+        {(choices.length > 1 || pinned.length > 0) && (
+          <fieldset className="task-card__run-part task-card__machines" disabled={sending}>
+            <legend className="task-card__run-label">{t.card.run.machines}</legend>
+            {/* '' is "any machine of the pool": ticking it clears the list. */}
+            {['', ...choices].map((id) => (
+              <label key={id} className="task-card__machine">
+                <input
+                  type="checkbox"
+                  checked={id === '' ? picked.length === 0 : picked.includes(id)}
+                  onChange={() => setDraft({ ...draft, machines: id === '' ? [] : toggleMachine(picked, id) })}
+                />
+                {colors[id] !== undefined && <span className="machine-tag__mark" style={{ background: colors[id] }} aria-hidden="true" />}
+                <span className="task-card__machine-name">{id === '' ? t.card.run.anyMachine : (names[id] ?? id)}</span>
+                {id !== '' && !pool.includes(id) && (
+                  <Tipped tip={t.card.run.offPoolTip} inline>
+                    <span className="tag">{t.card.run.offPool}</span>
+                  </Tipped>
+                )}
+              </label>
+            ))}
+          </fieldset>
         )}
         {live && change !== null && <p className="task-card__run-note">{t.card.run.live}</p>}
         {failure !== null && <p className="notice notice--error">{say(failure)}</p>}

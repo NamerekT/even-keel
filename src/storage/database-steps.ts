@@ -342,6 +342,11 @@ export const STEPS: readonly string[] = [
   alter table chain_lists drop constraint chain_lists_list_check;
   alter table chain_lists add constraint chain_lists_list_check check (list in ('orders', 'skipped', 'leftovers', 'released', 'shelved', 'ci', 'reviews', 'landings'));
   `,
+  // The machines of the pool a task is pinned to (BTN-1623, `docs/storage.md`), a JSON list of machine ids; `null` — any
+  // machine, as every run before the step.
+  `
+  alter table task_runs add column machines text;
+  `,
   // Who signs in to the page (BTN-1618, `docs/storage.md`): the people, each device's token with its rights and only the
   // hash of its secret, and the passkeys, each bound to the host name it was made on. One person for now, the owner,
   // made at the start (`ensureOwner`), not here: a copy inserts the source's rows into a database these steps made.

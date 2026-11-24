@@ -13,7 +13,7 @@ There are three levels and a default, narrowest wins: **task** → **project** �
   written by the page `/settings`.
 - **Project** — the project's rows (its entry in `projects[]` of the format), written by the project's settings panel. A project's own value
   goes over the shared one; a value left out means "as shared".
-- **Task** — the task's run (provider, model, effort), which Even Keel keeps itself in `task_runs` (BTN-983,
+- **Task** — the task's run (provider, model, effort, machines), which Even Keel keeps itself in `task_runs` (BTN-983,
   `docs/sessions/models.md`), and the tracker label `Break | compaction`, read off `Task.labels` on every launch.
 
 Four chain rules have a level between the project and Even Keel (BTN-66): the **tracker profile** the project runs on,
@@ -139,7 +139,7 @@ schema version of a file of the format.
 | --- | --- | --- | --- |
 | a package's `default`, `settings` | `state/packages.json` `packages.<name>` | G | the package level: projects start from it |
 | a project's `on`, `off`, `settings` | `state/packages.json` `projects.<id>` | P | over the package's, `settings` by variable |
-| a task's run: provider, model, effort | the state database, `task_runs` | T | over the project's `provider` and `models.<provider>`; set on the task card and by the tasks server, not a setting row (BTN-983, `docs/sessions/models.md`). The tracker label `<Provider> \| <model>` is not read; `modelLabels` went with config v37 and database step 47 |
+| a task's run: provider, model, effort, machines | the state database, `task_runs` | T | over the project's `provider` and `models.<provider>`; set on the task card and by the tasks server, not a setting row (BTN-983, `docs/sessions/models.md`). `machines` (BTN-1623, step 78) pins the task to machines of the pool, empty — any (`docs/machines.md`, "A task pinned to machines"). The tracker label `<Provider> \| <model>` is not read; `modelLabels` went with config v37 and database step 47 |
 | other excluded labels | tracker label | T | matched by `chain.excludedLabels`, a G/P setting |
 | required labels | tracker label | T | matched by `chain.requiredLabels` |
 | `Question`/`Вопрос` | tracker label | T | `QUESTION_LABELS`: the card's mark and the prompts' wording; it changes neither the order nor the launch |
