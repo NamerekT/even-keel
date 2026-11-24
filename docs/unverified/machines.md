@@ -450,3 +450,11 @@ To check, on the benches: a project of the bench hub with machine-1 in its pool 
 Assumed: a real machine elsewhere going off the link and back turns the row's chip from "waits for …" to the launch there within a pull, the other lanes going on meanwhile; a pin set from the card or by the tasks server by name reaches the chain at its next step without a restart; and a revoked machine in a pin shows its chip with the button to the card. If not, a pinned task stays unseen by its machine, or runs elsewhere.
 
 To check, on the benches: a project of the bench hub with machine-1 in its pool and width 2, three ready tasks; pin the first to machine-1 from the card and the second to the hub by name through the tasks server (`run.machines`); see each start only on its machine, the third on whichever is free. Then stop machine-1's service with a fourth task pinned to it: the row says "waits for machine-1", the hub goes on; start it and see the task launch there.
+
+## A chat message mid-turn to a session elsewhere (BTN-1633)
+
+`docs/machines.md`, "The mirror" (the chat paragraph). The page's mailbox and a reply's `listens`, steering and live view read the session's machine's mirror, the hub's own mailbox laid over it; a reply's steer, inbox and files go to that machine, its mailbox rows stay on the hub, whose page its hooks ask. Unit tests (`src/machine/page.test.ts`, `src/chain/answer-inbox.test.ts`) and one end-to-end case (`src/e2e/elsewhere.test.ts`: a message mid-turn reaches the mail hook) cover it; the scripted agent has no inbox socket.
+
+Assumed: a real Claude session on a machine elsewhere with `agent-bridge` 1.8.0 has its field open mid-turn and takes the message through its inbox socket on that machine at once, the row `delivered` with `inbox`; a session without an inbox takes it at its next tool call through the hooks, and one that ends its turn first gets it by a resume, not back in the chat as "gone". If not, the field stays shut or the message comes back.
+
+To check, on the benches: a task of the bench hub's project run on machine-1; mid-turn, write in its chat and see the session act on it within seconds and the row marked delivered; then the same with a long command running, and once more right before the turn ends.

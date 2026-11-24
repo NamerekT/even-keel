@@ -35,6 +35,8 @@ interface ChatDeps {
    * (`MachineServices.chat`). Absent — `mailbox` and `steer` in this process.
    */
   chat?: MachineChat
+  /** The commands for a session on its machine (`LinkedMachine.chatOf`, BTN-1633); absent — `chat` for every session. */
+  chatOf?: (sessionId: string) => MachineChat
   /** The session takes chat messages mid-turn (its hooks asked, or it steers), from the hub's mirror; absent — `mailbox`. */
   listens?: (sessionId: string) => boolean
   language: (project?: string) => Language
@@ -60,9 +62,26 @@ export function localChat(mailbox: Mailbox, steer: MachineChat['steer'], tell?: 
   }
 }
 
+/**
+ * The chat's commands for a session elsewhere (BTN-1633): its hooks ask the hub's page for mail, so a message for them,
+ * a returned one and its dismissal are the hub's mailbox; the steer, the inbox socket and the reply's files are its
+ * machine's.
+ */
+export function elsewhereChat(hub: MachineChat, there: MachineChat): MachineChat {
+  return {
+    post: hub.post,
+    giveBack: hub.giveBack,
+    dismiss: hub.dismiss,
+    steer: there.steer,
+    tell: there.tell,
+    saveInbox: there.saveInbox,
+  }
+}
+
 export function createChat(deps: ChatDeps) {
   const { dispatcher, mailbox } = deps
-  const chat = deps.chat ?? localChat(mailbox, deps.steer)
+  const own = deps.chat ?? localChat(mailbox, deps.steer)
+  const chatOf = deps.chatOf ?? (() => own)
   const listens = deps.listens ?? ((sessionId: string) => deps.steering(sessionId) || mailbox.listens(sessionId))
   const mailRelay: MailRelay = {
     mailbox,
@@ -107,6 +126,7 @@ export function createChat(deps: ChatDeps) {
     renew = false,
   ): Promise<void> {
     await deps.catchUp?.()
+    const chat = chatOf(sessionId)
     const takes = reply.from === 'page' && listens(sessionId)
     const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, takes, renew)
     // What the message asks would land in the worktree of a closed task: it is a new task (BTN-558).
@@ -154,7 +174,7 @@ export function createChat(deps: ChatDeps) {
   async function giveBack(project: string, task: string, sessionId: string, text: string, files: string[]): Promise<void> {
     try {
       const reason = (await dispatcher.closed(project, task)) ? 'closed' : 'gone'
-      await chat.giveBack(task, sessionId, text, files, reason)
+      await chatOf(sessionId).giveBack(task, sessionId, text, files, reason)
       deps.log(`chain: ${task}: the user's answer went back to the chat: ${reason === 'closed' ? 'the task is over for the chain' : 'it did not reach the session'} ${sessionId}`)
       deps.changed()
     } catch (error) {
