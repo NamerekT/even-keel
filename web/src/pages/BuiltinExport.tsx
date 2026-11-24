@@ -173,7 +173,7 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
         <header className="add-package__head">
           <h2 id={heading} className="add-package__title transfer__title">
             {t.transfer.title}
-            <HelpTip text={t.transfer.leadTip} align="start" />
+            <HelpTip text={`${kept.closed ? t.transfer.leadAll : t.transfer.lead} ${t.transfer.leadTip}`} align="start" />
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
             <CloseIcon />
@@ -181,7 +181,6 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
         </header>
         <div className="add-package__body transfer__body">
           <Loading busy={phase === 'read' && stopped === null}label={t.transfer.checking} fit="block">
-            <p className="add-package__note">{phase === 'finished' ? t.transfer.done(exported!.total, tracker) : kept.closed ? t.transfer.leadAll : t.transfer.lead}</p>
             <TrackerFields
               ids={(field) => `transfer-${field}`}
               state={state}
@@ -223,8 +222,9 @@ function BuiltinExportDialog({ state, project, onClose }: { state: EvenKeelState
               </>
             )}
             {phase !== 'pick' && phase !== 'read' && <Progress exported={exported!} />}
+            {phase === 'finished' && <p className="transfer__state">{t.transfer.done(exported!.total, tracker)}</p>}
             {phase === 'running' && (
-              <p className="add-package__note">{exported!.waiting === null ? t.transfer.running : t.transfer.waiting(tracker, localMoment(exported!.waiting, new Date(), language))}</p>
+              <p className="transfer__state">{exported!.waiting === null ? t.transfer.running : t.transfer.waiting(tracker, localMoment(exported!.waiting, new Date(), language))}</p>
             )}
             {check !== null && <TransferCheckTable check={check} direction="export" tracker={tracker} />}
           </Loading>

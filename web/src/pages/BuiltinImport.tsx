@@ -188,14 +188,13 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
         <header className="add-package__head">
           <h2 id={heading} className="add-package__title transfer__title">
             {t.transfer.imports.title}
-            <HelpTip text={t.transfer.imports.leadTip(tracker)} align="start" />
+            <HelpTip text={`${t.transfer.imports.lead(tracker)} ${t.transfer.imports.leadTip(tracker)}`} align="start" />
           </h2>
           <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
             <CloseIcon />
           </button>
         </header>
         <div className="add-package__body transfer__body">
-          <p className="add-package__note">{phase === 'finished' ? t.transfer.imports.done(imported!.total, tracker) : t.transfer.imports.lead(tracker)}</p>
           <Loading busy={reading} label={t.transfer.imports.reading(tracker)} fit="block">
             {phase === 'pick' && plan !== null && (
               <>
@@ -209,22 +208,23 @@ function BuiltinImportDialog({ project, tracker, onClose }: { project: string; t
               <Meter name={t.transfer.imports.planning} tip={t.transfer.imports.planningTip(tracker)} done={planning.done} total={planning.total} />
             )}
             {planning === null && checking === null && (phase === 'running' || phase === 'resume' || phase === 'finished') && <Progress exported={imported!} direction="import" />}
-            {checking === null && phase === 'running' && <p className="add-package__note">{t.transfer.running}</p>}
+            {phase === 'finished' && <p className="transfer__state">{t.transfer.imports.done(imported!.total, tracker)}</p>}
+            {checking === null && phase === 'running' && <p className="transfer__state">{t.transfer.running}</p>}
             {checking !== null && (
               <>
                 <Meter name={t.transfer.imports.checking} tip={t.transfer.imports.checkingTip(tracker)} done={checking.done} total={checking.total} />
-                <p className="add-package__note">{t.transfer.imports.checkingNote(imported!.progress.done, tracker)}</p>
+                <p className="transfer__state">{t.transfer.imports.checkingNote(imported!.progress.done, tracker)}</p>
               </>
             )}
             {phase === 'switching' && (
               <>
                 <SwitchMeter switching={imported!.switching!} tracker={tracker} />
-                <p className="add-package__note">{t.transfer.imports.switchingNote}</p>
+                <p className="transfer__state">{t.transfer.imports.switchingNote}</p>
               </>
             )}
             {check !== null && <TransferCheckTable check={check} direction="import" tracker={tracker} />}
           </Loading>
-          {planReading && <p className="add-package__note">{t.transfer.imports.planningNote}</p>}
+          {planReading && <p className="transfer__state">{t.transfer.imports.planningNote}</p>}
         </div>
         {phase === 'resume' && stopped === null && (
           <p role="alert" className={`notice ${failed === null ? 'notice--warn' : 'notice--error'} add-package__failure`}>

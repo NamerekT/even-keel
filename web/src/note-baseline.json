@@ -1,10 +1,7 @@
 {
   "hotkeys/HotkeysDialog.tsx": 1,
   "layout/Updates.tsx": 1,
-  "pages/BuiltinExport.tsx": 2,
-  "pages/BuiltinImport.tsx": 5,
   "pages/StatusPage.tsx": 1,
-  "pages/TransferReports.tsx": 2,
   "stats/Calendar.tsx": 1,
   "stats/RulesSection.tsx": 6,
   "stats/SpendChart.tsx": 1,
