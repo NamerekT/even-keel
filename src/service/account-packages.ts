@@ -21,6 +21,7 @@ import { EditRefused } from '../tracker/editor.js'
 import { runLabelText } from '../tracker/model.js'
 import { installed } from '../updates/watcher.js'
 import type { AccountsContext } from './accounts.js'
+import { pinnable } from '../machine/pins.js'
 
 export function wireMemory(ctx: Pick<AccountsContext, 'db' | 'configStore' | 'homes'>): MemoryMirror {
   return new MemoryMirror({
@@ -75,6 +76,12 @@ export function wirePackageHub(ctx: AccountsContext): PackageHub {
         },
         runOf: (project, task) => ctx.runOfTask(project, task),
         setRun: (project, task, run) => ctx.setTaskRun(project, task, run),
+        poolMachines: (project) => {
+          const network = ctx.machineLink.network
+          const names = network.names()
+          return pinnable(network.poolOf(project), network.live(), ctx.machineLink.own()).map((id) => ({ id, name: names[id] ?? id }))
+        },
+        machineNames: () => ctx.machineLink.network.names(),
         refresh: (project) => ctx.refreshProject(project),
         attachmentLimit: () => ctx.configStore.current.attachmentLimit * 1024 * 1024,
         editedOf: (reader, task) => ctx.readerTasks.get(reader)?.find((each) => each.id === task)?.edited,

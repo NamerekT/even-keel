@@ -990,6 +990,20 @@ describe('chainBlocks', () => {
       const state = stateOf({ tasks, chain: chain({ active: lanes, projects }), machineNames: { pc: 'PC' } })
       expect(chainBlocks(state, 'ABC').map((block) => block.machines)).toEqual([undefined, undefined, undefined])
     })
+
+    it('labels a pinned task that has not run with its machines, and says what it waits for (BTN-1623)', () => {
+      const state = stateOf({
+        tasks,
+        chain: chain({ active: lanes, projects }),
+        machineNames: { pc: 'PC', srv: 'Server' },
+        runs: { ABC: { 'ABC-3': { provider: null, model: null, effort: null, machines: ['srv'] } } },
+        pinWaits: { ABC: { 'ABC-3': 'busy' } },
+      })
+      const block = chainBlocks(state, 'ABC')[2]!
+      expect(block.machines).toEqual([{ id: 'srv', name: 'Server' }])
+      expect(block.pinWait).toEqual({ why: 'busy', machines: ['Server'] })
+      expect(chainBlocks(state, 'ABC')[0]?.pinWait).toBeUndefined()
+    })
   })
 
   it('marks the tasks whose live session outlasted the stopped chain', () => {

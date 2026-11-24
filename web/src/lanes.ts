@@ -34,3 +34,16 @@ export function taskMachines(state: Pick<EvenKeelState, 'machineNames' | 'machin
   })
   return shown.length === 0 ? undefined : shown
 }
+
+/**
+ * The machines a task's run pins it to (BTN-1623), as `taskMachines` names them: what its block shows before it ran
+ * anywhere. `undefined` — not pinned, or the hub has one machine.
+ */
+export function pinnedMachines(state: Pick<EvenKeelState, 'machineNames' | 'machineColors'>, pins: readonly string[] | undefined): TaskMachine[] | undefined {
+  const names = state.machineNames
+  if (names === undefined || Object.keys(names).length < 2 || pins === undefined || pins.length === 0) return undefined
+  return pins.map((id) => {
+    const color = state.machineColors?.[id]
+    return { id, name: names[id] ?? id, ...(color !== undefined && { color }) }
+  })
+}

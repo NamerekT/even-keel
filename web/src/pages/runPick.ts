@@ -6,11 +6,18 @@ export interface RunPick {
   provider: string
   model: string
   effort: string
+  /** The machines of the pool the task is pinned to (BTN-1623); empty or absent — any machine. */
+  machines?: string[]
 }
 
 /** What the card's fields show for the task's run. */
 export function runPickOf(run: TaskRun | null | undefined): RunPick {
-  return { provider: run?.provider ?? '', model: run?.model ?? '', effort: run?.effort ?? '' }
+  return { provider: run?.provider ?? '', model: run?.model ?? '', effort: run?.effort ?? '', machines: [...(run?.machines ?? [])] }
+}
+
+/** The machines after one is ticked or unticked. */
+export function toggleMachine(machines: readonly string[], machine: string): string[] {
+  return machines.includes(machine) ? machines.filter((each) => each !== machine) : [...machines, machine]
 }
 
 /** The efforts the pick offers: those of the picked provider, else of the one the project runs on; none where it takes no effort. */
@@ -32,13 +39,15 @@ export function rememberModel(models: Readonly<Record<string, string>>, pick: Ru
   return pick.provider === '' || models[pick.provider] === pick.model ? models : { ...models, [pick.provider]: pick.model }
 }
 
-/** The run the pick asks for, as the `task/run` command takes it; `null` — the task has it already. */
+/** The run the pick asks for, as the `task/run` command takes it, whole; `null` — the task has it already. */
 export function runPickChange(run: TaskRun | null | undefined, pick: RunPick): TaskRun | null {
   const model = pick.model.trim()
+  const machines = pick.machines ?? []
   const asked: TaskRun = {
     provider: pick.provider === '' ? null : pick.provider,
     model: pick.provider === '' || model === '' ? null : model,
     effort: pick.effort === '' ? null : pick.effort,
+    ...(machines.length > 0 && { machines }),
   }
   return sameRun(run, asked) ? null : asked
 }

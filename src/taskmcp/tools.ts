@@ -14,9 +14,15 @@ const estimate = { type: 'integer', minimum: 1, description: 'minutes of your ow
 const field = { type: ['string', 'null'] }
 const run = {
   type: 'object',
-  properties: { provider: field, model: field, effort: field },
+  properties: {
+    provider: field,
+    model: field,
+    effort: field,
+    machines: { type: ['array', 'null'], items: { type: 'string' }, description: 'machines of the pool by name or id; only these take the task' },
+  },
   additionalProperties: false,
-  description: "what the task's sessions run on, kept by Even Keel: a provider, its model, an effort; only when the user named one. A model needs its provider; null clears a field",
+  description:
+    "what the task's sessions run on, kept by Even Keel: a provider, its model, an effort, the machines; only when the user named one. A model needs its provider; null clears a field",
 }
 const tracker = (fallback: string) => ({ type: 'string', description: `one tracker of the project by its key prefix (GH of GH-12); none — ${fallback}` })
 

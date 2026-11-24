@@ -95,7 +95,7 @@ function nextOf(state: View, cards: readonly MachineCard[], card: MachineCard, p
   if (order === undefined) return undefined
   const pool = poolOf(cards, project)
   const held = new Set(state.chain.active.filter((lane) => lane.project === project).flatMap((lane) => (lane.current === null ? [] : [lane.current.task])))
-  const refused = order.order.filter((id) => !mayRun(card, providerOf(state, project, id), pool))
+  const refused = order.order.filter((id) => !mayRun(card, providerOf(state, project, id), pool) || !pinnedTo(state, project, id, card.id))
   const own = cards.find((each) => each.own)?.id
   const elsewhere = order.order.filter((id) => {
     const last = state.taskSessions[id]?.at(-1)
@@ -117,13 +117,20 @@ export function machineChain(blocks: readonly ChainBlock[], state: Pick<EvenKeel
   const own = cards.find((each) => each.own)?.id
   return blocks.flatMap((block) => {
     // A session without a machine ran on the hub's own one: `taskMachines` tags only the others.
-    const last = block.machines?.at(-1)?.id ?? (block.current || block.sessions.length > 0 ? own : undefined)
+    // A pinned block's tags are its pin (BTN-1623), not where it ran.
+    const last = (block.pinned === true ? undefined : block.machines?.at(-1)?.id) ?? (block.current || block.sessions.length > 0 ? own : undefined)
     if (block.fix !== undefined || isFixName(block.id) || isCarryName(block.id)) return card.own ? [untagged(block)] : []
     if (last !== undefined) return last === machine ? [untagged(block)] : []
     const open = block.open || block.locked
-    if (open && (!pooled || !mayRun(card, block.run?.provider ?? providerOf(state, project, null), pool))) return []
+    if (open && (!pooled || !mayRun(card, block.run?.provider ?? providerOf(state, project, null), pool) || !pinnedTo(state, project, block.id, machine))) return []
     return [untagged(block)]
   })
+}
+
+/** The task's run pins it to no machine, or to this one among others (BTN-1623). */
+function pinnedTo(state: Pick<EvenKeelState, 'runs'>, project: string, task: string, machine: string): boolean {
+  const pins = state.runs[project]?.[task]?.machines ?? []
+  return pins.length === 0 || pins.includes(machine)
 }
 
 /** The backlog's tasks a machine could take: none where it is out of the project's pool. */
@@ -132,7 +139,7 @@ export function machineBacklog<T extends { id: string }>(tasks: readonly T[], st
   if (card === undefined) return [...tasks]
   const pool = poolOf(cards, project)
   if (!pool.some((each) => each.id === machine)) return []
-  return tasks.filter((task) => mayRun(card, providerOf(state, project, task.id), pool))
+  return tasks.filter((task) => mayRun(card, providerOf(state, project, task.id), pool) && pinnedTo(state, project, task.id, machine))
 }
 
 /** The projects a machine's view shows (BTN-1279): those whose pool has it, turned off too; on the own machine also those without a pool. */
@@ -179,6 +186,6 @@ export function mergeQueue(full: readonly string[], order: readonly string[]): s
 
 function untagged(block: ChainBlock): ChainBlock {
   if (block.machines === undefined) return block
-  const { machines: _machines, ...rest } = block
+  const { machines: _machines, pinned: _pinned, ...rest } = block
   return rest
 }

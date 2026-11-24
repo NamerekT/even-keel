@@ -31,6 +31,7 @@ import { relatives, type Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
 import { BlockTail } from './BlockTail.js'
+import { PinWaitChip } from './PinWaitChip.js'
 import { useNarrow } from '../layout/useNarrow.js'
 import './chain.css'
 import { ChangelogButton } from './ChangelogDialog.js'
@@ -585,7 +586,7 @@ function Block(props: BlockProps) {
         )}
       </div>
       {narrow && (
-        <BlockTail run={block.run} machines={block.machines} links={links} onCard={onCard}>
+        <BlockTail run={block.run} machines={block.machines} pinned={block.pinned === true} links={links} onCard={onCard}>
           {readyButton ?? unreadyButton}
         </BlockTail>
       )}
@@ -606,8 +607,9 @@ function Block(props: BlockProps) {
       )}
       <div className="block__side">
         {block.subtasks !== undefined && <SubtasksChip family={block.id} subtasks={block.subtasks} />}
-        {!narrow && block.machines !== undefined && <MachineTag machines={block.machines} />}
+        {!narrow && block.machines !== undefined && <MachineTag machines={block.machines} pinned={block.pinned === true} />}
         {!narrow && block.run !== null && <RunLabelTag run={block.run} />}
+        {block.pinWait !== undefined && <PinWaitChip wait={block.pinWait} onOpen={() => onCard(block.id)} />}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}
         {block.interrupted && (
           <span className="chip" title={t.chain.interruptedTitle}>

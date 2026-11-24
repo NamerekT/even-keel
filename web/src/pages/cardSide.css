@@ -168,6 +168,35 @@
   min-width: 0;
 }
 
+/* The machines a task is pinned to (BTN-1623): a fieldset with no box of its own, a row a machine. */
+.task-card__machines {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.task-card__machines legend {
+  padding: 0;
+  margin-bottom: var(--space-4);
+}
+
+.task-card__machine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: 24px;
+  min-width: 0;
+  font-size: var(--text-14);
+  cursor: pointer;
+}
+
+.task-card__machine-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* "As the project" of the provider: a muted icon after the name, its words in the tip. */
 .task-card__as-project {
   display: inline-flex;

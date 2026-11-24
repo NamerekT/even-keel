@@ -97,12 +97,24 @@ describe('machineChain', () => {
     const blocks = [block('ABC-1')]
     expect(machineChain(blocks, state(), [card('pc'), card('srv', { projects: [] })], 'ABC', 'srv')).toEqual([])
   })
+
+  it('gives an open task pinned to machines only to those, its pin tag not read as where it ran (BTN-1623)', () => {
+    const view = { ...state(), runs: { ABC: { 'ABC-2': { provider: null, model: null, effort: null, machines: ['srv'] } } } } as EvenKeelState
+    const blocks = [block('ABC-1'), block('ABC-2', { machines: tag('srv'), pinned: true })]
+    expect(machineChain(blocks, view, cards, 'ABC', 'pc').map((each) => each.id)).toEqual(['ABC-1'])
+    expect(machineChain(blocks, view, cards, 'ABC', 'srv').map((each) => each.id)).toEqual(['ABC-1', 'ABC-2'])
+  })
 })
 
 describe('machineBacklog', () => {
   it('leaves the tasks of a provider the machine may not run', () => {
     const cards = [card('pc'), card('srv', { agents: ['codex'] })]
     expect(machineBacklog([{ id: 'ABC-2' }, { id: 'ABC-3' }], state(), cards, 'ABC', 'srv')).toEqual([{ id: 'ABC-3' }])
+  })
+
+  it('leaves the tasks pinned to other machines (BTN-1623)', () => {
+    const view = { ...state(), runs: { ABC: { 'ABC-2': { provider: null, model: null, effort: null, machines: ['srv'] } } } } as EvenKeelState
+    expect(machineBacklog([{ id: 'ABC-1' }, { id: 'ABC-2' }], view, [card('pc'), card('srv')], 'ABC', 'pc')).toEqual([{ id: 'ABC-1' }])
   })
 })
 

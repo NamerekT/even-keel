@@ -27,6 +27,12 @@ import type { TrackerView } from './tracker/health.js'
 import type { ParentTask, Task } from './tracker/model.js'
 import type { UpdatesView } from './updates/release.js'
 
+/**
+ * Why a task pinned to machines (BTN-1623) waits: `busy` — a machine of its list is online, none free; `offline` — none
+ * is on the link; `gone` — every one is revoked or out of the pool; `elsewhere` — a machine off the list holds it.
+ */
+export type PinWait = 'busy' | 'offline' | 'gone' | 'elsewhere'
+
 /** A task held by a machine gone (BTN-1270). */
 export interface StrandedTask {
   /** The machine holding it; the page names it by `machineNames`. */
@@ -458,6 +464,16 @@ export interface EvenKeelState {
    * move them. Absent — an older service.
    */
   stranded?: Record<string, Record<string, StrandedTask>>
+  /**
+   * By project, the machines a task's run may be pinned to (BTN-1623): the pool's turned on and not revoked, the own
+   * one of a project with none. Absent — an older service.
+   */
+  pools?: Record<string, string[]>
+  /**
+   * By project and task, why a task pinned to machines waits (`docs/machines.md`, "A task pinned to machines"): `busy`,
+   * `offline`, `gone` or `elsewhere`; a task that waits for nothing is not there. Absent — an older service.
+   */
+  pinWaits?: Record<string, Record<string, PinWait>>
   /** The work the service does in steps while a window shows it (BTN-1048): a project being created; absent — an older service. */
   jobs?: import('./jobs/model.js').StepJob[]
   /** The automatic CLI check of each agent (BTN-569): waiting, running or its last result; empty while the setting is off. */

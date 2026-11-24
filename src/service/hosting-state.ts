@@ -18,6 +18,7 @@ import type { ArchivePage, EvenKeelState, OutsideTask, SessionView, TaskHistory 
 import { isOpen, type Task } from '../tracker/model.js'
 import { RAN_SHOWN_MS } from '../tracker/start.js'
 import { runOf } from './demo.js'
+import { pinnable, pinWaits } from '../machine/pins.js'
 import type { HostingContext } from './hosting.js'
 import { recentHistory } from './page-history.js'
 
@@ -146,6 +147,18 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     machineColors: ctx.machineLink.network.colors(),
     ownMachine: ctx.machineLink.machines.own(),
     stranded: ctx.machineLink.reassigner.stranded(),
+    pools: Object.fromEntries(Object.keys(ctx.configStore.current.projects).map((project) => [
+      project,
+      pinnable(ctx.machineLink.network.poolOf(project), ctx.machineLink.network.live(), ctx.machineLink.own()),
+    ])),
+    pinWaits: Object.fromEntries(Object.keys(ctx.configStore.current.projects).flatMap((project) => {
+      const runs = ctx.runsOfProject(project)
+      const open = (ctx.tasksByProject.get(project) ?? []).filter((task) => (runs[task.id]?.machines?.length ?? 0) > 0)
+      if (open.length === 0) return []
+      const pins = Object.fromEntries(open.map((task) => [task.id, runs[task.id]!.machines!]))
+      const waits = pinWaits(project, pins, ctx.dispatcher.state, ctx.machineLink.machines)
+      return Object.keys(waits).length === 0 ? [] : [[project, waits]]
+    })),
     jobs: stepJobs.view(),
     fallbacks: fallbacksSince(ctx.launches, new Date(Date.now() - ctx.FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
       at,

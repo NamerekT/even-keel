@@ -5,7 +5,7 @@ import { fail } from '../notice/notice.js'
 import type { LabelChange } from '../tracker/labels.js'
 import { compareBuiltinMilestones, labelColor, uniqueNames, TODO, type BuiltinMilestone, type CommentAuthor, type RelationKind } from './model.js'
 import { closesLoop, laterBlocker } from './links.js'
-import type { TaskRun } from '../sessions/runs.js'
+import { runFields, type TaskRun } from '../sessions/runs.js'
 import type { ChangeAuthor, ChangeField, TaskChange } from '../tracker/history.js'
 import { lineDiff } from './diff.js'
 import {
@@ -492,7 +492,7 @@ export class BuiltinStore {
     await inTransaction(this.db, async (tx) => {
       const row = await this.row(tx, key)
       if (row === undefined) return
-      const text = (run: TaskRun | null) => (run === null ? null : JSON.stringify({ provider: run.provider, model: run.model, effort: run.effort }))
+      const text = (run: TaskRun | null) => (run === null ? null : JSON.stringify(runFields(run)))
       await this.log(tx, row, [{ field: 'run', before: text(from), after: text(to) }])
     })
   }
