@@ -54,9 +54,8 @@ export interface ToolsPlaces {
 }
 
 /**
- * The `--settings` JSON for a chain session of the repository: the shared memory folder or, when the project's set
- * brings Even Keel's memory server (`memoryServer`), the CLI's file memory off, the enabled plugins its
- * packages do not bring turned off (`otherPlugins`), the prompt cache TTL when the config pins one, the `secrets`
+ * The `--settings` JSON for a chain session of the repository: the project's memory folder as the CLI's file memory
+ * (BTN-1647), the enabled plugins its packages do not bring turned off (`otherPlugins`), the prompt cache TTL when the config pins one, the `secrets`
  * blanked in `env`, the ban on git of a project without it (`noGit`) with the CLI's worktree guard off and, with trimming on, the trimming. The flag's `env` outranks the user's and the project's settings,
  * and an empty value hides a key one of them sets (checked on CLI 2.1.310, BTN-436).
  */
@@ -71,13 +70,11 @@ export function chainSettings(
   protection?: Protection,
   autoCompactWindow: number | null = null,
   noGit = false,
-  memoryServer = false,
   files: Pick<ProjectSettings, 'project' | 'local'> = { project: undefined, local: undefined },
 ): string {
   const always = {
     permissions: { deny: protectionRules(protection, [], undefined, undefined, noGit).claude },
-    // With Even Keel's memory server the CLI drops its file-memory instructions; the index comes in the prompt (BTN-1029).
-    ...(memoryServer ? { autoMemoryEnabled: false } : { autoMemoryDirectory: sharedMemory(globalDir, repo) }),
+    autoMemoryDirectory: sharedMemory(globalDir, repo),
     ...(Object.keys(plugins).length > 0 && { enabledPlugins: plugins }),
     ...(cacheTtl !== null && { promptCacheTtl: cacheTtl }),
     ...(autoCompactWindow !== null && { autoCompactWindow }),

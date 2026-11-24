@@ -26,6 +26,7 @@ import { exhaustedReset, limitReopenedAt, spentModelWeek } from '../limits/model
 import { overageSession } from '../limits/overage-session.js'
 import { mainMachineDeps } from '../machine/main.js'
 import type { MachinePort } from '../machine/port.js'
+import { readsFileMemory } from '../memory/mcp.js'
 import { megabytes } from '../notice/en-values.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { replyParts } from '../sessions/ask.js'
@@ -59,7 +60,7 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       const place = await ctx.places.ready(project, task)
       const git = !isPlain(ctx.configStore.current, project)
       const plain = startPrompt(task, place, ctx.promptLanguage(project), ctx.branchOf(project), ctx.pullRequestsOn(project), git, git ? slotCleanOf(ctx, project, place.path) : [])
-      const briefed = ctx.briefed.apply(task, plain + (brief?.restore?.text ?? ''), brief)
+      const briefed = ctx.briefed.apply(task, plain + (brief?.restore?.text ?? ''), brief, readsFileMemory(home.agent))
       const started = ctx.withProject(await withBriefCopies(briefed, task, ctx.briefed.kept(task), place.path), project)
       const { prompt, model, provider, fallback } = ctx.planFor(task, extra === undefined ? started : `${started}\n${extra}\n`, project)
       const extras = ctx.agentExtras(home, project, task)
@@ -144,13 +145,13 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       // Before the stop: without a brief the handoff pauses, and the session it was to replace is left as it is.
       // The user's message goes last, after the brief and every setting's text: the agent and the page look for it there.
       const cut = reason === 'message' ? cutUserMessage(handoff) : null
-      const told = await withBriefCopies(ctx.briefed.apply(task, cut?.rest ?? handoff, brief), task, ctx.briefed.kept(task), session.workdir)
+      const project = ctx.projectOf(task)
+      const home = ctx.homeOf(ctx.choiceFor(project, task).account)
+      const told = await withBriefCopies(ctx.briefed.apply(task, cut?.rest ?? handoff, brief, readsFileMemory(home.agent)), task, ctx.briefed.kept(task), session.workdir)
       const previous = ctx.homes.find(session.account)
       if (previous !== undefined && !session.stopped) await ctx.stopIn(previous, session)
-      const project = ctx.projectOf(task)
       // Behind the launch: a slow pre-push hook does not hold the next session, which only adds commits meanwhile.
       ctx.writes.add(`the push of ${task}`, pushOf(ctx, project, task, session.workdir))
-      const home = ctx.homeOf(ctx.choiceFor(project, task).account)
       await ctx.daemons.prepare(home)
       const plan = ctx.planFor(task, ctx.withProject(told, project), project)
       const { model } = plan
