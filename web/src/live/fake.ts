@@ -319,7 +319,8 @@ export function createFakeSource(search: string): LiveSource {
     current.state!.chain.active = [{ ...active, current: null, slotWait }]
   }
   if (params.get('chain') === 'closing' && active) current.state!.chain.active = [{ ...active, current: null, closing: 'ABC-4' }]
-  // Two lanes of ABC on two machines (BTN-993), and a closed task that moved from one to the other.
+  // Two lanes of ABC on two machines (BTN-993), and a closed task that moved from one to the other. ABC-20 would go
+  // above the queue: its ghost stands right under both running lanes, the place the service gives it (BTN-1641).
   if (params.get('chain') === 'lanes' && active) {
     const state = current.state!
     state.machineNames = { pc: 'Workstation', srv: 'Home server' }
@@ -327,6 +328,8 @@ export function createFakeSource(search: string): LiveSource {
     state.chain.active = [{ ...active, machine: 'pc' }, { project: active.project, machine: 'srv', current: { task: 'ABC-6', sessionId: null, since: ago(1) }, paused: false, error: null }, ...state.chain.active.slice(1)]
     const run = (sessionId: string, at: number, machine: string) => ({ sessionId, at: ago(at), how: 'checkpoint' as const, resumed: 0, answers: 0, machine })
     state.taskSessions['ABC-4'] = [run('lanes-2', 120, 'srv'), run('lanes-1', 300, 'pc')]
+    const order = state.chain.projects['ABC']!
+    state.chain.projects['ABC'] = { ...order, landing: { ...order.landing, 'ABC-20': 'ABC-7' } }
   }
   // The running group "Under way" through its steps (BTN-1613); `&group=<n>` starts with the first n done.
   // A fix of main in the group and the task it interrupted under it (BTN-1617): the same steps and `&group=<n>`.

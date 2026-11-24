@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { done, fakeMachines, setup, task } from './dispatcher.fixture.js'
+import { backlog, done, fakeMachines, setup, task } from './dispatcher.fixture.js'
 
 const lanesOf = (run: ReturnType<typeof setup>, project = 'ABC') =>
   run.dispatcher.state.active.filter((chain) => chain.project === project).map((chain) => [chain.machine, chain.current?.task ?? null])
@@ -142,6 +142,21 @@ describe('Dispatcher with machines (BTN-993)', () => {
     expect(() => run.dispatcher.reorder('ABC', ['ABC-4', 'ABC-1', 'ABC-2', 'ABC-3'])).toThrow('ABC-1 is running and stays first')
     run.dispatcher.reorder('ABC', ['ABC-2', 'ABC-1', 'ABC-4', 'ABC-3'])
     expect(run.dispatcher.state.orders.ABC).toEqual(['ABC-2', 'ABC-1', 'ABC-4', 'ABC-3'])
+  })
+
+  it.each([2, 3])('lands a backlog task above the queue right under %i running lanes, never between them (BTN-1641)', async (width) => {
+    const { machines } = fakeMachines({ pc: 1, server: 1, laptop: 1 }, { width: { ABC: width } })
+    const run = setup({ machines })
+    const queue = [task('ABC-1'), task('ABC-2'), task('ABC-3'), task('ABC-4')]
+    run.dispatcher.setTasks('ABC', [...queue, { ...task('ABC-9', backlog), priority: 'urgent' }])
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toHaveLength(width)
+    const running = queue.slice(0, width).map((each) => each.id)
+    expect(run.dispatcher.orders().ABC?.landing?.['ABC-9']).toBe(`ABC-${width + 1}`)
+
+    run.dispatcher.setTasks('ABC', [...queue, { ...task('ABC-9'), priority: 'urgent' }])
+    expect(run.dispatcher.orders().ABC?.order.slice(0, width + 1)).toEqual([...running, 'ABC-9'])
   })
 
   it('hands the next task to the machine with a free place', async () => {

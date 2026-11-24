@@ -30,6 +30,8 @@ export class TaskLists {
     private readonly reviews: Reviews,
     /** The task the project's chain leads, as `Dispatcher.currentOf` gives it. */
     private readonly currentOf: (project: string) => string | undefined,
+    /** Every lane's task, the head lane's first: they lead the order as one group (BTN-1611). */
+    private readonly runningOf: (project: string) => string[],
   ) {}
 
   maps(): Map<string, unknown>[] {
@@ -136,10 +138,8 @@ export class TaskLists {
     const outside = this.outside.get(project) ?? []
     const waiting = (this.waiting.get(project) ?? []).filter((task) => !outside.includes(task))
     const tasks = [...chain, ...waiting, ...(this.backlog.get(project) ?? [])]
-    const current = this.currentOf(project)
-    const preferred = current === undefined ? stored : [current, ...(stored ?? []).filter((id) => id !== current)]
     try {
-      return chainOrder(tasks, preferred)
+      return chainOrder(tasks, this.preferred(project, stored))
     } catch {
       return stored
     }
@@ -152,10 +152,11 @@ export class TaskLists {
     return { tasks: chain, blockers: waiting.filter((task) => !outside.includes(task)), current: this.currentOf(project) }
   }
 
+  /** The stored order with every running lane's task ahead of it, so nothing lands between or above them. */
   private preferred(project: string, stored = this.state.orders[project]): string[] | undefined {
-    const current = this.currentOf(project)
-    if (current === undefined) return stored
-    return [current, ...(stored ?? []).filter((id) => id !== current)]
+    const running = this.runningOf(project)
+    if (running.length === 0) return stored
+    return [...running, ...(stored ?? []).filter((id) => !running.includes(id))]
   }
 
   placeNew(project: string): boolean {
@@ -175,8 +176,9 @@ export class TaskLists {
     if (fresh.length === 0 && kept.length === stored.length) return undefined
 
     const preferred = this.preferred(project, kept)!.filter((id) => open.has(id))
-    const current = this.currentOf(project)
-    const base = withFresh(tasks, preferred, fresh, current !== undefined && preferred[0] === current ? 1 : 0)
+    const running = new Set(this.runningOf(project))
+    const pinned = preferred.findIndex((id) => !running.has(id))
+    const base = withFresh(tasks, preferred, fresh, pinned < 0 ? preferred.length : pinned)
     try {
       return chainOrder(tasks, base)
     } catch {
