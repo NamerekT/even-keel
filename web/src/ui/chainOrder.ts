@@ -9,12 +9,14 @@ export function inOrder(block: ChainBlock): boolean {
 }
 
 /**
- * How many tasks lead the order and stay there as one group: every lane's current one, or the one a running fix of main
- * interrupted (BTN-1611).
+ * How many rows a drop of the row at `from` stays under, the dispatcher's `jumpsAhead`: no running task — a lane's current
+ * one, or the one a running fix of main interrupted (BTN-1611) — that stands above it now gets it above itself. A task
+ * the chain passed over may stand between running ones (BTN-1643); a drop elsewhere does not trip over it.
  */
-export function pinnedHead(open: ChainBlock[]): number {
-  const free = open.findIndex((block) => !block.current && !block.interrupted)
-  return free < 0 ? open.length : free
+export function pinnedHead(open: ChainBlock[], from: number): number {
+  let last = -1
+  for (const [at, block] of open.slice(0, from).entries()) if (block.current || block.interrupted) last = at
+  return last + 1
 }
 
 /** The displayed order, shared by the drag preview and the optimistic drop. */

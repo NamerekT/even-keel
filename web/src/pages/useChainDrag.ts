@@ -189,7 +189,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
         const box = items.find((item) => item.dataset.block === id)!.getBoundingClientRect()
         return { left: box.left - rect.left, top: box.top - rect.top, width: box.width, height: box.height }
       })
-      const pinned = pinnedHead(open)
+      const pinned = pinnedHead(open, from)
       const state: Active = {
         pointerId: current.pointerId,
         id: current.id,

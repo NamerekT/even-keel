@@ -4,7 +4,7 @@ import type { ActiveChain, LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { isOwnName } from '../../../src/chain/fix.js'
 import { USER_MESSAGE_HEAD } from '../../../src/chain/user-message.js'
 import { launchDays } from '../../../src/chain/launches.js'
-import { checkOrder, startsAhead } from '../../../src/chain/order.js'
+import { checkOrder, jumpsAhead } from '../../../src/chain/order.js'
 import type { EvenKeelState, ProjectTask, SessionView } from '../../../src/state.js'
 import { accountCommand, withAccount } from './fakeAccounts.js'
 import { fakeUpdatesCommand } from './fakeUpdates.js'
@@ -205,7 +205,7 @@ function reorder(state: EvenKeelState, project: string, order: string[]): EvenKe
     })
   const kept = state.chain.projects[project] ?? { waiting: [], backlog: [] }
   const holding = [...(state.chain.skipped[project] ?? []), ...kept.waiting, ...running]
-  const ahead = running.find((current) => startsAhead(tasks, order, current, holding))
+  const ahead = running.find((current) => jumpsAhead(tasks, state.chain.projects[project]?.order ?? [], order, current, holding))
   if (ahead !== undefined) throw fail('chain.currentFirst', { task: ahead })
   return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { ...kept, order: [...order], error: null } } } }
 }
