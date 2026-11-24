@@ -200,7 +200,7 @@ export const statsRU = {
         `${trigger === 'auto' ? 'Автоматическая компакция' : 'Компакция через /compact'}: ${pre} → ${post} токенов`,
       noSessions: 'Сессий по задаче нет.',
       steps: 'Шаги:',
-      stepsNote: ' — доля времени задачи',
+      stepsNote: 'Доля времени задачи',
       launches,
     },
     chats: {

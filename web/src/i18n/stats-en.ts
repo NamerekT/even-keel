@@ -201,7 +201,7 @@ export const statsEN: Messages['stats'] = {
         `${trigger === 'auto' ? 'Automatic compaction' : 'Compaction by /compact'}: ${pre} → ${post} tokens`,
       noSessions: 'No sessions for the task.',
       steps: 'Steps:',
-      stepsNote: ' — share of the task time',
+      stepsNote: 'Share of the task time',
       launches,
     },
     chats: {

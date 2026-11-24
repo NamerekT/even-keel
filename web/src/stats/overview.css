@@ -341,9 +341,3 @@ a.stats__key:hover {
   padding-top: 4px;
   border-top: 1px solid var(--border);
 }
-
-.spend__hint {
-  margin: 0;
-  color: var(--fg-muted);
-  font-size: var(--text-12);
-}

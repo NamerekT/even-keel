@@ -168,7 +168,7 @@ export function Checkpoints({ thresholds, projects, fold }: { thresholds: Checkp
         ))}
       </ul>
       {shown.some(each => each.source === 'default') && <Tipped focusable tip={shown.filter(each => each.source === 'default').map(each => <div key={each.project}>{each.project}: {waiting(each)}</div>)}>
-        <span className="stats-section__note">{t.stats.checkpoint.defaults(shown.filter(each => each.source === 'default').length)}</span>
+        <span className="checkpoints__defaults">{t.stats.checkpoint.defaults(shown.filter(each => each.source === 'default').length)}</span>
       </Tipped>}
     </Section>
   )

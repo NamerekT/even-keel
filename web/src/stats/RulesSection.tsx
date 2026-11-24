@@ -62,13 +62,13 @@ function FileDiff({ file }: { file: RuleSetFile }) {
   const loaded = useStatsAnswer(key, () => statsRuleDiff(file.changes), false)
   const files = loadedData(loaded)
   if (files === null) return <AnswerNotice loaded={loaded} />
-  if (files.length === 0) return <p className="stats-section__note">{t.stats.rules.noTexts}</p>
+  if (files.length === 0) return <p className="stats-section__empty">{t.stats.rules.noTexts}</p>
   return (
     <div className="rule-diff">
       {files.map((each, index) => (
         <div key={`${each.key}:${index}`} className="rule-diff__file">
           <span className="rule-diff__head">
-            <span className="stats-section__note">
+            <span className="rule-diff__when">
               {formatMoment(each.fromAt, new Date())} → {formatMoment(each.toAt, new Date())}
             </span>
             <Lines added={each.added} removed={each.removed} />
@@ -190,7 +190,7 @@ function FileRow({ file, open, colors, onToggle }: { file: RuleSetFile; open: bo
         <span className="rule-file__path">{fileLabel(file.display)}</span>
         <Lines added={file.added} removed={file.removed} />
       </>}>
-        {() => file.changes.length === 0 ? <p className="stats-section__note rule-file__note">{t.stats.rules.noText}</p> : <FileDiff file={file} />}
+        {() => file.changes.length === 0 ? <p className="stats-section__empty rule-file__empty">{t.stats.rules.noText}</p> : <FileDiff file={file} />}
       </Fold>
     </li>
   )
@@ -237,10 +237,10 @@ function Picked({ marks, before, after, now, colors, trackerUrls }: { marks: Rul
   return (
     <Fold key={`${before}:${after}`} className="rule-card" summaryClassName="rule-card__head" summary={<>
         <span className="rule-card__title">{t.stats.rules.changed}</span>
-        <span className="stats-section__note">
+        <span className="rule-card__when">
           {day} {time}
         </span>
-        <span className="stats-section__note">{t.stats.rules.fileCount(summary.files)}</span>
+        <span className="rule-card__when">{t.stats.rules.fileCount(summary.files)}</span>
         <Lines added={summary.added} removed={summary.removed} />
       </>}>
       {[...days].map(([label, each]) => (
@@ -325,7 +325,7 @@ export function RulesSection({
       {rules === null ? (
         <AnswerNotice loaded={loaded} />
       ) : marks.length === 0 ? (
-        <p className="stats-section__note">{t.stats.rules.none}</p>
+        <p className="stats-section__empty">{t.stats.rules.none}</p>
       ) : (
         <>
           <ol className="rule-marks">
