@@ -1,7 +1,5 @@
 {
   "hotkeys/HotkeysDialog.tsx": 1,
-  "layout/AccountRoles.tsx": 1,
-  "layout/AccountRowMenu.tsx": 3,
   "layout/AddAccountDialog.tsx": 7,
   "layout/AddAccountPlace.tsx": 2,
   "layout/CliSource.tsx": 3,
@@ -16,8 +14,6 @@
   "layout/ReplaceKeyDialog.tsx": 1,
   "layout/SignFields.tsx": 2,
   "layout/Updates.tsx": 1,
-  "layout/accountParts.tsx": 17,
-  "layout/accountRows.tsx": 3,
   "pages/BacklogPanel.tsx": 1,
   "pages/BuiltinExport.tsx": 2,
   "pages/BuiltinImport.tsx": 5,

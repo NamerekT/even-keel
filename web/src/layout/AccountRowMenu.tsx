@@ -68,7 +68,7 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
                   pick(() => void role.pick())
                 }}>
                 <span className="roles__label"><role.icon />{role.label}{role.held && <span className="account-row__check">✓</span>}</span>
-                {!role.held && <span className="roles__note">{role.problem === undefined ? role.note : say(role.problem)}</span>}
+                {!role.held && (role.problem === undefined ? <span className="roles__aside">{role.note}</span> : <span className="roles__why">{say(role.problem)}</span>)}
               </button>
             </li>
           ))}
@@ -77,16 +77,16 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
           <li role="none"><button type="button" role="menuitem" className="roles__offer" onClick={() => pick(() => setRenaming(true))}>{t.account.renameAction}</button></li>
           {entry.keyReplaceable === true && !entry.removing && <li role="none"><button type="button" role="menuitem" className="roles__offer"
             onClick={() => pick(() => setReplacing(true))}>{t.account.replaceKey[keyWord(entry)]}</button></li>}
-          {entry.remoteOff === true && !entry.removing && <li role="none"><button type="button" role="menuitem" className="roles__offer"
+          {entry.remoteOff === true && !entry.removing && <li role="none"><button type="button" role="menuitem" className="roles__offer" title={t.account.enableRemoteNote}
             aria-disabled={sending} onClick={() => { if (!sending) pick(() => void send('account/remote', { account: entry.key })) }}>
-            {t.account.enableRemote}<span className="roles__note">{t.account.enableRemoteNote}</span>
+            {t.account.enableRemote}
           </button></li>}
           {entry.managementKey !== undefined && !entry.removing && <li role="none"><button type="button" role="menuitem" className="roles__offer"
             onClick={() => pick(() => setManaging(true))}>{t.account.managementKeyAction}</button></li>}
           <li role="none"><button type="button" role="menuitem" className="roles__offer account-row__remove"
             aria-disabled={problem !== undefined || entry.removing}
             onClick={() => { if (problem === undefined && !entry.removing) pick(() => setRemoving(true)) }}>
-            {t.common.remove}{problem !== undefined && <span className="roles__note">{say(problem)}</span>}
+            {t.common.remove}{problem !== undefined && <span className="roles__why">{say(problem)}</span>}
           </button></li>
           {fix !== null && <li role="none"><button type="button" role="menuitem" className="roles__offer"
             onClick={() => pick(() => go(fix, null))}>{fixLabel(fix)}</button></li>}

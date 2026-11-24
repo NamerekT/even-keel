@@ -219,7 +219,7 @@ function AccountRow({ entry, access, named, ...props }: RowsProps & { entry: Acc
     <OverageWarning entry={entry} view={view} />
     <MachineNotes entry={entry} send={send} sending={sending} />
     {page && <OwnSettings entry={entry} send={send} sending={sending} />}
-    {hasCopilot(entry) && !(unsupported && held.length === 0) && <p className="account-provider__note">{say(copilotNote())}</p>}
+    {hasCopilot(entry) && !(unsupported && held.length === 0) && <p className="account-provider__state">{say(copilotNote())}</p>}
   </AccountRowMenu>
 }
 
@@ -275,8 +275,8 @@ export function MenuMeters({ entry, now }: { entry: AccountEntry; now: Date }) {
   return <div className="account-row__meters">
     {limitSpans(entry.limits).map((span) => <AccountMeter key={span} entry={entry} span={span} now={now} plain />)}
     {entry.limits.models?.weeks.map((week) => <ModelMeter key={`model:${week.model}`} entry={entry} week={week} now={now} plain />)}
-    {[read, outdatedText(entry, now), staleText(entry)].filter(Boolean).map((note) => <span key={note} className="account-row__meters-note">{note}</span>)}
-    {resetsText(entry) !== null && <span className="account-row__meters-note">{resetsText(entry)}</span>}
+    {[read, outdatedText(entry, now), staleText(entry)].filter(Boolean).map((note) => <span key={note} className="account-row__meters-aside">{note}</span>)}
+    {resetsText(entry) !== null && <span className="account-row__meters-aside">{resetsText(entry)}</span>}
   </div>
 }
 

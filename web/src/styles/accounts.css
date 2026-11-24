@@ -230,7 +230,8 @@
   border: 0;
 }
 
-.accounts__note {
+.accounts__state,
+.accounts__problem {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -240,16 +241,16 @@
   font-size: var(--text-13);
 }
 
-.accounts__note--warn {
+.accounts__problem {
   color: var(--warn-fg);
 }
 
-.accounts__note--command {
+.accounts__problem--command {
   flex-direction: column;
   align-items: stretch;
 }
 
-.accounts__note--command .ui-command {
+.accounts__problem--command .ui-command {
   color: var(--fg);
 }
 
