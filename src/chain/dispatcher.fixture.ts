@@ -100,6 +100,9 @@ export interface SetupOptions {
   machines?: ChainMachines
   /** The landing of a session's merge (BTN-1581); absent — a merge counts as landed. */
   land?: MachinePort['land']
+  /** The fast-forward of a machine's main after another one pushed (BTN-1583). */
+  forward?: MachinePort['forward']
+  landingWaitMs?: number
 }
 
 /** The machines of the chain's pull for a test: `own` first, every one serving every project, each task free to bind. */
@@ -111,6 +114,8 @@ export function fakeMachines(
     held?: Record<string, string>
     serves?: ChainMachines['serves']
     gone?: Set<string>
+    /** The machines off the link now (BTN-1583); the set may change during the test. */
+    offline?: Set<string>
     /** The switch "Go on where a limit is left" (BTN-996). */
     switchOnLimit?: boolean
     hasLimit?: ChainMachines['hasLimit']
@@ -131,6 +136,7 @@ export function fakeMachines(
     holder: (_project, task) => bound[task],
     runs: options.runs ?? (() => true),
     gone: (machine) => options.gone?.has(machine) === true,
+    online: (machine) => options.offline?.has(machine) !== true,
     bind: (_project, task, machine) => {
       bound[task] = machine
     },
@@ -263,6 +269,7 @@ export function setup(options: SetupOptions = {}) {
       runAfterGreen: async () => ({ state: 'done' }),
       history: async () => ({ commits: [], greens: [] }),
       ...(options.land !== undefined && { land: options.land }),
+      ...(options.forward !== undefined && { forward: options.forward }),
       ...options.main,
     },
     projects: () => options.projects ?? ['ABC', 'XYZ', 'DEF'],
@@ -298,6 +305,7 @@ export function setup(options: SetupOptions = {}) {
     ...(options.pullRequests === true ? { pullRequests: () => true } : {}),
     ...(options.plain === true ? { plain: () => true } : {}),
     ...(options.machines === undefined ? {} : { machines: options.machines }),
+    ...(options.landingWaitMs === undefined ? {} : { landingWaitMs: options.landingWaitMs }),
   })
   return {
     dispatcher,

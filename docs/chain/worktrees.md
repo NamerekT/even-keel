@@ -46,7 +46,7 @@ The dispatcher keeps what a landing still holds in `ChainState.landings` (`docs/
 - **Refused** by the remote (a hook, permissions, `sync.notMain`) — the chain pauses on the task with `landing.refused` and git's text as its cause; no round.
 - A task that leaves the chain meanwhile (cancelled, back in Backlog, Done by hand) drops its record; the main checkout is already clean after the roll-back. A session mid-turn is not landed: its turn may still be merging. For the same reason a fix of main (`MainFix.yields`) asks the machine's `merged(project, task, true)` — merged into the local `main`, not landed — so a session whose branch is merged only locally is not stopped mid-turn; its landing follows the turn.
 
-The landing runs on the machine that holds the task's checkout; landings of one project on several machines are not queued against each other yet.
+The landing runs on the machine that holds the task's checkout. A project lands one task at a time on all its machines, and a landing that went through brings the other machines' `main` up to the pushed commit (BTN-1583, `docs/machines.md`, "Landings across machines"). A step waits for a landing at most `LANDING_WAIT_MS` (2 s); a longer one — a merge with `commands.check`, a machine off the link — goes on behind the chain with the task held, and its end wakes the chain.
 
 ## Cleanup after Done
 

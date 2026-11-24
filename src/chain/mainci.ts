@@ -2,6 +2,7 @@ import type { CiView } from '../ci/model.js'
 import { redReport, type FailedRun } from '../ci/report.js'
 import { CI_TITLES, verdictOf, type RedRun } from '../ci/verdict.js'
 import type { EventDraft } from '../event-log/model.js'
+import type { ForwardOutcome } from '../git/sync.js'
 import type { Git } from '../git/types.js'
 import type { Language } from '../language.js'
 import { mainMachineDeps } from '../machine/main.js'
@@ -59,7 +60,7 @@ export interface MainCiDeps {
   /** Main went green at a commit (`MainCheckDeps.green`). */
   green?: (project: string, commit: string) => void
   /** Brings a machine elsewhere's main up to the green commit by fast-forward, where it can (BTN-994). */
-  forward?: (project: string, commit: string) => Promise<void>
+  forward?: (project: string, commit: string) => Promise<ForwardOutcome>
   /** The name the project's fix session runs under (`fixNameOf`). */
   fixName: (project: string) => string
   /** Writes an entry of the event log. */

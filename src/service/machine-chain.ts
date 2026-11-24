@@ -191,6 +191,8 @@ export function wireMachine(ctx: MachineContext, handedOver: (snapshot: HandoffS
       if (outcome.state !== 'none') console.log(`git: the landing of ${task} into ${ctx.branchOf(project)}: ${landingLine(outcome)}`)
       return outcome
     },
+    // Another machine pushed main (BTN-1583): only a fast-forward, a checkout in use is left as it is.
+    forward: (project, commit) => fastForwardTo(ctx.git, ctx.configStore.current.projects[project]!, ctx.branchOf(project), commit),
     stop: async (session) => {
       await ctx.stopIn(ctx.homeOf(session.account), session)
       const task = ctx.sessions.find((view) => view.sessionId === session.sessionId)?.task

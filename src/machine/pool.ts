@@ -77,6 +77,9 @@ export function machinePool(deps: PoolDeps): MachinePort {
     ...(first.land === undefined
       ? {}
       : { land: (project: string, task: string, commit?: string) => byTask(project, task).land?.(project, task, commit) ?? Promise.resolve({ state: 'none' as const }) }),
+    ...(first.forward === undefined
+      ? {}
+      : { forward: (project: string, commit: string, machine?: string) => at(machine).forward?.(project, commit) ?? Promise.resolve('offMain' as const) }),
     changes: (project, workdir) => at(deps.folderMachine(workdir)).changes(project, workdir),
     history: (project, commit, candidates) => own().history(project, commit, candidates),
     ...(first.modelBlock === undefined ? {} : { modelBlock: async (project: string, task: string) => byTask(project, task).modelBlock?.(project, task) }),

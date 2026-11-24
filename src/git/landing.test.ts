@@ -97,8 +97,9 @@ describe('landTask (BTN-1581)', { timeout: 60_000 }, () => {
     expect(await landedCommits(runGit, first, 'ABC-1', MAIN)).toEqual([])
     const check = checking()
 
-    expect(await land({ check })).toEqual({ state: 'landed' })
+    const outcome = await land({ check })
 
+    expect(outcome).toEqual({ state: 'landed', commit: await git(remote, 'rev-parse', MAIN) })
     expect(check.runs).toBe(0)
     expect(await git(remote, 'rev-parse', MAIN)).toBe(await git(first, 'rev-parse', MAIN))
     expect(await landedCommits(runGit, first, 'ABC-1', MAIN)).toHaveLength(1)
@@ -109,7 +110,7 @@ describe('landTask (BTN-1581)', { timeout: 60_000 }, () => {
     await pushElsewhere('other.txt', 'theirs')
     const check = checking()
 
-    expect(await land({ check })).toEqual({ state: 'landed' })
+    expect(await land({ check })).toMatchObject({ state: 'landed' })
 
     expect(check.runs).toBe(1)
     const log = await git(remote, 'log', '--format=%s', MAIN)
@@ -212,7 +213,7 @@ describe('landTask (BTN-1581)', { timeout: 60_000 }, () => {
     await git(first, 'merge', '-q', '--no-edit', '-X', 'ours', `origin/${MAIN}`)
     await git(first, 'checkout', '-q', MAIN)
     await git(first, 'merge', '-q', '--no-edit', 'abc-1/task')
-    expect(await land()).toEqual({ state: 'landed' })
+    expect(await land()).toMatchObject({ state: 'landed' })
   })
 
   it('lands the release commit of a carry, named by the caller', async () => {
@@ -223,7 +224,7 @@ describe('landTask (BTN-1581)', { timeout: 60_000 }, () => {
     await git(first, 'merge', '-q', '--no-ff', '--no-edit', 'release')
     expect(await landedCommit(runGit, first, commit, MAIN)).toBe(false)
 
-    expect(await land({ commit })).toEqual({ state: 'landed' })
+    expect(await land({ commit })).toMatchObject({ state: 'landed' })
 
     expect(await landedCommit(runGit, first, commit, MAIN)).toBe(true)
   })

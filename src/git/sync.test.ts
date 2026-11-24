@@ -236,21 +236,31 @@ describe('fastForwardTo (BTN-994)', () => {
   const clean = {
     'branch --show-current': { out: 'main' },
     'status --porcelain --untracked-files=no': { out: '' },
+    'rev-parse --quiet --verify MERGE_HEAD': { code: 1 },
     remote: { out: 'origin\nmirror' },
   }
   const commit = 'c'.repeat(40)
 
   it('fetches every remote and fast-forwards main to the commit, not past it', async () => {
     const { git, calls } = fakeGit({ ...clean, 'fetch origin': { code: 128 } })
-    await fastForwardTo(git, repo, 'main', commit)
-    expect(calls).toEqual(['branch --show-current', 'status --porcelain --untracked-files=no', 'remote', 'fetch origin', 'fetch mirror', `merge --ff-only ${commit}`])
+    expect(await fastForwardTo(git, repo, 'main', commit)).toBe('forwarded')
+    expect(calls).toEqual([
+      'branch --show-current', 'status --porcelain --untracked-files=no', 'rev-parse --quiet --verify MERGE_HEAD', 'remote', 'fetch origin', 'fetch mirror', `merge --ff-only ${commit}`,
+    ])
   })
 
-  it('leaves a checkout off main or with changes to tracked files', async () => {
+  it('leaves a checkout off main, with changes to tracked files or in the middle of a merge, and says which', async () => {
     const off = fakeGit({ ...clean, 'branch --show-current': { out: 'abc-7/task' } })
-    await fastForwardTo(off.git, repo, 'main', commit)
+    expect(await fastForwardTo(off.git, repo, 'main', commit)).toBe('offMain')
     const changed = fakeGit({ ...clean, 'status --porcelain --untracked-files=no': { out: ' M a.ts' } })
-    await fastForwardTo(changed.git, repo, 'main', commit)
-    expect([...off.calls, ...changed.calls].some((call) => call.startsWith('fetch') || call.startsWith('merge'))).toBe(false)
+    expect(await fastForwardTo(changed.git, repo, 'main', commit)).toBe('dirty')
+    const merging = fakeGit({ ...clean, 'rev-parse --quiet --verify MERGE_HEAD': { code: 0, out: 'd'.repeat(40) } })
+    expect(await fastForwardTo(merging.git, repo, 'main', commit)).toBe('merging')
+    expect([...off.calls, ...changed.calls, ...merging.calls].some((call) => call.startsWith('fetch') || call.startsWith('merge'))).toBe(false)
+  })
+
+  it('says a main ahead or diverged was not fast-forwarded', async () => {
+    const { git } = fakeGit({ ...clean, [`merge --ff-only ${commit}`]: { code: 128, out: 'fatal: Not possible to fast-forward, aborting.' } })
+    expect(await fastForwardTo(git, repo, 'main', commit)).toBe('notFastForward')
   })
 })

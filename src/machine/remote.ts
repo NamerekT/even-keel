@@ -148,6 +148,7 @@ export class RemoteMachine {
       merged: (project, task, local) => call('merged', { project }, local === true ? [project, task, true] : [project, task]),
       carried: (project, commit) => call('carried', { project }, [project, commit]),
       land: (project, task, commit) => call('land', { project }, commit === undefined ? [project, task] : [project, task, commit]),
+      forward: (project, commit) => call('forward', { project }, [project, commit]),
       changes: (project, workdir) => call('changes', { project, folder: workdir }, [project, workdir]),
       history: (project, commit, candidates) => call('history', { project }, [project, commit, candidates]),
       modelBlock: (project, task) => call('modelBlock', { project }, [project, task]),

@@ -13,6 +13,8 @@ export interface ChainMachineDeps {
   componentLanes?: ChainMachines['componentLanes']
   machineOf: (project: string, task: string) => string | undefined
   revoked: (machine: string) => boolean
+  /** The machine elsewhere is on the link now. */
+  connected?: (machine: string) => boolean
   /** The agent the task's sessions run on: its run's provider, else the project's. */
   agentOf: (project: string, task: string) => string
   /** The agents the machine has an account folder of; `undefined` — not known yet. */
@@ -50,6 +52,7 @@ export function chainMachines(deps: ChainMachineDeps): ChainMachines {
     width: (project) => Math.max(1, deps.width(project)),
     holder: deps.machineOf,
     gone: deps.revoked,
+    ...(deps.connected === undefined ? {} : { online: (machine: string) => machine === deps.own() || deps.connected!(machine) }),
     runs: (project, task, machine) => {
       if (deps.movedFrom?.(project, task) === machine) return false
       const agent = deps.agentOf(project, task)

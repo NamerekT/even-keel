@@ -382,6 +382,8 @@ export interface DispatcherDeps {
   parallel: () => number
   /** The machines tasks go to (BTN-993); absent — the own machine alone, `parallel` its capacity, every project one lane. */
   machines?: ChainMachines
+  /** How long a step waits for a landing before it goes on in the background (`LANDING_WAIT_MS`); for tests. */
+  landingWaitMs?: number
   /** The project's chain rules; with a task, the rules of the feed it comes from (BTN-66), whose tracker has statuses of its own. */
   rules: (project: string, task?: string) => ChainRules
   /** The project's current `fillMilestone` setting; absent means off. */
@@ -463,6 +465,8 @@ export interface ChainMachines {
   runs: (project: string, task: string, machine: string) => boolean
   /** The machine was revoked: its lanes end, their tasks staying with it. Absent — none is. */
   gone?: (machine: string) => boolean
+  /** The machine is on the link now, the own one always: a landing there holds the project's turn (BTN-1583). Absent — every one is. */
+  online?: (machine: string) => boolean
   /** The task goes to the machine: its facts and its launch are asked there from now on. */
   bind: (project: string, task: string, machine: string) => void
   /**

@@ -13,14 +13,15 @@ export interface LandRed {
 /**
  * How a landing of a task's merge into the main of its remotes went (BTN-1581):
  * - `none` — nothing of the task waits to land: not merged into the local main, landed already, or no remote;
- * - `landed` — main is pushed to every remote;
+ * - `landed` — main is pushed to every remote, at `commit` (unset — not read): the hub brings the other machines' main
+ *   up to it (BTN-1583);
  * - `returned` — main of `remote` does not merge cleanly (`files`) or the check of the merge is red (`red`): the local
  *   main is rolled back to before the session's merge, for the session to resolve;
  * - `failed` — a remote out of reach (`network`) or a refusal only a person can deal with; main is left as it is.
  */
 export type LandOutcome =
   | { state: 'none' }
-  | { state: 'landed' }
+  | { state: 'landed'; commit?: string }
   | { state: 'returned'; remote: string; files: string[] }
   | { state: 'returned'; remote: string; red: LandRed }
   | { state: 'failed'; network: boolean; failure: Notice }
@@ -98,7 +99,7 @@ async function landOnce(git: Git, repo: string, remotes: string[], request: Land
 
 async function landByAlias(git: Git, repo: string, remotes: string[], main: string, base: string): Promise<LandOutcome> {
   const synced = await git(repo, ['sync'])
-  if (synced.code === 0) return { state: 'landed' }
+  if (synced.code === 0) return landed(git, repo, main)
   const files = await unmerged(git, repo)
   if (files.length > 0 || /^CONFLICT/m.test(synced.out)) {
     await git(repo, ['merge', '--abort'])
@@ -132,7 +133,12 @@ async function landOwn(git: Git, repo: string, remotes: string[], { main, check 
     const pushed = await git(repo, ['push', remote, main])
     if (pushed.code !== 0) return failed(readOnly(pushed) ?? notice('sync.push', { remote, main }, { detail: pushed.out }))
   }
-  return { state: 'landed' }
+  return landed(git, repo, main)
+}
+
+async function landed(git: Git, repo: string, main: string): Promise<LandOutcome> {
+  const head = await git(repo, ['rev-parse', '--verify', '--quiet', `refs/heads/${main}`])
+  return head.code === 0 && head.out.trim() !== '' ? { state: 'landed', commit: head.out.trim() } : { state: 'landed' }
 }
 
 async function unmerged(git: Git, repo: string): Promise<string[]> {

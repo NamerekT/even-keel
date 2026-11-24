@@ -110,16 +110,22 @@ export async function fastForwardMain(git: Git, repo: string, main = 'main'): Pr
   }
 }
 
+/** How `fastForwardTo` left main: brought up to the commit (or holding it already), or left as it was and why. */
+export type ForwardOutcome = 'forwarded' | 'offMain' | 'dirty' | 'merging' | 'notFastForward'
+
 /**
- * Brings a machine elsewhere's main up to a green commit by fast-forward only, before its commands after a green main
- * (BTN-994): not past it, so they run on the commit that was green. A checkout off main, with changes to tracked files,
- * ahead or diverged is left as it is; the run then says why it skipped.
+ * Brings a machine's main up to a commit by fast-forward only: a green one before its commands after a green main
+ * (BTN-994), not past it, so they run on the commit that was green; the one another machine pushed (BTN-1583). A
+ * checkout off main, with changes to tracked files, in the middle of a merge, ahead or diverged is left as it is.
  */
-export async function fastForwardTo(git: Git, repo: string, main: string, commit: string): Promise<void> {
-  if (!(await cleanOnMain(git, repo, main))) return
+export async function fastForwardTo(git: Git, repo: string, main: string, commit: string): Promise<ForwardOutcome> {
+  if ((await git(repo, ['branch', '--show-current'])).out.trim() !== main) return 'offMain'
+  const status = await git(repo, ['status', '--porcelain', '--untracked-files=no'])
+  if (status.code !== 0 || status.out.trim() !== '') return 'dirty'
+  if ((await git(repo, ['rev-parse', '--quiet', '--verify', 'MERGE_HEAD'])).code === 0) return 'merging'
   const remotes = (await git(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
   for (const remote of remotes) await git(repo, ['fetch', remote])
-  await git(repo, ['merge', '--ff-only', commit])
+  return (await git(repo, ['merge', '--ff-only', commit])).code === 0 ? 'forwarded' : 'notFastForward'
 }
 
 async function cleanOnMain(git: Git, repo: string, main: string): Promise<boolean> {

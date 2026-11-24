@@ -1,6 +1,7 @@
 import type { AfterGreenRun, Launched, LimitsWait, MainCheckRun, ModelWeekHold, PullCleanup } from '../chain/model.js'
 import type { AccountNow, HandoffReason, HandoffSession, LimitedSession } from '../chain/relay.js'
 import type { LandOutcome } from '../git/landing.js'
+import type { ForwardOutcome } from '../git/sync.js'
 import type { Changes, FinishOutcome } from '../git/types.js'
 import type { OverageSession } from '../limits/overage-session.js'
 import type { Notice } from '../notice/notice.js'
@@ -97,6 +98,12 @@ export interface MachinePort {
    * merge. `commit` — a carry's release commit, standing for the branches. Absent — a merge counts as landed.
    */
   land?: (project: string, task: string, commit?: string) => Promise<LandOutcome>
+  /**
+   * Command. Brings the project's main up to `commit`, which another machine pushed, by fast-forward only (`fastForwardTo`,
+   * BTN-1583): a checkout off main, with changes, mid-merge, ahead or diverged is left. `machine` — the pool's only: whose
+   * checkout. Absent — the machine is never told.
+   */
+  forward?: (project: string, commit: string, machine?: string) => Promise<ForwardOutcome>
   /** Query. What a session's working folder holds beyond main: commits ahead and uncommitted files. */
   changes: (project: string, workdir: string) => Promise<Changes>
   /** Query. The commits a red main's report lists up to `commit`, and which of `candidates` are green commits behind it. */

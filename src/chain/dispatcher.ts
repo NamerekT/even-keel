@@ -88,7 +88,7 @@ export class Dispatcher {
       working: (task) => this.cleanups.working(task),
       dropUnmerged: (project, task, pull) => this.cleanups.dropUnmerged(project, task, pull),
     })
-    this.landings = new Landings(state, deps, this.handovers, { hold: (chain, error) => this.halt(chain, error, true) })
+    this.landings = new Landings(state, deps, this.handovers, { hold: (chain, error) => this.halt(chain, error, true), wake: () => this.kick() }, deps.landingWaitMs)
     this.unchanged = new Unchanged(deps, this.handovers, (chain, error) => this.halt(chain, error, true))
     this.talks = new Talks(state, deps, this.handovers, this.unchanged, this.pauses, {
       chainOf: (project, task) => this.chainOf(project, task),

@@ -474,6 +474,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     componentLanes: (project) => ctx.configStore.current.settings[project]?.componentLanes === true,
     machineOf: (project, task) => assignments.machineOf(project, task),
     revoked: (machine) => network.revoked(machine),
+    connected: (machine) => network.connected(machine),
     // As `BranchControl.held`: the machine reads only its projects with git, so a project without one is never there.
     held: (project, machine) => {
       const current = machine === own ? undefined : network.remote(machine)?.facts()?.checkouts?.[project]?.branch
