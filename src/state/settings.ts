@@ -232,6 +232,8 @@ export interface SharedForm {
   contextHandoffs: boolean
   /** Hours a waiting chain session's cache is kept warm (BTN-437); 0 — off. */
   keepWarm: number
+  /** Live project chat sessions a machine keeps (BTN-1653). */
+  chatSessions: number
   /** The largest attachment of a built-in task, megabytes (BTN-773). */
   attachmentLimit: number
   /** The project wizard's mode for a new project (BTN-886); `null` — not asked yet. */

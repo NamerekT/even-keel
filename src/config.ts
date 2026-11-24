@@ -112,6 +112,8 @@ export interface EvenKeelConfig {
   parallel: number
   /** Hours a waiting chain session's cache is kept warm after its last answer (BTN-437); 0 — off. */
   keepWarm: number
+  /** Live project chat sessions a machine keeps; a new one past them stops the longest idle (BTN-1653). */
+  chatSessions: number
   /** The largest attachment of a built-in task, megabytes (BTN-773). */
   attachmentLimit: number
   /** The mode the project wizard offers a new project (BTN-886): `false` — without git; `null` — not asked yet, by whether git starts. */
@@ -372,6 +374,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     landingHold: shared.landingHold as boolean,
     parallel: shared.parallel as number,
     keepWarm: shared.keepWarm as number,
+    chatSessions: shared.chatSessions as number,
     attachmentLimit: shared.attachmentLimit as number,
     defaultGit: shared.defaultGit as boolean | null,
     setupPassed: shared.setupPassed as PassableStep[],

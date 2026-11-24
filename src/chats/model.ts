@@ -132,6 +132,28 @@ export const SAID_CHARS = 20_000
 export const LAST_CHARS = 1_000
 /** A turn ended with no cache window known is taken as cold after Claude's shortest cache. */
 const COLD_AFTER_MS = 5 * 60 * 1000
+/** States whose session works or waits for the user: never stopped to make room (BTN-1653). */
+const BUSY: ReadonlySet<ChatState> = new Set(['starting', 'working', 'waiting'])
+
+export interface LiveChat {
+  id: string
+  state: ChatState
+  lastAt: string
+}
+
+/**
+ * The live chats of a machine to stop so that one more fits under `ceiling` (BTN-1653): the idle ones, the longest idle
+ * first; fewer, none at all, when the rest work or wait — the ceiling never holds a chat back.
+ */
+export function roomFor(live: readonly LiveChat[], ceiling: number): string[] {
+  const over = live.length + 1 - ceiling
+  if (over <= 0) return []
+  return live
+    .filter((chat) => !BUSY.has(chat.state))
+    .sort((a, b) => Date.parse(a.lastAt) - Date.parse(b.lastAt))
+    .slice(0, over)
+    .map((chat) => chat.id)
+}
 
 export function isChatName(name: string | undefined): boolean {
   return name !== undefined && /^chat-[0-9a-f]{12}$/.test(name)

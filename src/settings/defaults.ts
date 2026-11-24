@@ -23,6 +23,8 @@ export const DEFAULT_LANGUAGE: Language = 'en'
 /** The chain sessions' cache lifetime and keep-warm hours (BTN-1401): 5 minutes kept warm is cheaper than an hour. */
 export const DEFAULT_CACHE_TTL: CacheTtl = '5m'
 export const DEFAULT_KEEP_WARM = 2
+/** Live project chat sessions a machine keeps (BTN-1653): a new one past them stops the longest idle. */
+export const DEFAULT_CHAT_SESSIONS = 3
 export const DEFAULT_CONTEXT: Readonly<ContextScale> = { warn: 50, danger: 80 }
 export const DEFAULT_COMPARE: Readonly<CompareSettings> = { minTasks: 5, minSessions: 10, days: 7 }
 export const DEFAULT_CI: Readonly<CiSettings> = Object.freeze({

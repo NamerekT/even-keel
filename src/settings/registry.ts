@@ -25,7 +25,7 @@ import { isTallyMode } from '../stats/mode.js'
 import { DEFAULT_HIDDEN_SKILLS } from '../tools/settings.js'
 import { DEFAULT_TRACKER } from '../tracker/adapters.js'
 import { DEFAULT_UPDATES } from '../updates/release.js'
-import { DEFAULT_ACCOUNTS, DEFAULT_CACHE_TTL, DEFAULT_CI, DEFAULT_CLI, DEFAULT_COMPARE, DEFAULT_CONTEXT, DEFAULT_EXECUTION, DEFAULT_KEEP_WARM, DEFAULT_MODELS, DEFAULT_SLOT_CLEANUP } from './defaults.js'
+import { DEFAULT_ACCOUNTS, DEFAULT_CACHE_TTL, DEFAULT_CHAT_SESSIONS, DEFAULT_CI, DEFAULT_CLI, DEFAULT_COMPARE, DEFAULT_CONTEXT, DEFAULT_EXECUTION, DEFAULT_KEEP_WARM, DEFAULT_MODELS, DEFAULT_SLOT_CLEANUP } from './defaults.js'
 
 /** `global` — Even Keel's own value, the top level of the file; `project` — a project's, its entry in `projects`. */
 export type Scope = 'global' | 'project'
@@ -247,6 +247,11 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > MAX_KEEP_WARM_HOURS) {
       throw fail('config.keepWarm', { value: json(value), max: String(MAX_KEEP_WARM_HOURS) })
     }
+    return value
+  } },
+  // Live project chat sessions a machine keeps (BTN-1653): a new one past them stops the longest idle one.
+  { key: 'chatSessions', kind: 'integer', scopes: ['global'], lands: ['chatSessions'], default: DEFAULT_CHAT_SESSIONS, check: (value) => {
+    if (!Number.isInteger(value) || (value as number) < 1) throw fail('config.chatSessions', { value: json(value) })
     return value
   } },
   // The largest attachment of a built-in task, megabytes (BTN-773).

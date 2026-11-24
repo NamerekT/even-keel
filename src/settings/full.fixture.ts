@@ -30,6 +30,7 @@ export const FULL = {
   openCodeAutoCompactWindow: 200_000,
   contextHandoffs: false,
   keepWarm: 3,
+  chatSessions: 5,
   attachmentLimit: 50,
   defaultGit: false,
   setupPassed: ['tracker', 'tracker', 'updates'],

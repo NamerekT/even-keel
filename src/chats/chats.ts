@@ -13,7 +13,9 @@ import {
   keptTitleOf,
   lastAtOf,
   lastMessageOf,
+  roomFor,
   sortActive,
+  stateOf,
   withSaid,
   type ChatCard,
   type ChatChoice,
@@ -47,6 +49,8 @@ export interface ProjectChatsDeps {
   log: (line: string) => void
   now: () => Date
   newId?: () => string
+  /** The `chatSessions` setting, read at each launch: live chat sessions a machine keeps (BTN-1653). */
+  ceiling: () => number
 }
 
 export interface ChatMessageIn {
@@ -56,6 +60,8 @@ export interface ChatMessageIn {
 }
 
 const newChatId = (): string => CHAT_PREFIX + randomBytes(6).toString('hex')
+/** How long a session stopped as idle counts as stopped while the machine's view of it may still say it lives. */
+const STOP_SEEN_MS = 2 * 60 * 1000
 
 /**
  * The project chats on the hub (BTN-1230, `docs/sessions/project-chats.md`): the records, their sessions through the
@@ -66,6 +72,8 @@ export class ProjectChats {
   private readonly starting = new Set<string>()
   /** The chats going on in a new session now (`renew`). */
   private readonly moving = new Set<string>()
+  /** The chats whose session was stopped as idle (BTN-1653), with the time of the stop. */
+  private readonly idled = new Map<string, number>()
 
   constructor(private readonly deps: ProjectChatsDeps) {}
 
@@ -123,6 +131,8 @@ export class ProjectChats {
     const folder = view?.cwd ?? (await this.deps.placeOf(chat.project, machine)).folder
     const files = await this.saveFiles(services, chat.project, folder, message.files)
     const prompt = replyPrompt({ from: 'page', answers: message.answers ?? {}, text: message.text, files }, view?.ask ?? null, this.deps.language(chat.project))
+    if (!this.running(chat)) await this.makeRoom(chat, machine)
+    this.idled.delete(id)
     let sessionId: string
     if (chat.sessionId === null) {
       this.starting.add(id)
@@ -238,7 +248,8 @@ export class ProjectChats {
 
   /**
    * Once a minute: keeps what the sessions said (the last message, its time, the title the agent gave), launches what a
-   * restart left pending and moves to the archive the chats whose last event is a day old.
+   * restart left pending, stops the live sessions whose cache went cold (BTN-1653) and moves to the archive the chats
+   * whose last event is a day old.
    */
   async sweep(): Promise<void> {
     const now = this.deps.now()
@@ -254,6 +265,7 @@ export class ProjectChats {
         await this.archive(chat.id, { anyway: true }).catch((error: unknown) => this.deps.log(`chats: ${chat.id} did not go to the archive: ${messageOf(error)}`))
         continue
       }
+      if (!this.moving.has(chat.id) && this.running(chat) && stateOf(chat, view, false, now) === 'cold') await this.stopIdle(chat, 'its cache went cold')
       const title = await this.titleOf(chat)
       const last = lastMessageOf(view) ?? chat.last
       if (title === chat.title && lastAt === chat.lastAt && JSON.stringify(last) === JSON.stringify(chat.last)) continue
@@ -304,7 +316,48 @@ export class ProjectChats {
     await services.chats.stop(chat.id)
   }
 
+  /**
+   * The chat's session process is up: its launch is under way, or the machine's view of it is not `finished`. One
+   * stopped as idle counts as stopped for `STOP_SEEN_MS`, while that view may still be the one from before the stop.
+   */
+  private running(chat: ChatRecord): boolean {
+    if (this.starting.has(chat.id)) return true
+    const stoppedAt = this.idled.get(chat.id)
+    if (stoppedAt !== undefined) {
+      if (this.deps.now().getTime() - stoppedAt < STOP_SEEN_MS) return false
+      this.idled.delete(chat.id)
+    }
+    const view = this.viewOf(chat)
+    return view !== undefined && view.lamp !== 'finished'
+  }
+
+  /**
+   * Before a session of `chat` comes up on `machine`: stops the machine's longest idle chat sessions over the
+   * `chatSessions` ceiling (BTN-1653, exception 11). A stop that fails is a line in the log; the launch goes on.
+   */
+  private async makeRoom(chat: ChatRecord, machine: string): Promise<void> {
+    const live = this.deps.store.active().filter((other) => other.id !== chat.id && other.machine === machine && this.running(other))
+    const ceiling = this.deps.ceiling()
+    const cards = live.map((other) => ({ id: other.id, state: this.cardOf(other).state, lastAt: lastAtOf(other, this.viewOf(other)) }))
+    for (const id of roomFor(cards, ceiling)) {
+      const other = live.find((each) => each.id === id)!
+      await this.stopIdle(other, `${chat.id} starts on its machine past the ceiling of ${ceiling} live chat sessions`)
+    }
+  }
+
+  /** Stops an idle chat's session; the chat stays active and its next message resumes it. */
+  private async stopIdle(chat: ChatRecord, why: string): Promise<void> {
+    try {
+      await this.stop(chat)
+      this.idled.set(chat.id, this.deps.now().getTime())
+      this.deps.log(`chats: ${chat.id}: the session ${chat.sessionId} stopped: ${why}`)
+    } catch (error) {
+      this.deps.log(`chats: ${chat.id}: the session ${chat.sessionId} was not stopped (${why}): ${messageOf(error)}`)
+    }
+  }
+
   private putArchived(chat: ChatRecord, successor: string | null): void {
+    this.idled.delete(chat.id)
     const view = this.viewOf(chat)
     const now = this.deps.now().toISOString()
     this.deps.store.put({ ...chat, last: lastMessageOf(view) ?? chat.last, lastAt: lastAtOf(chat, view), archivedAt: now, successor, pending: null })
@@ -326,6 +379,7 @@ export class ProjectChats {
   private async launchPending(chat: ChatRecord, services: Pick<MachineServices, 'chats'>, folder: string): Promise<ChatCard> {
     const prompt = chat.pending
     if (prompt === null) return this.cardOf(chat)
+    if (chat.machine !== null) await this.makeRoom(chat, chat.machine)
     this.starting.add(chat.id)
     this.deps.changed()
     let sessionId: string

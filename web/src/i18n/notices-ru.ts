@@ -860,6 +860,7 @@ export const noticesRu: NoticeTexts = {
   'config.openCodeAutoCompactWindow': (p) => `Окно автокомпакта OpenCode: ${p.value} — нужно положительное целое число токенов или null для собственного окна модели`,
   'config.parallel': (p) => `parallel должен быть целым числом от 1, а не ${p.value}`,
   'config.keepWarm': (p) => `keepWarm должен быть целым числом часов от 0 до ${p.max}, а не ${p.value}`,
+  'config.chatSessions': (p) => `chatSessions должен быть целым числом сессий от 1, а не ${p.value}`,
   'config.attachmentLimit': (p) => `attachmentLimit должен быть целым числом мегабайт от 1 до ${p.max}, а не ${p.value}`,
   'config.backupDir': (p) => `backup.dir должен быть абсолютным путём к папке или пустым, а не ${p.value}`,
   'config.machinesAddress': (p) => `Адрес хаба для машин должен быть именем хоста или IP-адресом, при нужде с портом через двоеточие, или пустым, а не ${p.value}`,
