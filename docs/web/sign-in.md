@@ -17,6 +17,8 @@ The guard (`guard()` in `src/guard.ts`) runs before every route and gives one ve
 | Not signed in, a page file (`GET` outside `/api/`) or `/api/auth/*` | a visit: the page loads and draws its sign-in screen |
 | Anything else | 401 |
 
+In Docker the host's browser reaches the hub through the container's gateway, not loopback: with the owner key set, `localhost` on the host is asked to sign in too, and the devices list shows the gateway's address for every device.
+
 The address of a request behind a proxy on this machine is the first `X-Forwarded-For` (`addressOf`); from elsewhere the socket's, which a header cannot fake. The machines' link, the MCP gateway and the hooks are not touched by the sign-in.
 
 A blocked service (a broken config) has no book: there the cookie holds the key itself and the server's form asks for it, as before BTN-1619.
