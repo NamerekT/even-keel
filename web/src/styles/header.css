@@ -454,8 +454,7 @@
   text-transform: uppercase;
 }
 
-.queue__empty,
-.queue__hint {
+.queue__empty {
   margin: 0;
   color: var(--fg-muted);
   font-size: var(--text-13);

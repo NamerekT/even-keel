@@ -47,7 +47,7 @@
   border-left-color: var(--lamp-idle);
 }
 
-.task-card__hint {
+.task-card__problem {
   margin: 0;
   color: var(--warn-fg);
   font-size: var(--text-13);
@@ -215,7 +215,7 @@
   transform: scaleY(-1);
 }
 
-.task-card__run-note {
+.task-card__run-state {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -226,7 +226,7 @@
   line-height: 1.45;
 }
 
-.task-card__run-note--warn {
+.task-card__run-state--warn {
   color: var(--warn-fg);
 }
 

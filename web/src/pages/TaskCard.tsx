@@ -464,7 +464,7 @@ function Action({ hint, problem, children }: { hint: string; problem: string | n
   return (
     <div className="task-card__ready">
       <ButtonWithTip action={children} label={t.card.actionHelp} tip={hint} />
-      {problem !== null && <p className="task-card__hint">{problem}</p>}
+      {problem !== null && <p className="task-card__problem">{problem}</p>}
     </div>
   )
 }

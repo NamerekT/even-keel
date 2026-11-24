@@ -123,6 +123,21 @@
   gap: var(--space-8);
 }
 
+.transfer__state,
+.transfer__empty {
+  margin: 0;
+  padding: var(--space-6) var(--space-12);
+  border-radius: var(--radius-strip);
+  background: color-mix(in srgb, var(--fg) 10%, var(--surface-muted));
+  color: var(--fg);
+  font-size: var(--text-12);
+  line-height: 1.45;
+}
+
+.transfer__empty {
+  color: var(--fg-muted);
+}
+
 .transfer__muted {
   color: var(--fg-muted);
 }

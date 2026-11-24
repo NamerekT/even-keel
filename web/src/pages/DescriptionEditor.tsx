@@ -8,6 +8,7 @@ import type { AttachedFile } from '../live/connection.js'
 import { Segmented } from '../stats/common.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Tipped } from '../ui/Tipped.js'
+import { HelpTip } from './settingsParts.js'
 import { descriptionExtensions, editorMarkdown, htmlToMarkdown, previewLoss, toDoc, type PreviewLoss } from './descriptionDoc.js'
 import { meaningfulHtml } from './descriptionPaste.js'
 import { useCoarsePointer } from '../layout/useCoarsePointer.js'
@@ -130,6 +131,7 @@ export function DescriptionEditor({ start, text, revision, busy, failure, limit,
         )}
         <div className="description__head">
           <h3 className="task-card__heading">{t.card.description}</h3>
+          <HelpTip text={coarse ? t.card.edit.describe.saveTipTouch : t.card.edit.describe.saveTipFiles} align="start" />
           <Tipped tip={loss === null ? '' : t.card.edit.describe.blocked[loss]} off={loss === null} focusable={loss !== null}>
             <LookSwitch look={look} blocked={loss} onChange={pickLook} />
           </Tipped>
@@ -140,16 +142,14 @@ export function DescriptionEditor({ start, text, revision, busy, failure, limit,
           <MarkdownEditor field={field} text={text} onText={change} />
         )}
         {uploads.failure !== null && (
-          <p className="notice notice--error description__note">
+          <p className="notice notice--error description__error">
             {say(uploads.failure)} <NoticeFixButton project={null} notice={uploads.failure} />
           </p>
         )}
-        {failure !== null && <p className="notice notice--error description__note">{say(failure)}</p>}
+        {failure !== null && <p className="notice notice--error description__error">{say(failure)}</p>}
         <div className="description__foot">
           <AttachButton className="description__attach" title={t.card.edit.describe.attachTitle} sending={busy} onAttach={attach} />
-          <span className="description__hint description__hint--grow">
-            {uploads.pending > 0 ? t.card.edit.describe.uploadWait : coarse ? t.card.edit.describe.saveTipTouch : t.card.edit.describe.saveTipFiles}
-          </span>
+          <span className="description__state">{uploads.pending > 0 ? t.card.edit.describe.uploadWait : null}</span>
           <span className="description__actions">
             <button type="button" className="button" disabled={busy} onClick={leave}>
               {t.card.edit.cancel}

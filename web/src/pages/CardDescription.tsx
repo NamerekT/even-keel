@@ -8,6 +8,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import { DiffLines } from '../ui/DiffLines.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
+import { HelpTip } from './settingsParts.js'
 import { dropDraft, leftoverOf, readDraft, writeDraft } from './cardDrafts.js'
 import { conflictOf } from './cardEdit.js'
 import type { CardEditor } from './useCardEdit.js'
@@ -176,7 +177,7 @@ function KeptDraft({ text, canPutBack, onPutBack }: { text: string; canPutBack: 
     <div className="description__kept">
       <div className="description__kept-head">
         <strong>{t.card.edit.describe.mine}</strong>
-        <span className="description__hint">{t.card.edit.describe.mineHint}</span>
+        <HelpTip text={t.card.edit.describe.mineHint} align="start" />
         <span className="description__spacer" />
         {canCopy && (
           <button type="button" className="button button--small" onClick={copy}>

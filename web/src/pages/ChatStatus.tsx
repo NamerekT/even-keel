@@ -200,7 +200,7 @@ function ContextRing({ facts, context, scale }: { facts: StatusFacts; context: {
                 {ring.mark !== null && <span className="context-pop__mark" style={{ left: `${ring.mark}%` }} />}
               </span>
             )}
-            {ring.mark !== null && threshold !== null && <span className="context-pop__note">{t.session.chat.head.checkpoint(formatTokens(threshold))}</span>}
+            {ring.mark !== null && threshold !== null && <span className="context-pop__checkpoint">{t.session.chat.head.checkpoint(formatTokens(threshold))}</span>}
           </section>
           {view !== undefined && entry !== undefined && (
             <section className="context-pop__part">

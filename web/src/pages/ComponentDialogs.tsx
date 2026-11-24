@@ -223,7 +223,7 @@ export function ComponentRemoval({ project, row, others, onDone, onClose }: { pr
               'other',
               t.components.moveTo,
               others.length === 0 ? (
-                <span className="component-choice__note">{t.components.noOther}</span>
+                <span className="component-choice__desc">{t.components.noOther}</span>
               ) : (
                 <Select
                   value={to}
@@ -236,7 +236,7 @@ export function ComponentRemoval({ project, row, others, onDone, onClose }: { pr
               ),
               others.length === 0,
             )}
-            {choice('none', t.components.moveNone, <span className="component-choice__note">{t.components.moveNoneNote}</span>)}
+            {choice('none', t.components.moveNone, <span className="component-choice__desc">{t.components.moveNoneNote}</span>)}
           </div>
         </div>
       )}

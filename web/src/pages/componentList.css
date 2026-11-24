@@ -203,7 +203,7 @@
   color: var(--accent);
 }
 
-.component-choice__note {
+.component-choice__desc {
   color: var(--fg-muted);
   font-size: var(--text-13);
 }

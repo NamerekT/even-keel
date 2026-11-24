@@ -115,10 +115,10 @@ function TransferReportDialog({ state, id, onClose }: { state: EvenKeelState; id
         </header>
         <div className="add-package__body transfer__body">
           <Loading busy={report === undefined} label={t.transfer.reports} fit="block">
-            {report === null && <p className="add-package__note">{t.transfer.reportGone}</p>}
+            {report === null && <p className="transfer__empty">{t.transfer.reportGone}</p>}
             {report != null && (
               <>
-                <p className="add-package__note">{t.transfer.reportWhen(formatFullTime(report.switchedAt), report.key, report.sourceKey)}</p>
+                <p className="transfer__state">{t.transfer.reportWhen(formatFullTime(report.switchedAt), report.key, report.sourceKey)}</p>
                 <TransferMoves counts={report.plan.counts} title={t.transfer.reportMoves} />
                 <TransferStatuses rows={report.plan.statuses} tracker={tracker} direction={report.direction} />
                 <Losses plan={report.plan} recheck={null} checking={false} direction={report.direction} title={t.transfer.reportLosses} none={t.transfer.reportLossesNone} />

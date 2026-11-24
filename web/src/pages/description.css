@@ -223,7 +223,7 @@
   overflow-x: auto;
 }
 
-.description__note {
+.description__error {
   margin: 0;
 }
 
@@ -245,10 +245,12 @@
   flex: 1;
 }
 
-/* The editor's foot: the hint fills the line beside the "+"; on a narrow screen the buttons wrap to a line of their own, at the right. */
-.description__hint--grow {
+/* The editor's foot: the state fills the line beside the "+"; on a narrow screen the buttons wrap to a line of their own, at the right. */
+.description__state {
   flex: 1 1 180px;
   min-width: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
 }
 
 .description__actions {

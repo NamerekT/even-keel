@@ -239,7 +239,7 @@ export function MilestoneRemoval({ project, row, others, onDone, onClose }: { pr
               'other',
               t.milestones.moveTo,
               others.length === 0 ? (
-                <span className="component-choice__note">{t.milestones.noOther}</span>
+                <span className="component-choice__desc">{t.milestones.noOther}</span>
               ) : (
                 <Select
                   value={to}
@@ -252,7 +252,7 @@ export function MilestoneRemoval({ project, row, others, onDone, onClose }: { pr
               ),
               others.length === 0,
             )}
-            {choice('none', t.milestones.moveNone, <span className="component-choice__note">{t.milestones.moveNoneNote}</span>)}
+            {choice('none', t.milestones.moveNone, <span className="component-choice__desc">{t.milestones.moveNoneNote}</span>)}
           </div>
         </div>
       )}

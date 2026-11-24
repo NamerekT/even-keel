@@ -205,7 +205,7 @@
   margin-top: var(--space-12);
 }
 
-.task-card__note {
+.task-card__draft {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -256,10 +256,4 @@
 .task-card__note-send svg {
   width: 16px;
   height: 16px;
-}
-
-.task-card__note-hint {
-  margin: 0;
-  color: var(--fg-muted);
-  font-size: var(--text-12);
 }
