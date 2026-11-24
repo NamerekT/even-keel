@@ -644,6 +644,9 @@ export class Dispatcher {
       const chain = this.state.active.find((each) => !seen.has(each))
       if (chain === undefined) return
       seen.add(chain)
+      // Until its machine posts its sessions, an empty mirror reads as a session past its turn (BTN-1610): the lane waits.
+      const held = chain.current?.task ?? chain.closing
+      if (held !== undefined && !this.deps.machine.sessionsRead(held)) continue
       try {
         if (!(await this.handovers.guard(chain))) continue
         await this.step(chain)

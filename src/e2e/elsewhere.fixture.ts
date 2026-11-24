@@ -26,7 +26,7 @@ export class Elsewhere {
   readonly checkout: string
   readonly log: string[] = []
   machine = ''
-  private parts: { db: PGlite; writes: Writes; receiver: HookReceiver; host: MachineHost; context: MachineContext; side: MachineSide } | undefined
+  private parts: { db: PGlite; writes: Writes; receiver: HookReceiver; host: MachineHost; context: MachineContext; side: MachineSide; pollWorks: () => void } | undefined
 
   constructor(private readonly run: Harness) {
     this.dir = join(run.dir, 'elsewhere')
@@ -109,7 +109,8 @@ export class Elsewhere {
     const { host, machine } = await assembleMachineHost({ machineDb: db, stateDir, writes, env, envFile: loadEnv(), listen: () => receiver.address, mcpPort: () => mcpPort, tell, planFirst: true })
     context = machine
     side = wireMachineSide(machine, { transport: httpsTransport(joined, { log }), store: new DatabaseMachineStore(db), about: async () => about, alone: true, log })
-    this.parts = { db, writes, receiver, host, context: machine, side }
+    const pollWorks = assemblePollWorks(machine)
+    this.parts = { db, writes, receiver, host, context: machine, side, pollWorks }
 
     // What `src/machine-service.ts` starts, without the Tally collector.
     host.monitor.start()
@@ -117,7 +118,6 @@ export class Elsewhere {
     host.limits.start()
     host.account.start()
     void host.packages.start().catch((error: unknown) => log(`packages: ${String(error)}`))
-    const pollWorks = assemblePollWorks(machine)
     setInterval(pollWorks, WORK_TICK_MS)
     await side.end.settleMarks()
     await side.moves.start()
@@ -129,6 +129,25 @@ export class Elsewhere {
     })
     await this.settled(online, 'the machine online')
     return this.machine
+  }
+
+  /** Takes the machine off the link, its service running on: the hub sees it offline until `backOnLink`. */
+  offLink(): void {
+    this.parts?.side.end.stop()
+  }
+
+  /**
+   * Puts the machine back on the link. After `Harness.restart` the hub's halt has cleared every fake timer of the
+   * process, the machine's too: its monitor and its work poll start again, as on a machine whose service never stopped.
+   */
+  async backOnLink(): Promise<void> {
+    const parts = this.parts
+    if (parts === undefined) return
+    const { WORK_TICK_MS } = await import('../service/defaults.js')
+    await parts.host.monitor.stop()
+    parts.host.monitor.start()
+    setInterval(parts.pollWorks, WORK_TICK_MS)
+    await parts.side.end.start()
   }
 
   /** Stops the machine before the hub: its end of the link, its packages, its receiver and its database. */

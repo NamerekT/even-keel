@@ -108,6 +108,84 @@ describe('Dispatcher stopping after the session turn', () => {
     expect(dispatcher.state.active.map((chain) => chain.project)).toEqual(['XYZ'])
   })
 
+  it("does not take a session elsewhere for one past its turn while its machine has not posted its sessions since the hub's restart (BTN-1610)", async () => {
+    const busy = new Set<string>(['ABC-1'])
+    const unread = new Set<string>()
+    const { dispatcher, clock } = setup({ busy, unread })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.stopAfter('ABC', true)
+    await dispatcher.idle()
+    clock.now = new Date(clock.now.getTime() + SEEN_MS)
+
+    // The hub restarted: the machine's mirror is empty, so nothing reads as mid-turn.
+    unread.add('ABC-1')
+    busy.clear()
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]).toMatchObject({ current: { task: 'ABC-1' }, stopAfter: true })
+
+    unread.delete('ABC-1')
+    busy.add('ABC-1')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]).toMatchObject({ current: { task: 'ABC-1' }, stopAfter: true })
+
+    busy.clear()
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active).toEqual([])
+    expect(dispatcher.state.released.ABC).toEqual(['ABC-1'])
+  })
+
+  it("asked to stop while the task's machine has not posted its sessions, waits for them rather than stopping at once (BTN-1610)", async () => {
+    const unread = new Set<string>()
+    const { dispatcher, clock } = setup({ unread })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    clock.now = new Date(clock.now.getTime() + SEEN_MS)
+
+    unread.add('ABC-1')
+    dispatcher.stopAfter('ABC', true)
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]).toMatchObject({ current: { task: 'ABC-1' }, stopAfter: true })
+
+    unread.delete('ABC-1')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active).toEqual([])
+  })
+
+  it("asked to stop before the monitor's first read of the sessions, waits for it rather than stopping at once (BTN-1610)", async () => {
+    const busy = new Set<string>(['ABC-1'])
+    const options = { busy, sessionsRead: true }
+    const { dispatcher, clock } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    clock.now = new Date(clock.now.getTime() + SEEN_MS)
+
+    // The service restarted and the monitor has not read the sessions yet.
+    options.sessionsRead = false
+    busy.clear()
+    dispatcher.stopAfter('ABC', true)
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]).toMatchObject({ current: { task: 'ABC-1' }, stopAfter: true })
+
+    options.sessionsRead = true
+    busy.add('ABC-1')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]).toMatchObject({ current: { task: 'ABC-1' }, stopAfter: true })
+
+    busy.clear()
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active).toEqual([])
+  })
+
   it('does nothing for a project without an active chain', async () => {
     const { dispatcher } = setup()
     dispatcher.setTasks('ABC', [task('ABC-1')])

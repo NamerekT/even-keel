@@ -12,9 +12,10 @@ const LAUNCH_SEEN_MS = 60_000
 /**
  * Whether "Stop after the turn" has a turn to wait out: a session seen working, or one the chain started within the
  * last minute that has not replied yet and waits on no question — the monitor shows it working seconds later (BTN-1044).
+ * Sessions of the task's machine not read since the start are unknown, not a turn over: they are waited for (BTN-1610).
  */
 export function inTurn(deps: Pick<DispatcherDeps, 'machine' | 'now'>, current: CurrentTask): boolean {
-  if (deps.machine.midTurn(current.task)) return true
+  if (!deps.machine.sessionsRead(current.task) || deps.machine.midTurn(current.task)) return true
   const fresh = (at: string) => deps.now().getTime() - Date.parse(at) < LAUNCH_SEEN_MS
   if (current.starting !== undefined) return fresh(current.starting)
   if (current.sessionId === null || !fresh(current.since) || deps.machine.busy(current.task)) return false

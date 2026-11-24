@@ -70,6 +70,8 @@ export interface SetupOptions {
   accountsRead?: boolean
   /** Whether the monitor has read the sessions since the service's start; absent — it has. */
   sessionsRead?: boolean
+  /** The tasks whose machine has not read its sessions since the hub's start (BTN-1610); the set may change during the test. */
+  unread?: Set<string>
   busy?: Set<string>
   silentSince?: Record<string, string>
   waiting?: Set<string>
@@ -219,7 +221,7 @@ export function setup(options: SetupOptions = {}) {
       packagesHeld: (project) => (options.packagesBlocked?.has(project) === true ? options.packagesHeld : undefined),
       packagesPause: () => options.packagesPause,
       accountsRead: () => options.accountsRead ?? true,
-      sessionsRead: () => options.sessionsRead ?? true,
+      sessionsRead: (id) => (id === undefined || options.unread?.has(id) !== true) && (options.sessionsRead ?? true),
       resume: async (_task, session) => {
         relays.push({ kind: 'resume', task: '', sessionId: session.sessionId, ...(session.stopped && { stopped: true }) })
         return session.sessionId

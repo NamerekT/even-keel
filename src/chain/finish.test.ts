@@ -58,6 +58,23 @@ describe('Dispatcher finishing a done task', () => {
     expect(launched).toEqual(['ABC/ABC-2'])
   })
 
+  it("does not clean up after a done task whose machine has not posted its sessions since the hub's start (BTN-1610)", async () => {
+    const state = { ...emptyChainState(), active: [{ project: 'ABC', current: { task: 'ABC-1', sessionId: 'session-1', since: '2026-10-31T07:54:28.000Z' }, paused: false, error: null }] }
+    const unread = new Set(['ABC-1'])
+    const { dispatcher, launched, finished } = setup({ state, unread })
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    await dispatcher.idle()
+    expect(finished).toEqual([])
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toMatchObject({ current: { task: 'ABC-1' } })
+
+    unread.clear()
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+    expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
   it('cleans up at once after a done task whose session ended its turn with a background command still running', async () => {
     const shell = new Set<string>()
     const { dispatcher, launched, finished } = setup({ shell })
@@ -438,6 +455,26 @@ describe('Dispatcher finishing a task it let go of', () => {
     expect(finished).toEqual([])
 
     busy.clear()
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+  })
+
+  it("waits for the released task's machine to post its sessions since the hub's start (BTN-1610)", async () => {
+    const unread = new Set<string>()
+    const { dispatcher, finished } = setup({ unread })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.skip('ABC', 'ABC-1')
+    await dispatcher.idle()
+
+    unread.add('ABC-1')
+    dispatcher.setReleased('ABC', [task('ABC-1', done)])
+    await dispatcher.idle()
+    expect(finished).toEqual([])
+
+    unread.clear()
     dispatcher.check()
     await dispatcher.idle()
     expect(finished).toEqual(['ABC/ABC-1'])

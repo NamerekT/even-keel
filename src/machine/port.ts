@@ -144,9 +144,10 @@ export interface MachinePort {
   /**
    * Snapshot. The monitor has read the sessions once since the service's start. Until then `busy`, `liveSession` and
    * the sessions a cleanup stops know nothing, so the chains do nothing rather than take a working session for a free
-   * one (BTN-646).
+   * one (BTN-646). With `task` — the machine that runs it: the pool's machine elsewhere that has posted no snapshot
+   * since the hub started reads as not yet (BTN-1610), and the task's lane waits for it.
    */
-  sessionsRead: () => boolean
+  sessionsRead: (task?: string) => boolean
   /** Snapshot. The tree the check before the task's merge reported it passed on, with the project's commands now; `null` — no such report. */
   reportedTree: (project: string, task: string) => string | null
 

@@ -488,6 +488,19 @@ describe('Dispatcher polling pull requests', () => {
     expect(dispatcher.released('ABC')).not.toContain('ABC-1')
   })
 
+  it("drops the branch of a pull request closed unmerged only once the task's machine has posted its sessions (BTN-1610)", async () => {
+    const unread = new Set(['ABC-1'])
+    const { dispatcher, finished } = await opened(() => openCheck({ state: { state: 'closed', mergeable: null, head: 'abc1234' } }), { unread })
+    await dispatcher.pollReviews()
+    await dispatcher.idle()
+    expect(finished).not.toContain('ABC/ABC-1')
+
+    unread.clear()
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(finished).toContain('ABC/ABC-1')
+  })
+
   it('tells the next launch of a task whose pull request was closed unmerged of it and its remarks, once', async () => {
     const closing = () =>
       openCheck({

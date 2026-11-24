@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { commitAndMerge, Gate, lingers, parked } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 import { scaled } from '../../test/slow-runner.js'
@@ -111,5 +111,43 @@ describe('the chain through a restart end to end', { timeout: scaled(60_000) }, 
     expect(stops()).toEqual([session.sessionId])
     await run.until(() => lampOf(session.sessionId) === 'finished', 'the session of ABC-1 finished')
     expect(run.service.dispatcher.state.leftovers).toEqual({})
+  })
+
+  it('asked to stop before the first read of the sessions after a restart, waits out the turn (BTN-1610)', async () => {
+    run.board.add('ABC-1')
+    const gate = new Gate()
+    run.agent.script('ABC-1', async (turn) => {
+      turn.show({ text: 'Working', context: 120_000 })
+      await turn.park(gate)
+      return { say: 'Stopped here' }
+    })
+    await run.start()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => launches().length === 1, 'ABC-1 launched')
+    const { sessionId } = launches()[0]!
+    const lane = () => run.service.dispatcher.state.active.find((chain) => chain.project === PROJECT_ID)
+
+    // The halt's `vi.clearAllTimers` rewinds the fake clock to the start; set two minutes on, the session is no fresh launch.
+    const downAt = Date.now()
+    const listing = new Gate()
+    await run.restart(() => {
+      run.agent.listing = listing
+      vi.setSystemTime(downAt + 2 * 60_000)
+    })
+    await run.post('chain/stopAfter', { project: PROJECT_ID, on: true })
+    await run.pass(60_000)
+    expect(run.service.machineLink.port.sessionsRead()).toBe(false)
+    expect(lane()).toMatchObject({ current: { task: 'ABC-1', sessionId }, stopAfter: true })
+
+    run.agent.listing = null
+    listing.open()
+    await run.until(() => run.service.machineLink.port.sessionsRead(), 'the sessions read')
+    await run.pass(30_000)
+    expect(lane()).toMatchObject({ current: { task: 'ABC-1', sessionId }, stopAfter: true })
+
+    gate.open()
+    await run.until(() => lane() === undefined, 'the lane stopped after the turn')
+    expect(run.service.dispatcher.state.released[PROJECT_ID]).toEqual(['ABC-1'])
+    expect(stops()).toEqual([])
   })
 })

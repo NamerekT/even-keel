@@ -95,7 +95,14 @@ export function machinePool(deps: PoolDeps): MachinePort {
     ...(first.overage === undefined ? {} : { overage: (task: string) => ofTask(task).overage?.(task) }),
     handoff: (task) => ofTask(task).handoff(task),
     ...(first.modelRefusal === undefined ? {} : { modelRefusal: (task: string, sessionId: string) => ofTask(task).modelRefusal?.(task, sessionId) }),
-    sessionsRead: () => own().sessionsRead(),
+    // A task's machine with no port has posted no snapshot since the hub started: the own one's facts are not of it.
+    sessionsRead: (task) => {
+      if (task === undefined) return own().sessionsRead()
+      const project = deps.projectOf(task)
+      const machine = project === undefined ? undefined : deps.machineOf(project, task)
+      if (machine !== undefined && deps.port(machine) === undefined) return false
+      return at(machine).sessionsRead()
+    },
     reportedTree: (project, task) => byTask(project, task).reportedTree(project, task),
 
     account: (project, task) => byTask(project, task).account(project, task),

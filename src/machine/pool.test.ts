@@ -98,6 +98,15 @@ describe('machinePool', () => {
     expect(pool.trackerMissing('p')).toBe('own')
   })
 
+  it("reads whether a task's sessions are read on its machine, and a machine with no snapshot since the hub started as unread (BTN-1610)", () => {
+    const { pool, calls } = poolOf()
+    expect(pool.sessionsRead('A-1')).toBe('server')
+    expect(pool.sessionsRead('A-2')).toBe('own')
+    calls.length = 0
+    expect(pool.sessionsRead('A-3')).toBe(false)
+    expect(calls).toEqual([])
+  })
+
   it('names the machine a cleanup ran on, the own one for a task whose machine is gone (BTN-995)', async () => {
     const { pool } = poolOf()
     expect((await pool.finish('p', 'A-3')).machine).toBe('own')

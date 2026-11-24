@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, sep } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BuiltinStore } from '../builtin/store.js'
 import { commitAndMerge, Gate } from './agent.fixture.js'
 import { Elsewhere } from './elsewhere.fixture.js'
@@ -155,5 +155,45 @@ describe('a machine elsewhere end to end', { timeout: scaled(180_000) }, () => {
     gate.open()
     await done()
     expect(lane()?.limitsWait).toBeUndefined()
+  })
+
+  it("asked to stop, waits out the turn of a session elsewhere through the hub's restart before the machine posts its sessions (BTN-1610)", async () => {
+    const gate = new Gate()
+    run.agent.script('ABC-1', async (turn) => {
+      turn.show({ text: 'Working', context: 120_000 })
+      await turn.park(gate)
+      return { say: 'Stopped here' }
+    })
+    await connected()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.agent.sessionsOf('ABC-1').length > 0, 'the session launched', { limitMs: 10 * 60_000 })
+    const sessionId = run.agent.sessionsOf('ABC-1')[0]!.sessionId
+    await run.until(() => run.service.machineLink.port.midTurn('ABC-1'), 'the hub sees the session mid-turn')
+
+    const lane = () => run.service.dispatcher.state.active.find((chain) => chain.project === PROJECT_ID)
+    await run.post('chain/stopAfter', { project: PROJECT_ID, on: true })
+    expect(lane()).toMatchObject({ current: { task: 'ABC-1', sessionId }, stopAfter: true })
+
+    // The hub comes up two minutes later, before the machine is back on the link: nothing of its sessions is known.
+    // The halt's `vi.clearAllTimers` rewinds the fake clock to the start; set back, the session is no fresh launch.
+    const downAt = Date.now()
+    await run.restart(() => {
+      elsewhere.offLink()
+      vi.setSystemTime(downAt + 2 * 60_000)
+    })
+    await run.pass(60_000)
+    expect(run.service.machineLink.port.sessionsRead('ABC-1')).toBe(false)
+    expect(lane()).toMatchObject({ current: { task: 'ABC-1', sessionId }, stopAfter: true })
+
+    await elsewhere.backOnLink()
+    await run.until(() => run.service.machineLink.port.sessionsRead('ABC-1'), 'the machine posted its sessions')
+    await run.pass(30_000)
+    expect(lane()).toMatchObject({ current: { task: 'ABC-1', sessionId }, stopAfter: true })
+    expect(run.log.join('\n')).not.toContain('stopped after its session\'s turn')
+
+    gate.open()
+    await run.until(() => lane() === undefined, 'the lane stopped after the turn', { limitMs: 5 * 60_000 })
+    expect(run.service.dispatcher.state.released[PROJECT_ID]).toEqual(['ABC-1'])
+    expect(await statusOf(1)).not.toBe('Done')
   })
 })

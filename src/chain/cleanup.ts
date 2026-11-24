@@ -78,8 +78,12 @@ export class Cleanups {
     }
   }
 
-  /** Whether a done task's session holds its cleanup: a session whose turn ended on a background command does not. */
+  /**
+   * Whether a done task's session holds its cleanup: a session whose turn ended on a background command does not. A
+   * machine not read since the hub's start shows no session of the task, which is unknown, not idle (BTN-1610).
+   */
   working(task: string): boolean {
+    if (!this.deps.machine.sessionsRead(task)) return true
     return this.deps.machine.busy(task) && !this.deps.machine.shell(task)
   }
 
