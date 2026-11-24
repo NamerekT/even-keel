@@ -34,6 +34,7 @@ export const adviceRu = {
   'machine.commandFailed': () => 'посмотрите журнал машины, затем продолжите цепочку',
   'machine.commandRefused': () => 'проверьте папку проекта в его настройках, затем продолжите цепочку',
   'machine.commandInterrupted': () => 'проверьте, что осталось от задачи на машине, затем продолжите цепочку',
+  'machine.away': () => 'подключите машину снова, затем продолжите цепочку',
   'packages.port': () => 'задайте другой EVEN_KEEL_MCP_PORT в .env Even Keel',
   'packages.marketplaceCliMissing': () => 'установите его и снова добавьте маркетплейс на странице «Аккаунты»',
 } satisfies Required<Pick<NoticeAdvice, keyof typeof ADVICE>>

@@ -66,6 +66,70 @@ describe('Dispatcher with machines (BTN-993)', () => {
     expect(run.log).toContain('chain: a second lane of ABC on machine pc ends: a machine runs one task of a project at a time')
   })
 
+  it('ends a lane whose machine left the project\'s pool once it is between tasks, and launches nothing of it on the hub (BTN-1625)', async () => {
+    const pool = new Set(['hub', 'pc'])
+    const { machines, bound } = fakeMachines({ hub: 3, pc: 1 }, { width: { ABC: 2 }, serves: (_project, machine) => pool.has(machine) })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['hub', 'ABC-1'], ['pc', 'ABC-2']])
+
+    // The session going on there is not touched: the lane waits it out.
+    pool.delete('pc')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['hub', 'ABC-1'], ['pc', 'ABC-2']])
+    expect(run.stopped).toEqual([])
+
+    run.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2', done), task('ABC-3')])
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['hub', 'ABC-1']])
+    expect(run.launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(bound['ABC-3']).toBeUndefined()
+    expect(run.log).toContain('chain: a lane of ABC on machine pc ends: the machine no longer serves the project')
+  })
+
+  it('ends the project\'s only lane on a machine off its pool, and the project goes on on one that serves it (BTN-1625)', async () => {
+    const pool = new Set(['pc'])
+    const { machines, bound } = fakeMachines({ hub: 3, pc: 1 }, { serves: (_project, machine) => pool.has(machine) })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1']])
+
+    pool.clear()
+    pool.add('hub')
+    run.dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['hub', 'ABC-2']])
+    expect(bound['ABC-2']).toBe('hub')
+  })
+
+  it('takes no task in a lane whose machine is off the link after the hub restarted, and opens it again once the machine is back (BTN-1625)', async () => {
+    const { machines, bound, listed } = fakeMachines({ hub: 3, pc: 1 }, { width: { ABC: 2 } })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['hub', 'ABC-1'], ['pc', 'ABC-2']])
+
+    // Off the link the machine is not listed: after a restart the hub has no port of it yet.
+    delete listed.pc
+    run.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2', done), task('ABC-3')])
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['hub', 'ABC-1']])
+    expect(run.launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(bound['ABC-3']).toBeUndefined()
+    expect(run.log).toContain('chain: a lane of ABC on machine pc ends: the machine is not connected to the hub')
+
+    listed.pc = 1
+    run.dispatcher.check()
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['hub', 'ABC-1'], ['pc', 'ABC-3']])
+    expect(bound['ABC-3']).toBe('pc')
+  })
+
   it('refuses an order that puts a task between or above the running lanes (BTN-1611)', async () => {
     const { machines } = fakeMachines({ pc: 1, server: 1 }, { width: { ABC: 2 } })
     const run = setup({ machines })

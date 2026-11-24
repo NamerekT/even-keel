@@ -3,7 +3,7 @@ import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
 import type { MainCarry } from './carry.js'
 import { isCarryName, isFixName } from './fix.js'
-import { doubledLane, lanesOf } from './lanes.js'
+import { doubledLane, laneOff, lanesOf, leaveLane } from './lanes.js'
 import { moveOffLimit } from './limit-moves.js'
 import type { TaskLists } from './lists.js'
 import type { MainCheck } from './maincheck.js'
@@ -189,6 +189,14 @@ export async function launchNext(host: StepHost, chain: ActiveChain, tasks: Task
   if (own === undefined && machine !== undefined && doubledLane(state, deps.machines!, chain)) {
     host.drop(chain)
     deps.log(`chain: a second lane of ${chain.project} on machine ${machine} ends: a machine runs one task of a project at a time`)
+    deps.save(state)
+    return 'end'
+  }
+  // A lane whose machine left the project or the link takes nothing more (BTN-1625): the project goes on where it is served.
+  const off = own === undefined && machine !== undefined ? laneOff(deps.machines!, chain) : undefined
+  if (off !== undefined) {
+    leaveLane(state, chain)
+    deps.log(`chain: a lane of ${chain.project} on machine ${machine} ends: ${off === 'pool' ? 'the machine no longer serves the project' : 'the machine is not connected to the hub'}`)
     deps.save(state)
     return 'end'
   }

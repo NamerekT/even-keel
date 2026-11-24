@@ -221,6 +221,30 @@ describe('the machine port over the link', () => {
     ])
   })
 
+  it('gives a row of a task the machine has no session of to the machine whose live session it is, and sends its calls there (BTN-1625)', async () => {
+    const { id, assignments, liveElsewhere, queries, end, log } = await started()
+    end.stop()
+    assignments.assign(PROJECT, 'ABC-6', id)
+    liveElsewhere.set('ABC-6', 'the-hub')
+    queries.length = 0
+    await end.start()
+    await tick()
+    expect(assignments.machineOf(PROJECT, 'ABC-6')).toBe('the-hub')
+    expect(queries.map(({ sql, params }) => [sql.split(' ')[0], params[1], params[2]])).toEqual([['insert', 'ABC-6', 'the-hub']])
+    expect(log).toContain(`machine: ABC-6 is not on machine ${id}, but has a live session on machine the-hub: its row in machine_tasks is the-hub's now`)
+  })
+
+  it('never gives such a row back to a machine the task was moved off by hand (BTN-1625)', async () => {
+    const { id, assignments, liveElsewhere, moved, end } = await started()
+    end.stop()
+    assignments.assign(PROJECT, 'ABC-7', id)
+    liveElsewhere.set('ABC-7', 'the-hub')
+    moved.set('ABC-7', 'the-hub')
+    await end.start()
+    await tick()
+    expect(assignments.machineOf(PROJECT, 'ABC-7')).toBeUndefined()
+  })
+
   it('leaves a task moved off the machine where it went, though the machine comes back with a live session of it (BTN-1270)', async () => {
     const { id, assignments, moved, state, end, log } = await started()
     end.stop()

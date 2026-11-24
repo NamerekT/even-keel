@@ -150,6 +150,11 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     db: ctx.db,
     writes: ctx.writes,
     movedFrom: (project, task) => moves.from(project, task),
+    // A launch the hub ran on the own machine in a gone machine's place (BTN-1625) stays the own one's.
+    liveElsewhere: (_project, task, machine) => {
+      const facts = remote.facts()
+      return machine !== own && facts?.sessionsRead === true && facts.tasks[task]?.live !== undefined ? own : network.liveHolderOf(task, machine)
+    },
     order: (project) => {
       try {
         return chainOrder(ctx.tasksByProject.get(project) ?? [], ctx.dispatcher.state.orders[project])
