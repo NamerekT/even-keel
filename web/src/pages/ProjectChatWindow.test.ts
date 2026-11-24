@@ -251,7 +251,7 @@ it('opens empty, keeps one bubble through the launch and missing transcript, the
   expect(host.querySelector('.bubble')?.textContent).toBe(message)
   expect(box.placeholder).toBe(t.chats.window.starting)
   expect(host.querySelector('.chat__send')?.closest('.tipped')?.textContent).toContain(t.chats.window.starting)
-  expect(host.querySelector('.chat__hint')).toBeNull()
+  expect(host.querySelector('.chat__state')).toBeNull()
   await act(async () => delivery.resolve())
   expect(box.placeholder).toBe(t.chats.window.starting)
   transcript.mockResolvedValue(null)

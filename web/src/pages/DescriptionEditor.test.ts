@@ -39,7 +39,7 @@ function Editor({ onText, onUpload }: { onText: (text: string) => void; onUpload
   return createElement(DescriptionEditor, { start: '', text, revision: 0, busy: false, failure: null, limit: 1000, onText: write, onUpload, onSave() {}, onClose() {} })
 }
 
-const hint = () => host.querySelector('.description__hint')!.textContent
+const hint = () => host.querySelector('.description__head .help [hidden]')!.textContent
 
 it('attaches a file picked with the "+" as a dropped one: an upload mark, then the picture', async () => {
   const texts: string[] = []

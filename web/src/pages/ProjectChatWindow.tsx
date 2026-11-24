@@ -69,7 +69,7 @@ export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged
         archived ? (
           <div className="chat chat--archived">
             {parts.status}
-            <p className="chat__hint">{t.chats.window.archived}</p>
+            <p className="chat__state">{t.chats.window.archived}</p>
             <button type="button" className="button button--primary chat__continue" onClick={onContinue}>
               {t.chats.window.continue}
             </button>

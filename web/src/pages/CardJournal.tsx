@@ -8,6 +8,7 @@ import { useCoarsePointer } from '../layout/useCoarsePointer.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { EvenKeelIcon, SendIcon, TrashIcon } from '../ui/icons.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
+import { HelpTip } from './settingsParts.js'
 import { CardChanges } from './CardChanges.js'
 import { dropDraft, readDraft, writeDraft } from './cardDrafts.js'
 import { sendsReply } from './chatKeys.js'
@@ -44,6 +45,7 @@ export function CardJournal({ task, comments, history, editor, render, plain }: 
         <h3 className="task-card__heading">
           {journal ? t.card.journal.heading : t.card.comments}
           {count > 0 && <> <span className="task-card__count">{count}</span></>}
+          {journal && editor !== null && <HelpTip text={t.card.journal.hint} align="start" />}
         </h3>
         {history !== undefined && <div className="segmented task-card__journal-filter" role="group" aria-label={t.card.journal.filter}>
           {(['all', 'comments', 'changes'] as const).map((value) => <button key={value} type="button" className={`segmented__item${filter === value ? ' segmented__item--on' : ''}`} aria-pressed={filter === value} onClick={() => { setFilter(value); setAll(false) }}>{t.card.journal.filters[value]}</button>)}
@@ -130,7 +132,7 @@ function NoteField({ task, editor }: { task: string; editor: CardEditor }) {
 
   return (
     <form
-      className="task-card__note"
+      className="task-card__draft"
       onSubmit={(event) => {
         event.preventDefault()
         void send()
@@ -157,7 +159,6 @@ function NoteField({ task, editor }: { task: string; editor: CardEditor }) {
         </button>
       </div>
       {refusal !== null && <p className="notice notice--error">{say(refusal)}</p>}
-      <p className="task-card__note-hint">{t.card.journal.hint}</p>
     </form>
   )
 }

@@ -12,6 +12,7 @@ import { StatusChip } from '../ui/StatusChip.js'
 import { useDragList } from '../ui/useDragList.js'
 import { mergeQueue } from '../machineView.js'
 import { chainWaits } from '../waits.js'
+import { HelpTip } from '../pages/settingsParts.js'
 import { usePopover } from './usePopover.js'
 
 /**
@@ -96,7 +97,10 @@ function QueuePanel({ state, whole }: { state: EvenKeelState; whole: string[] | 
 
       {served.length > 0 && (
         <section className="queue__section">
-          <h2 className="queue__heading">{t.queue.heading}</h2>
+          <h2 className="queue__heading">
+            {t.queue.heading}
+            {served.length > 1 && <HelpTip text={t.queue.dragHint} align="start" />}
+          </h2>
           <QueueList
             state={state}
             queue={pending ?? served}
@@ -104,7 +108,6 @@ function QueuePanel({ state, whole }: { state: EvenKeelState; whole: string[] | 
             onMove={(order) => void move(order)}
             onRemove={(project) => void send('chain/dequeue', { project })}
           />
-          {served.length > 1 && <p className="queue__hint">{t.queue.dragHint}</p>}
         </section>
       )}
 

@@ -157,7 +157,7 @@ function AttachSheet({ title, onPick, onClose }: { title: string; onPick: (files
           )}
         </div>
         {note !== null && (
-          <p className={`notice attach-sheet__note${note === 'denied' ? ' notice--error' : ''}`} role="status">
+          <p className={`notice attach-sheet__state${note === 'denied' ? ' notice--error' : ''}`} role="status">
             {note === 'empty' ? text.pasteEmpty : text.pasteDenied}
           </p>
         )}

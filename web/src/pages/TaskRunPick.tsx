@@ -149,7 +149,7 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
             ))}
           </fieldset>
         )}
-        {live && change !== null && <p className="task-card__run-note">{t.card.run.live}</p>}
+        {live && change !== null && <p className="task-card__run-state">{t.card.run.live}</p>}
         {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       </dd>
     </div>

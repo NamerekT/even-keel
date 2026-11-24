@@ -259,11 +259,11 @@ button.attach-sheet__tile[aria-busy] {
   cursor: progress;
 }
 
-.attach-sheet__note {
+.attach-sheet__state {
   font-size: var(--text-13);
 }
 
-.attach-sheet__note:not(.notice--error) {
+.attach-sheet__state:not(.notice--error) {
   background: var(--surface-muted);
 }
 
