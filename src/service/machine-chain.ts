@@ -322,9 +322,11 @@ function landingCheck(ctx: MachineContext, project: string, repo: string): Merge
   return { run: () => runCheck(commands, ctx.taskRun(project, repo, ctx.choiceFor(project).account)) }
 }
 
+const FAILED_LINE = { network: 'the remote is out of reach', server: "the remote's server answered with an error", refused: 'refused' } as const
+
 function landingLine(outcome: LandOutcome): string {
   if (outcome.state === 'landed') return 'pushed'
-  if (outcome.state === 'failed') return `${outcome.network ? 'the remote is out of reach' : 'refused'}: ${englishOf(outcome.failure)}`
+  if (outcome.state === 'failed') return `${FAILED_LINE[outcome.transient ?? 'refused']}: ${englishOf(outcome.failure)}`
   if (outcome.state === 'returned' && 'files' in outcome) return `conflicts with ${outcome.remote} in ${outcome.files.join(', ')}, main rolled back`
   if (outcome.state === 'returned') return `${outcome.red.command} exited with ${outcome.red.code} on the merge with ${outcome.remote}, main rolled back`
   return 'nothing to land'

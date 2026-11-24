@@ -29,7 +29,7 @@ const runningState = (landings: Landing[] = []): ChainState => ({
 
 const conflict: LandOutcome = { state: 'returned', remote: 'origin', files: ['docs/notes.md'] }
 const red: LandOutcome = { state: 'returned', remote: 'origin', red: { command: 'npm test', code: 1, output: 'FAIL src/a.test.ts' } }
-const network: LandOutcome = { state: 'failed', network: true, failure: notice('sync.fetch', { remote: 'origin' }, { detail: 'Could not resolve host' }) }
+const network: LandOutcome = { state: 'failed', transient: 'network', failure: notice('sync.fetch', { remote: 'origin' }, { detail: 'Could not resolve host' }) }
 
 /** The landing answers what `outcomes` gives in turn, the last one from then on. */
 function lander(...outcomes: LandOutcome[]) {
@@ -137,7 +137,7 @@ describe('Landing of a session merge', () => {
   })
 
   it('pauses on a refusal of the remote with its git text, without a round', async () => {
-    const refusal: LandOutcome = { state: 'failed', network: false, failure: notice('sync.push', { remote: 'origin', main: 'main' }, { detail: 'pre-receive hook declined' }) }
+    const refusal: LandOutcome = { state: 'failed', transient: null, failure: notice('sync.push', { remote: 'origin', main: 'main' }, { detail: 'pre-receive hook declined' }) }
     const { dispatcher, relays } = await running(lander(refusal).land)
 
     expect(relays).toEqual([])

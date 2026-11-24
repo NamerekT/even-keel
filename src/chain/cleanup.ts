@@ -1,5 +1,5 @@
 import { isOwnName } from './fix.js'
-import { isNetworkFailure } from '../git/sync.js'
+import { transientFailure } from '../git/sync.js'
 import type { FinishOutcome } from '../git/types.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { dropLanding } from './landings.js'
@@ -31,8 +31,11 @@ interface SyncRetry {
 
 const retryKey = (project: string, machine: string | undefined): string => `${project}\0${machine ?? ''}`
 
-/** A sync that may go through later: a remote out of reach, or a machine that went off the link mid-sync (BTN-995). */
-const retryable = (error: Notice): boolean => isNetworkFailure(error) || error.code === 'machine.lockLost'
+/**
+ * A sync that may go through later: a remote out of reach or its server failing, or a machine that went off the link
+ * mid-sync (BTN-995).
+ */
+const retryable = (error: Notice): boolean => transientFailure(error) !== null || error.code === 'machine.lockLost'
 
 /** The cleanup after tasks the chain no longer leads: released ones once they are done, and ones whose pull request was closed. */
 export class Cleanups {

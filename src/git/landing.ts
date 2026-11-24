@@ -1,6 +1,6 @@
 import { notice, type Notice } from '../notice/notice.js'
 import { firstCommits, inAll, mergedCommits, remoteMain, remotesOf } from './merged.js'
-import { diverged, isNetworkFailure, readOnly, REJECTED, syncAlias, type MergeCheck } from './sync.js'
+import { diverged, readOnly, REJECTED, syncAlias, transientFailure, type MergeCheck, type TransientFailure } from './sync.js'
 import type { Git } from './types.js'
 
 /** The red command of a landing's check, with its output. */
@@ -17,14 +17,15 @@ export interface LandRed {
  *   up to it (BTN-1583);
  * - `returned` — main of `remote` does not merge cleanly (`files`) or the check of the merge is red (`red`): the local
  *   main is rolled back to before the session's merge, for the session to resolve;
- * - `failed` — a remote out of reach (`network`) or a refusal only a person can deal with; main is left as it is.
+ * - `failed` — for a while (`transient`: a remote out of reach, its server failing) or a refusal only a person can
+ *   deal with; main is left as it is.
  */
 export type LandOutcome =
   | { state: 'none' }
   | { state: 'landed'; commit?: string }
   | { state: 'returned'; remote: string; files: string[] }
   | { state: 'returned'; remote: string; red: LandRed }
-  | { state: 'failed'; network: boolean; failure: Notice }
+  | { state: 'failed'; transient: TransientFailure | null; failure: Notice }
 
 export interface LandRequest {
   task: string
@@ -91,7 +92,7 @@ async function baseOf(git: Git, repo: string, own: string[], main: string): Prom
   return null
 }
 
-const failed = (failure: Notice): LandOutcome => ({ state: 'failed', network: isNetworkFailure(failure), failure })
+const failed = (failure: Notice): LandOutcome => ({ state: 'failed', transient: transientFailure(failure), failure })
 
 async function landOnce(git: Git, repo: string, remotes: string[], request: LandRequest, base: string, alias: boolean): Promise<LandOutcome> {
   return alias ? landByAlias(git, repo, remotes, request.main, base) : landOwn(git, repo, remotes, request, base)

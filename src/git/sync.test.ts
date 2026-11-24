@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GitResult } from './types.js'
-import { fastForwardMain, fastForwardTo, isNetworkFailure, syncMain } from './sync.js'
+import { fastForwardMain, fastForwardTo, syncMain, transientFailure } from './sync.js'
 import { notice } from '../notice/notice.js'
 
 const repo = '/home/john/repo'
@@ -166,21 +166,43 @@ describe('syncMain', () => {
   })
 })
 
-describe('isNetworkFailure', () => {
+describe('transientFailure', () => {
   const unreachable = "fatal: unable to access 'https://github.com/john/repo.git/': Failed to connect to github.com port 443 after 21096 ms: Couldn't connect to server"
+  const push = (detail: string) => notice('sync.push', { remote: 'origin', main: 'dev' }, { detail })
 
-  it('takes a fetch, a push or the alias that could not reach the remote', () => {
-    expect(isNetworkFailure(notice('sync.fetch', { remote: 'github' }, { detail: unreachable }))).toBe(true)
-    expect(isNetworkFailure(notice('sync.push', { remote: 'origin', main: 'main' }, { detail: 'fatal: unable to access: Could not resolve host: git.example.com' }))).toBe(true)
-    expect(isNetworkFailure(notice('sync.alias', { exit: 1 }, { detail: 'ssh: connect to host git.example.com port 22: Connection timed out' }))).toBe(true)
-    expect(isNetworkFailure(notice('sync.fetch', { remote: 'origin' }, { detail: 'error: RPC failed; curl 56 Recv failure: Connection reset by peer' }))).toBe(true)
+  it('takes a fetch, a push or the alias that could not reach the remote as the network', () => {
+    expect(transientFailure(notice('sync.fetch', { remote: 'github' }, { detail: unreachable }))).toBe('network')
+    expect(transientFailure(notice('sync.push', { remote: 'origin', main: 'main' }, { detail: 'fatal: unable to access: Could not resolve host: git.example.com' }))).toBe('network')
+    expect(transientFailure(notice('sync.alias', { exit: 1 }, { detail: 'ssh: connect to host git.example.com port 22: Connection timed out' }))).toBe('network')
+    expect(transientFailure(notice('sync.fetch', { remote: 'origin' }, { detail: 'error: RPC failed; curl 56 Recv failure: Connection reset by peer' }))).toBe('network')
+  })
+
+  it('takes an error of the remote server as the server, not a refusal (BTN-1654)', () => {
+    const internal = [
+      'remote: Internal Server Error',
+      'remote: Request ID 0A1B:2C3D:4E5F:6A7B:8C9D',
+      'To https://github.com/john/repo.git',
+      ' ! [remote rejected] dev -> dev (Internal Server Error)',
+      "error: failed to push some refs to 'https://github.com/john/repo.git'",
+    ].join('\n')
+    expect(transientFailure(push(internal))).toBe('server')
+    expect(transientFailure(notice('sync.alias', { exit: 1 }, { detail: internal }))).toBe('server')
+    expect(transientFailure(push(' ! [remote rejected] dev -> dev (Bad Gateway)'))).toBe('server')
+    expect(transientFailure(push('remote: Service Unavailable'))).toBe('server')
+    expect(transientFailure(push('remote: Gateway Timeout'))).toBe('server')
+    expect(transientFailure(notice('sync.fetch', { remote: 'origin' }, { detail: "fatal: unable to access 'https://github.com/john/repo.git/': The requested URL returned error: 502" }))).toBe('server')
+    expect(transientFailure(push('error: RPC failed; HTTP 503 curl 22 The requested URL returned error: 503'))).toBe('server')
   })
 
   it('leaves a refusal of the remote and anything but a fetch or a push', () => {
-    expect(isNetworkFailure(notice('sync.push', { remote: 'origin', main: 'main' }, { detail: rejected.out }))).toBe(false)
-    expect(isNetworkFailure(notice('sync.push', { remote: 'origin', main: 'main' }, { detail: 'remote: Permission denied\nfatal: unable to access: The requested URL returned error: 403' }))).toBe(false)
-    expect(isNetworkFailure(notice('sync.merge', { remote: 'origin', main: 'main' }, { detail: 'Failed to connect' }))).toBe(false)
-    expect(isNetworkFailure(notice('sync.notMain', { repo, branch: 'abc-7/task', main: 'main' }))).toBe(false)
+    expect(transientFailure(push(rejected.out))).toBeNull()
+    expect(transientFailure(push('remote: Permission denied\nfatal: unable to access: The requested URL returned error: 403'))).toBeNull()
+    expect(transientFailure(push(' ! [remote rejected] dev -> dev (pre-receive hook declined)\nerror: failed to push some refs'))).toBeNull()
+    expect(transientFailure(push('remote: hook: Service Unavailable from the lint service\n ! [remote rejected] dev -> dev (pre-receive hook declined)'))).toBeNull()
+    expect(transientFailure(push('remote: error: the commit says Internal Server Error\n ! [remote rejected] dev -> dev (protected branch hook declined)'))).toBeNull()
+    expect(transientFailure(notice('sync.merge', { remote: 'origin', main: 'main' }, { detail: 'Failed to connect' }))).toBeNull()
+    expect(transientFailure(notice('sync.merge', { remote: 'origin', main: 'main' }, { detail: 'remote: Internal Server Error' }))).toBeNull()
+    expect(transientFailure(notice('sync.notMain', { repo, branch: 'abc-7/task', main: 'main' }))).toBeNull()
   })
 })
 
