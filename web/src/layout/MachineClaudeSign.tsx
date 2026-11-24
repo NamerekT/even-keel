@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import type { AccountEntry } from '../../../src/account/model.js'
 import type { MachineSignIn } from '../../../src/state.js'
 import type { Sign } from '../accountAdd.js'
 import { say, t } from '../i18n/index.js'
+import { HelpTip } from '../pages/settingsParts.js'
 import { useCommand } from '../live/useCommand.js'
 import { sharedTokens, tokenAccounts } from '../machineAdd.js'
 import { CommandBlock } from '../ui/blocks.js'
@@ -38,6 +39,7 @@ export function MachineClaudeSign({ machine, accounts, busy, failure, back, onFu
   const tied = tokenAccounts(accounts, machine)
   const [account, setAccount] = useState(tied[0]?.account ?? '')
   const [token, setToken] = useState('')
+  const tokenId = useId()
   const [via, setVia] = useState<'shared' | 'paste' | null>(null)
   const { send, sending, failure: refused } = useCommand()
   const working = busy || sending
@@ -64,7 +66,10 @@ export function MachineClaudeSign({ machine, accounts, busy, failure, back, onFu
         <SignWays sign={sign} tied={tied.length > 0} onSign={setSign} />
         {sign === 'token' && shared.length > 0 && (
           <div className="add-package__field">
-            <span className="add-package__label">{words.shared}</span>
+            <span className="add-package__label-row">
+              <span className="add-package__label">{words.shared}</span>
+              <HelpTip text={words.sharedNote} align="start" />
+            </span>
             <div className="machine-sign__shared">
               {shared.map((each) => (
                 <button key={each.from} type="button" className="button machine-sign__same" disabled={working} onClick={() => void share(each.from)}>
@@ -73,10 +78,9 @@ export function MachineClaudeSign({ machine, accounts, busy, failure, back, onFu
                 </button>
               ))}
             </div>
-            <p className="add-package__note">{words.sharedNote}</p>
           </div>
         )}
-        {sign === 'token' && !pasting && <p className="add-package__note">{t.addAccount.place.tokenNone(machine.name)}</p>}
+        {sign === 'token' && !pasting && <p className="machine-sign__empty">{t.addAccount.place.tokenNone(machine.name)}</p>}
         {pasting && (
           <>
             {shared.length > 0 && <span className="add-package__label">{words.fresh}</span>}
@@ -92,21 +96,25 @@ export function MachineClaudeSign({ machine, accounts, busy, failure, back, onFu
                 />
               </div>
             )}
-            <p className="add-package__note">{t.account.machineTokenLead(who)}</p>
             <CommandBlock command="claude setup-token" />
-            <label className="add-package__field">
-              <span className="add-package__label">{t.account.newKey.longToken}</span>
+            <div className="add-package__field">
+              <span className="add-package__label-row">
+                <label className="add-package__label" htmlFor={tokenId}>
+                  {t.account.newKey.longToken}
+                </label>
+                <HelpTip text={`${t.account.machineTokenLead(who)} ${t.account.machineTokenLacks}`} align="start" />
+              </span>
               <FieldStrip line={via === 'paste' && refused !== null ? { tone: 'error', text: say(refused) } : null} fold wide>
                 <input
                   className="add-package__input add-package__input--mono"
                   {...secretInput()}
+                  id={tokenId}
                   value={token}
                   aria-invalid={via === 'paste' && refused !== null}
                   onChange={(event) => setToken(event.target.value)}
                 />
               </FieldStrip>
-            </label>
-            <p className="add-package__note">{t.account.machineTokenLacks}</p>
+            </div>
           </>
         )}
       </div>

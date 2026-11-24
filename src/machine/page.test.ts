@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { MachineFacts } from './facts.js'
-import { allSessions, pageReads } from './page.js'
+import { allSessions, pageReads, withHubMail } from './page.js'
+import type { Mail } from '../sessions/mail.js'
 import type { SessionView } from '../state.js'
 
 const session = (sessionId: string, task: string, patch: Partial<SessionView> = {}) =>
@@ -42,5 +43,36 @@ describe('allSessions', () => {
     expect(reads.sessionAgent('live')).toBe('opencode')
     expect(reads.sessionAgent('lost')).toBeNull()
     expect(reads.sessionAgent('none')).toBeNull()
+  })
+
+  it("reads the mailbox, the steering and the live view of a session elsewhere from its machine's mirror (BTN-1633)", () => {
+    const own = mirror({ sessions: { a: session('a', 'ABC-1') }, mailbox: { a: { listens: true, steers: false, mail: [] } } })
+    const elsewhere = mirror({ sessions: { b: session('b', 'ABC-2') }, mailbox: { b: { listens: true, steers: true, mail: [] } } })
+    const reads = allSessions(() => [own, elsewhere])
+    expect(Object.keys(reads.mailbox())).toEqual(['a', 'b'])
+    expect(reads.steers('b')).toBe(true)
+    expect(reads.steers('a')).toBe(false)
+    expect(reads.liveView('ABC-2')?.sessionId).toBe('b')
+    expect(reads.liveView('ABC-3')).toBeUndefined()
+  })
+})
+
+describe('withHubMail', () => {
+  const mail = (id: number, sessionId: string, postedAt: string): Mail =>
+    ({ id, task: 'ABC-2', sessionId, text: 'Hi', files: [], postedAt, fate: 'waiting', event: null, reason: null, settledAt: null })
+  const hub = (heard: string[], rows: Mail[]) => ({ listens: (id: string) => heard.includes(id), of: (id: string) => rows.filter((row) => row.sessionId === id) })
+
+  it("lays the hub's own mail and ask over a session elsewhere, whose hooks ask the hub's page (BTN-1633)", () => {
+    const told = mail(1, 'b', '2026-11-24T10:00:01.000Z')
+    const waiting = mail(7, 'b', '2026-11-24T10:00:00.000Z')
+    const box = withHubMail({ b: { listens: false, steers: false, mail: [told] } }, ['b', 'c', 'd'], hub(['c'], [waiting]))
+    expect(box.b).toEqual({ listens: false, steers: false, mail: [waiting, told] })
+    expect(box.c).toEqual({ listens: true, steers: false, mail: [] })
+    expect(box.d).toBeUndefined()
+  })
+
+  it('leaves the sessions of the own machine as its mirror has them', () => {
+    const box = withHubMail({ a: { listens: true, steers: false, mail: [] } }, [], hub(['a'], [mail(1, 'a', '2026-11-24T10:00:00.000Z')]))
+    expect(box).toEqual({ a: { listens: true, steers: false, mail: [] } })
   })
 })

@@ -12,9 +12,25 @@ export const REJECTED = /\[rejected\]|\[remote rejected\][^\n]*\((?:incorrect ol
 const UNREACHABLE =
   /Failed to connect|Could not resolve host|Could not resolve hostname|Temporary failure in name resolution|Operation timed out|Connection timed out|Connection reset|Connection refused|Network is unreachable|No route to host/i
 
-/** Whether a sync failed only because a remote could not be reached, so a later try may go through (BTN-267). */
-export function isNetworkFailure(failure: Notice): boolean {
-  return (failure.code === 'sync.fetch' || failure.code === 'sync.push' || failure.code === 'sync.alias') && UNREACHABLE.test(failure.detail ?? '')
+/**
+ * What git says when the remote's server failed with a 5xx (BTN-1654): its message in `[remote rejected]` or a
+ * `remote:` line, or curl's status of the HTTP answer.
+ */
+const SERVER_ERROR =
+  /\[remote rejected\][^\n]*\((?:Internal Server Error|Bad Gateway|Service Unavailable|Gateway Timeout)\)|^remote:.*(?:Internal Server Error|Bad Gateway|Service Unavailable|Gateway Timeout)|The requested URL returned error: 5\d\d|HTTP 5\d\d/m
+
+/** A server hook declined the push: whatever the hook printed, that is the remote's decision. */
+const HOOK_DECLINED = /\[remote rejected\][^\n]*hook declined/
+
+/** Why a sync failed for a while only: a remote out of reach, or its server answered with an error. */
+export type TransientFailure = 'network' | 'server'
+
+/** Whether a sync failed so that a later try may go through (BTN-267, BTN-1654); `null` — a failure a person deals with. */
+export function transientFailure(failure: Notice): TransientFailure | null {
+  if (!(failure.code === 'sync.fetch' || failure.code === 'sync.push' || failure.code === 'sync.alias')) return null
+  const detail = failure.detail ?? ''
+  if (UNREACHABLE.test(detail)) return 'network'
+  return SERVER_ERROR.test(detail) && !HOOK_DECLINED.test(detail) ? 'server' : null
 }
 
 /**

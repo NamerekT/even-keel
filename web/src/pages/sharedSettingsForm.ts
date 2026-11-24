@@ -42,6 +42,7 @@ export const valuesOf = (form: SharedForm): Values => ({
   attachmentLimit: String(form.attachmentLimit),
   backupDir: form.backup.dir ?? '',
   backupKeep: String(form.backup.keep),
+  memoryMirror: form.memoryMirror ?? '',
   allowedHosts: form.allowedHosts.join('\n'),
   machinesAddress: form.machinesAddress ?? '',
   warn: String(form.context.warn),
@@ -122,6 +123,7 @@ export function formOf(values: Values): SharedForm | undefined {
     switchOnLimit: values.switchOnLimit as boolean,
     allowedHosts: linesOf(text('allowedHosts')),
     machinesAddress: text('machinesAddress').trim() === '' ? null : text('machinesAddress').trim(),
+    memoryMirror: text('memoryMirror').trim() === '' ? null : text('memoryMirror').trim(),
     context: { warn, danger },
     stats: {
       compare: { minTasks: minTasks!, minSessions: minSessions!, days: days! },

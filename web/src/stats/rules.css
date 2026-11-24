@@ -529,7 +529,7 @@
   color: var(--fg-muted);
 }
 
-.rule-file__note {
+.rule-file__empty {
   margin: 2px 0 6px 22px;
 }
 

@@ -47,6 +47,7 @@ import { fakeJob } from './fakeCreation.js'
 import { FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineLaneWait, fakeMachineNames, fakeMachineRequests, fakeMachineSignIns } from './fakeMachines.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
 import { fixGroupSteps, withFixGroupBase } from './fakeFixGroup.js'
+import { REORDER_MS, reorderStep } from './fakeReorder.js'
 import { GROUP_STEP_MS, GROUP_STEPS, withGroupBase } from './fakeGroup.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeMachineDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
@@ -185,6 +186,11 @@ export function createFakeSource(search: string): LiveSource {
   }
   if (current.state !== null) current.state.updates = fakeUpdates(params)
   if (current.state !== null) current.state.backup = fakeBackup(params.get('backup'))
+  if (params.get('memoryMirror') === 'on' && current.state !== null) {
+    const address = 'ssh://git@git.example.com/john-doe/even-keel-memory.git'
+    current.state.memoryMirror = notice('memory.mirrorPrivate', { address })
+    current.state.config.shared.memoryMirror = address
+  }
   if (params.get('cli') === 'unchecked' && current.state !== null) {
     const unchecked = (agent: string, title: string, installed: string, checked: string) => ({
       agent,
@@ -318,7 +324,8 @@ export function createFakeSource(search: string): LiveSource {
     current.state!.chain.active = [{ ...active, current: null, slotWait }]
   }
   if (params.get('chain') === 'closing' && active) current.state!.chain.active = [{ ...active, current: null, closing: 'ABC-4' }]
-  // Two lanes of ABC on two machines (BTN-993), and a closed task that moved from one to the other.
+  // Two lanes of ABC on two machines (BTN-993), and a closed task that moved from one to the other. ABC-20 would go
+  // above the queue: its ghost stands right under both running lanes, the place the service gives it (BTN-1641).
   if (params.get('chain') === 'lanes' && active) {
     const state = current.state!
     state.machineNames = { pc: 'Workstation', srv: 'Home server' }
@@ -326,6 +333,8 @@ export function createFakeSource(search: string): LiveSource {
     state.chain.active = [{ ...active, machine: 'pc' }, { project: active.project, machine: 'srv', current: { task: 'ABC-6', sessionId: null, since: ago(1) }, paused: false, error: null }, ...state.chain.active.slice(1)]
     const run = (sessionId: string, at: number, machine: string) => ({ sessionId, at: ago(at), how: 'checkpoint' as const, resumed: 0, answers: 0, machine })
     state.taskSessions['ABC-4'] = [run('lanes-2', 120, 'srv'), run('lanes-1', 300, 'pc')]
+    const order = state.chain.projects['ABC']!
+    state.chain.projects['ABC'] = { ...order, landing: { ...order.landing, 'ABC-20': 'ABC-7' } }
   }
   // The running group "Under way" through its steps (BTN-1613); `&group=<n>` starts with the first n done.
   // A fix of main in the group and the task it interrupted under it (BTN-1617): the same steps and `&group=<n>`.
@@ -660,6 +669,12 @@ export function createFakeSource(search: string): LiveSource {
       }, (index + 1) * gap)
     })
   }
+  if (params.get('chain') === 'reorder') {
+    setInterval(() => {
+      current = { ...current, state: reorderStep(current.state!) }
+      notify()
+    }, Number(params.get('gap') ?? REORDER_MS))
+  }
 
   if (link === 'live') {
     setInterval(() => {
@@ -693,6 +708,11 @@ export function createFakeSource(search: string): LiveSource {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
       if (name === 'machines/takeOver' && params.get('chain') === 'folderTakenGone') throw fail('machines.notTaken', {})
+      // Every drop refused as the service refuses one past the running task (BTN-1644).
+      if (name === 'chain/order' && params.get('order') === 'refused') {
+        const running = state.chain.active.find((chain) => chain.project === body.project)?.current?.task
+        throw fail('chain.currentFirst', { task: running ?? String(body.project) })
+      }
       if (chats.command(name, body)) {
         chatMail()
         return

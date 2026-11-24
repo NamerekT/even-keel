@@ -26,6 +26,8 @@ import type { StatsConfig } from '../state.js'
 import type { CompareQuery, CompareSettings, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from './rules.js'
 
 const CACHE_MS = 60_000
+/** How long the hook's checkpoint waits for Tally before it answers with the last measures read (BTN-1634). */
+export const CHECKPOINT_WAIT_MS = 300
 /** An error is kept only this long: a queue that overflowed once must not show the page a refusal for a minute. */
 const ERROR_CACHE_MS = 5_000
 const TOP_STUCK = 20
@@ -560,6 +562,8 @@ export class StatsReader {
   /** Reads in flight by key: the badge and the page asking the same `period` share one burst of queries. */
   private readonly flying = new Map<string, Promise<StatsAnswer<unknown>>>()
   private folders: { at: number; key: string; groups: Promise<Folders> } | null = null
+  /** The checkpoint measures of the last read that came, for the hook while the next one is slow. */
+  private lastCheckpoint: Record<string, CheckpointMeasure> | undefined
 
   constructor(
     settings: ReaderSettings | string | Promise<ReaderSettings>,
@@ -589,6 +593,7 @@ export class StatsReader {
     this.cache.clear()
     this.flying.clear()
     this.folders = null
+    this.lastCheckpoint = undefined
     void before?.then((pool) => (typeof pool === 'string' ? undefined : pool.end())).catch(() => {})
   }
 
@@ -668,12 +673,22 @@ export class StatsReader {
 
   /**
    * For the hook, so it never fails: without statistics the project runs on the default or the pinned number. `project`
-   * is its key, as Tally knows it; `pinned` — the session's own project's, where projects share the key.
+   * is its key, as Tally knows it; `pinned` — the session's own project's, where projects share the key. A read slower
+   * than `CHECKPOINT_WAIT_MS` (the cache expired, Tally far away) is not waited for: the hook gives up on Even Keel in
+   * 2 s, a machine's over the link sooner (BTN-1634), so the answer is the last measures read, and the read goes on into
+   * the cache.
    */
   async checkpoint(project: string, pinned: number | null = this.pinnedOf(project)): Promise<CheckpointThreshold> {
-    const answer = await this.checkpointMeasures()
-    const measure = answer.state === 'ok' ? (answer.data[project] ?? null) : null
-    return checkpointThreshold(project, measure, pinned)
+    const pool = this.pool
+    const reading = this.checkpointMeasures().then((answer) => {
+      if (answer.state === 'ok' && this.pool === pool) this.lastCheckpoint = answer.data
+      return answer
+    })
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const late = new Promise<undefined>((resolve) => (timer = setTimeout(() => resolve(undefined), CHECKPOINT_WAIT_MS)))
+    const answer = await Promise.race([reading, late]).finally(() => clearTimeout(timer))
+    const data = answer === undefined ? this.lastCheckpoint : answer.state === 'ok' ? answer.data : undefined
+    return checkpointThreshold(project, data?.[project] ?? null, pinned)
   }
 
   private checkpointMeasures(): Promise<StatsAnswer<Record<string, CheckpointMeasure>>> {

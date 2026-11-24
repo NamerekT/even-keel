@@ -55,6 +55,7 @@
     "/keys/55555555-5555-4555-8555-555555555555": "NOTE",
     "/language": "ru",
     "/machinesAddress": "hub.example.com:8443",
+    "/memoryMirror": "git@example.com:backup/memory.git",
     "/modelPrompts/haiku": "Be brief.",
     "/models/claude": "sonnet",
     "/models/codex": "gpt-6.1-sol",

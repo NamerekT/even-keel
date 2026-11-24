@@ -4,6 +4,7 @@ import { shutdown } from './lifecycle.js'
 function contextOf(order: string[], packages: () => Promise<void> = async () => void order.push('packages')) {
   return {
     cliChecks: { stop: () => void order.push('cliChecks') },
+    memory: { stop: () => void order.push('memory') },
     packages: { close: packages },
     packageHub: { close: async () => void order.push('packageHub') },
     tally: { stop: async () => void order.push('tally') },

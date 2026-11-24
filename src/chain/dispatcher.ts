@@ -85,7 +85,7 @@ export class Dispatcher {
         if (chain !== undefined && this.settle(chain, task, 'its pull request is merged')) this.letGo(chain)
       },
       refilter: (project) => this.refilter(project),
-      working: (task) => this.cleanups.working(task),
+      working: (project, task) => this.cleanups.working(project, task),
       dropUnmerged: (project, task, pull) => this.cleanups.dropUnmerged(project, task, pull),
     })
     this.landings = new Landings(state, deps, this.handovers, { hold: (chain, error) => this.halt(chain, error, true), wake: () => this.kick() }, deps.landingWaitMs)
@@ -100,7 +100,13 @@ export class Dispatcher {
         this.work = next
       },
     })
-    this.lists = new TaskLists(state, deps, this.reviews, (project) => this.currentOf(project))
+    this.lists = new TaskLists(
+      state,
+      deps,
+      this.reviews,
+      (project) => this.currentOf(project),
+      (project) => this.runningOf(project),
+    )
     this.main =
       deps.main === undefined ? null : new MainCheck(state, deps.main, deps.machine, deps.now, deps.log, { save: () => deps.save(state), wake: () => this.changed() })
     this.cleanups = new Cleanups(state, deps, this.main, this.reviews)
@@ -124,11 +130,7 @@ export class Dispatcher {
     })
     this.arrange = new Arrangement(state, deps, this.lists, this.fixes, this.carries, {
       chainOf: (project, task) => this.chainOf(project, task),
-      runningOf: (project) =>
-        lanesOf(this.state, project).flatMap(({ current, interrupted }) => {
-          const task = current?.task === undefined || isOwnName(current.task) ? interrupted?.task : current.task
-          return task === undefined ? [] : [task]
-        }),
+      runningOf: (project) => this.runningOf(project),
       requireProject: (project) => this.requireProject(project),
       release: (chain, reason, blockers) => this.release(chain, reason, blockers),
       changed: () => this.changed(),
@@ -571,6 +573,14 @@ export class Dispatcher {
     const chain = this.chainOf(project)
     const task = chain?.current?.task
     return task === undefined || isOwnName(task) ? chain?.interrupted?.task : task
+  }
+
+  /** Each lane's task as `currentOf` takes the head lane's, the head lane first (BTN-1611). */
+  private runningOf(project: string): string[] {
+    return lanesOf(this.state, project).flatMap(({ current, interrupted }) => {
+      const task = current?.task === undefined || isOwnName(current.task) ? interrupted?.task : current.task
+      return task === undefined ? [] : [task]
+    })
   }
 
   private drop(chain: ActiveChain): void {

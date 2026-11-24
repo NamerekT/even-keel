@@ -4,6 +4,7 @@ import type { PoolMachine, ProjectPool } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { HelpTip } from './settingsParts.js'
 import { Select, type SelectOption } from '../ui/Select.js'
 import { folderBlocked, lastFolder, machineFolder, NEW_FOLDER, type FolderPick } from './machinePicks.js'
 import { MachineFolderField, useFolderAnswers } from './MachineFolderField.js'
@@ -113,11 +114,14 @@ export function ConnectMachineDialog({
             />
           </div>
           {own ? (
-            <p className="add-package__note">{t.pool.dialog.ownNote}</p>
+            <p className="connect-machine__own">{t.pool.dialog.ownNote}</p>
           ) : (
             <>
               <div className="add-package__field">
-                <span className="add-package__label">{t.pool.dialog.folder}</span>
+                <span className="add-package__label-row">
+                  <span className="add-package__label">{t.pool.dialog.folder}</span>
+                  <HelpTip text={`${t.pool.dialog.pathHint} ${t.pool.dialog.checks}`} align="start" />
+                </span>
                 {chosen !== undefined && (
                   <div className="machine-folder">
                     <MachineFolderField
@@ -130,13 +134,15 @@ export function ConnectMachineDialog({
                     />
                   </div>
                 )}
-                <p className="add-package__note">{t.pool.dialog.pathHint}</p>
               </div>
               {sources.length > 0 && (
                 <div className="add-package__field">
-                  <label className="add-package__label" htmlFor={copyId}>
-                    {t.pool.dialog.copy}
-                  </label>
+                  <span className="add-package__label-row">
+                    <label className="add-package__label" htmlFor={copyId}>
+                      {t.pool.dialog.copy}
+                    </label>
+                    <HelpTip text={t.pool.dialog.copyHint} align="start" />
+                  </span>
                   <Select
                     id={copyId}
                     className="add-package__input"
@@ -144,10 +150,8 @@ export function ConnectMachineDialog({
                     options={[{ value: '', label: t.pool.dialog.copyNone }, ...sources.map((each) => ({ value: each.id, label: t.pool.dialog.copyFrom(each.name) }))]}
                     onChange={setCopyFrom}
                   />
-                  <p className="add-package__note">{t.pool.dialog.copyHint}</p>
                 </div>
               )}
-              <p className="add-package__note">{t.pool.dialog.checks}</p>
             </>
           )}
         </div>

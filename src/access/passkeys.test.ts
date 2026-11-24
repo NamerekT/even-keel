@@ -1,6 +1,8 @@
 import { expect, it } from 'vitest'
 import { memoryDatabase } from '../storage/memory.js'
 import { FakeAuthenticator } from './authenticator.fixture.js'
+import { hostnameOf } from '../guard.js'
+import { passkeyHost } from './passkey-host.js'
 import { PasskeyDesk } from './passkeys.js'
 import { ensureOwner, passkeysOf } from './store.js'
 
@@ -53,6 +55,20 @@ it('refuses an answer for another RP ID or origin, and a challenge past its time
   const third = await desk.authenticationOptions(HOST)
   later(10 * 60_000)
   await expect(desk.authenticate({ host: HOST, origin: ORIGIN, response: authenticator.get(third, ORIGIN) })).rejects.toThrow()
+})
+
+it('refuses a ceremony on a page opened by an IP address, v4 or v6, with a code, not options with an IP RP ID (BTN-1632)', async () => {
+  const { desk } = await deskOf()
+  for (const header of ['127.0.0.1:4747', '192.168.1.20', '[::1]:4747', '[fe80::1]']) {
+    const host = hostnameOf(header)!
+    expect(host).toMatch(/^[\d.:a-f]+$/)
+    expect(passkeyHost(host)).toBe(false)
+    await expect(desk.registrationOptions(host)).rejects.toMatchObject({ notice: { code: 'auth.passkeyByName' } })
+    await expect(desk.authenticationOptions(host)).rejects.toMatchObject({ notice: { code: 'auth.passkeyByName' } })
+  }
+  await expect(desk.authenticationOptions('')).rejects.toMatchObject({ notice: { code: 'auth.passkeyByName' } })
+  for (const name of ['localhost', HOST, 'pc.tail1234.ts.net']) expect(passkeyHost(name)).toBe(true)
+  expect((await desk.registrationOptions('localhost')).rp.id).toBe('localhost')
 })
 
 it('offers a new registration without the passkeys already on the host, and removes one', async () => {

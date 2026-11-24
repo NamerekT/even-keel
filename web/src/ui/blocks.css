@@ -84,7 +84,7 @@
 }
 
 .ui-tile__label,
-.ui-tile__note {
+.ui-tile__aside {
   color: var(--fg-muted);
   font-size: var(--text-13);
 }

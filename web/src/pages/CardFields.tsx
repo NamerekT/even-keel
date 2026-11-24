@@ -190,7 +190,7 @@ export function MilestoneField({ card, editor }: { card: Editable; editor: CardE
         {current !== null && <Remove label={t.card.edit.clearMilestone} disabled={editor.busy} onPress={() => void commit('')} />}
       </div>
       {chosen?.targetDate ? <small>{t.card.due(DAY().format(chosen.targetDate))}</small> : null}
-      {current !== null && foreignMilestone(card.edit.milestoneRules, current) && <p className="task-card__run-note task-card__run-note--warn">{t.card.edit.foreignMilestone}</p>}
+      {current !== null && foreignMilestone(card.edit.milestoneRules, current) && <p className="task-card__run-state task-card__run-state--warn">{t.card.edit.foreignMilestone}</p>}
       {carry !== null && (
         <ConfirmDialog
           title={t.card.edit.carryTitle}

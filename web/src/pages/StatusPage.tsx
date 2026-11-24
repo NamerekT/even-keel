@@ -156,7 +156,7 @@ function CheckTile({ check, retry, className }: { check: Check; retry: () => voi
         <span className="system__dot" aria-hidden="true" />
         {check.text}
       </p>
-      {check.note !== undefined && <p className="status-check__note">{check.note}</p>}
+      {check.note !== undefined && <p className="status-check__aside">{check.note}</p>}
       {check.fix !== undefined && (
         <div className="status-check__action">
           <CheckAction check={check} retry={retry} />

@@ -230,6 +230,14 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (typeof value !== 'string' || hubUrlOf(value, MACHINES_PORT) === undefined) throw fail('config.machinesAddress', { value: json(value) })
     return value.trim().toLowerCase()
   } },
+  // The remote repository the hub's memory repositories are copied to (BTN-1649); `null` — no mirror. A password in it
+  // would be a credential among the settings: git signs in by its own means instead.
+  { key: 'memoryMirror', kind: 'string', scopes: ['global'], lands: ['memoryMirror'], default: null, check: (value) => {
+    if (value === null || (typeof value === 'string' && value.trim() === '')) return null
+    if (typeof value !== 'string' || /\s/.test(value.trim()) || value.trim().startsWith('-')) throw fail('config.memoryMirror', { value: json(value) })
+    if (/^[a-z][a-z0-9+.-]*:\/\/[^/@]*:[^/@]*@/i.test(value.trim())) throw fail('config.memoryMirrorPassword', {})
+    return value.trim()
+  } },
   { key: 'parallel', kind: 'integer', scopes: ['global'], lands: ['parallel'], default: 1, check: (value) => {
     if (!Number.isInteger(value) || (value as number) < 1) throw fail('config.parallel', { value: json(value) })
     return value

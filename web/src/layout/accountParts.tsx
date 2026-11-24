@@ -300,54 +300,54 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
 
   return (
     <>
-      {!brief && !goExpired && stale !== null && <p className="accounts__note">{stale}</p>}
+      {!brief && !goExpired && stale !== null && <p className="accounts__state">{stale}</p>}
       {goExpired && (
-        <div className="accounts__note accounts__note--warn">
+        <div className="accounts__problem">
           <span>{say(entry.usage.reason!)}</span>
           {entry.keyReplaceable === true && actions(<ReplaceKeyButton entry={entry} view={view} sending={sending} />)}
         </div>
       )}
-      {entry.status?.loggedIn === null && <p className="accounts__note">{t.account.authUnknownNote}</p>}
+      {entry.status?.loggedIn === null && <p className="accounts__state">{t.account.authUnknownNote}</p>}
       {mixup !== null && (
-        <div className="accounts__note accounts__note--warn">
+        <div className="accounts__problem">
           <span>{mixup.text}</span>
           {!left.renew && actions(<RenewButton entry={entry} view={view} sending={sending} send={send} again />)}
         </div>
       )}
-      {held?.code === 'account.extraFree' && <p className="accounts__note accounts__note--warn">{say(held)}</p>}
-      {entry.usage.reason?.code === 'usage.chatGptSpendCap' && <p className="accounts__note accounts__note--warn">{say(entry.usage.reason)}</p>}
+      {held?.code === 'account.extraFree' && <p className="accounts__problem">{say(held)}</p>}
+      {entry.usage.reason?.code === 'usage.chatGptSpendCap' && <p className="accounts__problem">{say(entry.usage.reason)}</p>}
       {entry.spendingLimit != null && (
-        <Tipped className="accounts__note accounts__note--warn" tip={t.session.spendWait(spendAt)} align="start" focusable>
+        <Tipped className="accounts__problem" tip={t.session.spendWait(spendAt)} align="start" focusable>
           {t.session.spendUntil(spendAt)}
         </Tipped>
       )}
       {entry.apiKey && entry.needsLogin && (
-        <div className="accounts__note accounts__note--warn">
+        <div className="accounts__problem">
           <span>{keyWord(entry) === 'token' ? t.account.tokenLost : t.account.apiKeyLost}</span>
           {entry.keyReplaceable === true && actions(<ReplaceKeyButton entry={entry} view={view} sending={sending} />)}
         </div>
       )}
       {token !== null && (
-        <div className="accounts__note accounts__note--warn">
+        <div className="accounts__problem">
           <span>{token}</span>
           {entry.keyReplaceable === true && actions(<ReplaceKeyButton entry={entry} view={view} sending={sending} />)}
         </div>
       )}
       {signsIn && entry.needsLogin && entry.terminalLogin !== undefined && (
-        <div className="accounts__note accounts__note--warn accounts__note--command">
+        <div className="accounts__problem accounts__problem--command">
           <span>{t.account.terminalLogin(entry.terminalLogin.startsWith('cmd ') ? 'cmd' : 'sh')}</span>
           <CommandBlock command={entry.terminalLogin} />
         </div>
       )}
       {!goExpired && signsIn && (left.renew || entry.needsLogin) && entry.terminalLogin === undefined && (
-        <div className="accounts__note accounts__note--warn">
+        <div className="accounts__problem">
           {entry.needsLogin || entry.loginExpiresAt === null ? <span>{entry.needsLogin ? t.account.needsLogin : t.account.expiry(left.text)}</span>
             : <Tipped inline tip={loginWindowTip(entry.loginExpiresAt, now)} align="start" focusable>{t.account.expiry(left.text)}</Tipped>}
           {actions(<RenewButton entry={entry} view={view} sending={sending} send={send} />)}
         </div>
       )}
       {entry.removing && (
-        <div className="accounts__note accounts__note--warn">
+        <div className="accounts__problem">
           <span>
             {t.account.removing}
             {entry.sessions.length > 0 ? t.account.removingAlive(entry.sessions.join(', ')) : ''}
@@ -355,14 +355,14 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false, qu
           {actions(<KeepButton entry={entry} sending={sending} send={send} />)}
         </div>
       )}
-      {!brief && entry.configPending && <p className="accounts__note">{t.account.configPending}</p>}
+      {!brief && entry.configPending && <p className="accounts__state">{t.account.configPending}</p>}
       {entry.error !== null &&
         (brief ? (
-          <Tipped className="accounts__note accounts__note--tipped" tip={say(entry.error)} align="start" focusable>
+          <Tipped className="accounts__state accounts__state--tipped" tip={say(entry.error)} align="start" focusable>
             {t.account.checkFailedShort}
           </Tipped>
         ) : (
-          <p className="accounts__note">{t.account.checkFailed(say(entry.error))}</p>
+          <p className="accounts__state">{t.account.checkFailed(say(entry.error))}</p>
         ))}
     </>
   )
@@ -442,7 +442,7 @@ export function TransportNote({ entry, brief = false }: Pick<NotesProps, 'entry'
   if (transport === undefined || entry.removing) return null
   return (
     <Tipped
-      className="accounts__note accounts__note--tipped"
+      className="accounts__state accounts__state--tipped"
       tip={
         <>
           <p>{t.account.transportWhere}</p>
@@ -602,7 +602,7 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
           )}
         </li>
       </ol>
-      {hint !== null && <p className="login-rows__hint">{hint}</p>}
+      {hint !== null && <p className="login-rows__state">{hint}</p>}
       {login.output !== '' && <Output text={login.output} open={outputOpen} />}
     </>
   )

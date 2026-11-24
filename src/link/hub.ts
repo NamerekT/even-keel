@@ -4,7 +4,7 @@ import type { HubStore, MachineRecord } from './hub-store.js'
 import {
   API_VERSION, HEARTBEAT_MS, INVITE_MS, MISSED_PULSES, credentialsOf, encodeToken,
   type Command, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type JoinAnswer, type JoinPost, type MachineAbout, type MachineEvent, type MachineHello, type McpAnswer, type McpPost,
-  type McpRequest, type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type CredentialsAnswer, type CredentialsPost, type SkillsAnswer, type SkillsPost,
+  type McpRequest, type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type CredentialsAnswer, type CredentialsPost, type SkillsAnswer, type SkillsPost, type GitAnswer, type GitPost, type GitRequest,
 } from './protocol.js'
 
 /** A connection string just issued: the line is shown once, the hub keeps only the hash of its secret. */
@@ -38,6 +38,8 @@ export interface HubHandlers {
   credentials?(machine: string, project: string, urls: string[]): Promise<CredentialsAnswer> | CredentialsAnswer
   /** The files of the hub's install of the user's skills package (BTN-1565); without a handler, none. */
   skills?(machine: string, install: string): Promise<SkillsAnswer> | SkillsAnswer
+  /** One request of git to a project's memory repository (BTN-1648); without a handler, 404. */
+  git?(machine: string, project: string, request: GitRequest): Promise<GitAnswer> | GitAnswer
 }
 
 export interface HubOptions {
@@ -271,6 +273,12 @@ export class HubEnd {
   async skills(authorization: string | undefined, post: SkillsPost): Promise<SkillsAnswer | Refusal> {
     const handler = this.options.handlers.skills
     return this.asked(authorization, post.connection, (machine) => handler?.(machine, post.install) ?? { skills: null })
+  }
+
+  /** A request of the machine's git to a project's memory repository (BTN-1648): as `credentials`. */
+  async git(authorization: string | undefined, post: GitPost): Promise<GitAnswer | Refusal> {
+    const handler = this.options.handlers.git
+    return this.asked(authorization, post.connection, (machine) => handler?.(machine, post.project, post.request) ?? { status: 404, contentType: 'text/plain', body: '' })
   }
 
   private otherVersion(): Refusal {

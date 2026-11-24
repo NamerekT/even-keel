@@ -61,7 +61,7 @@ describe('The next start while a session resolves its landing (BTN-1582)', () =>
 })
 
 const waitingRemote: Landing = { task: 'ABC-1', rounds: 0, waitingRemote: true, failures: 3, retryAt: '2099-01-01T00:00:00.000Z' }
-const unreachable: LandOutcome = { state: 'failed', network: true, failure: notice('sync.fetch', { remote: 'origin' }, { detail: 'Could not resolve host' }) }
+const unreachable: LandOutcome = { state: 'failed', transient: 'network', failure: notice('sync.fetch', { remote: 'origin' }, { detail: 'Could not resolve host' }) }
 
 function closer(refuse = false) {
   const completed: { task: string; comment: string }[] = []

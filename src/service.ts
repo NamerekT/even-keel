@@ -481,7 +481,7 @@ const {
 } = machineHost
 /** The shared pool's Claude entry: whose `.claude.json` and tools the Claude-only checks read. */
 const claudeAccount = () => machine.configStore.current.accounts[CLAUDE]!
-/** The hub's project memory folders mirrored into the records chain sessions read and write (BTN-1029). */
+/** The projects' memory repositories and the hub's memory folders as their working copies (BTN-1646). */
 const memory = accountsService.wireMemory(context)
 const packageHub = accountsService.wirePackageHub(context)
 /**
@@ -634,12 +634,14 @@ const { mailRelay, answerSession } = createChat({
   catchUp: async () => machineLink.port.catchUp?.(true),
   mailbox,
   configuredProject,
-  liveView: (task) => machineLink.page.liveView(task),
-  sessions: () => machineLink.page.sessions(),
+  // A session elsewhere's too, by its machine's mirror (BTN-1633): its chat and its mail's settling are the hub's.
+  liveView: (task) => machineLink.sessions.liveView(task),
+  sessions: () => machineLink.sessions.sessions(),
   midTurn: (task) => machineLink.port.midTurn(task),
-  steering: (sessionId) => machineLink.page.steers(sessionId),
+  steering: (sessionId) => machineLink.sessions.steers(sessionId),
   chat: machineLink.services.chat,
-  listens: (sessionId) => machineLink.page.mailbox()[sessionId]?.listens === true,
+  chatOf: (sessionId) => machineLink.chatOf(sessionId),
+  listens: (sessionId) => machineLink.sessions.mailbox()[sessionId]?.listens === true,
   steer,
   resumeChat: (chat, sessionId, prompt) => projectChats.resume(chat, sessionId, prompt),
   language: promptLanguage,

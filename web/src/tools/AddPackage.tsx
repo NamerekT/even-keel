@@ -110,7 +110,7 @@ function KindStep({ onPick }: { onPick: (kind: Kind) => void }) {
         <button key={kind} type="button" className="add-package__kind" onClick={() => onPick(kind)}>
           <span className="add-package__kind-icon">{icons[kind]}</span>
           <span className="add-package__kind-title">{t.packages.addKind[kind].title}</span>
-          <span className="add-package__kind-hint">{t.packages.addKind[kind].hint}</span>
+          <span className="add-package__kind-desc">{t.packages.addKind[kind].hint}</span>
         </button>
       ))}
     </div>
@@ -170,7 +170,7 @@ function PluginStep({ view, projects, initial, onBack, onClose }: StepProps) {
                 id={id}
                 className="add-package__input"
                 value={picked}
-                options={view.available.map((each, index) => ({ value: names[index]!, label: each.plugin, aside: <span className="select__note">{each.marketplace}</span>, keywords: each.marketplace }))}
+                options={view.available.map((each, index) => ({ value: names[index]!, label: each.plugin, aside: <span className="select__aside">{each.marketplace}</span>, keywords: each.marketplace }))}
                 onChange={setPicked}
                 search={{ placeholder: t.packages.pluginSearch, none: t.packages.pluginNone }}
               />
@@ -284,12 +284,15 @@ function SkillsStep({ view, projects, onBack, onClose }: StepProps) {
       ) : (
         <>
           <fieldset className="add-package__field">
-            <legend className="add-package__label add-package__legend">{t.packages.skills}</legend>
+            <legend className="add-package__label add-package__legend">
+              <span className="add-package__label-row">
+                {t.packages.skills}
+                <HelpTip text={[t.packages.skillsTools, t.packages.skillsClaude, ...(kept ? [t.packages.skillsKept(name)] : [])].join(' ')} align="start" />
+              </span>
+            </legend>
             <SkillList list={list} picked={picked} onToggle={toggle} />
           </fieldset>
-          <p className="add-package__note add-package__note--warn">{t.packages.skillsTools}</p>
-          <p className="add-package__note">{t.packages.skillsClaude}</p>
-          {kept ? <p className="add-package__note">{t.packages.skillsKept(name)}</p> : <WhereField projects={projects} value={where} onChange={setWhere} />}
+          {!kept && <WhereField projects={projects} value={where} onChange={setWhere} />}
         </>
       )}
     </StepForm>

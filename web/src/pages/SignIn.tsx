@@ -5,7 +5,7 @@ import { Card } from '../ui/blocks.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import { KeyIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
-import { addPasskey, passkeysWork, signInWithPasskey, type AuthPost } from './passkey.js'
+import { addPasskey, openedByIp, passkeysWork, signInWithPasskey, type AuthPost, type Refusal } from './passkey.js'
 import { HelpTip } from './settingsParts.js'
 import './settings.css'
 import './signIn.css'
@@ -21,14 +21,16 @@ interface Failure {
 /**
  * The page a browser gets before it is in (BTN-1619, `docs/web/sign-in.md`): a passkey in one press, or the owner key;
  * after the key, the offer to add a passkey here. `entered` loads the page anew once the browser holds its cookie.
+ * A passkey lives on the host name it was made on: with none for this one (`passkeyHere`), the button gives way to a line.
  */
-export function SignIn({ keySet, post, entered }: { keySet: boolean; post: AuthPost; entered: () => void }) {
+export function SignIn({ keySet, passkeyHere, post, entered }: { keySet: boolean; passkeyHere: boolean; post: AuthPost; entered: () => void }) {
   const [stage, setStage] = useState<Stage>('form')
   const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<Failure | null>(null)
   const keyId = useId()
   const passkeys = passkeysWork()
+  const button = passkeys && passkeyHere
 
   const run = async (at: Failure['at'], step: () => Promise<void>) => {
     setBusy(true)
@@ -41,12 +43,11 @@ export function SignIn({ keySet, post, entered }: { keySet: boolean; post: AuthP
       setBusy(false)
     }
   }
-  const cancelled = () => setFailure({ at: 'form', text: t.signIn.cancelled })
-  const withPasskey = () =>
-    run('form', async () => {
-      if (await signInWithPasskey(post)) entered()
-      else cancelled()
-    })
+  const ended = (outcome: true | Refusal) => {
+    if (outcome === true) entered()
+    else setFailure({ at: 'form', text: outcome === 'unsupported' ? t.signIn.unsupported : t.signIn.cancelled })
+  }
+  const withPasskey = () => run('form', async () => ended(await signInWithPasskey(post)))
   const withKey = (event: FormEvent) => {
     event.preventDefault()
     if (key.trim() === '') return
@@ -56,11 +57,7 @@ export function SignIn({ keySet, post, entered }: { keySet: boolean; post: AuthP
       else entered()
     })
   }
-  const add = () =>
-    run('form', async () => {
-      if (await addPasskey(post)) entered()
-      else cancelled()
-    })
+  const add = () => run('form', async () => ended(await addPasskey(post)))
   const band = failure?.at === 'form' && (
     <div className="notice notice--error" role="alert">
       {failure.text}
@@ -75,18 +72,18 @@ export function SignIn({ keySet, post, entered }: { keySet: boolean; post: AuthP
       </div>
       {stage === 'form' ? (
         <Card className="sign-in__card" title={t.signIn.title}>
-          {passkeys ? (
+          {button ? (
             <button type="button" className="button button--primary sign-in__wide" disabled={busy} onClick={() => void withPasskey()}>
               <KeyIcon />
               {busy && failure === null && key === '' ? t.signIn.passkeyWaiting : t.signIn.passkey}
             </button>
           ) : (
-            <p className="sign-in__state">{t.signIn.noPasskeyHere}</p>
+            <p className="sign-in__state">{passkeys ? t.signIn.noPasskeyOnName : openedByIp() ? t.signIn.noPasskeyByIp : t.signIn.noPasskeyHere}</p>
           )}
           {band}
           {keySet && (
             <>
-              {passkeys && (
+              {button && (
                 <div className="sign-in__or" aria-hidden="true">
                   {t.signIn.or}
                 </div>
@@ -108,7 +105,7 @@ export function SignIn({ keySet, post, entered }: { keySet: boolean; post: AuthP
                     onChange={(event) => setKey(event.target.value)}
                   />
                 </FieldStrip>
-                <button type="submit" className={passkeys ? 'button sign-in__wide' : 'button button--primary sign-in__wide'} disabled={busy || key.trim() === ''}>
+                <button type="submit" className={button ? 'button sign-in__wide' : 'button button--primary sign-in__wide'} disabled={busy || key.trim() === ''}>
                   {t.signIn.enter}
                 </button>
               </form>

@@ -88,7 +88,13 @@ export interface QueryOptions {
 }
 
 export interface LiveDeps {
-  fetchState: () => Promise<EvenKeelState>
+  /**
+   * Whether this browser lost its sign-in: a revoked device, a changed key. Asked on a failed stream and when the page
+   * comes back into view, since EventSource never says why it failed; a failed request is no answer.
+   */
+  signedOut: () => Promise<boolean>
+  /** Leaves the page for the sign-in screen. */
+  showSignIn: () => void
   openEvents: () => EventStream
   sendCommand: (name: string, body: Record<string, unknown>) => Promise<void>
   fetchSession: (sessionId: string) => Promise<SessionRecord | null>
@@ -120,6 +126,7 @@ export class LiveConnection implements LiveSource {
   private retryTimer: ReturnType<typeof setTimeout> | undefined
   private silenceTimer: ReturnType<typeof setTimeout> | undefined
   private stopped = false
+  private asking = false
 
   constructor(private readonly deps: LiveDeps) {}
 
@@ -147,6 +154,16 @@ export class LiveConnection implements LiveSource {
   retryNow(): void {
     if (this.current.link !== 'stale' || this.stopped) return
     this.open()
+  }
+
+  /**
+   * The page came back into view: a stream left in the background may be dead without an error yet (Safari), so the
+   * sign-in is asked at once and a stale link is reopened.
+   */
+  wake(): void {
+    if (this.stopped) return
+    this.askSignIn()
+    this.retryNow()
   }
 
   async command(name: string, body: Record<string, unknown> = {}): Promise<void> {
@@ -318,11 +335,24 @@ export class LiveConnection implements LiveSource {
     stream.onerror = () => {
       if (stream !== this.stream) return
       this.markStale()
-      if (stream.readyState !== CLOSED) return
-      // EventSource does not say why it closed: a plain request does, a refused token included.
-      this.deps.fetchState().catch(() => {})
-      this.scheduleRetry()
+      // The browser reopens a stream the service ended after a 200 by itself: a revoked device's included (BTN-1629).
+      this.askSignIn()
+      if (stream.readyState === CLOSED) this.scheduleRetry()
     }
+  }
+
+  private askSignIn(): void {
+    if (this.asking) return
+    this.asking = true
+    this.deps
+      .signedOut()
+      .then((out) => {
+        if (!out || this.stopped) return
+        this.stop()
+        this.deps.showSignIn()
+      })
+      .catch(() => {})
+      .finally(() => (this.asking = false))
   }
 
   private scheduleRetry(): void {

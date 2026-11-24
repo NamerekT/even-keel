@@ -180,10 +180,20 @@ describe('landTask (BTN-1581)', { timeout: 60_000 }, () => {
     const offline: Git = (cwd, args, env) =>
       args[0] === 'fetch' ? Promise.resolve({ code: 128, out: "fatal: unable to access 'https://example.com/x.git/': Could not resolve host: example.com" }) : runGit(cwd, args, env)
 
-    expect(await land({ git: offline })).toMatchObject({ state: 'failed', network: true, failure: { code: 'sync.fetch' } })
+    expect(await land({ git: offline })).toMatchObject({ state: 'failed', transient: 'network', failure: { code: 'sync.fetch' } })
 
     expect(await git(first, 'rev-parse', MAIN)).toBe(head)
     expect(head).not.toBe(before)
+  })
+
+  it('fails for a while, not as a refusal, when the remote server answers the push with an error', async () => {
+    await mergeTask()
+    const failing: Git = (cwd, args, env) =>
+      args[0] === 'push'
+        ? Promise.resolve({ code: 1, out: 'remote: Internal Server Error\n ! [remote rejected] main -> main (Internal Server Error)\nerror: failed to push some refs' })
+        : runGit(cwd, args, env)
+
+    expect(await land({ git: failing })).toMatchObject({ state: 'failed', transient: 'server', failure: { code: 'sync.push' } })
   })
 
   it('fails as a refusal, not a network failure, when the remote declines the push', async () => {
@@ -196,7 +206,7 @@ describe('landTask (BTN-1581)', { timeout: 60_000 }, () => {
 
     const landed = await land()
 
-    expect(landed).toMatchObject({ state: 'failed', network: false, failure: { code: 'sync.push' } })
+    expect(landed).toMatchObject({ state: 'failed', transient: null, failure: { code: 'sync.push' } })
     expect(landed.state === 'failed' && landed.failure.detail).toContain('pushes are closed')
   })
 

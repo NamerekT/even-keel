@@ -10,6 +10,7 @@ import { Links } from '../ui/Links.js'
 import { PriorityIcon } from '../ui/Priority.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { Tipped } from '../ui/Tipped.js'
+import { HelpTip } from './settingsParts.js'
 import { WorkChip } from '../ui/WorkChip.js'
 import { BACKLOG_PLACE } from '../ui/addGhost.js'
 import { AddGhost } from './AddGhost.js'
@@ -145,6 +146,7 @@ export function BacklogPanel({ tasks, runs, works, ready: buttonOf, links, onCar
           <span className="backlog__title-text">
             <StackIcon />
             {t.project.backlog(tasks.length)}
+            <HelpTip text={t.project.backlogHint} align="start" />
           </span>
           {searching && <span className="backlog__found">{t.project.backlogFound(found.length, tasks.length)}</span>}
         </h2>
@@ -153,7 +155,6 @@ export function BacklogPanel({ tasks, runs, works, ready: buttonOf, links, onCar
           <CloseIcon />
         </button>
       </header>
-      <p className="chain__hint">{t.project.backlogHint}</p>
       <SearchField value={query} onChange={search} />
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <ol

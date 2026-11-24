@@ -25,6 +25,9 @@ import { JoinRequests } from '../link/join-requests.js'
 import { MachineNetwork } from './machine-network.js'
 import { sessionTranscripts } from './session-transcripts.js'
 import { folderGitCredentials, hubGitCredentials } from './git-credentials.js'
+import { MemoryFolders } from '../memory/git/folders.js'
+import { hubMemoryGit } from '../memory/git/hub-git.js'
+import { placedIn } from '../machine/assignments.js'
 import { withCredentials } from '../git/credentials.js'
 import { runGit } from '../git/run.js'
 import { MachineTally } from '../stats/machine-tally.js'
@@ -39,7 +42,7 @@ import { ownMachine } from '../machine/own.js'
 import { folderMarks } from '../machine/marks.js'
 import type { FolderOwner, MachineEnd } from '../link/machine.js'
 import type { HubBuild, MachineProjectSettings } from '../link/view.js'
-import { allSessions, type PageReads, type SessionReads } from '../machine/page.js'
+import { allSessions, withHubMail, type PageReads, type SessionReads } from '../machine/page.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
 import { machinePool } from '../machine/pool.js'
@@ -60,7 +63,8 @@ import { loadMail } from '../sessions/mailbox.js'
 import { MAX_KEEP_WARM_HOURS } from '../sessions/keepwarm.js'
 import { readWarmPings } from '../sessions/warm-pings.js'
 import { adoptMail } from '../sessions/mailbox-store.js'
-import type { MachineServices, TranscriptReads } from '../machine/services.js'
+import type { MachineChat, MachineServices, TranscriptReads } from '../machine/services.js'
+import { elsewhereChat } from '../sessions/chat.js'
 import { BriefSender, hubBrief } from './hub-brief.js'
 import type { MachineContext } from './machine-context.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
@@ -99,8 +103,16 @@ export interface LinkedMachine {
   records: MachineRecords
   /** What the page and the chat read of the machine's sessions and accounts: its mirror, never the machine's objects. */
   page: PageReads
-  /** The sessions of every machine's mirror, the own one's first: the page's state of the tasks' sessions (BTN-1314). */
+  /**
+   * The sessions of every machine's mirror, the own one's first: the page's state of the tasks' sessions (BTN-1314)
+   * and the chat's, the mailbox of a session elsewhere with the hub's own laid over (`withHubMail`, BTN-1633).
+   */
   sessions: SessionReads
+  /**
+   * The chat's commands for a session (BTN-1633): one elsewhere on the link steers, takes the inbox and the files on its
+   * machine, its mailbox is the hub's (`elsewhereChat`); any other the own machine's.
+   */
+  chatOf(sessionId: string): MachineChat
   /** The hub's mirror of a machine, the own one too; `undefined` — one elsewhere that has not posted a snapshot since the hub started. */
   mirror(machine: string): RemoteMachine | undefined
   /** The own machine's id; empty until `wireLinkedMachine` read its token. */
@@ -119,6 +131,8 @@ export interface LinkedMachine {
   transcripts: TranscriptReads
   /** The door for machines elsewhere (BTN-1242): open while "Hub address for machines" is set. */
   network: MachineNetwork
+  /** The folders of machines elsewhere bound to a project's memory beyond their pools (BTN-1648); read at `start`. */
+  memoryFolders: MemoryFolders
   /** The machines asking at that door to join by the address (BTN-1620), waiting for the page. */
   requests: JoinRequests
   /** Whether a machine on the link polls `/usage` of the claude.ai account ("Account limits"). */
@@ -141,9 +155,10 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
  * the local port runs behind `MachineRunner`, and the two talk through `HubEnd` and `MachineEnd` over a carrier that
  * is a call. Nothing is connected until `start`.
  */
-export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext, 'runsOfProject' | 'demo' | 'machineDb' | 'packageHub' | 'protectionAudit' | 'mailRelay' | 'tally'>, machine: MachineContext): Promise<LinkedMachine> {
+export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext, 'runsOfProject' | 'demo' | 'machineDb' | 'packageHub' | 'protectionAudit' | 'mailRelay' | 'tally' | 'memory'>, machine: MachineContext): Promise<LinkedMachine> {
   const log = (line: string): void => console.log(line)
   const { machineDb } = ctx
+  const memoryFolders = new MemoryFolders(ctx.db)
   const hubStore = new DatabaseHubStore(ctx.db)
   const machineStore = new DatabaseMachineStore(machineDb)
   let own = ''
@@ -220,7 +235,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
    * elsewhere gets the hub's catalog of their packages too, the own one shares the hub's (BTN-1299).
    */
   const hubIdentities = new AccountIdentities()
-  const briefOf = (folders: Record<string, string>, settings: Record<string, MachineProjectSettings> = {}, elsewhere = false) => {
+  const briefOf = (folders: Record<string, string>, settings: Record<string, MachineProjectSettings> = {}, elsewhere?: string) => {
     const routes = ctx.packageHub.hubServers()
     return hubBrief({
       config: () => ctx.configStore.current,
@@ -239,7 +254,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
         const server = adapter?.mcpServer
         return server === undefined ? undefined : { server, required: !ctx.briefOn(project), ...(server !== TASKS_SERVER && servesTasks(adapter) ? { also: TASKS_SERVER } : {}) }
       },
-      ...(elsewhere ? { catalog: (projects: string[]) => ctx.packages.catalogFor(projects, routes) } : {}),
+      ...(elsewhere !== undefined ? { catalog: (projects: string[]) => ctx.packages.catalogFor(projects, routes), memory: () => memoryFolders.of(elsewhere) } : {}),
       accounts: () => briefAccounts(foldersHere(ctx, hubIdentities)),
     })
   }
@@ -414,7 +429,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     briefed: (machine) => afterGreen.back(machine),
     peers: {
       remote: (machine) => remoteOf(() => machine),
-      brief: (folders, settings) => briefOf(folders, settings, true),
+      brief: (folders, settings, machine) => briefOf(folders, settings, machine),
       changed: () => {
         steerLimits()
         // The page shows each machine's accounts and its sign-in under way (`MachineNetwork.signIns`).
@@ -426,6 +441,16 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       tally: (machine, rows) => machineTally.take(machine, rows),
       credentials: gitCredentialsOf,
       skills: (_machine, install) => ({ skills: ctx.packages.skillsOf(install) }),
+      git: hubMemoryGit({
+        placed: (project, machine) => placedIn(ctx.db, project, machine),
+        bound: (machine, project) => memoryFolders.allows(machine, project),
+        repository: (project) => ctx.memory.existingRepository(project),
+        pushed: (project) => {
+          ctx.memory.pushed(project)
+          void ctx.memory.syncAll(project)
+        },
+        log,
+      }),
       write: (machine, write) => hubMcp.write(machine, write),
     },
     takeOverOwn: async (project, owner) => {
@@ -487,6 +512,11 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     const launch = ctx.launches.findLast((entry) => entry.sessionId === sessionId)
     return launch === undefined ? undefined : assignments.machineOf(launch.project, launch.task)
   }
+  const sessions = allSessions(() => [remote.page, ...network.pages()])
+  const elsewhereSessions = (): string[] => {
+    const here = new Set(remote.page.sessions().map((view) => view.sessionId))
+    return network.pages().flatMap((page) => page.sessions().map((view) => view.sessionId)).filter((sessionId) => !here.has(sessionId))
+  }
   const transcripts = sessionTranscripts({
     own: () => own,
     sessionMachine,
@@ -498,6 +528,11 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     own: () => own,
     port: (machine) => (machine === own ? ownPort : network.port(machine)),
     machineOf: (project, task) => assignments.machineOf(project, task),
+    gone: (machine) => network.revoked(machine),
+    release: (project, task) => {
+      assignments.release(project, task)
+      moves.drop(project, task)
+    },
     projectOf: ctx.projectOf,
     sessionMachine,
     folderMachine: (folder) => (remote.page.sessions().some((view) => samePath(view.cwd, folder)) ? own : network.folderHolder(folder)),
@@ -558,7 +593,12 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     reassigner,
     records,
     page: remote.page,
-    sessions: allSessions(() => [remote.page, ...network.pages()]),
+    sessions: { ...sessions, mailbox: () => withHubMail(sessions.mailbox(), elsewhereSessions(), ctx.mailRelay.mailbox) },
+    chatOf: (sessionId) => {
+      const machine = sessionMachine(sessionId)
+      const there = machine === undefined || machine === own || !network.connected(machine) ? undefined : network.remote(machine)?.services().chat
+      return there === undefined ? services.chat : elsewhereChat(services.chat, there)
+    },
     mirror: (machine) => (machine === own ? remote : network.remote(machine)),
     own: () => own,
     inPool: (machine, project) => hubMcp.inPool(machine, project),
@@ -571,12 +611,15 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     services,
     transcripts,
     network,
+    memoryFolders,
     requests,
     polled: (account) => polls.poller(account) !== undefined,
     differs: (account) => polls.differs(account),
     start: async () => {
       // Before the own machine's replayed records: the messages kept before rows knew their machine are its own.
       await adoptMail(ctx.db, own)
+      // Before the first brief of a machine elsewhere: one without its bound folders would stop their copies there.
+      await memoryFolders.load()
       await network.apply()
       await end.start()
       let waited: ReturnType<typeof setTimeout> | undefined

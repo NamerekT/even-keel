@@ -108,7 +108,7 @@ export function AccountRoles({ entry, view, sending, send, compact = false }: Ro
                   <role.icon />
                   {role.label}
                 </span>
-                {role.problem === undefined ? <span className="roles__note">{role.note}</span> : <span className="roles__why">{say(role.problem)}</span>}
+                {role.problem === undefined ? <span className="roles__aside">{role.note}</span> : <span className="roles__why">{say(role.problem)}</span>}
               </button>
             </li>
           ))}

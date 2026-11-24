@@ -141,14 +141,12 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
         <Row
           className={marks.box('width')}
           label={t.pool.width}
-          hint={t.pool.widthHint}
+          hint={widthMax === undefined ? t.pool.widthHint : `${t.pool.widthHint} ${t.pool.widthMax(widthMax)}`}
           htmlFor={fieldId('width')}
           mark={marks.note('width')}
           control={number('width', text('width'), wholeOf(text('width'), 1) === undefined || errorOf('width') !== null, (value) => edit('width', cappedWidth(value, widthMax)))}
           error={errorOf('width')}
-        >
-          {widthMax !== undefined && <span className="settings__hint">{t.pool.widthMax(widthMax)}</span>}
-        </Row>
+        />
         {components && (
           <SwitchField
             className={marks.box('componentLanes')}

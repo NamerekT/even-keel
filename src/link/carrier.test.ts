@@ -9,7 +9,7 @@ import { createHubServer } from './hub-server.js'
 import { MemoryHubStore, MemoryMachineStore } from './link.fixture.js'
 import { MachineEnd } from './machine.js'
 import { JoinRequests } from './join-requests.js'
-import { askToJoin, connectPinned, frameReader, httpsTransport, joinHub } from './machine-transport.js'
+import { HOOK_TIMEOUT_MS, askToJoin, connectPinned, frameReader, httpsTransport, joinHub } from './machine-transport.js'
 import {
   API_VERSION, EVENTS_PATH, JOIN_PATH, REQUEST_PATH, STREAM_PATH, bearerOf, isRefusal, parseToken,
   type ConnectionToken, type Frame, type MachineAbout, type MachineEvent, type NumberedCommand,
@@ -66,7 +66,7 @@ describe('the link over HTTPS', { timeout: 30_000 }, () => {
     server = undefined
   })
 
-  const started = async (heartbeatMs = 20_000) => {
+  const started = async (heartbeatMs = 20_000, hookMs = 0) => {
     const certificate: HubCertificate = createCertificate()
     const log: string[] = []
     const taken: MachineEvent[] = []
@@ -79,7 +79,10 @@ describe('the link over HTTPS', { timeout: 30_000 }, () => {
       handlers: {
         event: (_machine, event) => void taken.push(event),
         snapshot: (_machine, snapshot) => void snapshots.push(snapshot),
-        hook: async (_machine, request) => ({ status: 200, body: JSON.stringify(request) }),
+        hook: async (_machine, request) => {
+          if (hookMs > 0) await new Promise((resolve) => setTimeout(resolve, hookMs))
+          return { status: 200, body: JSON.stringify(request) }
+        },
       },
     })
     server = createHubServer({ hub, certificate, log: (line) => log.push(line), maxBodyBytes: 4_096 })
@@ -144,6 +147,16 @@ describe('the link over HTTPS', { timeout: 30_000 }, () => {
     await until(() => machine.status().state === 'online', 'the machine online')
     const request = { path: '/api/sessions/s-1/checkpoint', method: 'GET' }
     expect(await machine.hook(request)).toEqual({ status: 200, body: JSON.stringify(request) })
+  })
+
+  it('gives up on a hook the hub answers too late and says so, not "socket hang up" (BTN-1634)', async () => {
+    const made = await started(20_000, HOOK_TIMEOUT_MS + 700)
+    const machine = made.machine()
+    await machine.start()
+    await until(() => machine.status().state === 'online', 'the machine online')
+    expect(await machine.hook({ path: '/api/sessions/s-1/checkpoint', method: 'GET' })).toBeUndefined()
+    expect(made.log).toEqual([`link: a hook's request GET /api/sessions/s-1/checkpoint did not get through: no answer from the hub in ${HOOK_TIMEOUT_MS} ms`])
+    expect(machine.status()).toEqual({ state: 'online' })
   })
 
   it('answers the stream with the headers that keep a proxy from holding it, each frame at once', async () => {

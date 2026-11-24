@@ -268,7 +268,7 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
         ) : candidate != null ? (
           <>
             <div className="add-package__body">
-              <p className="add-package__note">{t.addAccount.existingCli}</p>
+              <p className="add-package__lead">{t.addAccount.existingCli}</p>
               <p className="add-package__label account-add__identity">{candidate.status.email ?? candidate.status.orgName ?? t.account.agents[provider]}</p>
             </div>
             {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
@@ -364,7 +364,7 @@ function CloudAdded({ account, before, onDone }: { account: AccountView; before:
     <>
       <div className="add-package__body" role="status">
         <p className="add-package__label account-add__identity">{t.addAccount.cloud.added}</p>
-        <p className="add-package__note">
+        <p className="account-add__state">
           {added === undefined
             ? t.addAccount.cloud.waiting
             : added.checkedModel != null
@@ -392,7 +392,7 @@ function ProviderPick({ account, onPick, back }: { account: AccountView; onPick:
   return (
     <>
     <div className="add-package__body">
-      <p className="add-package__note">{t.addAccount.providerLead}</p>
+      <p className="add-package__lead">{t.addAccount.providerLead}</p>
       <div className="add-package__kinds account-add__providers">
         {PROVIDERS.map((provider) => {
           const missing = cliMissing(account, provider)
@@ -408,7 +408,7 @@ function ProviderPick({ account, onPick, back }: { account: AccountView; onPick:
               </span>
               <span className="add-package__kind-title">{t.account.agents[provider]}</span>
               {missing && <span className="tag account-add__missing">{t.account.cliNotFound}</span>}
-              <ProviderHint provider={provider} className="add-package__kind-hint" />
+              <ProviderHint provider={provider} className="add-package__kind-desc" />
             </button>
           )
         })}
@@ -453,6 +453,9 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
   const key = way.kind === 'key'
   const cloud = way.kind === 'cloud'
   const token = onToken(provider, way, draft)
+  const signs = signsOf(provider, way)
+  // What the way needs and its rule live in the "?" of the heading they belong to: the key, the sign-in, or the way's own.
+  const help = [token ? '' : text.next, text.rule].filter((line) => line !== '').join(' ')
   const ready = !sending && (token ? (draft.token ?? '').trim() !== '' : key ? draft.key.trim() !== '' : cloud ? cloudReady(draft.cloud ?? EMPTY_CLOUD) : true)
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -469,7 +472,12 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
     <form className="add-package__form" onSubmit={submit} onKeyDown={enter}>
       <div className="add-package__body">
         <fieldset className="add-package__field">
-          <legend className="add-package__label add-package__legend">{t.addAccount.ways}</legend>
+          <legend className="add-package__label add-package__legend">
+            <span className="add-package__label-row">
+              {t.addAccount.ways}
+              {help !== '' && !key && !signs && <HelpTip text={help} align="start" />}
+            </span>
+          </legend>
           <div className="account-add__ways">
             {WAYS[provider].map((each) => {
               const card = wayText(provider, each)
@@ -490,13 +498,14 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
             })}
           </div>
         </fieldset>
-        {signsOf(provider, way) && <SignFields draft={draft} onDraft={onDraft} choices={sameChoices(accounts)} accounts={accounts} failure={failure} />}
-        {!token && <p className="add-package__note">{text.next}</p>}
-        {text.rule !== '' && <p className="add-package__note">{text.rule}</p>}
+        {signs && <SignFields draft={draft} onDraft={onDraft} choices={sameChoices(accounts)} accounts={accounts} failure={failure} hint={help} />}
         {key && (
           <>
             <label className="add-package__field">
-              <span className="add-package__label">{t.addAccount.key[way.id === 'token' ? 'token' : 'key']}</span>
+              <span className="add-package__label-row">
+                <span className="add-package__label">{t.addAccount.key[way.id === 'token' ? 'token' : 'key']}</span>
+                {help !== '' && <HelpTip text={help} align="start" />}
+              </span>
               {/* A refusal of a key account is about the key (its form, the provider's answer), so it goes under the key. */}
               <FieldStrip line={failure === null ? null : { tone: 'error', text: failure }} fold wide>
                 <input
@@ -514,19 +523,17 @@ function Ways({ provider, way, draft, onDraft, onPick, back, sending, failure, a
         {(key || cloud || token) && (
           <label className="add-package__field">
             <span className="add-package__label">{t.addAccount.name}</span>
-            <input
-              className="add-package__input"
-              value={draft.name}
-              onChange={(event) => onDraft({ ...draft, name: event.target.value })}
-              autoComplete="off"
-              spellCheck={false}
-            />
+            {/* The check's wait is the state of the last field: it is what the button below is waiting on. */}
+            <FieldStrip line={(cloud || token) && sending ? { tone: 'plain', text: token ? t.addAccount.sign.checking : t.addAccount.cloud.checking } : null} fold wide>
+              <input
+                className="add-package__input"
+                value={draft.name}
+                onChange={(event) => onDraft({ ...draft, name: event.target.value })}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </FieldStrip>
           </label>
-        )}
-        {(cloud || token) && sending && (
-          <p className="add-package__note" role="status">
-            {token ? t.addAccount.sign.checking : t.addAccount.cloud.checking}
-          </p>
         )}
       </div>
       {failure !== null && !key && !token && (

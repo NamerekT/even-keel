@@ -689,7 +689,7 @@ Two ways to reach it from elsewhere:
 
 `EVEN_KEEL_TOKEN` is the **owner key**: 16+ characters, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Once it is set, a browser that is not signed in gets the sign-in screen:
 
-- **Passkey** — one button: the browser's own passkey dialog (Face ID, Windows Hello, a phone, a security key). It needs HTTPS or `localhost`; on plain `http://<address>` the screen offers only the key and says why. A passkey works only on the name the page was opened by when it was added.
+- **Passkey** — one button: the browser's own passkey dialog (Face ID, Windows Hello, a phone, a security key). It needs HTTPS or `localhost`; on plain `http://<address>` the screen offers only the key and says why. It also needs a name, not an IP address: opened as `http://127.0.0.1` or any other IP, the page has no passkey buttons — open it by `localhost` or an HTTPS name. A passkey works only on the name the page was opened by when it was added: its row in the settings shows that name, and on a name with no passkey yet the screen has no passkey button, only the key. An app's built-in browser (a link opened in a messenger) may have no passkeys at all: the screen then says so — open the page in Safari or Chrome.
 - **Owner key** — the first sign-in and the way back in: whoever can read the hub's `.env` can always sign in, so lost every passkey — sign in with the key and add a new one. After the key the screen offers to add a passkey on this device.
 
 Each sign-in gives the browser a token of its own in an `HttpOnly`, `SameSite=Strict` cookie. Settings → **Sign-in and devices** lists the passkeys (add, remove) and the devices signed in — when each was last seen and from where — with "Sign out" on each and "Sign out everywhere but here"; a device signed out loses its open page at once and is asked to sign in again. Changing the owner key signs out every device that signed in with the old key; passkey sign-ins stay. An old link with `?token=<key>` still works: it signs the browser in and drops the key from the address. Scripts send `Authorization: Bearer <key>`.
@@ -1044,7 +1044,7 @@ A new version may store the files of `state/` in a newer format: at startup, bef
 
 It rewrites all of them or none; a file it cannot read, or one written by a newer version, leaves the service with only the page, which shows the reason.
 
-The projects, the settings, the chain's state, the questions posted to the tracker, the launch log and the handoff snapshots live in one database, the folder `state/even-keel/` (PGlite, the embedded Postgres the statistics use too).
+The projects, the settings, the chain's state, the questions posted to the tracker, the launch log and the handoff snapshots live in one database, the folder `state/even-keel/` (PGlite, the embedded Postgres the statistics use too). Its `memory/` subfolder holds the git repositories of the projects' memory; the backups copy it with the database.
 Next to it Even Keel keeps `state/machine/` for the part that runs sessions. It holds account registrations, management keys, account limits and transferred settings, CLI choices, and pending messages to the hub. Keep this folder when moving the installation: it is not included in the database backups below. Stop Even Keel before copying it. If it is lost, Even Keel recreates it from the rows retained at the original migration; later machine-only changes and pending messages are lost.
 
 An Even Keel from before it kept them in a SQLite file `state/even-keel.db` or, earlier, in files: the first start of this version imports `even-keel.db`, or else `chain.json`, `questions.json`, `launches.jsonl` and `handoffs/`, in one go — all of it or nothing — and renames them to `<name>.imported`.
@@ -1078,6 +1078,8 @@ The copies go into `state/backups/`, next to `state/even-keel/`, named `even-kee
 **Settings** → **Backups** shows the last checked copy, makes one at once, and sets **Copies folder** (`backup.dir`, an absolute path; a folder on another disk survives this one) and **Copies to keep** (`backup.keep`, 1–365).
 
 Folders of other names in it, such as your own backups, are never removed.
+
+**Settings** → **Backups** → **Memory mirror** copies the projects' memory to a git repository of yours elsewhere, so it outlives this computer: give **Mirror repository** (`memoryMirror`) an address git can push to, such as `ssh://git@git.example.com/you/memory.git`. Each project's memory goes into its own branch, named by the project's id, after every change and when Even Keel starts. Git signs in by your SSH key or its credential helper: an address with a password is refused. Make the repository private, since the memory may hold personal notes: Even Keel cannot check it and shows a warning while the mirror is on. A failed push is a line in `logs/even-keel.log` and is tried again at the next change.
 
 A copy holds the trackers' tokens and keys in plain text: keep its folder as private as `.env`.
 

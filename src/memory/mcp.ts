@@ -1,15 +1,23 @@
-import type { Db } from '../storage/database.js'
+import { CLAUDE } from '../claude/name.js'
 import type { TasksScope } from '../taskmcp/calls.js'
 import type { ToolSpec } from '../taskmcp/tools.js'
+import { folderRecord, folderRecords, removeRecord, writeRecord } from './files.js'
+import type { MemoryHub } from './git/hub.js'
 import { indexLine, MEMORY_NAME, MEMORY_TYPES, similarRecords, type MemoryFact, type MemoryRecord } from './record.js'
-import { createMemory, deleteMemory, memoryRecord, memoryRecords, updateMemory, type MemoryAuthor, type MemoryOutcome } from './store.js'
-import type { MemoryMirror } from './mirror.js'
 
 /** The memory server of the built-in `agent-bridge` plugin (BTN-1029): its name in the plugin's `.mcp.json`. */
 export const MEMORY_SERVER = 'memory'
 /** The gateway's path of the server: a package route whose entry is a local address with this path. */
 export const MEMORY_PATH = '/memory'
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost'])
+
+/**
+ * Claude Code loads the project's memory folder itself (`autoMemoryDirectory`, BTN-1647): its sessions get neither the
+ * memory server nor the index in the prompt. Every other agent works the memory through the server.
+ */
+export function readsFileMemory(agent: string): boolean {
+  return agent === CLAUDE
+}
 
 /** A server entry whose address is the gateway's own memory server (the `agent-bridge` plugin's `.mcp.json`). */
 export function isMemoryUrl(url: unknown): boolean {
@@ -23,11 +31,12 @@ export function isMemoryUrl(url: unknown): boolean {
 }
 
 export interface MemoryDeps {
-  db: Db
-  /** The hub's folder, both ways; absent — no folder (tests of the records alone). */
-  mirror?: MemoryMirror
-  now(): Date
+  /** The project's working copy on the hub, whose files are the records. */
+  hub: Pick<MemoryHub, 'within'>
 }
+
+/** What a versioned write met when it was refused: a live record of the name, or the record as it is now. */
+type Refusal = { kind: 'exists'; current: MemoryRecord } | { kind: 'changed'; current: MemoryRecord | undefined }
 
 type Message = Record<string, unknown>
 
@@ -83,8 +92,9 @@ export const MEMORY_TOOLS: ToolSpec[] = [
 ]
 
 /**
- * Even Keel's memory MCP server (BTN-1029, `docs/sessions/memory.md`), answered in the hub's gateway: the project's
- * records in the state database, written with the version the session read, the hub's folder mirrored around each call.
+ * Even Keel's memory MCP server (BTN-1029, `docs/sessions/memory.md`), answered in the hub's gateway: the records are
+ * the files of the project's working copy on the hub (BTN-1646), written with the version the session read and
+ * committed at once. It serves agents without Claude Code's file memory (BTN-1647).
  */
 export class MemoryMcp {
   constructor(
@@ -128,71 +138,73 @@ export class MemoryMcp {
   async call(name: string, args: Message, scope: TasksScope): Promise<string> {
     const project = scope.project
     if (project === null) throw new Refused("the memory server serves a project's sessions: its address names no project")
-    await this.deps.mirror?.pull(project)
+    const inFolder = <T>(step: (folder: string) => T, wrote = false) =>
+      this.deps.hub.within(project, (folder) => {
+        if (folder === null) throw new Refused('the hub keeps no memory folder for this project: it has no folder Even Keel knows')
+        return step(folder)
+      }, wrote)
     switch (name) {
-      case 'memory_list': {
-        const records = await memoryRecords(this.deps.db, project)
-        if (records.length === 0) return 'The project memory is empty.'
-        return records.map((record) => `${indexLine(record)} (v${record.version})`).join('\n')
-      }
+      case 'memory_list':
+        return inFolder((folder) => {
+          const records = folderRecords(folder)
+          if (records.length === 0) return 'The project memory is empty.'
+          return records.map((record) => `${indexLine(record)} (v${record.version})`).join('\n')
+        })
       case 'memory_read': {
         const names = args.names
         if (!Array.isArray(names) || names.length === 0 || names.some((each) => typeof each !== 'string')) throw new Refused('names must be a list of record names')
-        const texts = await Promise.all((names as string[]).map(async (each) => {
-          const record = await memoryRecord(this.deps.db, project, each)
-          if (record === undefined) return `## ${each}\nThere is no such record.`
-          if (record.deleted) return `## ${each}\nDeleted (version ${record.version}).`
-          return recordText(record)
-        }))
-        return texts.join('\n\n')
+        return inFolder((folder) => (names as string[]).map((each) => {
+          const record = folderRecord(folder, each)
+          return record === undefined ? `## ${each}\nThere is no such record.` : recordText(record)
+        }).join('\n\n'))
       }
       case 'memory_write':
-        return this.write(project, args, this.author(scope))
+        return this.write(args, inFolder)
       case 'memory_delete': {
         const record = stringOf(args, 'name')
-        const outcome = await deleteMemory(this.deps.db, project, record, versionOf(args, true)!, this.author(scope))
-        if (outcome.kind !== 'written') throw new Refused(refusal(record, outcome))
-        await this.deps.mirror?.push(project, outcome.record)
-        return `Deleted ${record}.`
+        const version = versionOf(args, true)!
+        return inFolder((folder) => {
+          const current = folderRecord(folder, record)
+          if (current?.version !== version) throw new Refused(refusal(record, { kind: 'changed', current }))
+          removeRecord(folder, current.file)
+          return `Deleted ${record}.`
+        }, true)
       }
       default:
         throw new Refused(`there is no tool ${name}`)
     }
   }
 
-  private async write(project: string, args: Message, by: MemoryAuthor): Promise<string> {
+  private write(args: Message, inFolder: <T>(step: (folder: string) => T, wrote?: boolean) => Promise<T>): Promise<string> {
     const fact: MemoryFact = { name: stringOf(args, 'name'), description: stringOf(args, 'description'), type: stringOf(args, 'type'), body: stringOf(args, 'body', true) }
     if (!MEMORY_NAME.test(fact.name)) throw new Refused(`name ${JSON.stringify(fact.name)} must be lowercase letters, digits, dots, dashes and underscores, 80 characters at most`)
     if (!(MEMORY_TYPES as readonly string[]).includes(fact.type)) throw new Refused(`type must be one of ${MEMORY_TYPES.join(', ')}`)
     const version = versionOf(args, false)
-    const before = version === undefined ? undefined : await memoryRecord(this.deps.db, project, fact.name)
-    if (version === undefined && args.distinct !== true) {
-      const similar = similarRecords(fact, await memoryRecords(this.deps.db, project))
-      if (similar.length > 0) {
-        throw new Refused(
-          `Not kept yet: these records look like the same fact:\n${similar.map((each) => `${indexLine(each)} (v${each.version})`).join('\n')}\n` +
-            `Change one of them instead (memory_read, then memory_write with its version), or repeat this call with distinct: true to keep ${fact.name} as a new record.`,
-        )
-      }
-    }
-    const outcome = version === undefined ? await createMemory(this.deps.db, project, fact, by) : await updateMemory(this.deps.db, project, fact, version, by)
-    if (outcome.kind !== 'written') throw new Refused(refusal(fact.name, outcome))
-    await this.deps.mirror?.push(project, outcome.record, before)
-    return `Kept ${fact.name}, version ${outcome.record.version}.`
-  }
-
-  private author(scope: TasksScope): MemoryAuthor {
-    return { task: scope.task, machine: scope.machine ?? null, at: this.deps.now().toISOString() }
+    return inFolder((folder) => {
+      const records = folderRecords(folder)
+      const current = records.find((each) => each.name === fact.name)
+      if (version === undefined) {
+        if (current !== undefined) throw new Refused(refusal(fact.name, { kind: 'exists', current }))
+        const similar = args.distinct === true ? [] : similarRecords(fact, records)
+        if (similar.length > 0) {
+          throw new Refused(
+            `Not kept yet: these records look like the same fact:\n${similar.map((each) => `${indexLine(each)} (v${each.version})`).join('\n')}\n` +
+              `Change one of them instead (memory_read, then memory_write with its version), or repeat this call with distinct: true to keep ${fact.name} as a new record.`,
+          )
+        }
+      } else if (current?.version !== version) throw new Refused(refusal(fact.name, { kind: 'changed', current }))
+      const kept = writeRecord(folder, fact, current?.file)
+      return `Kept ${fact.name}, version ${kept.version}.`
+    }, true)
   }
 }
 
-function refusal(name: string, outcome: Exclude<MemoryOutcome, { kind: 'written' }>): string {
+function refusal(name: string, outcome: Refusal): string {
   const current = outcome.current
   if (outcome.kind === 'exists') {
     return `Not kept: ${name} already exists. To change it, apply your change to its text below and write again with version ${current!.version}; to keep both, choose another name.\n\n${recordText(current!)}`
   }
-  if (current === undefined) return `Not kept: there is no record ${name}. To add it, write it without a version.`
-  if (current.deleted) return `Not kept: ${name} was deleted since you read it (now version ${current.version}). To bring it back, write it without a version.`
+  if (current === undefined) return `Not kept: there is no record ${name}: it was deleted, or never written. To add it, write it without a version.`
   return `Not kept: ${name} changed since you read it. Its current text, version ${current.version}, is below: apply your change to it and repeat the call with version ${current.version}.\n\n${recordText(current)}`
 }
 

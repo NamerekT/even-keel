@@ -142,6 +142,19 @@ describe('sessionPackages', () => {
     expect(got.mcp.find((each) => each.name === 'tasks')?.url).toBe(`http://127.0.0.1:4748${routeOf(places.projectId, 'tasks@even-keel', 't1', 'tasks')}?task=ABC-1`)
   })
 
+  it("leaves Even Keel's memory server out for an agent that reads the memory folder itself, its plugin in (BTN-1647)", () => {
+    const file = catalog()
+    const bridge = { ...install('m1', []), servers: { memory: { entry: { type: 'http', url: 'http://127.0.0.1:4748/memory' }, npm: null } } }
+    file.packages['agent-bridge@even-keel'] = { kind: 'plugin', plugin: { name: 'agent-bridge', marketplace: 'even-keel' }, default: false, settings: {}, installs: [bridge] }
+    file.projects.ABC!.on.push('agent-bridge@even-keel')
+    const memory = `http://127.0.0.1:4748${routeOf(places.projectId, 'agent-bridge@even-keel', 'm1', 'memory')}?task=ABC-1`
+    expect(sessionPackages(file, 'ABC', 'ABC-1', places).mcp.map((each) => each.url)).toContain(memory)
+    const files = sessionPackages(file, 'ABC', 'ABC-1', places, true)
+    expect(files.mcp.map((each) => each.name)).toEqual(['huly', 'strata'])
+    expect(files.plugins.map((each) => each.package)).toContain('agent-bridge@even-keel')
+    expect(files.installs).toHaveProperty('agent-bridge@even-keel', 'm1')
+  })
+
   it('keeps a task on the installs it is pinned to', () => {
     const file = catalog()
     file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'a', strata: 's1' } }

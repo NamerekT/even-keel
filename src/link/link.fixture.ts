@@ -6,7 +6,7 @@ import { partsOf } from './body-size.js'
 import {
   EVENTS_PATH, SNAPSHOT_PATH, TooLarge, bearerOf, isRefusal, parseToken,
   type Command, type EventsAnswer, type EventsPost, type Frame, type MachineAbout, type MachineEvent, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand, type Refusal,
-  type HookAnswer, type HookPost, type HookRequest, type SnapshotPost, type TallyAnswer, type TallyPost, type CredentialsAnswer, type CredentialsPost, type SkillsAnswer, type SkillsPost,
+  type HookAnswer, type HookPost, type HookRequest, type SnapshotPost, type TallyAnswer, type TallyPost, type CredentialsAnswer, type CredentialsPost, type SkillsAnswer, type SkillsPost, type GitAnswer, type GitPost,
 } from './protocol.js'
 
 export const HUB_ADDRESS = 'https://hub.example.com:4750'
@@ -263,6 +263,10 @@ export class Wire implements HubTransport {
 
   async credentials(post: CredentialsPost): Promise<CredentialsAnswer | Refusal> {
     return this.carry(async () => carried(await this.hub.credentials(this.authorization, carried(post))))
+  }
+
+  async git(post: GitPost): Promise<GitAnswer | Refusal> {
+    return this.carry(async () => carried(await this.hub.git(this.authorization, carried(post))))
   }
 
   async skills(post: SkillsPost): Promise<SkillsAnswer | Refusal> {

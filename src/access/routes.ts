@@ -33,8 +33,9 @@ type Handler = (call: Call) => Promise<void>
 
 /** Open to a visitor: what a browser needs to sign in. */
 const OPEN: Record<string, Handler> = {
-  'GET state': async ({ access, response, visitor }) => {
-    const state: AuthState = { signedIn: visitor.signedIn, keySet: access.key() !== null, device: visitor.device?.device ?? null }
+  'GET state': async ({ access, response, visitor, host }) => {
+    const passkeyHere = (await access.passkeys.list()).some((passkey) => passkey.host === host)
+    const state: AuthState = { signedIn: visitor.signedIn, keySet: access.key() !== null, passkeyHere, device: visitor.device?.device ?? null }
     sendJson(response, 200, state)
   },
   'POST key': async (call) => {
@@ -49,8 +50,8 @@ const OPEN: Record<string, Handler> = {
   },
   'POST passkey': async (call) => {
     const response = (await body(call.request)).response as AuthenticationResponseJSON
-    await call.access.passkeys.authenticate({ host: call.host, origin: originOf(call.request), response })
-    await signIn(call, null)
+    const passkey = await call.access.passkeys.authenticate({ host: call.host, origin: originOf(call.request), response })
+    await signIn(call, null, passkey.host)
   },
 }
 
@@ -115,8 +116,8 @@ export async function accessRoute(access: AccessControl | undefined, request: In
 }
 
 /** A new token for this browser, in its cookie; a sign-in it had before goes. */
-async function signIn({ access, request, response, visitor }: Call, keyMark: string | null): Promise<void> {
-  const { token, secret } = await access.book.signIn({ device: deviceNameOf(request.headers['user-agent']), address: visitor.address, keyMark })
+async function signIn({ access, request, response, visitor }: Call, keyMark: string | null, passkeyHost: string | null = null): Promise<void> {
+  const { token, secret } = await access.book.signIn({ device: deviceNameOf(request.headers['user-agent']), address: visitor.address, keyMark, passkeyHost })
   if (visitor.device !== undefined) await access.book.revoke(visitor.device.id)
   response.setHeader('set-cookie', deviceCookie(secret))
   sendJson(response, 200, { device: token.device })
@@ -137,6 +138,7 @@ async function devicesOf(access: AccessControl, visitor: Visitor): Promise<Devic
     seenAt: token.seenAt,
     seenFrom: token.seenFrom,
     byKey: token.keyMark !== null,
+    passkeyHost: token.passkeyHost,
   }))
   return { passkeys, devices, current: visitor.device?.id ?? null, keySet: access.key() !== null }
 }

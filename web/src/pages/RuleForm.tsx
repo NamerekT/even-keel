@@ -112,7 +112,7 @@ function StatusTable({ rules, inherited, origins, level, profileName, ownName, s
     <div className={marks.box(['active', 'terminal'])}>
       <FieldHead label={t.settings.ruleStatuses} hint={t.settings.ruleStatusesHint} mark={<>{marks.note('active')}{marks.note('terminal')}</>} />
       {rows.length === 0 ? (
-        <p className="settings__hint">{t.settings.ruleNoStatuses}</p>
+        <p className="rule-table__empty">{t.settings.ruleNoStatuses}</p>
       ) : (
         <table className="rule-table" aria-label={t.settings.ruleStatuses}>
           <thead>
@@ -344,11 +344,11 @@ export function MilestoneFields({ level, rules, inherited, origins, milestones, 
         {marks.note('requiredMilestones')}
         {marks.note('excludedMilestones')}
       </div>
-      {onlyUnavailable !== undefined && mode !== 'only' && <span className="settings__hint">{onlyUnavailable}</span>}
+      {onlyUnavailable !== undefined && mode !== 'only' && <span className="rule-milestones__state">{onlyUnavailable}</span>}
       {mode === 'only' && list('requiredMilestones', 'excludedMilestones')}
       {(mode === 'except' || rules.excludedMilestones.length > 0) && (
         <>
-          {mode === 'only' && <span className="settings__hint">{t.settings.milestonesBut}</span>}
+          {mode === 'only' && <span className="rule-milestones__lead">{t.settings.milestonesBut}</span>}
           {list('excludedMilestones', 'requiredMilestones')}
         </>
       )}

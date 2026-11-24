@@ -71,12 +71,12 @@ export function GitInstall({ state }: { state: EvenKeelState }) {
   return (
     <Section title={t.setup.titles.git} mark={<PartDot check={git === undefined ? 'empty' : installed ? 'passed' : 'failed'} first />} className="project-add__step">
       <p className="setup__lead">{text.lead}</p>
-      {git === undefined && <p className="setup-account__note">{text.checking}</p>}
+      {git === undefined && <p className="setup-account__state">{text.checking}</p>}
       {installed && <Status ok>{text.installed(git.version!)}</Status>}
       {git !== undefined && !installed && (
         <>
           <Status>{text.absent}</Status>
-          {git.restart !== undefined && <p className="setup-account__note">{restartHint(git.restart)}</p>}
+          {git.restart !== undefined && <p className="setup-account__state">{restartHint(git.restart)}</p>}
           <div className="setup-git__commands">
             {/* "Check again" stands beside the first line, the command or the link alone, not beside both. */}
             <div className="cli-source__install">
@@ -85,7 +85,7 @@ export function GitInstall({ state }: { state: EvenKeelState }) {
                 {text.again}
               </button>
             </div>
-            {state.platform === 'darwin' && <p className="setup-account__note">{text.macTools}</p>}
+            {state.platform === 'darwin' && <p className="setup-account__state">{text.macTools}</p>}
             {command !== undefined && download(text.download)}
           </div>
         </>
@@ -133,13 +133,14 @@ export function useIdentityForm(git: GitSetupView, missing = false, machine?: st
 export type IdentityForm = ReturnType<typeof useIdentityForm>
 
 /** The two fields of git's name and e-mail; `id` keeps their ids apart where the step and a dialog may both be. */
-export function IdentityFields({ form, id = 'setup-git' }: { form: IdentityForm; id?: string }) {
+export function IdentityFields({ form, id = 'setup-git', hint }: { form: IdentityForm; id?: string; hint?: string }) {
   const text = t.setup.git
   return (
     <>
       <Row
         className="settings__field"
         label={text.name}
+        hint={hint}
         htmlFor={`${id}-name`}
         control={<input id={`${id}-name`} className="settings__text" value={form.name} placeholder="John Doe" autoComplete="name" onChange={(event) => form.setName(event.target.value)} />}
       />

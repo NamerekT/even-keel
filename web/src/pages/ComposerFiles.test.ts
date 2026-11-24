@@ -107,7 +107,7 @@ it('says so in the sheet when the clipboard holds no picture or the browser refu
   clipboardWith(read)
   const sheet = await openSheet(onAttach)
   await act(async () => paste(sheet)!.click())
-  const note = () => sheet.querySelector('.attach-sheet__note')?.textContent
+  const note = () => sheet.querySelector('.attach-sheet__state')?.textContent
   expect(note()).toBe(t.session.chat.attachMenu.pasteEmpty)
   read.mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'))
   await act(async () => paste(sheet)!.click())

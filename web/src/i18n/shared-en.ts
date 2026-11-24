@@ -106,6 +106,11 @@ export const sharedEn = {
   backupDirHint:
     'Once a day Even Keel copies its state database here and opens each copy back to check it whole. Empty — a folder inside Even Keel’s state folder; a folder on another disk keeps the copies when this one fails. A copy holds the tokens and keys in plain text: keep the folder as closed to others as the keys themselves.',
   backupDirDefault: 'In the state folder',
+  memoryMirrorTitle: 'Memory mirror',
+  memoryMirror: 'Mirror repository',
+  memoryMirrorHint:
+    'A git repository the project memory is copied to after every change, a branch per project named by its id, so the memory outlives this computer. Keep it private: the memory may hold personal notes. Git signs in by an SSH key or its credential helper; an address with a password is refused.',
+  memoryMirrorNone: 'No mirror',
   backupKeep: 'Copies to keep',
   backupKeepHint: 'The newest checked copies stay, older ones are removed; the copy made before an update changes the database counts among them. Folders copied by hand are never touched.',
   backupLast: 'Last copy',

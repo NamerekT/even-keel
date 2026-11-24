@@ -228,13 +228,14 @@ export class Landings {
     }
     if (outcome.state === 'failed') {
       const record = recordOf(this.state, project, task)
-      if (outcome.network) {
+      if (outcome.transient !== null) {
         const failures = (record.failures ?? 0) + 1
         const wait = RETRY_MS[failures - 1] ?? REMOTE_WAIT_MS
         record.failures = failures
         record.retryAt = new Date(this.deps.now().getTime() + wait).toISOString()
         if (failures > RETRY_MS.length) record.waitingRemote = true
-        this.deps.log(`chain: ${task}: the remote is out of reach for its landing, tried again in ${wait / 1000} s: ${englishOf(outcome.failure)}`)
+        const why = outcome.transient === 'server' ? "the remote's server answered its landing with an error" : 'the remote is out of reach for its landing'
+        this.deps.log(`chain: ${task}: ${why}, tried again in ${wait / 1000} s: ${englishOf(outcome.failure)}`)
         this.deps.save(this.state)
         return true
       }

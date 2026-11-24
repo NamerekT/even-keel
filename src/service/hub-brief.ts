@@ -5,6 +5,7 @@ import type { MachineProjectSettings } from '../link/view.js'
 import type { BriefAccount } from '../machine/account-here.js'
 import type { HubBrief } from '../machine/brief.js'
 import type { CatalogBrief } from '../packages/follow.js'
+import type { MemoryFolder } from '../memory/git/folders.js'
 import { sameJson } from '../machine/facts.js'
 import { warmTasks } from '../sessions/keepwarm.js'
 import type { TaskRun } from '../sessions/runs.js'
@@ -31,6 +32,8 @@ export interface BriefSources {
   catalog?: (projects: string[]) => CatalogBrief
   /** Whose account each of the hub's account folders is (BTN-1311), for the machine to find its own folder of it. */
   accounts?: () => Record<string, BriefAccount>
+  /** The machine's folders bound to projects' memory beyond its pool (BTN-1648); a machine elsewhere only. */
+  memory?: () => MemoryFolder[]
 }
 
 /** What the machine's assembly reads of the hub now (`docs/machines.md`, "The brief"). */
@@ -64,6 +67,7 @@ export function hubBrief(sources: BriefSources): HubBrief {
     trimTools: state.trimTools,
     warm: warmTasks(state),
     reports: byProject((project) => sources.reports.ofProject(project)),
+    ...(sources.memory === undefined ? {} : { memory: sources.memory().filter((each) => Object.hasOwn(config.projects, each.project)) }),
   }
 }
 

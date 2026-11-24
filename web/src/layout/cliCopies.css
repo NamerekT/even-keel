@@ -1,6 +1,7 @@
 .cli-copy { display: grid; gap: var(--space-8); min-width: 0; }
 .cli-copy > * { min-width: 0; }
 .cli-copy p { margin: 0; }
+.cli-copy__aside { color: var(--fg-muted); font-size: var(--text-13); line-height: 1.45; }
 .cli-copy .ui-command + .cli-copy__actions { margin-top: var(--space-4); }
 .cli-copy__actions { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 .cli-copy__progress { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8) var(--space-16); color: var(--fg); }
@@ -21,6 +22,7 @@
 .cli-copy__actions .button--primary { order: 1; }
 .cli-source { display: grid; gap: var(--space-8); min-width: 0; }
 .cli-source__options { display: grid; gap: var(--space-4); justify-items: start; }
+.cli-source__lead, .cli-source__empty, .cli-source__state { margin: 0; color: var(--fg-muted); font-size: var(--text-13); }
 .cli-source__install, .cli-source__problem { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); min-width: 0; }
 .cli-source__install > :first-child { flex: 1 1 16em; min-width: 0; }
 .cli-source__problem .notice { margin: 0; }

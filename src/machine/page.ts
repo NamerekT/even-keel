@@ -2,7 +2,7 @@ import { accountAt } from '../account/ledger.js'
 import type { AccountView } from '../account/model.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
-import type { SessionMail } from '../sessions/mail.js'
+import type { Mail, SessionMail } from '../sessions/mail.js'
 import type { BranchDiff, FoundRepository, SessionView, TaskWork } from '../state.js'
 import type { MachineFacts } from './facts.js'
 
@@ -78,12 +78,12 @@ export function pageReads(facts: () => MachineFacts | undefined): PageReads {
   }
 }
 
-/** What the page's state reads of the sessions of every machine on the hub (BTN-1314). */
-export type SessionReads = Pick<PageReads, 'sessions' | 'sessionAccount' | 'sessionAgent' | 'compactionsOf'>
+/** What the page's state and the chat read of the sessions of every machine on the hub (BTN-1314, BTN-1633). */
+export type SessionReads = Pick<PageReads, 'sessions' | 'mailbox' | 'liveView' | 'steers' | 'sessionAccount' | 'sessionAgent' | 'compactionsOf'>
 
 /**
  * The sessions of all the mirrors, the own machine's first: a task a machine elsewhere runs has its session, its
- * start and its lamp on the page as one of the hub's. A session two mirrors show is the first one's.
+ * start, its lamp and its chat on the page as one of the hub's. A session two mirrors show is the first one's.
  */
 export function allSessions(pages: () => PageReads[]): SessionReads {
   return {
@@ -91,6 +91,19 @@ export function allSessions(pages: () => PageReads[]): SessionReads {
       const seen = new Set<string>()
       return pages().flatMap((page) => page.sessions()).filter((view) => !seen.has(view.sessionId) && seen.add(view.sessionId))
     },
+    mailbox: () => {
+      const all: Record<string, SessionMail> = {}
+      for (const page of pages()) for (const [sessionId, mail] of Object.entries(page.mailbox())) all[sessionId] ??= mail
+      return all
+    },
+    liveView: (task) => {
+      for (const page of pages()) {
+        const view = page.liveView(task)
+        if (view !== undefined) return view
+      }
+      return undefined
+    },
+    steers: (sessionId) => pages().some((page) => page.steers(sessionId)),
     sessionAccount: (sessionId, at) => {
       for (const page of pages()) {
         const account = page.sessionAccount(sessionId, at)
@@ -113,4 +126,26 @@ export function allSessions(pages: () => PageReads[]): SessionReads {
       return 0
     },
   }
+}
+
+/**
+ * The mailbox of every machine with the hub's own laid over the sessions elsewhere (BTN-1633): their hooks ask the
+ * hub's page for mail, so whether they asked and what waits for them is the hub's mailbox, beside what their machine
+ * tells — its pins, its inbox and the messages told there.
+ */
+export function withHubMail(
+  mailbox: Record<string, SessionMail>,
+  elsewhere: string[],
+  hub: { listens(sessionId: string): boolean; of(sessionId: string): Mail[] },
+): Record<string, SessionMail> {
+  const laid = { ...mailbox }
+  for (const sessionId of elsewhere) {
+    const rows = hub.of(sessionId)
+    const heard = hub.listens(sessionId)
+    const there = laid[sessionId]
+    if (there === undefined && rows.length === 0 && !heard) continue
+    const mail = [...(there?.mail ?? []), ...rows].sort((a, b) => a.postedAt.localeCompare(b.postedAt))
+    laid[sessionId] = { listens: (there?.listens ?? false) || heard, steers: there?.steers ?? false, mail }
+  }
+  return laid
 }

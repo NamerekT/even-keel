@@ -216,11 +216,12 @@ export function ownOf(raw: unknown): OwnValues {
 }
 
 export function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, switchOnLimit, ci, fillMilestone, landingHold, allowedHosts, machinesAddress, context, stats, updates } = body
+  const { parallel, brief, chain, provider, models, accounts, execution, cli, modelPrompts, prompt, language, promptLanguage, hiddenSkills, cacheTtl, contextHandoffs, keepWarm, attachmentLimit, defaultGit, setupPassed, cliCheck, switchOnLimit, ci, fillMilestone, landingHold, allowedHosts, machinesAddress, memoryMirror, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
   if (prompt != null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
   if (machinesAddress != null && typeof machinesAddress !== 'string') throw fail('request.required', { field: 'machinesAddress' })
+  if (memoryMirror != null && typeof memoryMirror !== 'string') throw fail('request.required', { field: 'memoryMirror' })
   return {
     protection: body.protection as Protection | undefined,
     parallel: numberOf(parallel, 'parallel'),
@@ -261,6 +262,7 @@ export function sharedFormOf(body: Record<string, unknown>): SharedForm {
     allowedHosts: linesOf(allowedHosts, 'allowedHosts'),
     // A page from before the setting sends none: not set, as the default, so nothing is written.
     machinesAddress: (machinesAddress ?? null) as string | null,
+    memoryMirror: (memoryMirror ?? null) as string | null,
     context: mapOf(context, 'context', (value) => typeof value === 'number') as unknown as ContextScale,
     stats: statsOf(stats),
     updates: updatesOf(updates),
@@ -466,6 +468,15 @@ export function joinRequestsOf(body: Record<string, unknown>): JoinRequest[] {
     const entry = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
     const folder = typeof entry.folder === 'string' ? entry.folder.trim() : ''
     return { project: projectOf(entry), clone: cloneOf(entry.clone), ...(folder !== '' && { folder }) }
+  })
+}
+
+/** The card "Other projects' memory" (BTN-1648): a list, maybe empty, of a project and a folder's path on the machine. */
+export function memoryFoldersOf(value: unknown): Array<{ project: string; folder: string }> {
+  if (!Array.isArray(value)) throw fail('request.required', { field: 'folders' })
+  return value.map((item: unknown) => {
+    const entry = (typeof item === 'object' && item !== null ? item : {}) as Record<string, unknown>
+    return { project: projectOf(entry), folder: textOf(entry.folder, 'folder') }
   })
 }
 

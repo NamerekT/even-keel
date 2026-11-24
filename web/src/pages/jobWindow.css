@@ -161,7 +161,3 @@
   font-size: var(--text-12);
   font-variant-numeric: tabular-nums;
 }
-
-.job-window__note {
-  margin: 0;
-}

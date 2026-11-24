@@ -89,7 +89,8 @@ function state(startedAt: string): EvenKeelState {
 
 describe('LiveConnection', () => {
   let streams: FakeStream[]
-  let fetchState: ReturnType<typeof vi.fn<() => Promise<EvenKeelState>>>
+  let signedOut: ReturnType<typeof vi.fn<() => Promise<boolean>>>
+  let showSignIn: ReturnType<typeof vi.fn<() => void>>
   let live: LiveConnection
   let commands: { name: string; body: Record<string, unknown> }[]
   let answer: () => Promise<void>
@@ -101,7 +102,8 @@ describe('LiveConnection', () => {
     streams = []
     commands = []
     answer = async () => {}
-    fetchState = vi.fn(async () => state('diagnostic'))
+    signedOut = vi.fn(async () => false)
+    showSignIn = vi.fn()
     live = new LiveConnection({
       fetchSession: async () => null,
       fetchTranscript: async () => null,
@@ -117,7 +119,8 @@ describe('LiveConnection', () => {
         commands.push({ name, body })
         return answer()
       },
-      fetchState,
+      signedOut,
+      showSignIn,
       openEvents: () => {
         const stream = new FakeStream()
         streams.push(stream)
@@ -138,17 +141,73 @@ describe('LiveConnection', () => {
   })
 
   it('loads the first state only through the stream', async () => {
-    expect(fetchState).not.toHaveBeenCalled()
     last().emit('state', state('streamed'))
     expect(live.snapshot()).toEqual({ state: state('streamed'), link: 'live' })
   })
 
-  it('uses a plain request only to diagnose a closed stream, without replacing state', async () => {
+  it('asks whether the page is still signed in when the stream fails, without replacing state', async () => {
     last().emit('state', state('before'))
     last().fail(2)
     await vi.advanceTimersByTimeAsync(0)
-    expect(fetchState).toHaveBeenCalledOnce()
+    expect(signedOut).toHaveBeenCalledOnce()
+    expect(showSignIn).not.toHaveBeenCalled()
     expect(live.snapshot()).toEqual({ state: state('before'), link: 'stale' })
+  })
+
+  // A revoked device's stream is closed by the service after a 200: the browser reopens it by itself (BTN-1629).
+  it('goes to the sign-in screen at once when a stream the browser reopens by itself finds the page signed out', async () => {
+    signedOut.mockResolvedValue(true)
+    last().emit('state', state('before'))
+    last().fail(0)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(showSignIn).toHaveBeenCalledOnce()
+    expect(streams[0]!.closed).toBe(true)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(streams).toHaveLength(1)
+  })
+
+  it('asks once while an answer is pending, however many times the stream fails', async () => {
+    let reply!: (out: boolean) => void
+    signedOut.mockImplementation(() => new Promise((resolve) => { reply = resolve }))
+    last().fail(0)
+    last().fail(0)
+    expect(signedOut).toHaveBeenCalledOnce()
+    reply(false)
+    await vi.advanceTimersByTimeAsync(0)
+    last().fail(0)
+    expect(signedOut).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the reconnecting banner when the check itself fails: a real loss of the link', async () => {
+    signedOut.mockRejectedValue(new TypeError('Failed to fetch'))
+    last().emit('state', state('before'))
+    last().fail(2)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(showSignIn).not.toHaveBeenCalled()
+    expect(live.snapshot().link).toBe('stale')
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(streams).toHaveLength(2)
+  })
+
+  // Safari brings a page back from the background with its stream still "open" and no error yet (BTN-1629).
+  it('checks the sign-in when the page comes back into view, even while the link looks live', async () => {
+    signedOut.mockResolvedValue(true)
+    last().open()
+    last().emit('state', state('before'))
+    live.wake()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(showSignIn).toHaveBeenCalledOnce()
+  })
+
+  it('reopens a stale stream at once when the page comes back into view, and stays on the page while signed in', async () => {
+    last().emit('state', state('before'))
+    last().fail(2)
+    await vi.advanceTimersByTimeAsync(0)
+    live.wake()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(streams).toHaveLength(2)
+    expect(signedOut).toHaveBeenCalledTimes(2)
+    expect(showSignIn).not.toHaveBeenCalled()
   })
 
   it('holds the reason a service that started nothing sends, without going stale on its silence', async () => {
@@ -162,7 +221,7 @@ describe('LiveConnection', () => {
 
   it('stays connecting while the first stream frame is missing', async () => {
     await vi.advanceTimersByTimeAsync(0)
-    expect(fetchState).not.toHaveBeenCalled()
+    expect(signedOut).not.toHaveBeenCalled()
     expect(live.snapshot()).toEqual({ state: null, link: 'connecting' })
   })
 

@@ -50,7 +50,7 @@ export function MoveFields({ rules, statuses, text, profile, idPrefix, marks, on
 }) {
   return (
     <>
-      {statuses === null && <p className="settings__hint">{t.profiles.moves.unread}</p>}
+      {statuses === null && <p className="move-fields__state">{t.profiles.moves.unread}</p>}
       {MOVE_SETTINGS.map((key) => {
         const [label, hint] = LABELS[key]()
         const id = fieldId(`${idPrefix}-move-${key}`)

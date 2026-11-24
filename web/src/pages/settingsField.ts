@@ -21,6 +21,8 @@ const SHARED: Partial<Record<Notice['code'], string>> = {
   'config.backupDir': 'backupDir',
   'config.backupDirFile': 'backupDir',
   'config.backupKeep': 'backupKeep',
+  'config.memoryMirror': 'memoryMirror',
+  'config.memoryMirrorPassword': 'memoryMirror',
   'config.modelPrompts': 'modelPrompts',
   'config.modelPromptEmpty': 'modelPrompts',
   'config.modelPromptPlaceholder': 'modelPrompts',

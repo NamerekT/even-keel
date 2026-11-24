@@ -132,6 +132,7 @@ export type HostingContext = Pick<ServiceContext,
   | 'lockedReaders'
   | 'mailRelay'
   | 'mailbox'
+  | 'memory'
   | 'models'
   | 'monitor'
   | 'noAccountFor'
@@ -205,7 +206,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     busy: (task) =>
       ctx.dispatcher.state.active.some((chain) => chain.current?.task === task)
         ? 'current'
-        : ctx.machineLink.page.liveView(task) !== undefined ? 'live' : null,
+        : ctx.machineLink.sessions.liveView(task) !== undefined ? 'live' : null,
     renamed: (project, from, to) => ctx.configStore.renameMilestone(project, from, to),
   })
   const builtinExports = new BuiltinExports({
@@ -302,6 +303,16 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     updates: ctx.machineLink.updates,
     polled: (account) => ctx.machineLink.polled(account),
     differs: (account) => ctx.machineLink.differs(account),
+    memory: {
+      of: (machine) => ctx.machineLink.memoryFolders.of(machine),
+      projects: () => Object.keys(ctx.configStore.current.projects),
+      set: async (machine, folders) => {
+        await ctx.machineLink.memoryFolders.set(machine, folders)
+        console.log(`memory: machine ${machine} has ${folders.length} folder(s) bound to projects' memory beyond its pool`)
+        void network.catchUp()
+        ctx.hub.broadcast('machines', { changedAt: Date.now() })
+      },
+    },
     log: (line) => console.log(line),
   })
   const cards = () => machineCards({
@@ -694,7 +705,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     },
     tasks: taskControl({
       configuredProject: ctx.configuredProject, linkFor: ctx.linkFor, disabled: (reader) => disabledNotice(ctx.profiles.disabledFor(reader)), rulesOf: ctx.rulesOf, readerFor: ctx.readerFor, refreshers: ctx.refreshers, readerTasks: ctx.readerTasks, refreshProject: ctx.refreshProject,
-      live: (task) => ctx.machineLink.page.liveView(task) !== undefined,
+      live: (task) => ctx.machineLink.sessions.liveView(task) !== undefined,
       pollReviews: (project) => ctx.dispatcher.pollReviews(project),
       setRun: (project, task, run) => ctx.setTaskRun(project, task, run),
       runOf: (project, task) => ctx.runOfTask(project, task),
@@ -786,6 +797,7 @@ export async function wireConfigStore(ctx: HostingContext): Promise<ConfigStore>
       ctx.updates.configChanged()
       void ctx.applyTally()
       void ctx.machineLink.network.apply()
+      void ctx.memory.apply()
       ctx.eventLog.settingsSeen(ctx.configStore.raw())
       ctx.hub.broadcastSoon('state', ctx.getState)
     },

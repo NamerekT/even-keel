@@ -43,25 +43,38 @@ describe('withOrder', () => {
 })
 
 describe('pinnedHead', () => {
+  const last = (open: ChainBlock[]) => pinnedHead(open, open.length - 1)
+
   it('pins the current task', () => {
-    expect(pinnedHead([block('A-2', { current: true }), block('A-3')])).toBe(1)
+    expect(last([block('A-2', { current: true }), block('A-3')])).toBe(1)
   })
 
   it('pins the task a running fix interrupted', () => {
-    expect(pinnedHead([block('A-2', { interrupted: true }), block('A-3')])).toBe(1)
+    expect(last([block('A-2', { interrupted: true }), block('A-3')])).toBe(1)
   })
 
   it('pins nothing when the first task is neither', () => {
-    expect(pinnedHead([block('A-2'), block('A-3')])).toBe(0)
+    expect(last([block('A-2'), block('A-3')])).toBe(0)
   })
 
   it('pins every running lane as one group (BTN-1611)', () => {
-    expect(pinnedHead([block('A-2', { current: true }), block('A-3', { current: true }), block('A-4')])).toBe(2)
-    expect(pinnedHead([block('A-2', { current: true }), block('A-3', { current: true }), block('A-4', { current: true }), block('A-5')])).toBe(3)
+    expect(last([block('A-2', { current: true }), block('A-3', { current: true }), block('A-4')])).toBe(2)
+    expect(last([block('A-2', { current: true }), block('A-3', { current: true }), block('A-4', { current: true }), block('A-5')])).toBe(3)
   })
 
   it('counts a lane whose task a fix interrupted among the running ones', () => {
-    expect(pinnedHead([block('A-2', { current: true }), block('A-3', { interrupted: true }), block('A-4')])).toBe(2)
+    expect(last([block('A-2', { current: true }), block('A-3', { interrupted: true }), block('A-4')])).toBe(2)
+  })
+
+  it('pins the rows down to the last running one, past a task the chain passed over between them (BTN-1643)', () => {
+    const open = [block('A-1', { current: true }), block('A-2'), block('A-3', { current: true }), block('A-4'), block('A-5')]
+    expect(pinnedHead(open, 4)).toBe(3)
+  })
+
+  it('lets a task the chain passed over move under the running one above it, never above it (BTN-1643)', () => {
+    const open = [block('A-1', { current: true }), block('A-2'), block('A-3', { current: true }), block('A-4')]
+    expect(pinnedHead(open, 1)).toBe(1)
+    expect(pinnedHead([block('A-2'), block('A-3', { current: true })], 0)).toBe(0)
   })
 })
 
@@ -71,7 +84,7 @@ describe('a drop above the running lanes (BTN-1611)', () => {
     const open = chain.filter((each) => each.open)
     const order = ids(open)
     const from = order.indexOf('A-5')
-    const bounds = dropBounds(order, new Map(open.map((each) => [each.id, each.after])), from, pinnedHead(open))
+    const bounds = dropBounds(order, new Map(open.map((each) => [each.id, each.after])), from, pinnedHead(open, from))
     expect(bounds.min).toBe(2)
     const to = clampDrop(bounds, 1, from)
     expect(ids(withOrder(chain, moveItem(order, from, to)))).toEqual(['A-1', 'A-2', 'A-3', 'A-5', 'A-4'])
@@ -109,7 +122,7 @@ describe('underWayFirst (BTN-1617)', () => {
     expect(ids(open)).toEqual(['A-5', 'A-2', 'A-7', 'A-8'])
     const order = ids(open)
     const from = order.indexOf('A-8')
-    const bounds = dropBounds(order, new Map(open.map((each) => [each.id, each.after])), from, pinnedHead(open))
+    const bounds = dropBounds(order, new Map(open.map((each) => [each.id, each.after])), from, pinnedHead(open, from))
     const to = clampDrop(bounds, 0, from)
     expect(ids(withOrder(chain, moveItem(order, from, to)))).toEqual(['A-1', 'A-FIX.3', 'A-5', 'A-2', 'A-8', 'A-7'])
   })

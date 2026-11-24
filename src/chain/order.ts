@@ -100,6 +100,16 @@ export function startsAhead(tasks: Task[], order: string[], current: string, hol
   return at < 0 || nextTask(tasks, order.slice(0, at), holding) !== undefined
 }
 
+/**
+ * Whether a new order puts above `current` a task the chain could start that `before` did not have above it (BTN-1643):
+ * what already stands above a running task — one the chain passed over, one that got ready since — stays allowed there,
+ * so a move far from the running tasks is never refused.
+ */
+export function jumpsAhead(tasks: Task[], before: string[], order: string[], current: string, holding: string[]): boolean {
+  const at = before.indexOf(current)
+  return startsAhead(tasks, order, current, at < 0 ? holding : [...holding, ...before.slice(0, at)])
+}
+
 export function openBlockers(tasks: Task[], id: string): string[] {
   const ids = new Set(tasks.map((task) => task.id))
   return tasks.find((task) => task.id === id)?.blockedBy.filter((other) => ids.has(other)) ?? []

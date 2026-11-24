@@ -111,7 +111,7 @@ export function MachineLoginDialog() {
           </button>
         </header>
         <div className="add-package__body">
-          <p className="login-rows__hint">{t.account.machineLoginNote}</p>
+          <p className="login-rows__aside">{t.account.machineLoginNote}</p>
           <LoginSteps login={login} device={login.agent === CODEX || login.agent === OPENCODE} sending={sending} send={remote} />
         </div>
         {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}

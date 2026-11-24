@@ -1,10 +1,12 @@
 import { fail } from '../notice/notice.js'
+import type { Task } from '../tracker/model.js'
 import type { MainCarry } from './carry.js'
 import { isCarryName, isFixName } from './fix.js'
+import { heldFrom, laneMachine } from './lanes.js'
 import type { TaskLists } from './lists.js'
 import type { MainFix } from './mainfix.js'
 import type { ActiveChain, ChainState, DispatcherDeps, ReleaseReason } from './model.js'
-import { checkOrder, startsAhead } from './order.js'
+import { chainOrder, checkOrder, jumpsAhead } from './order.js'
 
 export interface ArrangeHost {
   /** The project's head lane; with `task` — the lane holding it, else the head. */
@@ -88,10 +90,27 @@ export class Arrangement {
     checkOrder(tasks, order)
     const running = this.host.runningOf(project).filter((id) => tasks.some((task) => task.id === id))
     const holding = [...(this.state.skipped[project] ?? []), ...this.lists.waitingIds(project), ...running]
-    const ahead = running.find((current) => startsAhead(tasks, order, current, holding))
+    const before = this.shownOrder(project, tasks)
+    const ahead = running.find((current) => jumpsAhead(tasks, before, order, current, [...holding, ...this.passedOver(project, current, tasks)]))
     if (ahead !== undefined) throw fail('chain.currentFirst', { task: ahead })
     this.state.orders[project] = [...order]
     this.host.changed()
+  }
+
+  /** What the lane running `task` passes over on its machine, by the rule its launch went by (`LanePlacement.nextOf`). */
+  private passedOver(project: string, task: string, tasks: Task[]): string[] {
+    const machines = this.deps.machines
+    const lane = this.host.chainOf(project, task)
+    if (machines === undefined || lane === undefined) return []
+    return heldFrom(this.state, machines, project, laneMachine(lane, machines), tasks, lane)
+  }
+
+  private shownOrder(project: string, tasks: Task[]): string[] {
+    try {
+      return chainOrder(tasks, this.state.orders[project])
+    } catch {
+      return []
+    }
   }
 
   /** Drops the skips of tasks no longer open; whether any was dropped. */

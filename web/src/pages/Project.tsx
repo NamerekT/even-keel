@@ -304,6 +304,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
                 incoming={arrival.incoming}
                 links={links}
                 ready={(block) => readyButton(state, key, block)}
+                entry={arrival}
                 unready={(block) => block.open && !block.locked && canUnready(state, key, block)}
                 onCard={openCard}
                 adding={adding}

@@ -31,7 +31,7 @@ export function TrackerStep({ state }: { state: EvenKeelState }) {
             <TrackerIcon kind={BUILTIN} />
             {t.profiles.builtin}
           </span>
-          <span className="setup-tracker__note">{t.profiles.builtinNote}</span>
+          <span className="setup-tracker__desc">{t.profiles.builtinNote}</span>
         </li>
         {kinds.map((kind) => {
           const has = added.some((profile) => profile.kind === kind.kind)

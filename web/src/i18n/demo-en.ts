@@ -5,6 +5,7 @@ export const demoEn: Messages['demo'] = {
   lead: "Even Keel takes a project's tasks from the tracker and runs an agent's session on each in turn. You can see what it looks like first, or connect your own project right away.",
   watch: 'Watch the demo',
   watchTitle: 'Demo',
+  help: 'What is this',
   watchHint: 'About two minutes. The chain goes through three tasks before your eyes, and one of them asks you in the chat. The agent is a script: no account and no money needed.',
   connect: 'Connect your own',
   connectTitle: 'Your project',

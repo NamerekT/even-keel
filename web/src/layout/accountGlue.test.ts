@@ -60,7 +60,7 @@ describe("the row menu's notes", () => {
     const entry = { ...fakeAccount('rows', false, FAKE_LIMITS).accounts[0]!, limitsOutdated: true }
     const html = renderToStaticMarkup(createElement(MenuMeters, { entry, now }))
     expect(html).not.toContain('·')
-    expect(html.split('account-row__meters-note').length - 1).toBeGreaterThanOrEqual(2)
+    expect(html.split('account-row__meters-aside').length - 1).toBeGreaterThanOrEqual(2)
   })
 })
 

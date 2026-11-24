@@ -1,4 +1,4 @@
-import { homedir } from 'node:os'
+import { homedir, hostname } from 'node:os'
 import { join } from 'node:path'
 import { sessionBase } from '../agent/env.js'
 import { sharedMemory } from '../account/share.js'
@@ -7,8 +7,9 @@ import { writeHandoffNote } from '../chain/handoff-notes.js'
 import { CODEX } from '../codex/name.js'
 import { idPrefixOf, ownerOf, readerIds } from '../config.js'
 import { home as dataHome, root } from '../locations.js'
+import { MemoryHub } from '../memory/git/hub.js'
 import { MemoryMcp } from '../memory/mcp.js'
-import { MemoryMirror } from '../memory/mirror.js'
+import { databaseDirOf, memoryDirOf } from '../storage/owner.js'
 import { Packages } from '../packages/service.js'
 import { PackageHub } from '../packages/hub.js'
 import { loadPackages } from '../packages/store.js'
@@ -23,21 +24,21 @@ import { installed } from '../updates/watcher.js'
 import type { AccountsContext } from './accounts.js'
 import { pinnable } from '../machine/pins.js'
 
-export function wireMemory(ctx: Pick<AccountsContext, 'db' | 'configStore' | 'homes'>): MemoryMirror {
-  return new MemoryMirror({
+/** The hub's memory repositories and its folders as their working copies (BTN-1646): one folder a project for now. */
+export function wireMemory(ctx: Pick<AccountsContext, 'db' | 'configStore' | 'homes' | 'stateDir'>): MemoryHub {
+  return new MemoryHub({
     db: ctx.db,
-    folderOf: (project) => {
-      const repo = ctx.configStore.current.projects[project]
-      return repo === undefined ? null : sharedMemory(ctx.homes.global.dir, repo)
-    },
-    now: () => new Date(),
+    dir: memoryDirOf(databaseDirOf(ctx.stateDir)),
+    folders: () => Object.fromEntries(Object.entries(ctx.configStore.current.projects).map(([project, repo]) => [project, [sharedMemory(ctx.homes.global.dir, repo)]])),
+    author: hostname(),
     log: (line) => console.log(line),
+    mirror: () => ctx.configStore.current.memoryMirror,
   })
 }
 
 export function wirePackageHub(ctx: AccountsContext): PackageHub {
   return new PackageHub({
-    memory: new MemoryMcp({ db: ctx.db, mirror: ctx.memory, now: () => new Date() }, installed(root).version),
+    memory: new MemoryMcp({ hub: ctx.memory }, installed(root).version),
     catalog: () => loadPackages(join(ctx.stateDir, 'packages.json')) ?? emptyPackages(),
     get repos() { return ctx.configStore.current.projects },
     rules: trackerKeyRules(),

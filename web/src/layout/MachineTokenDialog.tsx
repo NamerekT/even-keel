@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { HelpTip } from '../pages/settingsParts.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
@@ -33,6 +34,7 @@ export function MachineTokenDialog({ target: given, choices, onClose, onAdded = 
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
+  const tokenId = useId()
   const { send, sending, failure } = useCommand()
   const [token, setToken] = useState('')
   const [account, setAccount] = useState(given.account)
@@ -81,22 +83,26 @@ export function MachineTokenDialog({ target: given, choices, onClose, onAdded = 
               />
             </div>
           )}
-          <p className="add-package__note">{t.account.machineTokenLead(target.who)}</p>
           <CommandBlock command="claude setup-token" />
-          <label className="add-package__field">
-            <span className="add-package__label">{t.account.newKey.longToken}</span>
+          <div className="add-package__field">
+            <span className="add-package__label-row">
+              <label className="add-package__label" htmlFor={tokenId}>
+                {t.account.newKey.longToken}
+              </label>
+              <HelpTip text={`${t.account.machineTokenLead(target.who)} ${t.account.machineTokenLacks}`} align="start" />
+            </span>
             <FieldStrip line={failure === null ? null : { tone: 'error', text: say(failure) }} fold wide>
               <input
                 className="add-package__input add-package__input--mono"
                 {...secretInput()}
+                id={tokenId}
                 value={token}
                 aria-invalid={failure !== null}
                 onChange={(event) => setToken(event.target.value)}
                 autoFocus
               />
             </FieldStrip>
-          </label>
-          <p className="add-package__note">{t.account.machineTokenLacks}</p>
+          </div>
         </div>
         <footer className="add-package__foot">
           <span className="add-package__spacer" />

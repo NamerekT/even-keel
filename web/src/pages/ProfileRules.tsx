@@ -70,7 +70,7 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
         void landing.land(async () => (!dirty || (await send('profiles/rules', { id: profile.id, rules: rulesOf(draft.edit) }))) && (await moves.save(send)))
       }}
     >
-      <p className="settings__hint">{profile.projectIds.length === 0 ? t.profiles.rulesNoProjects : t.profiles.rulesFor(profile.projects.join(', '))}</p>
+      <p className="profile-rules__state">{profile.projectIds.length === 0 ? t.profiles.rulesNoProjects : t.profiles.rulesFor(profile.projects.join(', '))}</p>
       <VocabularyReading.Provider value={reading}>
       <RuleForm
         level="profile"

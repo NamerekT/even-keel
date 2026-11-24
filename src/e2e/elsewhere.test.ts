@@ -149,6 +149,36 @@ describe('a machine elsewhere end to end', { timeout: scaled(180_000) }, () => {
     await done()
   })
 
+  it('takes a message from the page into a session elsewhere mid-turn: the field is open and its mail hook gets it (BTN-1633)', async () => {
+    const ready = new Gate()
+    const gate = new Gate()
+    const got: (string | null)[] = []
+    run.agent.script('ABC-1', async (turn) => {
+      turn.show({ text: 'Working' })
+      // A hook before the hub has the launch's record gets 404: the first one here waits until the hub knows the session.
+      await turn.park(ready)
+      got.push(await turn.mail('PreToolUse'))
+      await turn.park(gate)
+      got.push(await turn.mail('PostToolUse'))
+      return commitAndMerge('ABC-1.txt')(turn)
+    })
+    await connected()
+    await run.startChain(PROJECT_ID)
+    await run.until(() => run.agent.sessionsOf('ABC-1').length > 0, 'the session launched', { limitMs: 10 * 60_000 })
+    const sessionId = run.agent.sessionsOf('ABC-1')[0]!.sessionId
+    await run.until(() => run.service.machineLink.network.holderOf(sessionId) === elsewhere.machine && run.service.machineLink.port.midTurn('ABC-1'), 'the machine holds the session mid-turn')
+    ready.open()
+    await run.until(() => got.length === 1, 'the hook of ABC-1 asked for mail')
+    await run.until(() => run.service.getState().mailbox[sessionId]?.listens === true, 'the page sees the session listen')
+
+    await run.post('session/answer', { project: PROJECT_ID, task: 'ABC-1', sessionId, ask: null, answers: {}, text: 'Keep the old format.' })
+    gate.open()
+    await run.until(() => got.length === 2, 'the hook asked again')
+    expect(got).toEqual([null, expect.stringContaining('Keep the old format.')])
+    expect(run.service.getState().mailbox[sessionId]?.mail).toEqual([expect.objectContaining({ fate: 'delivered', event: 'PostToolUse' })])
+    await done()
+  })
+
   it("names the wait for the first limits poll of the machine's account in the chain, and launches once it answers (BTN-1521)", async () => {
     const gate = new Gate()
     // Every first poll is held, the hub's too, whose limits of the same account the machine would take: the account is

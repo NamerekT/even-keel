@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { DevicesView } from '../../../src/access/view.js'
+import type { DevicesView, DeviceView } from '../../../src/access/view.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { formatAgo, formatFullTime, formatStamp } from '../format.js'
@@ -10,10 +10,16 @@ import { Band } from '../ui/blocks.js'
 import { PlusIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
-import { addPasskey, passkeysWork, type AuthPost } from './passkey.js'
+import { addPasskey, openedByIp, passkeysWork, type AuthPost } from './passkey.js'
 import { PageToken } from './SettingsSecrets.js'
 import { FieldNote, Section } from './settingsParts.js'
 import './signInSettings.css'
+
+/** How a device signed in: the key, or a passkey with the name it lives on, so two browsers of one kind tell apart. */
+function methodOf(device: DeviceView): string {
+  if (device.byKey) return t.signIn.byKey
+  return device.passkeyHost === null ? t.signIn.byPasskey : t.signIn.byPasskeyAt(device.passkeyHost)
+}
 
 const KEY_GUIDE = 'https://github.com/NamerekT/even-keel/blob/main/docs/guide/setup.md#reaching-the-page-from-another-machine'
 
@@ -54,6 +60,9 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
     }
   }
   const signOut = () => act(() => post('auth/sign-out', {}), () => location.reload())
+  const add = async () => {
+    if ((await addPasskey(post)) === 'unsupported') throw new Error(t.signIn.unsupported)
+  }
 
   return (
     <>
@@ -81,24 +90,34 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
                     <li key={passkey.id} className="sign-ins__row">
                       <span className="sign-ins__main">
                         <span className="sign-ins__name">{passkey.name}</span>
-                        <Tipped tip={passkey.host} inline align="start">
+                        <bdi className="sign-ins__from" dir="ltr">
+                          {passkey.host}
+                        </bdi>
+                      </span>
+                      <span className="sign-ins__side">
+                        <Tipped tip={formatFullTime(passkey.createdAt)} inline>
                           <span className="sign-ins__when">{t.signIn.added(formatStamp(passkey.createdAt, now))}</span>
                         </Tipped>
+                        <button type="button" className="button button--small" disabled={busy} onClick={() => void act(() => post('auth/passkey/remove', { id: passkey.id }))}>
+                          {t.signIn.remove}
+                        </button>
                       </span>
-                      <button type="button" className="button button--small" disabled={busy} onClick={() => void act(() => post('auth/passkey/remove', { id: passkey.id }))}>
-                        {t.signIn.remove}
-                      </button>
                     </li>
                   ))}
                 </ul>
               )}
-              {passkeysWork() && view.current !== null && (
-                <div className="sign-ins__actions">
-                  <button type="button" className="button" disabled={busy} onClick={() => void act(() => addPasskey(post))}>
-                    <PlusIcon />
-                    {t.signIn.add}
-                  </button>
-                </div>
+              {openedByIp() ? (
+                <p className="sign-ins__empty">{t.signIn.noPasskeyByIp}</p>
+              ) : (
+                passkeysWork() &&
+                view.current !== null && (
+                  <div className="sign-ins__actions">
+                    <button type="button" className="button" disabled={busy} onClick={() => void act(add)}>
+                      <PlusIcon />
+                      {t.signIn.add}
+                    </button>
+                  </div>
+                )
               )}
             </Section>
             <Section title={t.signIn.devices} hint={t.signIn.devicesHint}>
@@ -114,7 +133,7 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
                         <span className="sign-ins__main">
                           <span className="sign-ins__name">
                             {device.device}
-                            <span className="tag">{device.byKey ? t.signIn.byKey : t.signIn.byPasskey}</span>
+                            <span className="tag sign-ins__way">{methodOf(device)}</span>
                           </span>
                           {device.seenFrom !== null && (
                             <bdi className="sign-ins__from" dir="ltr">

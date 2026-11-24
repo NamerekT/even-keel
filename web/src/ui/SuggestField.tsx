@@ -207,7 +207,7 @@ export function SuggestField({ value, options, onChange, id, className = '', lab
                   >
                     <span className="select__label">
                       {option.value}
-                      {option.label !== undefined && option.label !== option.value && <span className="suggest__note">{option.label}</span>}
+                      {option.label !== undefined && option.label !== option.value && <span className="suggest__aside">{option.label}</span>}
                     </span>
                     {option.value === value && <CheckIcon />}
                   </li>

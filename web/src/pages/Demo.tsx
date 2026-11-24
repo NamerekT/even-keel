@@ -5,6 +5,7 @@ import { language, say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
 import { Band, Card } from '../ui/blocks.js'
+import { ButtonWithTip } from '../ui/ButtonWithTip.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { AddProjectLink } from './SetupAsk.js'
@@ -42,20 +43,30 @@ export function DemoWelcome({ state }: { state: EvenKeelState }) {
       <WizardFrame title={t.demo.welcome} lead={t.demo.lead}>
         <div className="demo-welcome__choices">
           <Card title={t.demo.watchTitle} className="demo-welcome__choice">
-            <p className="demo-welcome__hint">{t.demo.watchHint}</p>
             {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
             <div className="demo-welcome__actions">
-              <button type="button" className="button button--primary" disabled={sending} onClick={() => void start(false)}>
-                {t.demo.watch}
-              </button>
+              <ButtonWithTip
+                label={t.demo.help}
+                tip={t.demo.watchHint}
+                action={
+                  <button type="button" className="button button--primary" disabled={sending} onClick={() => void start(false)}>
+                    {t.demo.watch}
+                  </button>
+                }
+              />
             </div>
           </Card>
           <Card title={t.demo.connectTitle} className="demo-welcome__choice">
-            <p className="demo-welcome__hint">{t.demo.connectHint}</p>
             <div className="demo-welcome__actions">
-              <AddProjectLink state={state} className="button">
-                {t.demo.connect}
-              </AddProjectLink>
+              <ButtonWithTip
+                label={t.demo.help}
+                tip={t.demo.connectHint}
+                action={
+                  <AddProjectLink state={state} className="button">
+                    {t.demo.connect}
+                  </AddProjectLink>
+                }
+              />
             </div>
           </Card>
         </div>

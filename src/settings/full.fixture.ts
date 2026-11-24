@@ -3,6 +3,7 @@ export const FULL = {
   version: 9,
   allowedHosts: [' Box.Example.com '],
   machinesAddress: ' Hub.Example.com:8443 ',
+  memoryMirror: ' git@example.com:backup/memory.git ',
   parallel: 2,
   unattended: true,
   trimTools: false,

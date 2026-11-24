@@ -3,6 +3,7 @@ import { t } from '../i18n/index.js'
 import { Card } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { Segmented } from './common.js'
+import { HelpTip } from '../pages/settingsParts.js'
 import { formatShare, formatUsd } from './format.js'
 import type { ChartData, Metric } from './history.js'
 import { markKey, markTitle, type MarkPlace } from './marks.js'
@@ -98,6 +99,7 @@ export function SpendChart({
       titleId="spend-title"
       actions={
         <>
+          <HelpTip text={`${t.stats.spend.zoom}${onZoomOut !== null ? t.stats.spend.zoomOut : ''}.${marks.size > 0 ? t.stats.spend.marks : ''}`} />
           <Segmented
             label={t.stats.spend.metric}
             options={METRICS.map((each) => [each, ...t.stats.spend.metrics[each]])}
@@ -194,10 +196,6 @@ export function SpendChart({
           })}
         </div>
       </div>
-      <p className="spend__hint">
-        {t.stats.spend.zoom}
-        {onZoomOut !== null && t.stats.spend.zoomOut}.{marks.size > 0 && t.stats.spend.marks}
-      </p>
     </Card>
   )
 }

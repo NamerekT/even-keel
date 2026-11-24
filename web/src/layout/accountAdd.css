@@ -1,5 +1,12 @@
 /* The add-account dialog (BTN-352) over the `add-package` frame, and the sign-in rows it shares with the sign-in dialog. */
 
+.account-add__state {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  line-height: 1.45;
+}
+
 .account-add__identity {
   overflow-wrap: anywhere;
 }
@@ -310,7 +317,8 @@
   gap: var(--space-8);
 }
 
-.login-rows__hint {
+.login-rows__aside,
+.login-rows__state {
   margin: 0;
   color: var(--fg-muted);
   font-size: var(--text-13);

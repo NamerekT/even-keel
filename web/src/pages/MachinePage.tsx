@@ -28,6 +28,7 @@ import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
 import { Tipped } from '../ui/Tipped.js'
 import { IdentityButton } from './IdentityDialog.js'
+import { MachineMemoryCard } from './MachineMemoryCard.js'
 import { BranchDriftBand } from './BranchField.js'
 import { HelpTip } from './settingsParts.js'
 import { TakeOverButton } from './TakeOverButton.js'
@@ -182,6 +183,7 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
         </div>
         <div className="machine-page__column">
           <ProjectsCard page={page} />
+          {!page.own && <MachineMemoryCard state={state} page={page} reload={reload} />}
           <AccountsCard state={state} page={page} now={now} />
           <SessionsCard page={page} />
         </div>
@@ -310,7 +312,7 @@ function SettingsCard({ page, reload, show }: { page: MachinePageView; reload: (
             </Tipped>
           )}
         </span>
-        {near && <p className="machine-page__note machine-page__wide">{text.colorNear}</p>}
+        {near && <p className="machine-page__state machine-page__wide">{text.colorNear}</p>}
       </div>
       {failure !== null && (
         <p role="alert" className="notice notice--error">
@@ -585,9 +587,9 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
                   {isChecking(account) ? checkingNote : <span className={account.signedIn ? 'machine-page__muted' : 'machine-page__warn'}>{account.signedIn ? text.signedIn : text.signedOut}</span>}
                   {account.longToken === true && <span className="tag">{text.longToken}</span>}
                 </span>
-                {account.signedIn && account.sessionsOnly === true && <span className="machine-page__note"><SessionsOnly email={account.email} send={send} sending={sending} /></span>}
+                {account.signedIn && account.sessionsOnly === true && <span className="machine-page__state"><SessionsOnly email={account.email} send={send} sending={sending} /></span>}
                 {account.signedIn && account.limitsDiffer === true && (
-                  <span className="machine-page__note">
+                  <span className="machine-page__state">
                     <Tipped className="machine-page__warn" tip={say(WINDOWS_DIFFER)} align="start" focusable>{text.limitsDiffer}</Tipped>
                     {newToken(account.email)}
                   </span>

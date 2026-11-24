@@ -1,10 +1,10 @@
 import type { BranchDrift, ConfigView, EvenKeelState, ProjectForm, RepoBranches } from '../../../src/state.js'
-import { t } from '../i18n/index.js'
+import { sayAtField, t } from '../i18n/index.js'
 import { PROJECT_SLOTS, projectLabel } from '../state.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { BadgeButton } from './BadgeButton.js'
-import { BranchDriftBand, BranchField, BranchMoveLine } from './BranchField.js'
+import { BranchDriftBand, BranchField, branchStrip } from './BranchField.js'
 import { GitOnSection } from './GitSwitch.js'
 import { ProjectName } from './ProjectName.js'
 import { ProjectRemove } from './ProjectRemove.js'
@@ -32,6 +32,7 @@ export function ProjectRepoTab({
   drift: BranchDrift | undefined
 }) {
   const { text, on, edit, marks, errorOf, notes, input, pick, number } = fields
+  const branchError = errorOf('branch')
   // A release project merges into a main one of its own repository, never into another release project. Until the
   // remotes are read, every main project is offered: the save checks it.
   const kin = state?.sameRepository[project]
@@ -63,11 +64,9 @@ export function ProjectRepoTab({
           htmlFor={fieldId('branch')}
           mark={marks.note('branch')}
           control={
-            <BranchField id={fieldId('branch')} value={text('branch')} repo={branches} loading={branchesReading} placeholder="main" invalid={errorOf('branch') !== null} onChange={(value) => edit('branch', value)} />
+            <BranchField id={fieldId('branch')} value={text('branch')} repo={branches} loading={branchesReading} placeholder="main" invalid={errorOf('branch') !== null} onChange={(value) => edit('branch', value)} line={branchError !== null ? { tone: 'error', text: sayAtField(branchError) } : text('branch').trim() !== form.branch ? branchStrip(branches, undefined, text('branch')) : null} />
           }
-          error={errorOf('branch')}
         >
-          {text('branch').trim() !== form.branch && <BranchMoveLine repo={branches} value={text('branch')} />}
           {drift !== undefined && <BranchDriftBand project={project} drift={drift} />}
         </Row>
         {input('changelog', t.settings.changelog, t.settings.changelogHint, 'CHANGELOG.md')}

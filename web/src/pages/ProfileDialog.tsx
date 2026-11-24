@@ -14,6 +14,7 @@ import { secretInput } from '../ui/secret.js'
 import { alternativeOf, draftValues, hostValues, trackerFields, unfilled } from './profileForm.js'
 import { ProfileMcp, type GrantChoice } from './ProfileMcp.js'
 import { ProfileMovesStep } from './ProfileMovesStep.js'
+import { HelpTip } from './settingsParts.js'
 import './profiles.css'
 
 interface DialogProps {
@@ -112,7 +113,7 @@ function KindStep({ kinds, onPick }: { kinds: ProfileKindView[]; onPick: (kind: 
             <TrackerIcon kind={kind} />
           </span>
           <span className="add-package__kind-title">{title}</span>
-          <span className="add-package__kind-hint">{t.profiles.kindHint[kind] ?? ''}</span>
+          <span className="add-package__kind-desc">{t.profiles.kindHint[kind] ?? ''}</span>
         </button>
       ))}
     </div>
@@ -149,7 +150,7 @@ function Rights({ kind, stress }: { kind: ProfileKindView; stress: RightsUse | u
   const rights = t.profiles.rights[kind.kind] ?? {}
   const uses = USES.filter((use) => rights[use] !== undefined)
   return (
-    <div className="settings__hint profile-rights">
+    <div className="profile-rights">
       <p className="profile-rights__intro">
         {t.profiles.rightsIntro[kind.kind] ?? ''}{' '}
         <a href={kind.help} target="_blank" rel="noreferrer">
@@ -160,7 +161,7 @@ function Rights({ kind, stress }: { kind: ProfileKindView; stress: RightsUse | u
         {uses.map((use) => (
           <li key={use} className={use === stress ? 'profile-rights__use profile-rights__use--stressed' : 'profile-rights__use'}>
             <span className="profile-rights__name">{t.profiles.rightsUse[use]}:</span> {rights[use]}
-            {use === 'pullRequests' && <span className="profile-rights__note">{t.profiles.pushedByGit}</span>}
+            {use === 'pullRequests' && <HelpTip text={t.profiles.pushedByGit} align="end" />}
           </li>
         ))}
       </ul>
@@ -305,8 +306,10 @@ function FieldsStep({ kind, profile, stress, host, onBack, onGitlab, onClose, on
         </ProfileMcp>}
         {kind.mcpShared === true && (
           <section className="profile-mcp" aria-label={t.profiles.mcp.title}>
-            <SectionLabel>{t.profiles.mcp.title}</SectionLabel>
-            <p className="settings__hint profile-mcp__hint">{t.profiles.mcp.sharedToken}</p>
+            <span className="profile-mcp__head">
+              <SectionLabel>{t.profiles.mcp.title}</SectionLabel>
+              <HelpTip text={t.profiles.mcp.sharedToken} align="start" />
+            </span>
           </section>
         )}
         <Field label={t.profiles.name} hint={t.profiles.nameHint} line={fields.length === 0 ? signedIn : null}>

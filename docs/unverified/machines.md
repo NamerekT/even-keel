@@ -450,3 +450,27 @@ To check, on the benches: a project of the bench hub with machine-1 in its pool 
 Assumed: a real machine elsewhere going off the link and back turns the row's chip from "waits for …" to the launch there within a pull, the other lanes going on meanwhile; a pin set from the card or by the tasks server by name reaches the chain at its next step without a restart; and a revoked machine in a pin shows its chip with the button to the card. If not, a pinned task stays unseen by its machine, or runs elsewhere.
 
 To check, on the benches: a project of the bench hub with machine-1 in its pool and width 2, three ready tasks; pin the first to machine-1 from the card and the second to the hub by name through the tasks server (`run.machines`); see each start only on its machine, the third on whichever is free. Then stop machine-1's service with a fourth task pinned to it: the row says "waits for machine-1", the hub goes on; start it and see the task launch there.
+
+## The checkpoint hook of a machine elsewhere over a slow Tally (BTN-1634)
+
+`docs/sessions/checkpoint.md`, the calibration line. The hub's `/checkpoint` waited for Tally whenever its one-minute cache expired, past the link's 1.8 s, and the machine's log had `link: a hook's request GET /api/sessions/<id>/checkpoint did not get through: socket hang up` about once a minute per working session (2026-11-23…24, the hub on a server). Now the hub answers from the last measures after `CHECKPOINT_WAIT_MS`, and a late answer is logged as `no answer from the hub in 1800 ms`. Unit tests (`src/stats/reader-cache.test.ts`, `src/link/carrier.test.ts`) cover both; the hub's real Tally and the real distance were not run.
+
+Assumed: Tally's read and the context read through the machine's link are what kept the answer late, and nothing else on the route takes over a second. If not, the machine's log keeps lines for `/checkpoint`, now with "no answer from the hub in 1800 ms".
+
+To check, once the hub and the machine run this version: the machine's log through an hour of a working session has no `did not get through` line for `/checkpoint` outside the hub's restarts.
+
+## A chat message mid-turn to a session elsewhere (BTN-1633)
+
+`docs/machines.md`, "The mirror" (the chat paragraph). The page's mailbox and a reply's `listens`, steering and live view read the session's machine's mirror, the hub's own mailbox laid over it; a reply's steer, inbox and files go to that machine, its mailbox rows stay on the hub, whose page its hooks ask. Unit tests (`src/machine/page.test.ts`, `src/chain/answer-inbox.test.ts`) and one end-to-end case (`src/e2e/elsewhere.test.ts`: a message mid-turn reaches the mail hook) cover it; the scripted agent has no inbox socket.
+
+Assumed: a real Claude session on a machine elsewhere with `agent-bridge` 1.8.0 has its field open mid-turn and takes the message through its inbox socket on that machine at once, the row `delivered` with `inbox`; a session without an inbox takes it at its next tool call through the hooks, and one that ends its turn first gets it by a resume, not back in the chat as "gone". If not, the field stays shut or the message comes back.
+
+To check, on the benches: a task of the bench hub's project run on machine-1; mid-turn, write in its chat and see the session act on it within seconds and the row marked delivered; then the same with a long command running, and once more right before the turn ends.
+
+## Memory copies on a machine elsewhere over the link (BTN-1648)
+
+`docs/sessions/memory.md`, "The machines' copies". A machine keeps the memory folders of its pool's projects and of the folders bound on its page as working copies whose `origin` is its loopback `MemoryRelay`; each git request goes to the hub as `/link/git` and is answered by `git http-backend` over `state/even-keel/memory/<id>.git`. Unit tests run real git through the relay over a fake link (a copy to the hub and back to another copy, commits kept while the link is down and pushed once it is back, a refused machine), the hub's rights (pool row, binding, 403 otherwise), the bindings' store, the folders a machine syncs and the page's card (`src/memory/git/relay.test.ts`, `src/memory/git/hub-git.test.ts`, `src/memory/git/folders.test.ts`, `src/machine/memory.test.ts`, `src/service/machine-page.test.ts`); no machine has cloned over a real link.
+
+Assumed: `git http-backend` runs from the service's `PATH` on the hub's platform (Windows session 0 included) and git on the machine talks smart HTTP to `127.0.0.1` with no proxy or credential helper stepping in; a clone of a real project's memory fits one link post. If not, the machine's copies stay without a clone or their commits never leave: the machine's log has `a git request of <project> did not get through`, the hub's `asked for the memory of`.
+
+To check, on the benches (the BTN-1650 check): machine-1 in the bench hub's pool clones the project's memory into `~/.claude-memory/<folder>`; an edit there reaches the hub's repository within a minute; with the link cut, two edits commit locally and go at the reconnection; a folder bound on the machine's page outside the pool clones, and a project neither in the pool nor bound gets 403 with one hub log line.

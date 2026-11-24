@@ -714,7 +714,7 @@ button.tools__toggle:hover {
   font-size: var(--text-13);
 }
 
-.chat__hint {
+.chat__state {
   min-height: 1.3em;
   margin: 0;
   padding: 0 10px;

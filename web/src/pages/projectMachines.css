@@ -1,5 +1,13 @@
 /* The tab "Machines" of the project settings (BTN-1271): the pool as a nested group, a row per machine. */
 
+/* The hub's own machine in the connect dialog: nothing to pick, it is only turned on. */
+.connect-machine__own {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  line-height: 1.45;
+}
+
 .pool {
   display: flex;
   flex-direction: column;

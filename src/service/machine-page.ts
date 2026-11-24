@@ -3,7 +3,7 @@ import type { AccountTie } from '../limits/polls.js'
 import { MACHINE_PALETTE } from '../link/colors.js'
 import type { MachineRecord } from '../link/hub-store.js'
 import { API_VERSION } from '../link/protocol.js'
-import type { HubBuild, MachineAbout, MachineAccount, MachineBuildView, MachinePage, TakenFolder } from '../link/view.js'
+import type { HubBuild, MachineAbout, MachineAccount, MachineBuildView, MachinePage, MemoryFolderView, TakenFolder } from '../link/view.js'
 import type { RemoteMachine } from '../machine/remote.js'
 import { fail } from '../notice/notice.js'
 import { buildGap, followTarget, type MachineUpdates } from './machine-updates.js'
@@ -86,7 +86,30 @@ export interface MachinePageDeps {
   polled?: Polled
   /** Absent — the accounts carry no `limitsDiffer`. */
   differs?: Polled
+  /** A machine elsewhere's folders bound to projects' memory (BTN-1648); absent — the page has no such card. */
+  memory?: {
+    of: (machine: string) => MemoryFolderView[]
+    /** The hub's projects by id, the only ones a folder binds to. */
+    projects: () => string[]
+    set: (machine: string, folders: MemoryFolderView[]) => Promise<void>
+  }
   log: (line: string) => void
+}
+
+/** The bindings as the page sent them, trimmed and once each; a folder left empty or a project not here is refused. */
+function checkedFolders(folders: MemoryFolderView[], projects: string[]): MemoryFolderView[] {
+  const seen = new Set<string>()
+  const result: MemoryFolderView[] = []
+  for (const each of folders) {
+    if (!projects.includes(each.project)) throw fail('machines.unknownProject', {})
+    const folder = typeof each.folder === 'string' ? each.folder.trim() : ''
+    if (folder === '') throw fail('request.required', { field: 'folder' })
+    const key = `${each.project}\n${folder}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push({ project: each.project, folder })
+  }
+  return result
 }
 
 /**
@@ -156,6 +179,7 @@ export function machinePageControl(deps: MachinePageDeps) {
           .map(({ task, sessionId, agent, model, lamp, cwd }) => ({ task, sessionId, agent, model, lamp, cwd })),
         taken: deps.taken(record.id),
         ...(build !== undefined && { build }),
+        ...(!own && deps.memory !== undefined && { memory: deps.memory.of(record.id) }),
       }
     },
     /**
@@ -182,6 +206,16 @@ export function machinePageControl(deps: MachinePageDeps) {
       const record = await known(machine)
       if (record.id === deps.own()) return deps.ownIdentity(name, email)
       return deps.setGitIdentity(record.id, name, email)
+    },
+    /**
+     * The machine's folders bound to projects' memory, the whole list (BTN-1648): it syncs them beyond its pool and gets
+     * their repositories over the link. The own machine's folders are the hub's copies already.
+     */
+    async memoryFolders(machine: string, folders: MemoryFolderView[]): Promise<void> {
+      const record = await known(machine)
+      if (record.id === deps.own() || deps.memory === undefined) throw fail('machines.memoryOwn', {})
+      if (!Array.isArray(folders)) throw fail('request.required', { field: 'folders' })
+      await deps.memory.set(record.id, checkedFolders(folders, deps.memory.projects()))
     },
   }
 }

@@ -141,7 +141,7 @@
 
 /* Cells that say why on pointing are underlined with dots, like any term with a tip. */
 .account-card-item__stale .meter__value,
-.accounts__note--tipped {
+.accounts__state--tipped {
   text-decoration: underline dotted;
   text-underline-offset: 3px;
 }
@@ -227,7 +227,7 @@ a.add-choice:focus-visible {
   font-weight: 600;
 }
 
-.add-choice__hint {
+.add-choice__desc {
   color: var(--fg-muted);
   font-size: var(--text-13);
 }

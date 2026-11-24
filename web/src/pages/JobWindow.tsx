@@ -3,6 +3,7 @@ import type { JobStep, StepJob } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useCommand } from '../live/useCommand.js'
+import { ButtonWithTip } from '../ui/ButtonWithTip.js'
 import { BangIcon, CheckIcon } from '../ui/icons.js'
 import { progressParts, stepTime } from './jobProgress.js'
 import { RefusalWords } from './RefusalWords.js'
@@ -84,6 +85,7 @@ export function JobWindow({ job, title, stepLabel, done, undoNote, groupOf }: Jo
   // What a kept job made is opened in place of a bare "Close"; Cancel takes back only what can still be.
   const openable = !job.done && !job.undoable && job.result !== undefined
   const stop = job.undoable ? t.creation.window.cancel : t.creation.window.close
+  const buttonNote = job.undoable ? (undoNote ?? t.creation.window.undoable) : t.creation.window.kept
   return (
     <dialog
       ref={dialog}
@@ -123,7 +125,6 @@ export function JobWindow({ job, title, stepLabel, done, undoNote, groupOf }: Jo
               )
             })}
           </ol>
-          {!job.done && <p className="settings__hint job-window__note">{job.undoable ? (undoNote ?? t.creation.window.undoable) : t.creation.window.kept}</p>}
         </div>
         {job.failure !== null && (
           // One line by the failure's code, the tool's words behind a tip: git's ten lines are not why to a person. A fix
@@ -145,14 +146,26 @@ export function JobWindow({ job, title, stepLabel, done, undoNote, groupOf }: Jo
         <footer className="add-package__foot">
           <span className="add-package__spacer" />
           {!job.done && !openable && (
-            <button type="button" className="button" disabled={sending} onClick={() => void send('job/cancel', { id: job.id })}>
-              {stop}
-            </button>
+            <ButtonWithTip
+              label={t.card.actionHelp}
+              tip={buttonNote}
+              action={
+                <button type="button" className="button" disabled={sending} onClick={() => void send('job/cancel', { id: job.id })}>
+                  {stop}
+                </button>
+              }
+            />
           )}
           {openable && (
-            <button type="button" className="button" disabled={sending} onClick={done.onDone}>
-              {done.label}
-            </button>
+            <ButtonWithTip
+              label={t.card.actionHelp}
+              tip={buttonNote}
+              action={
+                <button type="button" className="button" disabled={sending} onClick={done.onDone}>
+                  {done.label}
+                </button>
+              }
+            />
           )}
           {failed && (
             <button type="button" className="button button--primary" disabled={sending} onClick={retry}>

@@ -149,7 +149,7 @@
 .account-row__meters { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-8); }
 .account-row__menu .account-row__meters .account-meter__long { display: inline; }
 .account-row__menu .account-row__meters .account-meter__short { display: none; }
-.account-row__meters-note { color: var(--fg-muted); font-size: var(--text-11); }
+.account-row__meters-aside { color: var(--fg-muted); font-size: var(--text-11); }
 .account-rename { display: flex; flex-direction: column; gap: var(--space-8); }
 .account-compact { display: none; font-variant-numeric: tabular-nums; font-weight: 600; }
 .account-compact__none { color: var(--fg-muted); }

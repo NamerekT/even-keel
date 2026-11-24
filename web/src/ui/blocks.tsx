@@ -86,7 +86,7 @@ export function Tile({ label, value, note, children }: { label: ReactNode; value
     <div className="ui-tile">
       <span className="ui-tile__label">{label}</span>
       <span className="ui-tile__value">{value}</span>
-      {note !== undefined && <span className="ui-tile__note">{note}</span>}
+      {note !== undefined && <span className="ui-tile__aside">{note}</span>}
       {children}
     </div>
   )

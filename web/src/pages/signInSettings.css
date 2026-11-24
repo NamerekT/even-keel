@@ -49,6 +49,13 @@
   font-weight: 600;
 }
 
+/* A passkey's tag carries its host name: a long one is cut on a phone rather than pushing the row wide. */
+.sign-ins__way {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sign-ins__from,
 .sign-ins__when {
   color: var(--fg-muted);

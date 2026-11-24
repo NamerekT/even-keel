@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { done, fakeMachines, setup, task } from './dispatcher.fixture.js'
+import { backlog, done, fakeMachines, setup, task } from './dispatcher.fixture.js'
 
 const lanesOf = (run: ReturnType<typeof setup>, project = 'ABC') =>
   run.dispatcher.state.active.filter((chain) => chain.project === project).map((chain) => [chain.machine, chain.current?.task ?? null])
@@ -142,6 +142,52 @@ describe('Dispatcher with machines (BTN-993)', () => {
     expect(() => run.dispatcher.reorder('ABC', ['ABC-4', 'ABC-1', 'ABC-2', 'ABC-3'])).toThrow('ABC-1 is running and stays first')
     run.dispatcher.reorder('ABC', ['ABC-2', 'ABC-1', 'ABC-4', 'ABC-3'])
     expect(run.dispatcher.state.orders.ABC).toEqual(['ABC-2', 'ABC-1', 'ABC-4', 'ABC-3'])
+  })
+
+  it('lets a task the chain passed over for its machine stand between the running lanes (BTN-1643)', async () => {
+    // ABC-2 is pinned to a machine off the link: both lanes pass it over, as the pin does.
+    const { machines } = fakeMachines({ pc: 1, server: 1 }, { width: { ABC: 2 }, runs: (_project, id, machine) => id !== 'ABC-2' || machine === 'box' })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3'), task('ABC-4'), task('ABC-5')])
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1'], ['server', 'ABC-3']])
+
+    run.dispatcher.reorder('ABC', ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-5', 'ABC-4'])
+    expect(run.dispatcher.state.orders.ABC).toEqual(['ABC-1', 'ABC-2', 'ABC-3', 'ABC-5', 'ABC-4'])
+    run.dispatcher.reorder('ABC', ['ABC-2', 'ABC-1', 'ABC-3', 'ABC-5', 'ABC-4'])
+    expect(() => run.dispatcher.reorder('ABC', ['ABC-2', 'ABC-1', 'ABC-5', 'ABC-3', 'ABC-4'])).toThrow('ABC-3 is running and stays first')
+  })
+
+  it('takes a move far from the running lanes while a task above one of them became ready since (BTN-1643)', async () => {
+    const { machines } = fakeMachines({ pc: 1, server: 1 }, { width: { ABC: 2 } })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3'), task('ABC-4'), task('ABC-5')])
+    run.dispatcher.skip('ABC', 'ABC-2')
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1'], ['server', 'ABC-3']])
+    run.dispatcher.unskip('ABC', 'ABC-2')
+    await run.dispatcher.idle()
+
+    run.dispatcher.reorder('ABC', ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-5', 'ABC-4'])
+    expect(run.dispatcher.state.orders.ABC).toEqual(['ABC-1', 'ABC-2', 'ABC-3', 'ABC-5', 'ABC-4'])
+    expect(() => run.dispatcher.reorder('ABC', ['ABC-1', 'ABC-2', 'ABC-4', 'ABC-3', 'ABC-5'])).toThrow('ABC-3 is running and stays first')
+  })
+
+  it.each([2, 3])('lands a backlog task above the queue right under %i running lanes, never between them (BTN-1641)', async (width) => {
+    const { machines } = fakeMachines({ pc: 1, server: 1, laptop: 1 }, { width: { ABC: width } })
+    const run = setup({ machines })
+    const queue = [task('ABC-1'), task('ABC-2'), task('ABC-3'), task('ABC-4')]
+    run.dispatcher.setTasks('ABC', [...queue, { ...task('ABC-9', backlog), priority: 'urgent' }])
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toHaveLength(width)
+    const running = queue.slice(0, width).map((each) => each.id)
+    expect(run.dispatcher.orders().ABC?.landing?.['ABC-9']).toBe(`ABC-${width + 1}`)
+
+    run.dispatcher.setTasks('ABC', [...queue, { ...task('ABC-9'), priority: 'urgent' }])
+    expect(run.dispatcher.orders().ABC?.order.slice(0, width + 1)).toEqual([...running, 'ABC-9'])
   })
 
   it('hands the next task to the machine with a free place', async () => {

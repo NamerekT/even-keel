@@ -28,6 +28,8 @@ export interface AccessToken {
   revokedAt: string | null
   /** The owner key's mark for a sign-in with the key (`keyMarkOf`); `null` — a passkey's. */
   keyMark: string | null
+  /** The host name of the passkey a sign-in used; `null` — the key's, or a token made before step 81. */
+  passkeyHost: string | null
 }
 
 export interface Passkey {
@@ -60,6 +62,7 @@ interface TokenRow {
   seen_from: string | null
   revoked_at: string | null
   key_mark: string | null
+  passkey_host: string | null
 }
 
 interface PasskeyRow {
@@ -73,7 +76,7 @@ interface PasskeyRow {
   used_at: string | null
 }
 
-const TOKEN_COLUMNS = 'id, person_id, rights, device, created_at, seen_at, seen_from, revoked_at, key_mark'
+const TOKEN_COLUMNS = 'id, person_id, rights, device, created_at, seen_at, seen_from, revoked_at, key_mark, passkey_host'
 const PASSKEY_COLUMNS = 'credential_id, person_id, public_key, counter, host, name, created_at, used_at'
 
 export const hashOf = (secret: string) => createHash('sha256').update(secret).digest('hex')
@@ -93,6 +96,7 @@ const tokenOf = (row: TokenRow): AccessToken => ({
   seenFrom: row.seen_from,
   revokedAt: row.revoked_at,
   keyMark: row.key_mark,
+  passkeyHost: row.passkey_host,
 })
 
 const passkeyOf = (row: PasskeyRow): Passkey => ({
@@ -122,6 +126,7 @@ export interface NewToken {
   rights: Rights
   device: string
   keyMark?: string | null
+  passkeyHost?: string | null
   now?: Date
 }
 
@@ -129,9 +134,9 @@ export interface NewToken {
 export async function issueToken(db: Db, fresh: NewToken): Promise<{ token: AccessToken; secret: string }> {
   const secret = randomBytes(32).toString('base64url')
   const { rows } = await db.query<TokenRow>(
-    `insert into access_tokens (id, person_id, rights, secret_hash, device, created_at, key_mark) values ($1, $2, $3, $4, $5, $6, $7)
+    `insert into access_tokens (id, person_id, rights, secret_hash, device, created_at, key_mark, passkey_host) values ($1, $2, $3, $4, $5, $6, $7, $8)
      returning ${TOKEN_COLUMNS}`,
-    [randomUUID(), fresh.person, fresh.rights, hashOf(secret), fresh.device, (fresh.now ?? new Date()).toISOString(), fresh.keyMark ?? null],
+    [randomUUID(), fresh.person, fresh.rights, hashOf(secret), fresh.device, (fresh.now ?? new Date()).toISOString(), fresh.keyMark ?? null, fresh.passkeyHost ?? null],
   )
   return { token: tokenOf(rows[0]!), secret }
 }

@@ -130,6 +130,8 @@ export class FakeNetwork {
   private readonly identities = new Map<string, { name: string; email: string }>()
   /** The hub's build each machine took at "Update" and moves to (BTN-1609). */
   private readonly moving = new Map<string, string>()
+  /** The folders bound to other projects' memory (BTN-1648), by machine; the laptop starts with one. */
+  private readonly memory = new Map<string, NonNullable<MachinePage['memory']>>()
   /** With `?machines=taken` (BTN-1262), the laptop's first project's folder is held by a gone machine's mark until taken over. */
   private held: boolean
 
@@ -272,6 +274,7 @@ export class FakeNetwork {
       sessions: own ? state.sessions.filter((session) => session.lamp !== 'finished').map(({ task, sessionId, agent, model, lamp, cwd }) => ({ task, sessionId, agent, model, lamp, cwd })) : [],
       taken: id === 'machine-1' && this.held && pooled[0] !== undefined ? [{ project: pooled[0], machine: 'machine-0', name: 'Example old laptop' }] : [],
       ...(!own && this.buildOf(report, view?.online === true, id)),
+      ...(!own && { memory: this.memory.get(id) ?? (id === 'machine-1' && state.projects.length > 0 ? [{ project: state.projects.at(-1)!, folder: '/home/example/hand/notes' }] : []) }),
     }
   }
 
@@ -313,6 +316,11 @@ export class FakeNetwork {
     }
     if (name === 'machines/takeOver' && body.machine === 'machine-1' && this.held) {
       this.held = false
+      this.changed()
+      return true
+    }
+    if (name === 'machines/memory') {
+      this.memory.set(String(body.machine), body.folders as NonNullable<MachinePage['memory']>)
       this.changed()
       return true
     }

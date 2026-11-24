@@ -7,6 +7,7 @@ import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { seriesStyle } from '../ui/series.js'
+import { HelpTip } from '../pages/settingsParts.js'
 import { Tipped } from '../ui/Tipped.js'
 import { ChatSpend } from './ChatSpend.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type FoldControl } from './common.js'
@@ -322,13 +323,12 @@ function Timeline({ detail }: { detail: StatsTaskDetail }) {
       )}
       {detail.steps.length > 0 && (
         <p className="task-steps">
-          {t.stats.tasks.steps}{' '}
+          {t.stats.tasks.steps}<HelpTip text={t.stats.tasks.stepsNote} />{' '}
           {detail.steps.map((step) => (
             <span key={step.step} className="task-steps__step" title={`${t.stats.tasks.launches(step.runs)}, ${formatSeconds(step.seconds)}`}>
               <code>{step.step}</code> {step.share === null ? formatSeconds(step.seconds) : formatShare(step.share * 100)}
             </span>
           ))}
-          <span className="task-steps__note">{t.stats.tasks.stepsNote}</span>
         </p>
       )}
     </div>

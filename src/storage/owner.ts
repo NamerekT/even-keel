@@ -20,6 +20,8 @@ export const dataDirOf = (dir: string) => join(dir, 'pgdata')
 export const databaseDirOf = (stateDir: string) => join(stateDir, DATABASE_DIR)
 /** The bytes of the built-in tracker's attachments, `<sha256>` each, next to `pgdata/` (BTN-773). */
 export const filesDirOf = (dir: string) => join(dir, 'files')
+/** The bare repositories of the project memory, `<project id>.git` each, next to `pgdata/` (BTN-1646). */
+export const memoryDirOf = (dir: string) => join(dir, 'memory')
 
 /** A PGlite folder is a database once `initdb` has finished in it. */
 export const databaseExists = (dir: string) => existsSync(join(dataDirOf(dir), 'PG_VERSION'))

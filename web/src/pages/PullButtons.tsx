@@ -11,7 +11,7 @@ import { openTab, projectScope, SETTINGS_HASH } from './settingsStore.js'
 /** Why PR mode has nowhere to open pull requests, under its switch (EKR-7); a warning while the mode is on. */
 export function PullHint({ readiness, on }: { readiness: Notice | null; on: boolean }) {
   if (readiness === null) return null
-  return <span className={on ? 'settings__error' : 'settings__hint'}>{hintOf(readiness)}</span>
+  return <span className={on ? 'settings__error' : 'pull__state'}>{hintOf(readiness)}</span>
 }
 
 function hintOf(readiness: Notice): string {

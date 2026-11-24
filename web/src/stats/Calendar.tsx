@@ -173,7 +173,7 @@ export function Calendar({
           </div>
         </div>
       ))}
-      <p className="calendar__hint">{anchor === null ? t.stats.period.pickStart : t.stats.period.pickEnd(formatDay(anchor))}</p>
+      <p className="calendar__state">{anchor === null ? t.stats.period.pickStart : t.stats.period.pickEnd(formatDay(anchor))}</p>
     </div>
   )
 }

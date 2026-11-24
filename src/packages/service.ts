@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { SessionPlugin, SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { ServerOverride } from '../link/view.js'
+import { readsFileMemory } from '../memory/mcp.js'
 import type { KeyView, PackagesHeld, PackagesView, PackageView, ProjectPackages } from '../state.js'
 import { TASKS_SERVER } from '../taskmcp/server.js'
 import { PassMemo } from '../pass-memo.js'
@@ -409,7 +410,7 @@ export class Packages {
   startOf(project: string, task: string, agent: string): Pick<SessionStart, 'mcp' | 'plugins'> {
     const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: project, builtIn: this.builtIn }
     const moved = this.unpinLost(project, task)
-    const found = sessionPackages(this.file, project, task, places)
+    const found = sessionPackages(this.file, project, task, places, readsFileMemory(agent))
     if (moved || !sameInstalls(this.file.pins[project]?.[task] ?? {}, found.installs)) {
       if (Object.keys(found.installs).length > 0) (this.file.pins[project] ??= {})[task] = found.installs
       else this.unpin(project, task)

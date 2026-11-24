@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router'
 import { isLanguage } from '../../src/language.js'
 import { asNotice, NoticeError } from '../../src/notice/notice.js'
 import type { Feed } from '../../src/sessions/transcript.js'
-import type { EvenKeelState, ProjectCheck, ProjectDraft, SessionRecord } from '../../src/state.js'
+import type { ProjectCheck, ProjectDraft, SessionRecord } from '../../src/state.js'
 import type { SessionCheckpoint } from '../../src/stats/checkpoint.js'
 import type { StatsAnswer } from '../../src/stats/model.js'
 import type { ToolsView } from '../../src/tools/model.js'
@@ -22,12 +22,15 @@ import { pageIdle, reloadOnMissingChunk, watchBuild } from './live/reload.js'
 import { watchTheme } from './theme.js'
 import './styles.css'
 
-async function fetchState(): Promise<EvenKeelState> {
-  const response = await fetch('/api/state', { cache: 'no-store' })
-  // The token changed under the page: loaded anew, the page gets the form that asks for the new one.
-  if (response.status === 401) location.reload()
-  if (!response.ok) throw new Error(`/api/state answered ${response.status}`)
-  return (await response.json()) as EvenKeelState
+/**
+ * The sign-in went from under the page (`docs/web/sign-in.md`, "Revoking"): a refused request — the token changed on a
+ * hub without sign-ins — or the hub saying this browser is not in, its device revoked.
+ */
+async function signedOut(): Promise<boolean> {
+  const response = await fetch('/api/auth/state', { cache: 'no-store' })
+  if (response.status === 401) return true
+  if (!response.ok) return false
+  return !((await response.json()) as AuthState).signedIn
 }
 
 async function sendCommand(name: string, body: Record<string, unknown>): Promise<void> {
@@ -100,7 +103,9 @@ async function createSource(): Promise<LiveSource> {
   if (import.meta.env.MODE === 'fake') return (await import('./live/fake.js')).createFakeSource(location.search)
 
   const connection = new LiveConnection({
-    fetchState,
+    signedOut,
+    // Loaded anew, the page gets the sign-in screen or the form that asks for the new token.
+    showSignIn: () => location.reload(),
     openEvents: () => new EventSource('/api/events'),
     sendCommand,
     fetchSession,
@@ -133,7 +138,7 @@ async function createSource(): Promise<LiveSource> {
   connection.start()
   window.addEventListener('online', () => connection.retryNow())
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') connection.retryNow()
+    if (document.visibilityState === 'visible') connection.wake()
   })
   return connection
 }
@@ -163,10 +168,13 @@ async function realSignIn(): Promise<SignInProps | null> {
   const state = (await response.json()) as AuthState
   if (state.signedIn) return null
   const post: AuthPost = async <T,>(name: string, body: object) => (await sendQuery(name, body)) as T
-  return { keySet: state.keySet, post, entered: () => location.reload() }
+  return { keySet: state.keySet, passkeyHere: state.passkeyHere, post, entered: () => location.reload() }
 }
 
-/** `dev:fake` shows the screen on `?signIn` (`?signIn=nokey` — no owner key on the hub); signing in drops the parameter. */
+/**
+ * `dev:fake` shows the screen on `?signIn` (`?signIn=nokey` — no owner key on the hub, `?signIn=nopasskeys` — a browser
+ * without passkeys, `?signIn=elsewhere` — passkeys made only on other names); signing in drops the parameter.
+ */
 async function fakeSignIn(): Promise<SignInProps | null> {
   const search = new URLSearchParams(location.search)
   if (!search.has('signIn')) return null
@@ -176,9 +184,10 @@ async function fakeSignIn(): Promise<SignInProps | null> {
     return fakeSignInPost(name, body as Record<string, unknown>) as T
   }
   const keySet = search.get('signIn') !== 'nokey'
+  const passkeyHere = search.get('signIn') !== 'elsewhere'
   search.delete('signIn')
   const rest = search.toString()
-  return { keySet, post, entered: () => location.replace(`${location.pathname}${rest === '' ? '' : `?${rest}`}`) }
+  return { keySet, passkeyHere, post, entered: () => location.replace(`${location.pathname}${rest === '' ? '' : `?${rest}`}`) }
 }
 
 watchTheme()

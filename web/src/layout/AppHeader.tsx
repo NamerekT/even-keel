@@ -7,6 +7,7 @@ import { CliCopiesBanner } from './CliCopies.js'
 import { ConfigBanner } from './ConfigBanner.js'
 import { Header } from './Header.js'
 import { MachineStrip } from './MachinePanel.js'
+import { MemoryMirrorBanner } from './MemoryMirrorBanner.js'
 import { LinkBanner } from './LinkBanner.js'
 import { PackagesBanner } from './PackagesBanner.js'
 import { UnattendedBanner } from './UnattendedBanner.js'
@@ -44,6 +45,7 @@ export function AppHeader() {
         <UnattendedBanner />
         <PackagesBanner />
         <BackupBanner />
+        <MemoryMirrorBanner />
       </div>
     </div>
   )

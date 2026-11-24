@@ -55,6 +55,7 @@ export function configDefaults(projects: Record<string, string> = {}): EvenKeelC
     ...common,
     allowedHosts: [],
     machinesAddress: null,
+    memoryMirror: null,
     projects,
     keys: each((id) => id),
     names: {},
