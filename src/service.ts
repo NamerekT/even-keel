@@ -441,8 +441,14 @@ await accessBook.keyIs(token)
 const access: AccessControl = {
   book: accessBook,
   passkeys: new PasskeyDesk(db, accessBook.person),
-  // The invitations of new devices (BTN-1655): every change makes the pages read "Sign-in and devices" anew.
-  invites: new InviteDesk(db, accessBook, { changed: () => hub.broadcast('devices', { changedAt: Date.now() }) }),
+  // The invitations of new devices (BTN-1655): every change makes the pages read "Sign-in and devices" anew, and the
+  // state carries `signInOn` for the setup's "Phone access" step (BTN-1638).
+  invites: new InviteDesk(db, accessBook, {
+    changed: () => {
+      hub.broadcast('devices', { changedAt: Date.now() })
+      stateChanged()
+    },
+  }),
   inviteRate: new RateLimit(INVITE_CALLS, 60_000),
   key: () => token,
 }

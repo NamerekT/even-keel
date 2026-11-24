@@ -9,9 +9,10 @@ export const SETUP = '/setup'
 
 /**
  * The steps in order. Git goes before the agent: nothing works without it (BTN-731). The stats go last of the settings:
- * choosing them ends the first run (`firstRun`), and the project wizard comes after them.
+ * choosing them ends the first run (`firstRun`), and the project wizard comes after them. Phone access comes right after
+ * the languages (BTN-1638): once the phone is in, the rest of the setup can be walked from it.
  */
-export const SETUP_STEPS = ['language', 'git', 'agent', 'tracker', 'updates', 'stats'] as const
+export const SETUP_STEPS = ['language', 'phone', 'git', 'agent', 'tracker', 'updates', 'stats'] as const
 export type SetupStep = (typeof SETUP_STEPS)[number]
 
 /** The step of the address; one it does not know is the first. */
@@ -28,7 +29,7 @@ export const STATS_SERVER = `${stepPath('stats')}&db=server`
  * The steps that can be left for later: the page says "Skip for now" on them. Git is one while it is not ready: git can
  * be installed later.
  */
-export const OPTIONAL_STEPS: readonly SetupStep[] = ['git', 'tracker', 'stats']
+export const OPTIONAL_STEPS: readonly SetupStep[] = ['phone', 'git', 'tracker', 'stats']
 
 /**
  * A profile's name beside its tracker's icon: one saved before BTN-1382, "Huly · example", is "example" there; a name of
@@ -111,6 +112,8 @@ export interface SetupFacts {
   agentReady: boolean
   profiles: number
   tally: TallyMode | null
+  /** A device was let in by an invitation (`EvenKeelState.signInOn`). */
+  signInOn: boolean
   /** `setupPassed`: the steps gone past with no setting of their own. */
   passed: readonly PassableStep[]
 }
@@ -123,6 +126,7 @@ export interface SetupFacts {
 export function stepAnswered(step: SetupStep, facts: SetupFacts): boolean {
   const passed = (facts.passed as readonly SetupStep[]).includes(step)
   if (step === 'language') return facts.language !== null
+  if (step === 'phone') return passed || facts.signInOn
   if (step === 'git') return passed || (facts.defaultGit !== null && gitStepReady(facts.defaultGit, facts.git))
   if (step === 'agent') return facts.agentReady
   if (step === 'tracker') return passed || facts.profiles > 0

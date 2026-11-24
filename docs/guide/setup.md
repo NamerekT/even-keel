@@ -62,6 +62,7 @@ npm run dev:fake
 The projects and the settings live in Even Keel's database and are edited on the page; there is no file to create. The first start walks a short setup, each choice saved as you make it and changed later in **Settings**:
 
 - the languages of the page and of the session prompts;
+- [phone access](#phone-access) (or later) — the phone comes in by an invitation, with no owner key;
 - git — whether it is installed (Even Keel never installs it and shows the command that does) and the name and e-mail commits are made as, written into git's global config of the user Even Keel runs as;
 - the agent all projects run on by default, its account (sign in, or add one in a dialog over the step) and, for each provider, whether sessions run on the CLI version Even Keel was checked on (downloaded with your consent, about 340 MB for Claude Code) or on the one installed;
 - a tracker profile (or later);
@@ -71,6 +72,12 @@ The projects and the settings live in Even Keel's database and are edited on the
 A step is checked on the line only once it has its answer, and a step you skip is not offered again.
 
 If you leave the setup unfinished, **Add project** (or **Connect your own** in the demo) first asks whether to finish it: **Set up** goes back to the step it stopped at, **Not now** leaves you where you are.
+
+### Phone access
+
+The second step lets your phone in without looking for the owner key in `.env`. Press **Invite the phone**: the window shows a QR and a link. Scan the QR with the phone, check that both screens show the same two digits and press **Let in**; the phone signs in and offers to add a passkey. The step is checked once the first device is in, and from then the page asks every browser that comes by the proxy's name to sign in ([Signing in on a new device](#signing-in-on-a-new-device)).
+
+The phone reaches the page by the name of a proxy on this machine, such as a Tailscale Service ([Reaching the page from another machine](#reaching-the-page-from-another-machine)), never by `localhost`. Opened by `localhost`, the step has no invite button and says so: open the page by the proxy's name and come back, or press **Skip for now** — the same invitation is under Settings → **Sign-in and devices**.
 
 ### The Git step
 
