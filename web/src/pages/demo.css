@@ -5,16 +5,10 @@
   gap: var(--space-16);
 }
 
-.demo-welcome__hint,
 .demo-end__text {
   margin: 0;
   color: var(--fg-muted);
   font-size: var(--text-14);
-}
-
-/* Both cards one height, their buttons on one line at the bottom. */
-.demo-welcome__hint {
-  flex: 1;
 }
 
 .demo-welcome__actions,

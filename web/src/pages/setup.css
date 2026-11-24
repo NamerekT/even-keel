@@ -177,7 +177,7 @@
   font-weight: 600;
 }
 
-.setup-agent__hint {
+.setup-agent__desc {
   color: var(--fg-muted);
   font-size: var(--text-13);
 }
@@ -191,7 +191,7 @@
 }
 
 /* The chosen agent's accounts: a mark to pick one, its name, what it still needs. */
-.setup-account__note {
+.setup-account__state {
   margin: 0;
   font-size: var(--text-14);
 }
@@ -322,7 +322,7 @@
 }
 
 /* The built-in tracker's card: nothing to connect, a quiet line where the others have their button. */
-.setup-tracker__note {
+.setup-tracker__desc {
   margin-top: auto;
   color: var(--fg-muted);
   font-size: var(--text-13);

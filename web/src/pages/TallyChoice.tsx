@@ -26,7 +26,7 @@ export function TallyModes({ chosen, current, disabled = false, onPick }: ModesP
             <span className="add-choice__title">
               {t.tally.modes[mode]} {mode === current && <span className="tag">{t.tally.current}</span>}
             </span>
-            <span className="add-choice__hint">{t.tally.modeHints[mode]}</span>
+            <span className="add-choice__desc">{t.tally.modeHints[mode]}</span>
           </button>
         </li>
       ))}

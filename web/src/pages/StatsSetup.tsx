@@ -27,7 +27,7 @@ export function StatsStep({ state, onDone }: { state: EvenKeelState; onDone: () 
         <h2 className="setup__subtitle">
           {t.tally.stepConnection}: {t.tally.modes.server}
         </h2>
-        <p className="queue__hint">{t.tally.modeHints.server}</p>
+        <p className="setup__lead">{t.tally.modeHints.server}</p>
         <TallyServerFields state={state} onDone={onDone} onCancel={() => void navigate(stepPath('stats'))} />
       </section>
     )

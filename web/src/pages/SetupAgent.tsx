@@ -66,7 +66,7 @@ function AgentCard({ state, provider, chosen, disabled, onPick }: CardProps) {
           <AgentIcon agent={provider} />
         </span>
         <span className="setup-agent__name">{t.account.agents[provider]}</span>
-        <ProviderHint provider={provider} className="setup-agent__hint" />
+        <ProviderHint provider={provider} className="setup-agent__desc" />
       </button>
       {chosen && <ChosenMark />}
       <div className="setup-agent__cli">{installed ? text.installed(copy?.installed ?? null) : text.absent}</div>
@@ -110,7 +110,7 @@ function ChosenAgent({ state, provider, save }: { state: EvenKeelState; provider
         aside={usable ? <button type="button" className="button" disabled={state.account.login !== null} onClick={() => openAdd(provider)}>+ {t.account.addHere}</button> : undefined}
         className="project-add__step"
       >
-        {usable ? <AccountTable state={state} provider={provider} save={save} /> : <p className="setup-agent__who setup-account__note">{status === 'downloading' ? text.accountAfter : copy?.installable === false ? text.accountLaterCopy : text.accountLater}</p>}
+        {usable ? <AccountTable state={state} provider={provider} save={save} /> : <p className="setup-agent__who setup-account__state">{status === 'downloading' ? text.accountAfter : copy?.installable === false ? text.accountLaterCopy : text.accountLater}</p>}
       </Section>
     </>
   )
@@ -123,7 +123,7 @@ function AccountTable({ state, provider, save }: { state: EvenKeelState; provide
   const entries = state.account.accounts.filter((each) => each.agent === provider)
   const busy = state.account.login !== null
   const text = cliText()
-  if (entries.length === 0) return <p className="setup-agent__who setup-account__note">{t.setup.noAccount(t.account.agents[provider])}</p>
+  if (entries.length === 0) return <p className="setup-agent__who setup-account__state">{t.setup.noAccount(t.account.agents[provider])}</p>
   return (
     <>
       <table className="setup-accounts">

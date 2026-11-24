@@ -18,7 +18,7 @@ export function Cards<T extends string>({ items, chosen, disabled, onPick }: { i
         <li key={item.id}>
           <button type="button" className="add-choice setup-choice" aria-pressed={item.id === chosen} disabled={disabled} onClick={() => onPick(item.id)}>
             <span className="add-choice__title">{item.title}</span>
-            {item.hint !== undefined && <span className="add-choice__hint">{item.hint}</span>}
+            {item.hint !== undefined && <span className="add-choice__desc">{item.hint}</span>}
             {item.id === chosen && <ChosenMark />}
           </button>
         </li>
