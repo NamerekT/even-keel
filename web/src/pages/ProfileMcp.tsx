@@ -114,7 +114,7 @@ export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant,
         <HelpTip text={t.profiles.mcp.hint} align="start" />
       </span>
       {kind.kind === 'jira' && profile === undefined && (
-        <p className="settings__hint profile-mcp__hint">
+        <p className="profile-mcp__state">
           {t.profiles.mcp.noSite}{' '}
           <a href="https://www.atlassian.com/software/jira/free" target="_blank" rel="noreferrer">
             {t.profiles.mcp.newSite}
@@ -128,14 +128,14 @@ export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant,
       ) : stored === 'reconnect' ? (
         <p className="notice notice--warn">{t.profiles.mcp.revoked}</p>
       ) : grant === null && profile?.mcpOAuth !== undefined ? (
-        <p className="settings__hint profile-mcp__hint">{t.profiles.mcp.dropped}</p>
+        <p className="profile-mcp__state">{t.profiles.mcp.dropped}</p>
       ) : null}
       {waiting === null && warning !== undefined && (
         <Band tone="warn" action={<button type="button" className="button button--small" onClick={() => void connect()}>{t.profiles.mcp.again}</button>}>
           {say(warning)}
         </Band>
       )}
-      {waiting !== null && <p className="settings__hint profile-mcp__hint">{t.profiles.mcp.waiting}</p>}
+      {waiting !== null && <p className="profile-mcp__state">{t.profiles.mcp.waiting}</p>}
       {asked && blank.length > 0 && <p className="notice notice--error">{t.profiles.unfilled(blank)}</p>}
       {blocked && <p className="notice notice--error">{t.profiles.mcp.blocked}</p>}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
@@ -161,7 +161,7 @@ export function ProfileMcp({ kind, profile, body, values, blank, grant, onGrant,
         )}
       </div>
       <div className="profile-mcp__fallback">
-        <span className="settings__hint">{t.profiles.mcp.fallback}</span>
+        <span className="profile-mcp__alt">{t.profiles.mcp.fallback}</span>
         {children}
       </div>
     </section>

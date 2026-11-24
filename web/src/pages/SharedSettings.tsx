@@ -755,7 +755,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
                         value: profileGroup(profile.id),
                         label: profile.name,
                         icon: <TrackerIcon kind={profile.kind} />,
-                        aside: Object.keys(profile.rules).length + Object.keys(profile.moves).length > 0 ? <span className="select__note">{t.shared.ownRules}</span> : undefined,
+                        aside: Object.keys(profile.rules).length + Object.keys(profile.moves).length > 0 ? <span className="select__aside">{t.shared.ownRules}</span> : undefined,
                       })),
                     ]}
                     onChange={setOpen}

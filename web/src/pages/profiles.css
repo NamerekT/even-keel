@@ -149,6 +149,11 @@
 }
 
 /* The rights of a profile's token, a line per use (EKR-9); the use the dialog was opened for stands out. */
+.profile-rights {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
 .profile-rights__intro {
   margin: 0;
 }
@@ -176,9 +181,6 @@
   font-weight: 600;
 }
 
-.profile-rights__note {
-  display: block;
-}
 
 /* The MCP grant of a tracker profile (BTN-475): a box of its own between the token fields and the name. */
 .profile-mcp {
@@ -200,7 +202,23 @@
   margin: 0;
 }
 
-.profile-mcp__hint {
+.profile-mcp__state,
+.profile-mcp__alt,
+.profile-moves__state,
+.profile-rules__state,
+.move-fields__state {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+.profile-moves__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.profile-moves__head .ui-label {
   margin: 0;
 }
 

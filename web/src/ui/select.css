@@ -121,7 +121,7 @@ button.select {
 }
 
 /* An option's note after its label: muted, it does not take the picked option's accent. */
-.select__note {
+.select__aside {
   flex: none;
   color: var(--fg-muted);
   font-size: var(--text-12);

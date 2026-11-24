@@ -170,7 +170,7 @@ function PluginStep({ view, projects, initial, onBack, onClose }: StepProps) {
                 id={id}
                 className="add-package__input"
                 value={picked}
-                options={view.available.map((each, index) => ({ value: names[index]!, label: each.plugin, aside: <span className="select__note">{each.marketplace}</span>, keywords: each.marketplace }))}
+                options={view.available.map((each, index) => ({ value: names[index]!, label: each.plugin, aside: <span className="select__aside">{each.marketplace}</span>, keywords: each.marketplace }))}
                 onChange={setPicked}
                 search={{ placeholder: t.packages.pluginSearch, none: t.packages.pluginNone }}
               />

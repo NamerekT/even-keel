@@ -4,7 +4,7 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { MoveFields, useProfileStatuses } from './MoveFields.js'
-import type { Marks } from './settingsParts.js'
+import { HelpTip, type Marks } from './settingsParts.js'
 import { movesFrom, type MovesText } from './statusMoves.js'
 
 const PLAIN: Marks = { box: () => 'settings__field', note: () => null }
@@ -33,9 +33,12 @@ export function ProfileMovesStep({ id, name, onClose }: { id: string; name: stri
   return (
     <div className="add-package__form profile-form">
       <div className="add-package__body">
-        <h3 className="ui-label">{t.profiles.moves.stepTitle}</h3>
-        <p className="settings__hint">{statuses === null ? t.profiles.moves.stepUnread : t.profiles.moves.stepHint(name)}</p>
-        {statuses === undefined && <p className="settings__hint">{t.profiles.moves.loading}</p>}
+        <span className="profile-moves__head">
+          <h3 className="ui-label">{t.profiles.moves.stepTitle}</h3>
+          <HelpTip text={t.profiles.moves.stepHint(name)} align="start" />
+        </span>
+        {statuses === null && <p className="profile-moves__state">{t.profiles.moves.stepUnread}</p>}
+        {statuses === undefined && <p className="profile-moves__state">{t.profiles.moves.loading}</p>}
         {text !== null && rules !== undefined && (
           <MoveFields rules={rules} statuses={statuses} text={text} idPrefix={id} marks={PLAIN} onEdit={(key, value) => setText({ ...text, [key]: value })} />
         )}
