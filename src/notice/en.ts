@@ -173,6 +173,9 @@ export const en = {
   'machines.folderTaken': (p: { name: string; owner: string }) => `The project's folder is already served by machine ${p.name}: if that machine is gone, take the folder over from it`,
   'machines.notTaken': () => 'No other machine holds this project\'s folder now: there is nothing to take over',
   'machines.offline': (p: { name: string }) => `Machine ${p.name} is not connected to the hub now: sign in there once it is back`,
+  'machines.accountsOffline': (p: { name: string }) => `Machine ${p.name} is not connected to the hub now: change its accounts once it is back`,
+  'machines.accountNotOnHub': (p: { name: string; account: string }) =>
+    `Even Keel's account is the hub's, and each machine takes its own folder of it: ${p.account} of machine ${p.name} is not on the hub. Add it on the hub first`,
   'machines.updateFailed': (p: { name: string; to: string }) =>
     `Machine ${p.name} did not update to the hub's ${p.to}: the update failed and the machine runs its build as before. Its log is logs/update.log on the machine; "Update" on its page tries again`,
   'machines.updateDirty': (p: { name: string; to: string }) =>

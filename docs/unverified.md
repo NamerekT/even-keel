@@ -353,6 +353,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 323 | [A new device let in by an invitation](unverified/page.md#a-new-device-let-in-by-an-invitation-btn-1655) | hubs with the owner key set, reached by a proxy's name | the link or the QR does not open on the phone, or the dialog does not turn when the link is opened; sign in with the owner key | — |
 | 324 | ["Scan a QR" on the sign-in screen of an installed app](unverified/page.md#scan-a-qr-on-the-sign-in-screen-of-an-installed-app-btn-1657) | phones signing in an installed page by an invitation | the camera does not start or the scanned link signs in Safari instead of the app; sign the app in with the owner key | — |
 | 325 | [The sign-in an invitation turns on, on a hub without the owner key](unverified/page.md#the-sign-in-an-invitation-turns-on-on-a-hub-without-the-owner-key-btn-1656) | hubs without the owner key, reached by a proxy's name | the device that let the first one in is shut out by the proxy's name, or "Turn sign-in off" leaves it asking; open the page by `localhost` on the hub | — |
+| 326 | [A machine's accounts changed from its view](unverified/machines.md#a-machines-accounts-changed-from-its-view-btn-1584) | hubs with machines elsewhere | a removal, a rename or VS Code's account on a machine does not take, or the name differs between the hub and the machine; change the folder on the machine by hand | — |
 
 ### Waiting for the event / not checked by choice
 

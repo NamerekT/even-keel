@@ -16,7 +16,7 @@ import { agentLabel } from '../accountName.js'
 import { AgentIcon } from './accountParts.js'
 import { Limits } from './Limits.js'
 import { useMachineFilter } from './MachineFilter.js'
-import type { MachineRows } from './machineRows.js'
+import { machineSend, machineSwitchOff, type MachineRows } from './machineRows.js'
 import { usePopover } from './usePopover.js'
 import './machineAccounts.css'
 
@@ -135,6 +135,8 @@ export function useMachineRows(card: MachineCard, project?: string): MachineRows
     online,
     addOff: busy || !online || hub.login != null,
     failure,
+    send: machineSend(send, card.id, accounts.folders),
+    switchOff: machineSwitchOff(accounts, card),
     signIn: (away) => (
       <SignIn name={card.name} online={online} busy={busy} noCli={away.noCli ? agentLabel(away.agent) : null}
         onClick={() => void send('machines/login', { machine: card.id, agent: away.agent, ...(away.account !== undefined && { account: away.account }) })} />

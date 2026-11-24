@@ -140,6 +140,12 @@ const COMMANDS: Record<string, Command> = {
   'machines/cancel': ({ machines }, body) => machines?.cancel(textOf(body.machine, 'machine')),
   'machines/installCli': ({ machines }, body) => machines?.installCli(textOf(body.machine, 'machine'), textOf(body.agent, 'agent')),
   'machines/checkClis': ({ machines }, body) => machines?.checkClis(textOf(body.machine, 'machine')),
+  'machines/account/remove': ({ machineAccounts }, body) => machineAccounts?.remove(textOf(body.machine, 'machine'), accountOf(body)),
+  'machines/account/keep': ({ machineAccounts }, body) => machineAccounts?.keep(textOf(body.machine, 'machine'), accountOf(body)),
+  'machines/account/app': ({ machineAccounts }, body) => machineAccounts?.app(textOf(body.machine, 'machine'), appOf(body), accountOf(body)),
+  'machines/account/name': ({ machineAccounts }, body) =>
+    machineAccounts?.rename(textOf(body.machine, 'machine'), accountOf(body), typeof body.name === 'string' ? body.name : ''),
+  'machines/account/switch': ({ machineAccounts }, body) => machineAccounts?.switchTo(textOf(body.machine, 'machine'), accountOf(body)),
   // The page sends its language: on the first run none is chosen yet, and the demo speaks the one the person reads.
   'demo/start': async ({ demo }, body) => void (await demo?.start(isLanguage(body.language) ? body.language : undefined)),
   'demo/again': async ({ demo }, body) => void (await demo?.again(isLanguage(body.language) ? body.language : undefined)),

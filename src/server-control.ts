@@ -306,6 +306,8 @@ export interface ServerDeps {
     /** The long token the hub's folder `from` runs on, on a machine elsewhere (BTN-1501): the page never holds it. */
     sharedToken(machine: string, from: string): Promise<void>
   }
+  /** A machine elsewhere's accounts from its view (BTN-1584): remove, keep, VS Code, the name, Even Keel's account. */
+  machineAccounts?: import('./service/machine-account-commands.js').MachineAccountCommands
   /** The machines asking to join by the address (BTN-1620): "Admit" answers the id of the machine it lets in. */
   machineRequests?: {
     admit(request: string): Promise<string>

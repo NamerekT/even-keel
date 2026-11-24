@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { removeProblem, type AccountEntry, type AccountView } from '../../../src/account/model.js'
+import type { Notice } from '../../../src/notice/notice.js'
 import { accountName } from '../accountName.js'
 import { say, t } from '../i18n/index.js'
 import { fixLabel, useFix } from '../pages/FixButtons.js'
@@ -20,10 +21,16 @@ interface Props {
   fresh?: boolean
   /** Items before the roles, rendered only while the menu is open. */
   head?: ReactNode
+  /** More classes of the row (a machine's view). */
+  className?: string
+  /** Why no item acts now, at the menu's head (a machine off the link, BTN-1584). */
+  off?: string
+  /** Why Even Keel can not move to the account besides its own problems (`rolesOf`). */
+  switchOff?: Notice
 }
 
 /** A real button covers the row; the independent details sit above it, never inside another button. */
-export function AccountRowMenu({ entry, view, sending, send, children, fresh = false, head }: Props) {
+export function AccountRowMenu({ entry, view, sending, send, children, fresh = false, head, className = '', off, switchOff }: Props) {
   const clickX = useRef<number | undefined>(undefined)
   const { open, setOpen, root, button, menu, onKeyDown } = usePopoverMenu<HTMLUListElement>(
     (element, at) => placeRowMenu(element, at, clickX.current),
@@ -33,8 +40,9 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
   const [managing, setManaging] = useState(false)
   const [replacing, setReplacing] = useState(false)
   const name = accountName(entry, view.accounts)
-  const roles = rolesOf(entry, view, send)
+  const roles = rolesOf(entry, view, send, switchOff)
   const held = roles.filter((role) => role.held)
+  const blocked = off !== undefined
   const problem = removeProblem(view, entry.key)
   const found = problem === undefined || entry.removing ? null : noticeFixOf(problem)
   const fix = found?.to === 'shared' ? found : null
@@ -46,7 +54,7 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
   }
 
   return (
-    <div ref={root} className={`account-row${held.length === 0 ? ' account-row--unused' : ''}${fresh ? ' account-row--fresh' : ''}`}
+    <div ref={root} className={`account-row${held.length === 0 ? ' account-row--unused' : ''}${fresh ? ' account-row--fresh' : ''}${className === '' ? '' : ` ${className}`}`}
       onClick={(event) => {
         if (sending || (event.target as HTMLElement).closest('button, a, input, dialog, [role="menu"], .account-detail, .account-shared, .account-overage-warning, .account-problem')) return
         toggleMenu(event)
@@ -58,13 +66,14 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
       <ul ref={menu} popover="manual" role="menu" className="roles__menu account-row__menu" onKeyDown={onKeyDown}>
         {open && <>
           {head}
+          {blocked && <li role="none" className="account-row__menu-off">{off}</li>}
           <li role="none" className="account-row__menu-title">{t.account.usedByLabel}</li>
           {roles.map((role) => (
             <li key={role.label} role="none">
               <button type="button" role="menuitemcheckbox" aria-checked={role.held}
-                aria-disabled={sending || (!role.held && role.problem !== undefined)}
+                aria-disabled={sending || blocked || (!role.held && role.problem !== undefined)}
                 className="roles__offer" onClick={() => {
-                  if (sending || role.held || role.problem !== undefined) return
+                  if (sending || blocked || role.held || role.problem !== undefined) return
                   pick(() => void role.pick())
                 }}>
                 <span className="roles__label"><role.icon />{role.label}{role.held && <span className="account-row__check">✓</span>}</span>
@@ -74,7 +83,8 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
           ))}
           {held.length === 0 && <li role="none" className="roles__here">✓ {t.account.rolesNone}</li>}
           <li role="separator" className="account-row__separator" />
-          <li role="none"><button type="button" role="menuitem" className="roles__offer" onClick={() => pick(() => setRenaming(true))}>{t.account.renameAction}</button></li>
+          <li role="none"><button type="button" role="menuitem" className="roles__offer" aria-disabled={blocked}
+            onClick={() => { if (!blocked) pick(() => setRenaming(true)) }}>{t.account.renameAction}</button></li>
           {entry.keyReplaceable === true && !entry.removing && <li role="none"><button type="button" role="menuitem" className="roles__offer"
             onClick={() => pick(() => setReplacing(true))}>{t.account.replaceKey[keyWord(entry)]}</button></li>}
           {entry.remoteOff === true && !entry.removing && <li role="none"><button type="button" role="menuitem" className="roles__offer" title={t.account.enableRemoteNote}
@@ -84,8 +94,8 @@ export function AccountRowMenu({ entry, view, sending, send, children, fresh = f
           {entry.managementKey !== undefined && !entry.removing && <li role="none"><button type="button" role="menuitem" className="roles__offer"
             onClick={() => pick(() => setManaging(true))}>{t.account.managementKeyAction}</button></li>}
           <li role="none"><button type="button" role="menuitem" className="roles__offer account-row__remove"
-            aria-disabled={problem !== undefined || entry.removing}
-            onClick={() => { if (problem === undefined && !entry.removing) pick(() => setRemoving(true)) }}>
+            aria-disabled={blocked || problem !== undefined || entry.removing}
+            onClick={() => { if (!blocked && problem === undefined && !entry.removing) pick(() => setRemoving(true)) }}>
             {t.common.remove}{problem !== undefined && <span className="roles__why">{say(problem)}</span>}
           </button></li>
           {fix !== null && <li role="none"><button type="button" role="menuitem" className="roles__offer"

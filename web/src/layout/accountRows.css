@@ -70,8 +70,10 @@
 .account-role--project { border-color: var(--border); color: var(--fg-muted); }
 .account-role--away { gap: var(--space-4); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); color: var(--accent); }
 .account-role--away .icon { flex: none; width: 12px; height: 12px; }
-.account-row--machine > .account-grid { pointer-events: auto; }
-.account-row--machine:not(.account-row--away):hover { background: none; }
+/* A hub subscription the machine has no folder of has no menu (BTN-1584): no hover, its contents take clicks themselves. */
+.account-row--machine:not(:has(> .account-row__button)) > .account-grid { pointer-events: auto; }
+.account-row--machine.account-row--away:not(:has(> .account-row__button)):hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.account-row .account-away__sign { pointer-events: auto; }
 .account-row--away { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .account-row--away .accounts__email { color: var(--fg-muted); }
 .account-blocks--page .account-away { grid-column: 2 / -2; }
@@ -142,6 +144,9 @@
 .account-own__drop:hover, .account-own__drop:focus-visible { color: var(--fg); }
 .account-row__menu { min-width: 220px; }
 .account-row__menu-title { padding: var(--space-8); font-size: var(--text-11); color: var(--fg-muted); text-transform: uppercase; }
+/* A machine off the link (BTN-1584): why its row's items do not act, above them. */
+.account-row__menu-off { max-width: 280px; padding: var(--space-8); font-size: var(--text-12); color: var(--fg-muted); }
+.account-row__menu:has(.account-row__menu-off) .roles__offer { color: var(--fg-muted); }
 .account-row__check { margin-left: auto; color: var(--accent); }
 .account-row__separator { border-top: 1px solid var(--border); margin: var(--space-4) 0; }
 .account-row__remove { color: var(--error-fg); }

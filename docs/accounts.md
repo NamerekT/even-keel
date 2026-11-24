@@ -179,6 +179,16 @@ The row menu's left edge follows the click's viewport X coordinate, clamped insi
 - The account an app sits on is not removed. VS Code picks up the new account after Developer: Reload Window.
 - The Claude desktop app is not in the panel: it is launched on an account folder by hand, see below.
 
+## A machine's accounts (BTN-1584)
+
+A machine elsewhere's view (its accounts page `/accounts?machine=<id>` and the header's "Accounts" with the machine picked, [machines](machines.md), "Signing in on a machine") gives each of the machine's own folders, signed in or not, the hub row's menu (`AccountRowMenu`): Even Keel, VS Code, Rename, Remove. A hub subscription with no folder there has no menu, only "Sign in" there. Each item is done on the machine through the link, never on the hub's disk.
+
+- **The commands** (`machineAccountCommands`, `src/service/machine-account-commands.ts`): `machines/account/remove`, `machines/account/keep`, `machines/account/app` (`{machine, account, app}`), `machines/account/name` (`{machine, account, name}`), `machines/account/switch`, each with `account` the machine's folder. The page's row menu sends its usual `account/*` and `machineSend` (`web/src/layout/machineRows.ts`) turns it into the machine's with the row's folder. Remove, Keep and VS Code are the machine's own `account.remove`, `account.keep`, `account.switchApp`: it refuses as the hub would (an app sits on the folder, a chat open in its VS Code), and its refusal reaches the page as its notice code with its words.
+- **Removal** waits, as on the hub, for the account's sessions on that machine to end: the machine's card carries `removing` and the account's sessions, so the row shows "removal pending" with Keep; a key folder (`apiKey` on the card) asks "Remove the folder with the key?". The card's `apps` are the machine's VS Code panel, so the VS Code role is the machine's.
+- **The name.** The hub knows a machine's account by its agent and e-mail (`hubFolderOf`, `src/account/same-account.ts`: a full sign-in before a long token). Such an account shows and renames the hub folder's name, one for the hub and every machine: Rename on the machine's row writes the hub's folder (`account.rename` on the hub), and a rename on the hub shows on every machine. An account the hub has no folder of — a key, one signed in only there — has its machine folder's own name, renamed there.
+- **Even Keel's account** has no machine level: it is the hub's, `accounts[provider]` ("Active account" above), and each machine takes its own folder of the same account (BTN-1311, `docs/chain.md`). Even Keel on a machine's row moves the hub's account of the same e-mail, for the hub and every machine; one the hub has no folder of has the role off with `machines.accountNotOnHub`.
+- **Off the link** the menu still opens, its head says the machine is not connected and no item acts; the server refuses any of these commands with `machines.accountsOffline` before sending anything.
+
 ## The Claude desktop app
 
 Even Keel does not switch the app's account (BTN-121): each profile needs its own sign-in by e-mail, and the usual ways of starting the app ignore the profile. Whoever needs it launches the app on an account folder by hand. Checked on Windows with the Store (MSIX) build 2.42304.0.0 on 2026-10-17:

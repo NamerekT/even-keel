@@ -425,7 +425,7 @@ function ReplaceKeyButton({ entry, view, sending }: Pick<NotesProps, 'entry' | '
   )
 }
 
-function KeepButton({ entry, sending, send }: Pick<NotesProps, 'entry' | 'sending' | 'send'>) {
+export function KeepButton({ entry, sending, send }: Pick<NotesProps, 'entry' | 'sending' | 'send'>) {
   return (
     <button type="button" className="button button--small" disabled={sending} onClick={() => void send('account/keep', { account: entry.key })}>
       {t.account.keep}
