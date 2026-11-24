@@ -96,7 +96,7 @@
   grid-area: action;
   margin-top: 6px;
   overflow: hidden;
-  animation: action-open 0.3s ease-out var(--beat-take, 0s) both;
+  animation: action-open var(--motion-step) ease-out var(--beat-take, 0s) both;
 }
 
 /* A row that mounts on a switch of the chain's view stands as it is (BTN-1577). */
@@ -627,6 +627,146 @@
   box-shadow: 0 0 0 1.5px var(--surface);
 }
 
+/* The running group "Under way" (BTN-1613): one frame drawn around the lane tasks, its rows without frames of their own.
+   The frame is a layer of the list placed over its rows' rects (`useGroupGlide`), so it stretches as they move. */
+
+/* The frame fades by its colours, not its opacity: an opacity under 1 would make it a stacking context and hide the
+   caption under the rows. */
+.chain .chain__group {
+  position: absolute;
+  pointer-events: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  box-shadow:
+    0 0 0 1px transparent,
+    0 0 0 4px transparent;
+  transition:
+    border-color var(--motion-step) ease,
+    background-color var(--motion-step) ease,
+    box-shadow var(--motion-step) ease;
+}
+
+.chain .chain__group--shown {
+  border-color: var(--group-edge);
+  background: color-mix(in srgb, var(--group-edge) 6%, var(--surface));
+  box-shadow:
+    0 0 0 1px var(--group-edge),
+    0 0 0 4px color-mix(in srgb, var(--group-edge) 10%, transparent);
+}
+
+.chain .chain__group--glide {
+  transition:
+    border-color var(--motion-step) ease,
+    background-color var(--motion-step) ease,
+    box-shadow var(--motion-step) ease,
+    top var(--motion-step) ease-out,
+    left var(--motion-step) ease-out,
+    width var(--motion-step) ease-out,
+    height var(--motion-step) ease-out;
+}
+
+/* Over the first row, whose focus fill would cover its lower half, and over a row gliding past (z-index 2). */
+.chain .chain__group-caption {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 14px;
+  translate: 0 -50%;
+  padding: 0 var(--space-6);
+  opacity: 0;
+  background: var(--bg);
+  color: var(--group-edge);
+  font-size: var(--text-12);
+  font-weight: 600;
+  line-height: 16px;
+  transition:
+    opacity var(--motion-step) ease,
+    color var(--motion-step) ease;
+}
+
+.chain .chain__group--shown .chain__group-caption {
+  opacity: 1;
+}
+
+.chain .block--grouped,
+.chain .block--grouped:hover {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.chain .block--grouped:not(.block--focus) {
+  background: transparent;
+}
+
+.chain .block--grouped:not(.block--focus):hover {
+  background: color-mix(in srgb, var(--group-edge) 6%, transparent);
+}
+
+/* Room for the caption on the frame's top edge. */
+.chain .block--group-first {
+  margin-top: var(--space-8);
+}
+
+/* The line between two rows of the group, in the middle of the 8 px gap over the row's border. */
+.chain .block--group-inner::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: 14px;
+  left: 14px;
+  height: 1px;
+  background: color-mix(in srgb, var(--group-edge) 35%, transparent);
+  pointer-events: none;
+}
+
+/* A row coming in keeps its own frame while it moves, then the frame melts into the group's; so does the one running
+   row a group forms around. */
+.chain .block--join {
+  animation: group-join calc(var(--motion-step) * 2) ease-out var(--beat-join) both;
+}
+
+.chain .block--merge {
+  animation: group-join calc(var(--motion-step) * 2) ease-out var(--beat-merge) both;
+}
+
+.chain .block--join::before,
+.chain .block--merge::before {
+  animation: group-divider var(--motion-step) ease-out calc(var(--beat-join, var(--beat-merge, 0s)) + var(--motion-step)) both;
+}
+
+/* A row going out takes its own frame back before it moves; so does the last one, as the group's frame goes out. */
+.chain .block--part {
+  animation: group-part var(--motion-step) ease-out var(--beat-part) both;
+}
+
+.chain .block--solo {
+  animation: group-part var(--motion-step) ease-out var(--beat-solo) both;
+}
+
+@keyframes group-join {
+  from,
+  50% {
+    border-color: var(--lamp-working);
+    background-color: var(--surface);
+    box-shadow: 0 0 0 1px var(--lamp-working);
+  }
+}
+
+@keyframes group-part {
+  from {
+    border-color: transparent;
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+@keyframes group-divider {
+  from {
+    opacity: 0;
+  }
+}
+
 /* Motion: a new task, a finished one, a handover, a task leaving for the archive */
 
 .chain .block--enter {
@@ -647,12 +787,11 @@
 .chain .block--leaving {
   overflow: hidden;
   pointer-events: none;
-  animation: block-leave 0.55s ease-in var(--beat) both;
+  animation: block-leave var(--motion-step) ease-in var(--beat) both;
 }
 
 .chain .block--leaving.block--archived {
   animation-name: block-archive;
-  animation-duration: 0.7s;
 }
 
 .chain .block--finish {
@@ -693,17 +832,17 @@
   pointer-events: none;
   mask: conic-gradient(black var(--sweep), transparent 0);
   animation:
-    frame-draw 0.7s ease-in-out var(--beat-take) both,
-    frame-glow 0.8s ease-out calc(var(--beat-take) + 0.7s) both;
+    frame-draw var(--motion-step) ease-in-out var(--beat-take) both,
+    frame-glow 0.8s ease-out calc(var(--beat-take) + var(--motion-step)) both;
 }
 
 .chain .block--take .block__play,
 .chain .block--take .block__number .cache-ring {
-  animation: pop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--beat-take) + 0.5s) both;
+  animation: pop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--beat-take) + 0.18s) both;
 }
 
 .chain .block--take .lamp {
-  animation: ignite 0.5s ease-out calc(var(--beat-take) + 0.3s) both;
+  animation: ignite 0.5s ease-out calc(var(--beat-take) + 0.1s) both;
 }
 
 /* The taken block grows into the lead on its own beat, not as soon as the data changes. */
@@ -726,7 +865,7 @@
 
 .chain .chain__milestone--bump .chain__milestone-count {
   display: inline-block;
-  animation: count-bump 0.5s ease-out calc(var(--beat) + 0.45s) both;
+  animation: count-bump 0.5s ease-out calc(var(--beat) + 0.2s) both;
 }
 
 /* The summary takes its place and gives it back gradually, so the list slides instead of jumping. */
@@ -890,6 +1029,14 @@
   .chain .block--take .lamp,
   .chain .block--take .block__title,
   .chain .block__now,
+  .chain .chain__group,
+  .chain .chain__group-caption,
+  .chain .block--join,
+  .chain .block--merge,
+  .chain .block--join::before,
+  .chain .block--merge::before,
+  .chain .block--part,
+  .chain .block--solo,
   .chain .chain__milestone--bump .chain__milestone-count,
   .chain .chain__away,
   .chain .screen__line {

@@ -12,9 +12,10 @@ const block = (id: string): ChainBlock => ({ id, lamp: 'ahead', open: true, lock
 
 let root: Root
 let stage: Stage<ChainBlock>
+const NO_GROUP = new Set<string>()
 
 function Probe({ view, ids }: { view: string; ids: string[] }) {
-  stage = useChainMotion(view, ids.map(block), new Set(ids), null)
+  stage = useChainMotion(view, ids.map(block), new Set(ids), null, NO_GROUP, () => {})
   return null
 }
 

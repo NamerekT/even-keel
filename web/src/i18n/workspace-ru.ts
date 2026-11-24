@@ -326,6 +326,7 @@ export const chainRU = {
       closed: 'закрыт',
     },
     questionTitle: 'Ярлык «Вопрос»: без ответа в описании сессия, скорее всего, встанет',
+    underWay: 'На ходу',
     work: {
       uncommitted: 'без коммита',
       unmerged: 'не влита',
