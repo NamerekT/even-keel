@@ -47,6 +47,7 @@ import { fakeJob } from './fakeCreation.js'
 import { FakeNetwork, fakeMachineColors, fakeMachineCommand, fakeMachineLaneWait, fakeMachineNames, fakeMachineRequests, fakeMachineSignIns } from './fakeMachines.js'
 import { fakeCheck, fakeGitChanges, fakeNoProjects } from './fakeProjects.js'
 import { fixGroupSteps, withFixGroupBase } from './fakeFixGroup.js'
+import { REORDER_MS, reorderStep } from './fakeReorder.js'
 import { GROUP_STEP_MS, GROUP_STEPS, withGroupBase } from './fakeGroup.js'
 import { fakeBranchCommand, fakeBranchDrift, fakeMachineDrift, fakeRepoBranches } from './fakeBranches.js'
 import { ago, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
@@ -659,6 +660,12 @@ export function createFakeSource(search: string): LiveSource {
         notify()
       }, (index + 1) * gap)
     })
+  }
+  if (params.get('chain') === 'reorder') {
+    setInterval(() => {
+      current = { ...current, state: reorderStep(current.state!) }
+      notify()
+    }, Number(params.get('gap') ?? REORDER_MS))
   }
 
   if (link === 'live') {

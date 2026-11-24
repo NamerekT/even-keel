@@ -628,7 +628,7 @@
 }
 
 /* The running group "Under way" (BTN-1613): one frame drawn around the lane tasks, its rows without frames of their own.
-   The frame is a layer of the list placed over its rows' rects (`useGroupGlide`), so it stretches as they move. */
+   The frame is a layer of the list placed over its rows' rects (`useRowGlide`), so it stretches as they move. */
 
 /* The frame fades by its colours, not its opacity: an opacity under 1 would make it a stacking context and hide the
    caption under the rows. The frame paints only the group's fill; its edge is `::before`, cut where the caption stands
@@ -648,7 +648,7 @@
 
 /* The halo is a 3 px border reaching 4 px out of the frame, the line an inset shadow from 1 px out to 1 px in: both
    inside the pseudo's own box, which its mask covers. The mask leaves out the top 8 px over the caption's width
-   (`--caption-width` on the list, measured by `useGroupGlide`); the gap moves with the frame and fades with its
+   (`--caption-width` on the list, measured by `useRowGlide`); the gap moves with the frame and fades with its
    colours. */
 .chain .chain__group::before {
   --gap-left: calc(var(--caption-left) + 5px);

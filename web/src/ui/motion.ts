@@ -78,6 +78,8 @@ export interface Slot<T> {
 
 /** One step of the chain's motion, `--motion-step`: a take's frame, a leave, a row moving into the running group or out. */
 export const STEP_MS = 250
+/** A row gliding to the place an order from the server gave it, `--motion-fast` (BTN-1612). */
+export const FAST_MS = 150
 /** From one beat to the next: each starts as the one before has done its step. */
 export const BEAT_MS = STEP_MS
 /** How long the Done stamp takes to draw (`stamp-draw` in chain.css): a done row leaves the running group after it. */

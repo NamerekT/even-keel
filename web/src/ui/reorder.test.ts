@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampDrop, clampShift, dropBounds, nearestIndex, relatives, stackedTops } from './reorder.js'
+import { clampDrop, clampShift, dropBounds, nearestIndex, relatives, reorderShifts, stackedTops, type Row } from './reorder.js'
 
 const blockers = new Map<string, string[]>([
   ['A', []],
@@ -95,5 +95,47 @@ describe('stackedTops', () => {
   it('keeps a milestone divider between the same places', () => {
     const boxes = [box(0, 70), box(78, 70), box(190, 34)]
     expect(stackedTops(boxes, [0, 2, 1])).toEqual([0, 154, 78])
+  })
+})
+
+describe('reorderShifts', () => {
+  const rows = (...pairs: [string, number][]): Row[] => pairs.map(([id, top]) => ({ id, top }))
+
+  it('moves a row taken past two locked ones up by their two heights and each of those down by its height', () => {
+    const before = rows(['BTN-10', 0], ['BTN-11', 80], ['BTN-12', 160], ['BTN-13', 240])
+    const after = rows(['BTN-10', 0], ['BTN-13', 80], ['BTN-11', 160], ['BTN-12', 240])
+    expect(reorderShifts(before, after, false)).toEqual([
+      { id: 'BTN-13', shift: 160, lifted: true },
+      { id: 'BTN-11', shift: -80, lifted: false },
+      { id: 'BTN-12', shift: -80, lifted: false },
+    ])
+  })
+
+  it('leaves the rows that kept their order alone, even when a new row pushed them down', () => {
+    const before = rows(['A', 0], ['B', 80])
+    const after = rows(['X', 0], ['A', 80], ['B', 160])
+    expect(reorderShifts(before, after, false)).toEqual([])
+  })
+
+  it('counts only the rows on screen before and after', () => {
+    const before = rows(['A', 0], ['B', 80], ['C', 160], ['D', 240])
+    const after = rows(['A', 0], ['X', 80], ['C', 160], ['B', 240])
+    // C swapped places with B but stands where it stood: the new row X took B's place.
+    expect(reorderShifts(before, after, false)).toEqual([{ id: 'B', shift: -160, lifted: false }])
+  })
+
+  it('lifts the row that went up when two swap, whatever their heights', () => {
+    const before = rows(['A', 0], ['B', 40])
+    const after = rows(['B', 0], ['A', 100])
+    expect(reorderShifts(before, after, false)).toEqual([
+      { id: 'B', shift: 40, lifted: true },
+      { id: 'A', shift: -100, lifted: false },
+    ])
+  })
+
+  it('moves nothing with reduced motion', () => {
+    const before = rows(['A', 0], ['B', 80], ['C', 160])
+    const after = rows(['C', 0], ['A', 80], ['B', 160])
+    expect(reorderShifts(before, after, true)).toEqual([])
   })
 })

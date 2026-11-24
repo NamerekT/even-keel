@@ -22,7 +22,7 @@ import { chainPlace, looseGhost, takesGhost, type MilestoneRules } from '../ui/a
 import { AddGhost } from './AddGhost.js'
 import { placeLeaving, STEP_MS, type Mark, type Motion, type Slot } from '../ui/motion.js'
 import { firstGroup, type GroupTone } from '../ui/runningGroup.js'
-import { useGroupGlide } from './useGroupGlide.js'
+import { useRowGlide } from './useRowGlide.js'
 import { droppedOrder, milestonePage, staysInView, type MilestonePage } from '../ui/chainPage.js'
 import { PullChip } from '../ui/PullChip.js'
 import { WorkChip } from '../ui/WorkChip.js'
@@ -143,7 +143,6 @@ export function ChainList(props: Props) {
   const frameRef = useRef<HTMLDivElement>(null)
   const glide = useRef<(motion: Motion<ChainBlock>) => void>(() => {})
   const motion = useChainMotion(chainView, ordered, shown, incoming, grouped, (each) => glide.current(each))
-  useGroupGlide(listRef, frameRef, members, glide)
   const switched = useSwitched(chainView)
   const real = blocks.filter((block) => block.id !== ghost?.id)
   const tiers = tiersOf(real.map((block) => ({ ...block, live: blockMetered(block) })))
@@ -182,7 +181,7 @@ export function ChainList(props: Props) {
     unfocus(milestoneView(archive.visible, kept, '', empty).sections.flatMap((section) => section.blocks))
   }
 
-  const { drag, landing, settling, movable } = useChainDrag({
+  const { drag, landing, settling, movable, held } = useChainDrag({
     listRef,
     blocks,
     disabled: sending,
@@ -192,6 +191,7 @@ export function ChainList(props: Props) {
       void send('chain/order', { project, order: full }).then((ok) => ok || setPending(null))
     },
   })
+  useRowGlide(listRef, frameRef, members, glide, chainView, held)
 
   const selected = relativesOf(blocks, focus)
   const pointed = relativesOf(blocks, hovered)

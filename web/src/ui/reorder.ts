@@ -65,6 +65,60 @@ export function stackedTops(boxes: Box[], order: number[]): number[] {
   return tops
 }
 
+/** A row of the list and its top in the list's layout. */
+export interface Row {
+  id: string
+  top: number
+}
+
+export interface RowShift {
+  id: string
+  /** How far the row stands from where it stood: it starts there and glides to `translate: none`. */
+  shift: number
+  /** The row that changed its place, drawn over the rows it passes. */
+  lifted: boolean
+}
+
+/**
+ * The FLIP of an order the server changed (BTN-1612): the rows on screen before and after whose place among those rows
+ * changed. A row that came or went, or that only moved because one did, is not among them: its motion is its own.
+ * The rows out of the longest run that kept its order are the lifted ones, so of two that swap the one going up is.
+ */
+export function reorderShifts(before: readonly Row[], after: readonly Row[], still: boolean): RowShift[] {
+  if (still) return []
+  const tops = new Map(before.map((row) => [row.id, row.top]))
+  const common = after.filter((row) => tops.has(row.id))
+  const ids = new Set(common.map((row) => row.id))
+  const ranks = new Map(before.filter((row) => ids.has(row.id)).map((row, rank) => [row.id, rank]))
+  const sequence = common.map((row) => ranks.get(row.id)!)
+  const kept = longestRising(sequence)
+  return common.flatMap((row, rank) => {
+    const shift = tops.get(row.id)! - row.top
+    if (sequence[rank] === rank || Math.abs(shift) < 1) return []
+    return [{ id: row.id, shift, lifted: !kept.has(rank) }]
+  })
+}
+
+/** The places of the longest rising run of `values`; of equal runs, the one ending lowest. */
+function longestRising(values: readonly number[]): Set<number> {
+  const tails: number[] = []
+  const previous = new Array<number>(values.length).fill(-1)
+  for (const [index, value] of values.entries()) {
+    let low = 0
+    let high = tails.length
+    while (low < high) {
+      const middle = (low + high) >> 1
+      if (values[tails[middle]!]! < value) low = middle + 1
+      else high = middle
+    }
+    if (low > 0) previous[index] = tails[low - 1]!
+    tails[low] = index
+  }
+  const run = new Set<number>()
+  for (let at = tails.at(-1) ?? -1; at >= 0; at = previous[at]!) run.add(at)
+  return run
+}
+
 export function nearestIndex(centers: Point[], point: Point): number {
   let best = 0
   let bestDistance = Infinity
