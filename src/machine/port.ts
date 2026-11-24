@@ -14,6 +14,11 @@ export interface LaunchBrief {
   prompt: string
   task?: TaskBrief
   /**
+   * The memory server's tools and the index of the project's records (`withMemory`, BTN-1029): the machine adds it
+   * after `prompt` for an agent without file memory alone (`readsFileMemory`, BTN-1647). None — the set has no server.
+   */
+  memory?: string
+  /**
    * The task was moved here by hand off a machine gone (BTN-1270): the worktree is prepared from `branch` fetched from
    * the remote, and `text` goes at the end of the start prompt.
    */

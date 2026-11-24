@@ -101,7 +101,8 @@ export function ensureMarketplace(cache: string, name: string, install: string, 
   writeFileSync(file, `${JSON.stringify(installMarketplace(plugin, install), null, 2)}\n`)
 }
 
-export function sessionPackages(file: PackagesFile, project: string, task: string, places: LaunchPlaces): SessionPackages {
+/** `fileMemory` — the agent reads the memory folder itself (`readsFileMemory`): the memory server is left out, its plugin stays. */
+export function sessionPackages(file: PackagesFile, project: string, task: string, places: LaunchPlaces, fileMemory = false): SessionPackages {
   const mcp: SessionMcp[] = []
   const plugins: SessionPlugin[] = []
   const installs: Record<string, string> = {}
@@ -112,6 +113,7 @@ export function sessionPackages(file: PackagesFile, project: string, task: strin
     installs[name] = id
     if (record.kind === 'plugin' && record.plugin !== undefined) plugins.push(sessionPlugin(places.cache, name, record.plugin.name, install))
     for (const [server, entry] of Object.entries(install.servers)) {
+      if (fileMemory && isMemoryUrl(entry.entry.url)) continue
       // The tasks server learns the session's task from its address: the session's own task is in its prompt (BTN-768);
       // the memory server stamps it on what the session writes (BTN-1029).
       const own = isTasksUrl(entry.entry.url) || isMemoryUrl(entry.entry.url) ? `?task=${encodeURIComponent(task)}` : ''

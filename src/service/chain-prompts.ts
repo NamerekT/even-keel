@@ -84,9 +84,10 @@ export interface Briefed {
 /**
  * The machine's half: the brief a launch's command brought, kept for the task's later sessions and its tasks server.
  * `apply` throws `chain.briefMissing` for a chain task with neither a brief received nor one kept, and the chain pauses.
+ * `fileMemory` — the session's agent loads the memory folder itself (`readsFileMemory`): the brief's `memory` stays out.
  */
 export interface LaunchBriefs {
-  apply(task: string, given: string, received?: LaunchBrief): string
+  apply(task: string, given: string, received?: LaunchBrief, fileMemory?: boolean): string
   kept(task: string): TaskBrief | undefined
   /** Whether the last brief received vouched the task is not an outsider's (`LaunchBrief.own`); none kept — it is not. */
   own(task: string): boolean
@@ -115,10 +116,8 @@ export function wireBriefed(ctx: ChainContext): Briefed {
     const brief = link === undefined ? undefined : await link.run(async (tracker) => tracker.brief?.(task))
     const tasks = ctx.packages.bringsServer(project, TASKS_SERVER)
     const told = brief === undefined ? { prompt: withUnbriefed(prompt, task, tasks, language) } : { prompt: withBrief(prompt, brief, language, tasks), task: brief }
-    // The index stands in for the agent's own MEMORY.md, which a session with the memory server does not load (BTN-1029).
-    const result = ctx.packages.bringsServer(project, MEMORY_SERVER)
-      ? { ...told, prompt: withMemory(told.prompt, await ctx.memory.index(project), language) }
-      : told
+    // The index stands in for MEMORY.md in an agent that loads none; the machine knows the agent (BTN-1029, BTN-1647).
+    const result = ctx.packages.bringsServer(project, MEMORY_SERVER) ? { ...told, memory: withMemory('', await ctx.memory.index(project), language) } : told
     prepared.delete(key)
     prepared.set(key, result)
     if (prepared.size > KEPT_BRIEFS) prepared.delete(prepared.keys().next().value!)
@@ -130,7 +129,7 @@ export function wireBriefed(ctx: ChainContext): Briefed {
 export function launchBriefs(): LaunchBriefs {
   const kept = new Map<string, LaunchBrief>()
   return {
-    apply: (task, given, received) => {
+    apply: (task, given, received, fileMemory = false) => {
       if (isOwnName(task)) return given
       if (received !== undefined && received.prompt !== '') {
         kept.delete(task)
@@ -140,7 +139,7 @@ export function launchBriefs(): LaunchBriefs {
       const brief = kept.get(task)
       // A prompt with neither the task's text nor how to read it would start a session on nothing.
       if (brief === undefined) throw fail('chain.briefMissing', { task })
-      return given + brief.prompt
+      return given + brief.prompt + (fileMemory ? '' : (brief.memory ?? ''))
     },
     kept: (task) => kept.get(task)?.task,
     own: (task) => kept.get(task)?.own === true,

@@ -32,7 +32,7 @@ describe('a brief carried from the hub', () => {
     expect(read).toHaveBeenCalledTimes(2)
   })
 
-  it("carries the project memory's index when the project's set brings the memory server (BTN-1029)", async () => {
+  it("carries the project memory's index beside the prompt when the project's set brings the memory server (BTN-1029, BTN-1647)", async () => {
     const index = vi.fn(async () => ['- tests-need-docker — the e2e tests need Docker running'])
     const ctx = (memory: boolean) => ({
       projectOf: () => 'p1', readerFor: () => 'p1', promptLanguage: () => 'en',
@@ -46,10 +46,20 @@ describe('a brief carried from the hub', () => {
     }) as unknown as ChainContext
     const sent = await wireBriefed(ctx(true)).prepare('ABC-1', 'p1')
     expect(index).toHaveBeenCalledExactlyOnceWith('p1')
-    expect(sent.prompt).toMatch(/memory_write.*\n- tests-need-docker — the e2e tests need Docker running\n$/s)
+    expect(sent.memory).toMatch(/memory_write.*\n- tests-need-docker — the e2e tests need Docker running\n$/s)
+    expect(sent.prompt).not.toContain('memory_write')
     const without = await wireBriefed(ctx(false)).prepare('ABC-1', 'p1')
-    expect(without.prompt).not.toContain('memory_write')
+    expect(without).not.toHaveProperty('memory')
     expect(index).toHaveBeenCalledTimes(1)
+  })
+
+  it("adds the memory's tools and index on the machine only for an agent without file memory, a handoff too (BTN-1647)", () => {
+    const briefed = launchBriefs()
+    const sent = { prompt: '\nTask text\n', memory: '\nMemory tools\n' }
+    expect(briefed.apply('ABC-1', 'Start', sent, false)).toBe('Start\nTask text\n\nMemory tools\n')
+    expect(briefed.apply('ABC-1', 'Start', sent, true)).toBe('Start\nTask text\n')
+    expect(briefed.apply('ABC-1', 'Handoff', undefined, false)).toBe('Handoff\nTask text\n\nMemory tools\n')
+    expect(briefed.apply('ABC-1', 'Handoff', undefined, true)).toBe('Handoff\nTask text\n')
   })
 
   it("vouches for a task that is not an outsider's, asked of the intake at every brief, a retained one too (BTN-1419)", async () => {
@@ -146,6 +156,41 @@ describe('a session of a chain task on the machine without a brief (BTN-1252)', 
     await expect(port.relay('ABC-1', session as never, 'Handoff', 'restart')).rejects.toThrow(expect.objectContaining({ notice: { code: 'chain.briefMissing', params: { task: 'ABC-1' } } }))
     expect(stopIn).not.toHaveBeenCalled()
     expect(launchIn).not.toHaveBeenCalled()
+  })
+})
+
+describe('the project memory in a launch on the machine (BTN-1647)', () => {
+  const launched = async (agent: string) => {
+    const launchIn = vi.fn(async (_home: unknown, _start: { prompt: string }) => 'session-1')
+    const ctx = {
+      homeOf: () => ({ key: 'main', dir: 'C:/example/home', agent }),
+      choiceFor: () => ({ account: 'main', model: 'example' }),
+      daemons: { prepare: async () => {} },
+      places: { ready: async () => ({ path: 'C:/example/repo/.claude/worktrees/abc-1', branch: 'abc-1/task' }) },
+      promptLanguage: () => 'en',
+      slotSpan: () => 0,
+      branchOf: () => 'main',
+      pullRequestsOn: () => false,
+      configStore: { current: { settings: {}, projects: { p1: 'C:/example/repo' } } },
+      briefed: launchBriefs(),
+      withProject: (prompt: string) => prompt,
+      planFor: (_task: string, prompt: string) => ({ prompt, model: 'example', provider: agent, fallback: null }),
+      agentExtras: () => ({}),
+      settingsFor: async () => undefined,
+      launchIn,
+    } as unknown as MachineContext
+    await wireMachine(ctx, async () => {}).launch('p1', 'ABC-1', undefined, { prompt: '\nTask brief\n', memory: '\nMemory tools\n' })
+    return launchIn.mock.calls[0]![1].prompt
+  }
+
+  it('gives a Claude session no index: it loads its memory folder itself', async () => {
+    const prompt = await launched('claude')
+    expect(prompt).toContain('Task brief')
+    expect(prompt).not.toContain('Memory tools')
+  })
+
+  it('gives any other agent the tools and the index', async () => {
+    expect(await launched('codex')).toContain('Memory tools')
   })
 })
 

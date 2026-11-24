@@ -4,9 +4,9 @@ import { reindex } from './git/reindex.js'
 import { fileHash, MEMORY_INDEX, memoryFile, parseMemoryFile, type MemoryFact, type MemoryRecord } from './record.js'
 
 /**
- * The records of a memory folder's files, read and written as the memory tools need them (BTN-1646). It stands until
- * BTN-1647 builds the tools over the files themselves: the version of a record is a number drawn from its text's hash,
- * so any change of the file, by a session or a person or a sync, is a new version. Every call is synchronous, so a
+ * The records of a memory folder's files, read and written as the memory tools need them (BTN-1646, BTN-1647): the
+ * version of a record is a number drawn from its text's hash, so any change of the file, by a session or a person or
+ * a sync, is a new version. Every call is synchronous, so a
  * check of a version and the write after it never let another call in between.
  */
 

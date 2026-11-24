@@ -1,3 +1,4 @@
+import { CLAUDE } from '../claude/name.js'
 import type { TasksScope } from '../taskmcp/calls.js'
 import type { ToolSpec } from '../taskmcp/tools.js'
 import { folderRecord, folderRecords, removeRecord, writeRecord } from './files.js'
@@ -9,6 +10,14 @@ export const MEMORY_SERVER = 'memory'
 /** The gateway's path of the server: a package route whose entry is a local address with this path. */
 export const MEMORY_PATH = '/memory'
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost'])
+
+/**
+ * Claude Code loads the project's memory folder itself (`autoMemoryDirectory`, BTN-1647): its sessions get neither the
+ * memory server nor the index in the prompt. Every other agent works the memory through the server.
+ */
+export function readsFileMemory(agent: string): boolean {
+  return agent === CLAUDE
+}
 
 /** A server entry whose address is the gateway's own memory server (the `agent-bridge` plugin's `.mcp.json`). */
 export function isMemoryUrl(url: unknown): boolean {
@@ -84,8 +93,8 @@ export const MEMORY_TOOLS: ToolSpec[] = [
 
 /**
  * Even Keel's memory MCP server (BTN-1029, `docs/sessions/memory.md`), answered in the hub's gateway: the records are
- * the files of the project's working copy on the hub (BTN-1646, until BTN-1647), written with the version the session
- * read, each call between two syncs of the copy.
+ * the files of the project's working copy on the hub (BTN-1646), written with the version the session read and
+ * committed at once. It serves agents without Claude Code's file memory (BTN-1647).
  */
 export class MemoryMcp {
   constructor(

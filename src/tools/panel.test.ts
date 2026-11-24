@@ -100,13 +100,12 @@ describe('chainSettings', () => {
     expect(trimmed.worktree).toEqual({ bgIsolation: 'none' })
   })
 
-  it("turns the CLI's file memory off when the memory server brings the project memory, else points it at the shared folder (BTN-1029)", () => {
-    const of = (memoryServer: boolean, trim = false) => JSON.parse(chainSettings('repo', {}, trim, [], 'home/.claude', null, [], undefined, null, false, memoryServer)) as Record<string, unknown>
-    expect(of(true)).toMatchObject({ autoMemoryEnabled: false })
-    expect(of(true)).not.toHaveProperty('autoMemoryDirectory')
-    expect(of(true, true)).toMatchObject({ autoMemoryEnabled: false })
-    expect(of(false)).not.toHaveProperty('autoMemoryEnabled')
-    expect(of(false).autoMemoryDirectory).toEqual(expect.stringContaining('.claude-memory'))
+  it("points the CLI's file memory at the project's memory folder and never turns it off (BTN-1647)", () => {
+    for (const trim of [false, true]) {
+      const settings = JSON.parse(chainSettings('repo', {}, trim, [], 'home/.claude', null)) as Record<string, unknown>
+      expect(settings).not.toHaveProperty('autoMemoryEnabled')
+      expect(settings.autoMemoryDirectory).toEqual(expect.stringContaining('.claude-memory'))
+    }
   })
 })
 
