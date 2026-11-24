@@ -3,7 +3,7 @@ import type { AccountEntry } from '../../../src/account/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
-import { FieldStrip } from '../ui/FieldStrip.js'
+import { Field } from '../tools/AddPackage.js'
 import { secretInput } from '../ui/secret.js'
 import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
@@ -54,12 +54,15 @@ export function ManagementKeyDialog({ entry, title, onClose }: { entry: AccountE
           </button>
         </header>
         <div className="add-package__body">
-          <p className="add-package__note">{t.account.managementKeyLead}</p>
-          {entry.managementKey === true && <p className="add-package__note">{t.account.managementKeyHeld}</p>}
-          <label className="add-package__field">
-            <span className="add-package__label">{t.account.managementKeyField}</span>
-            <FieldStrip line={failure === null ? null : { tone: 'error', text: say(failure) }} fold wide>
+          <Field
+            label={t.account.managementKeyField}
+            hint={t.account.managementKeyLead}
+            error={failure === null ? undefined : say(failure)}
+            line={entry.managementKey === true ? { tone: 'plain', text: t.account.managementKeyHeld } : null}
+          >
+            {(id) => (
               <input
+                id={id}
                 className="add-package__input add-package__input--mono"
                 {...secretInput()}
                 value={key}
@@ -67,8 +70,8 @@ export function ManagementKeyDialog({ entry, title, onClose }: { entry: AccountE
                 onChange={(event) => setKey(event.target.value)}
                 autoFocus
               />
-            </FieldStrip>
-          </label>
+            )}
+          </Field>
         </div>
         <footer className="add-package__foot">
           {entry.managementKey === true && (

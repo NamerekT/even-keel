@@ -108,7 +108,7 @@ export function MachineAgents({ machine, accounts, busy, failure, back, onPick, 
   return (
     <>
       <div className="add-package__body">
-        <p className="add-package__note">{view.addLead}</p>
+        <p className="add-package__lead">{view.addLead}</p>
         <div className="add-package__kinds account-add__providers machine-add__agents">
           {choices.map((choice) => {
             const tile = (
@@ -123,7 +123,7 @@ export function MachineAgents({ machine, accounts, busy, failure, back, onPick, 
                 </span>
                 <span className="add-package__kind-title">{t.account.agents[choice.agent as keyof typeof t.account.agents]}</span>
                 {choice.missing && <span className="tag account-add__missing">{t.account.cliNotFound}</span>}
-                <span className="add-package__kind-hint">{gets(choice)}</span>
+                <span className="add-package__kind-desc">{gets(choice)}</span>
               </button>
             )
             return choice.missing ? (

@@ -5,7 +5,7 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { CommandBlock } from '../ui/blocks.js'
-import { FieldStrip } from '../ui/FieldStrip.js'
+import { Field } from '../tools/AddPackage.js'
 import { secretInput } from '../ui/secret.js'
 import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
@@ -59,13 +59,16 @@ export function ReplaceKeyDialog({ entry, title, onClose }: { entry: AccountEntr
           </button>
         </header>
         <div className="add-package__body">
-          <p className="add-package__note">{word === 'longToken' ? t.account.replaceTokenLead : t.account.replaceKeyLead}</p>
           {word === 'longToken' && <CommandBlock command="claude setup-token" />}
-          <label className="add-package__field">
-            <span className="add-package__label">{t.account.newKey[word]}</span>
-            {/* A refusal here is about the key (its form, the provider's answer, another organization), so it goes under it. */}
-            <FieldStrip line={failure === null ? null : { tone: 'error', text: say(failure) }} fold wide>
+          {/* A refusal here is about the key (its form, the provider's answer, another organization), so it goes under it. */}
+          <Field
+            label={t.account.newKey[word]}
+            hint={word === 'longToken' ? t.account.replaceTokenLead : t.account.replaceKeyLead}
+            error={failure === null ? undefined : say(failure)}
+          >
+            {(id) => (
               <input
+                id={id}
                 className="add-package__input add-package__input--mono"
                 {...secretInput()}
                 value={key}
@@ -73,8 +76,8 @@ export function ReplaceKeyDialog({ entry, title, onClose }: { entry: AccountEntr
                 onChange={(event) => setKey(event.target.value)}
                 autoFocus
               />
-            </FieldStrip>
-          </label>
+            )}
+          </Field>
         </div>
         <footer className="add-package__foot">
           <span className="add-package__spacer" />

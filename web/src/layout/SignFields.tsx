@@ -19,7 +19,7 @@ const SETUP_TOKEN = 'claude setup-token'
  * the full sign-in with what it gives, the long token with only what it lacks — less when `tied` to an account whose
  * full sign-in hands it the limits.
  */
-export function SignWays({ sign, tied, onSign }: { sign: Sign; tied: boolean; onSign: (sign: Sign) => void }) {
+export function SignWays({ sign, tied, onSign, hint }: { sign: Sign; tied: boolean; onSign: (sign: Sign) => void; hint?: string }) {
   const group = useId()
   const words = t.addAccount.sign
   const lines: Record<Sign, { plus: string[]; minus: string[] }> = {
@@ -28,7 +28,12 @@ export function SignWays({ sign, tied, onSign }: { sign: Sign; tied: boolean; on
   }
   return (
     <fieldset className="add-package__field">
-      <legend className="add-package__label add-package__legend">{words.legend}</legend>
+      <legend className="add-package__label add-package__legend">
+        <span className="add-package__label-row">
+          {words.legend}
+          {hint !== undefined && hint !== '' && <HelpTip text={hint} align="start" />}
+        </span>
+      </legend>
       <div className="account-add__ways">
         {SIGNS.map((each) => (
           <label key={each} className="account-add__way">
@@ -67,26 +72,30 @@ interface Props {
   choices: AccountEntry[]
   accounts: AccountEntry[]
   failure: string | null
+  /** What the sign-in needs next, in the "?" of its heading. */
+  hint?: string
 }
 
 /**
  * How a Claude subscription signs in (BTN-1005): the CLI's full sign-in with what it gives, or a long token with only
  * what it lacks; for the token — the command that issues it, the field to paste it and the account it is of.
  */
-export function SignFields({ draft, onDraft, choices, accounts, failure }: Props) {
+export function SignFields({ draft, onDraft, choices, accounts, failure, hint }: Props) {
   const words = t.addAccount.sign
   const sign: Sign = draft.sign ?? 'full'
   const same = choices.find((entry) => entry.key === draft.sameAs)
   return (
     <>
-      <SignWays sign={sign} tied={same !== undefined} onSign={(each) => onDraft({ ...draft, sign: each })} />
+      <SignWays sign={sign} tied={same !== undefined} onSign={(each) => onDraft({ ...draft, sign: each })} hint={hint} />
       {sign === 'token' && (
         <>
           {same === undefined && <p className="notice notice--warn">{words.resets}</p>}
           <div className="add-package__field">
-            <span className="add-package__label">{words.command}</span>
+            <span className="add-package__label-row">
+              <span className="add-package__label">{words.command}</span>
+              <HelpTip text={words.commandNote} align="start" />
+            </span>
             <CommandBlock command={SETUP_TOKEN} />
-            <p className="add-package__note">{words.commandNote}</p>
           </div>
           <label className="add-package__field">
             <span className="add-package__label">{words.token.field}</span>
@@ -102,7 +111,10 @@ export function SignFields({ draft, onDraft, choices, accounts, failure }: Props
           </label>
           {choices.length > 0 && (
             <div className="add-package__field">
-              <span className="add-package__label">{words.sameAs}</span>
+              <span className="add-package__label-row">
+                <span className="add-package__label">{words.sameAs}</span>
+                <HelpTip text={words.sameNote} align="start" />
+              </span>
               <Select
                 className="add-package__input"
                 label={words.sameAs}
@@ -110,7 +122,6 @@ export function SignFields({ draft, onDraft, choices, accounts, failure }: Props
                 options={[{ value: '', label: words.sameNone }, ...choices.map((entry) => ({ value: entry.key, label: accountName(entry, accounts) }))]}
                 onChange={(key) => onDraft({ ...draft, sameAs: key === '' ? undefined : key })}
               />
-              <p className="add-package__note">{words.sameNote}</p>
             </div>
           )}
         </>

@@ -16,6 +16,7 @@ import { t } from '../i18n/index.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { CommandBlock } from '../ui/blocks.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
+import type { StripLine } from '../ui/fieldStripFit.js'
 import { Fold } from '../ui/Fold.js'
 import { CheckIcon, PlusIcon, ServerIcon, TrashIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
@@ -88,7 +89,10 @@ export function CloudFields({ draft, onDraft, aws, readAws, gcloud, readGcloud, 
         </div>
       </fieldset>
       <div className="add-package__field">
-        <span className="add-package__label">{words.way[draft.cloud]}</span>
+        <span className="add-package__label-row">
+          <span className="add-package__label">{words.way[draft.cloud]}</span>
+          <HelpTip text={wayWord(words.wayNotes, draft.cloud, draft.way)} align="start" />
+        </span>
         <Select
           className="add-package__input"
           label={words.way[draft.cloud]}
@@ -97,7 +101,6 @@ export function CloudFields({ draft, onDraft, aws, readAws, gcloud, readGcloud, 
           onChange={(way) => set({ way: way as CloudWay })}
         />
       </div>
-      <p className="add-package__note">{wayWord(words.wayNotes, draft.cloud, draft.way)}</p>
       {vertex ? (
         <VertexAuthFields draft={draft} set={set} gcloud={gcloud} />
       ) : foundry ? (
@@ -117,18 +120,30 @@ export function CloudFields({ draft, onDraft, aws, readAws, gcloud, readGcloud, 
       {cloudShortLived(draft, aws, gcloud) && <p className="notice notice--warn">{words.shortLived[draft.cloud]}</p>}
       {foundry ? (
         <fieldset className="add-package__field">
-          <legend className="add-package__label add-package__legend">{words.deployments}</legend>
+          <legend className="add-package__label add-package__legend">
+            <span className="add-package__label-row">
+              {words.deployments}
+              <HelpTip text={words.modelsNote.foundry} align="start" />
+            </span>
+          </legend>
           <div className="account-add__models-body">
-            <p className="add-package__note">{words.modelsNote.foundry}</p>
             {FAMILIES.map((family) => (
               <Text key={family} label={words.deployment[family]} value={draft[family]} onChange={(value) => set({ [family]: value })} mono />
             ))}
           </div>
         </fieldset>
       ) : (
-        <Fold className="account-add__models" summary={<>{words.models}</>}>
+        <Fold
+          className="account-add__models"
+          summary={<>{words.models}</>}
+          header={(toggle) => (
+            <span className="add-package__label-row">
+              {toggle}
+              <HelpTip text={words.modelsNote[draft.cloud]} align="start" />
+            </span>
+          )}
+        >
           <div className="account-add__models-body">
-            <p className="add-package__note">{words.modelsNote[draft.cloud]}</p>
             {FAMILIES.map((family) => (
               <Text key={family} label={words.model[family]} value={draft[family]} onChange={(value) => set({ [family]: value })} mono />
             ))}
@@ -153,13 +168,17 @@ function FoundryAuthFields({ draft, set, azure }: FieldsProps & { azure: AzureCr
   const words = t.addAccount.cloud
   const endpoint = draft.resource.trim() === '' ? null : foundryEndpointOf(draft.resource)
   const problem: FoundryEndpointProblem | null = endpoint !== null && 'problem' in endpoint ? endpoint.problem : null
+  const entra = draft.way === 'entra' && azure !== undefined && (azure.environment || azure.signedIn) ? azure : undefined
+  const sign: StripLine | null = problem !== null
+    ? { tone: 'error', text: words.resourceProblems[problem] }
+    : entra === undefined ? null : { tone: 'plain', text: entra.environment ? words.azureEnvironment : words.azureOf(entra.user) }
   return (
     <>
       <div className="add-package__field">
         <label className="add-package__label" htmlFor={resourceId}>
           {words.resource}
         </label>
-        <FieldStrip line={problem === null ? null : { tone: 'error', text: words.resourceProblems[problem] }} fold wide>
+        <FieldStrip line={sign} fold wide>
           <input
             id={resourceId}
             className="add-package__input add-package__input--mono"
@@ -180,8 +199,6 @@ function FoundryAuthFields({ draft, set, azure }: FieldsProps & { azure: AzureCr
           <CommandBlock command={AZ_LOGIN} />
         </div>
       )}
-      {draft.way === 'entra' && azure?.environment === true && <p className="add-package__note">{words.azureEnvironment}</p>}
-      {draft.way === 'entra' && azure !== undefined && !azure.environment && azure.signedIn && <p className="add-package__note">{words.azureOf(azure.user)}</p>}
     </>
   )
 }
@@ -231,6 +248,10 @@ function VertexAuthFields({ draft, set, gcloud }: FieldsProps & { gcloud: Gcloud
   const projectId = useId()
   const words = t.addAccount.cloud
   const projects = gcloud?.projects ?? []
+  const adc = draft.way === 'adc' && gcloud !== undefined && gcloud.adcType !== null ? gcloud : undefined
+  const sign: StripLine | null = adc !== undefined
+    ? { tone: 'plain', text: words.adcOf(adc.user), short: adc.user }
+    : gcloud === undefined || projects.length === 0 ? null : { tone: 'plain', text: words.projectsOf(gcloud.user), short: gcloud.user }
   return (
     <>
       {draft.way === 'adc' && gcloud !== undefined && gcloud.adcType === null && (
@@ -239,13 +260,12 @@ function VertexAuthFields({ draft, set, gcloud }: FieldsProps & { gcloud: Gcloud
           <CommandBlock command={ADC_LOGIN} />
         </div>
       )}
-      {draft.way === 'adc' && gcloud !== undefined && gcloud.adcType !== null && <p className="add-package__note">{words.adcOf(gcloud.user)}</p>}
       {draft.way === 'keyFile' && <Text label={words.keyFile} value={draft.keyFile} onChange={(keyFile) => set({ keyFile })} placeholder={words.keyFileHint} mono />}
       <div className="add-package__field">
         <label className="add-package__label" htmlFor={projectId}>
           {words.projectId}
         </label>
-        <FieldStrip line={gcloud === undefined || projects.length === 0 ? null : { tone: 'plain', text: words.projectsOf(gcloud.user), short: gcloud.user }} wide>
+        <FieldStrip line={sign} wide>
           <SuggestField
             id={projectId}
             className="add-package__input add-package__input--mono"
@@ -268,8 +288,10 @@ function ModelRegions({ draft, set }: FieldsProps) {
   const free = VERTEX_REGION_MODELS.filter(([, variable]) => !rows.some((row) => row.variable === variable))
   return (
     <div className="add-package__field">
-      <span className="add-package__label">{words.modelRegions}</span>
-      <p className="add-package__note">{words.modelRegionsNote}</p>
+      <span className="add-package__label-row">
+        <span className="add-package__label">{words.modelRegions}</span>
+        <HelpTip text={words.modelRegionsNote} align="start" />
+      </span>
       {rows.map((row, index) => (
         // By place, not by variable: picking another model must not remount the row and lose its focus.
         <div key={index} className="account-add__model-region">

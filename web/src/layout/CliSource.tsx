@@ -125,7 +125,7 @@ export function CliSourceChoice({ provider, label, execution, picked, onPick }: 
       </label>}
     </div>
     {chosen === null && copy.status !== 'downloading' && (copy.installable ? <>
-      {runs !== undefined && <p className="settings__hint">{text.installVia}</p>}
+      {runs !== undefined && <p className="cli-source__lead">{text.installVia}</p>}
       <div className="cli-source__install">
         <CommandBlock command={runs ?? installCommand(provider, state.platform)} />
         <div className="cli-source__buttons">
@@ -134,7 +134,7 @@ export function CliSourceChoice({ provider, label, execution, picked, onPick }: 
         </div>
       </div>
       {runs !== undefined && install !== null && <InstallOutput install={install} title={titleOf(provider)} />}
-    </> : <p className="settings__hint">{text.noInstall}</p>)}
+    </> : <p className="cli-source__empty">{text.noInstall}</p>)}
     {copy.status === 'downloading' && <div className="cli-copy"><CliProgress provider={provider} copy={copy} /></div>}
     {copy.status === 'failed' && <div className="cli-source__problem">
       <p className="notice notice--error">{say({ code: 'agent.copyFailed', params: { title: titleOf(provider) } })}</p>
@@ -144,7 +144,7 @@ export function CliSourceChoice({ provider, label, execution, picked, onPick }: 
       <span>{text.missing}</span>
       {download}
     </div>}
-    {(picked === 'checked' && copy.source !== 'checked' && copy.checkedStatus === 'missing' || picked === 'latest' && copy.source !== 'latest' && latestReady === null) && <p className="settings__hint">{text.onSave}</p>}
+    {(picked === 'checked' && copy.source !== 'checked' && copy.checkedStatus === 'missing' || picked === 'latest' && copy.source !== 'latest' && latestReady === null) && <p className="cli-source__state">{text.onSave}</p>}
     {[failure, checked.failure].map((each, index) => each && <p key={index} className="notice notice--error">{sayAtField(each)}</p>)}
     {checked.dialog}
   </div>
