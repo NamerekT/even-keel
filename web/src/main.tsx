@@ -18,6 +18,7 @@ import { LiveProvider } from './live/context.js'
 import { fitsKeepalive } from './pages/cardDrafts.js'
 import type { AuthPost } from './pages/passkey.js'
 import { InviteJoin } from './pages/InviteJoin.js'
+import { cameraHere } from './pages/qrScan.js'
 import { SignIn } from './pages/SignIn.js'
 import { pageIdle, reloadOnMissingChunk, watchBuild } from './live/reload.js'
 import { watchTheme } from './theme.js'
@@ -198,7 +199,7 @@ async function realSignIn(): Promise<SignInProps | null> {
   const state = (await response.json()) as AuthState
   if (state.signedIn) return null
   const post: AuthPost = async <T,>(name: string, body: object) => (await sendQuery(name, body)) as T
-  return { keySet: state.keySet, passkeyHere: state.passkeyHere, post, entered: () => location.reload() }
+  return { keySet: state.keySet, passkeyHere: state.passkeyHere, camera: await cameraHere(window), post, entered: () => location.reload() }
 }
 
 /**
@@ -217,7 +218,7 @@ async function fakeSignIn(): Promise<SignInProps | null> {
   const passkeyHere = search.get('signIn') !== 'elsewhere'
   search.delete('signIn')
   const rest = search.toString()
-  return { keySet, passkeyHere, post, entered: () => location.replace(`${location.pathname}${rest === '' ? '' : `?${rest}`}`) }
+  return { keySet, passkeyHere, camera: await cameraHere(window), post, entered: () => location.replace(`${location.pathname}${rest === '' ? '' : `?${rest}`}`) }
 }
 
 watchTheme()

@@ -1,9 +1,9 @@
-import { useId, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useId, useState, type FormEvent } from 'react'
 import { noticeOf } from '../../../src/notice/notice.js'
 import { say, t } from '../i18n/index.js'
 import { Card } from '../ui/blocks.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
-import { KeyIcon } from '../ui/icons.js'
+import { CameraIcon, KeyIcon } from '../ui/icons.js'
 import { secretInput } from '../ui/secret.js'
 import { addPasskey, openedByIp, passkeysWork, signInWithPasskey, type AuthPost, type Refusal } from './passkey.js'
 import { HelpTip } from './settingsParts.js'
@@ -11,6 +11,9 @@ import './settings.css'
 import './signIn.css'
 
 type Stage = 'form' | 'offer'
+
+/** The camera and the QR decoder load only on "Scan a QR". */
+const QrScanDialog = lazy(async () => ({ default: (await import('./QrScanDialog.js')).QrScanDialog }))
 
 const INVITE_GUIDE = 'https://github.com/NamerekT/even-keel/blob/main/docs/guide/setup.md#signing-in-on-a-new-device'
 
@@ -24,9 +27,11 @@ interface Failure {
  * The page a browser gets before it is in (BTN-1619, `docs/web/sign-in.md`): a passkey in one press, or the owner key;
  * after the key, the offer to add a passkey here. `entered` loads the page anew once the browser holds its cookie.
  * A passkey lives on the host name it was made on: with none for this one (`passkeyHere`), the button gives way to a line.
+ * Where the browser has a camera, "Scan a QR" reads an invitation's code and opens its link in this window (BTN-1657).
  */
-export function SignIn({ keySet, passkeyHere, post, entered }: { keySet: boolean; passkeyHere: boolean; post: AuthPost; entered: () => void }) {
+export function SignIn({ keySet, passkeyHere, camera, post, entered }: { keySet: boolean; passkeyHere: boolean; camera: boolean; post: AuthPost; entered: () => void }) {
   const [stage, setStage] = useState<Stage>('form')
+  const [scanning, setScanning] = useState(false)
   const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<Failure | null>(null)
@@ -120,6 +125,17 @@ export function SignIn({ keySet, passkeyHere, post, entered }: { keySet: boolean
               {t.signIn.noKeyAskLink}
             </a>
           </p>
+          {camera && (
+            <button type="button" className="button sign-in__wide" disabled={busy} onClick={() => setScanning(true)}>
+              <CameraIcon />
+              {t.signIn.scan}
+            </button>
+          )}
+          {scanning && (
+            <Suspense fallback={null}>
+              <QrScanDialog onFound={(url) => location.assign(url)} onClose={() => setScanning(false)} />
+            </Suspense>
+          )}
         </Card>
       ) : (
         <Card className="sign-in__card" title={t.signIn.offerTitle}>

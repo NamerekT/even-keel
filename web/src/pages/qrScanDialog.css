@@ -1,0 +1,44 @@
+/* "Scan a QR" of the sign-in screen (BTN-1657): the camera's picture in a square, the line of what it sees under it. */
+
+.qr-scan__body {
+  align-items: stretch;
+}
+
+.qr-scan__view {
+  position: relative;
+  align-self: center;
+  width: min(320px, 100%);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.qr-scan__video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qr-scan__wait {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-scan__state {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+  line-height: 1.45;
+  text-align: center;
+}
+
+/* With no picture the band is the whole of the window: it takes the body's own top padding under the head. */
+.notice.qr-scan__failure {
+  margin-top: 6px;
+}

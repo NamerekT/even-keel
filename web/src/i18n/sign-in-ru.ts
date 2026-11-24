@@ -77,4 +77,16 @@ export const signInRu = {
   joinToSignIn: 'Ко входу',
   joinSignedIn: 'Этот браузер уже вошёл: приглашение ему не нужно. Откройте ссылку на новом устройстве.',
   joinToPage: 'На страницу',
+  // "Scan a QR" of the sign-in screen (BTN-1657).
+  scan: 'Сканировать QR',
+  scanTitle: 'QR-код приглашения',
+  scanView: 'Изображение с камеры',
+  scanStarting: 'Включаем камеру…',
+  scanAim: 'Наведите камеру на QR-код в окне приглашения.',
+  scanNotInvite: 'Это не QR-код приглашения Even Keel.',
+  scanElsewhere: (host: string) => `Это приглашение для адреса ${host}: откройте Even Keel по нему и сканируйте там.`,
+  scanBlocked: 'Нет доступа к камере: разрешите его этой странице в настройках браузера.',
+  scanNoCamera: 'Камера не найдена или занята другим приложением.',
+  scanFailed: 'Камера не включилась.',
+  scanClose: 'Закрыть',
 }
