@@ -226,7 +226,7 @@ describe('startTracker', () => {
   })
 
   it.each([false, true])('publishes a refused merged-task close and clears it after recovery (manual: %s)', async (manual) => {
-    vi.spyOn(merged, 'mergedCommits').mockResolvedValue(['c1'])
+    vi.spyOn(merged, 'landedCommits').mockResolvedValue(['c1'])
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(console, 'log').mockImplementation(() => {})
     let refused = true
@@ -252,7 +252,7 @@ describe('startTracker', () => {
   })
 
   it('closes a task merged on a machine elsewhere by that machine\'s main, never the hub\'s checkout (BTN-1313)', async () => {
-    const own = vi.spyOn(merged, 'mergedCommits').mockResolvedValue([])
+    const own = vi.spyOn(merged, 'landedCommits').mockResolvedValue([])
     vi.spyOn(console, 'log').mockImplementation(() => {})
     let closed = false
     const current = (id: string) => ({ ...task(id), status: closed && id === 'APP-2' ? { name: 'Done', category: 'Won' as const } : task(id).status })

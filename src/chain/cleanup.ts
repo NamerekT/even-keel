@@ -2,6 +2,7 @@ import { isOwnName } from './fix.js'
 import { isNetworkFailure } from '../git/sync.js'
 import type { FinishOutcome } from '../git/types.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
+import { dropLanding } from './landings.js'
 import type { MainCheck } from './maincheck.js'
 import type { ActiveChain, ChainState, DispatcherDeps, PullCleanup } from './model.js'
 import type { Reviews } from './reviews.js'
@@ -87,6 +88,7 @@ export class Cleanups {
     const tree = this.main?.reportedTree(project, task) ?? null
     const outcome = await this.cleanUp(project, task, this.reviews.cleanupOf(project, task))
     this.reviews.closedUp(project, task)
+    dropLanding(this.state, project, task)
     this.syncRetries.delete(retryKey(project, outcome.machine))
     if (outcome.syncError !== null && retryable(outcome.syncError)) {
       this.keepOutcome(project, task, { warnings: outcome.warnings, syncError: null })

@@ -11,6 +11,7 @@ import type { MainFix } from './mainfix.js'
 import type { MainWait } from './mainwait.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, ReleaseReason } from './model.js'
 import { openBlockers } from './order.js'
+import { dropLanding, type Landings } from './landings.js'
 import type { LaunchPauses } from './pauses.js'
 import type { LanePlacement } from './placement.js'
 import { unanswered } from './quiet.js'
@@ -32,6 +33,7 @@ export interface StepHost {
   readonly carries: MainCarry
   readonly handovers: TaskMoves
   readonly reviews: Reviews
+  readonly landings: Landings
   readonly unchanged: Unchanged
   readonly waits: MainWait
   readonly pauses: LaunchPauses
@@ -51,9 +53,13 @@ export type StepOutcome = 'again' | 'end' | 'on'
 
 /** Asked to stop, the chain only waits out the session's turn: no Done, handoff or relay is followed meanwhile. */
 export async function stopAfterTurn(host: StepHost, chain: ActiveChain, tasks: Task[]): Promise<'again' | 'end'> {
-  const { state, deps, lists, unchanged } = host
+  const { state, deps, lists, unchanged, landings } = host
   const current = chain.current
   if (current !== null && inTurn(deps, current)) return 'end'
+  // The session merged in its last turn: its landing goes first, and one sent back to the session holds the stop (BTN-1581).
+  if (current !== null && current.sessionId !== null && (await landings.follow(chain, current, host.carries.commitOf(chain.project, current.task)))) {
+    if (chain.paused || chain.current !== current || inTurn(deps, current)) return 'end'
+  }
   // Only the dispatcher closes a task of a project without git, so the mark the turn ended with is still followed (BTN-1044).
   const closes = current !== null && current.sessionId !== null && unchanged.closesByMark(current.task) && tasks.some((open) => open.id === current.task)
   if (closes && (await unchanged.follow(chain, current))) {
@@ -75,7 +81,7 @@ export async function stopAfterTurn(host: StepHost, chain: ActiveChain, tasks: T
 
 /** Follows the lane's current task: a fix of main, a carry or a task of the chain. */
 export async function followCurrent(host: StepHost, chain: ActiveChain, current: CurrentTask, tasks: Task[]): Promise<StepOutcome> {
-  const { state, deps, lists, fixes, carries, handovers, reviews, unchanged } = host
+  const { state, deps, lists, fixes, carries, handovers, reviews, landings, unchanged } = host
   const { task, sessionId } = current
   // A skip or a release from the page may end the task while the step awaits (BTN-1330): the step starts over.
   const moved = () => chain.current !== current
@@ -83,6 +89,8 @@ export async function followCurrent(host: StepHost, chain: ActiveChain, current:
     host.halt(chain, notice('chain.interrupted', { task }))
     return 'end'
   }
+  // A fix session and a carry land as a task does (BTN-1581): a landing that holds them ends the step.
+  if ((isFixName(task) || isCarryName(task)) && (await landings.follow(chain, current, carries.commitOf(chain.project, task)))) return moved() ? 'again' : 'end'
   if (isFixName(task)) {
     if (fixes === null) chain.current = null
     else if (!(await fixes.follow(chain, current)) && !moved()) {
@@ -112,6 +120,8 @@ export async function followCurrent(host: StepHost, chain: ActiveChain, current:
     return 'again'
   }
   if (!tasks.some((open) => open.id === task)) {
+    // Done, cancelled or back in the backlog: its landing is over, main was rolled back at its last return (BTN-1581).
+    dropLanding(state, chain.project, task)
     if (lists.done.get(chain.project)?.has(task)) {
       chain.current = null
       chain.closing = task
@@ -126,8 +136,16 @@ export async function followCurrent(host: StepHost, chain: ActiveChain, current:
   const blockers = openBlockers([...tasks, ...(lists.waiting.get(chain.project) ?? [])], task)
   if (blockers.length > 0 && !deps.machine.busy(task)) {
     host.release(chain, 'postpone', blockers)
-  } else if ((await reviews.follow(chain, current)) || moved() || (await unchanged.follow(chain, current)) || moved()) {
-    // Feedback or a hint went to the session, which leads the chain on; a released or done task left the task list.
+  } else if (
+    (await landings.follow(chain, current)) ||
+    moved() ||
+    (await reviews.follow(chain, current)) ||
+    moved() ||
+    (await unchanged.follow(chain, current)) ||
+    moved()
+  ) {
+    // A landing, feedback or a hint holds the task or went to the session, which leads the chain on; a released or done
+    // task left the task list.
     if (chain.current !== null) return 'end'
     return 'again'
   } else if (unanswered(state, deps, current)) {

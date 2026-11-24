@@ -2,6 +2,7 @@ import { englishOf, fail, noticeOf } from '../notice/notice.js'
 import type { SilentRestart } from '../sessions/silence.js'
 import { acceptable, answerable } from './answers.js'
 import type { TaskMoves as Handovers } from '../machine/tasks.js'
+import { answeredLanding } from './landings.js'
 import { requireLimit } from './limitNotice.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps } from './model.js'
 import type { LaunchPauses } from './pauses.js'
@@ -10,10 +11,10 @@ import { guardRestart } from './restartGuard.js'
 import type { Unchanged } from './unchanged.js'
 
 /**
- * The pauses that wait on the user about a landing of the task: a pull request not opened (BTN-715) or an outsider's
- * branch held (BTN-1207). An answer to the session or a Done of the task ends them.
+ * The pauses that wait on the user about a landing of the task: a pull request not opened (BTN-715), an outsider's
+ * branch held (BTN-1207) or a landing out of rounds (BTN-1581). An answer to the session or a Done of the task ends them.
  */
-export const USER_HOLDS: ReadonlySet<string> = new Set(['review.notOpened', 'review.outsiderFiles'])
+export const USER_HOLDS: ReadonlySet<string> = new Set(['review.notOpened', 'review.outsiderFiles', 'landing.exhausted'])
 
 export interface TalkHost {
   /** The project's head lane; with `task` — the lane holding it, else the head. */
@@ -92,6 +93,7 @@ export class Talks {
         return false
       }
       if (chain === null || current === null) return this.handovers.deliverLoose(project, task, session, prompt, true)
+      answeredLanding(this.state, project, task)
       this.unhold(chain)
       return this.handovers.deliver(chain, current, session, prompt, ask, 'answer', true)
     })
@@ -108,6 +110,7 @@ export class Talks {
     if (chain === null || current === null) throw fail('chain.notCurrent', { task })
     this.pauses.require(project, task)
     this.host.setWork(this.host.work().then(() => {
+      answeredLanding(this.state, project, task)
       this.unhold(chain)
       return this.handovers.renew(chain, current, session, prompt)
     }))

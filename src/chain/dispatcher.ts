@@ -29,6 +29,7 @@ import { LaunchPauses } from './pauses.js'
 import { LanePlacement } from './placement.js'
 import type { HandoffSession } from './relay.js'
 import { quietTooLong } from './quiet.js'
+import { Landings } from './landings.js'
 import { Reviews } from './reviews.js'
 import { excludes, isDone, isTerminal } from './rules.js'
 import { shelve } from './shelved.js'
@@ -58,6 +59,7 @@ export class Dispatcher {
   private readonly carries: MainCarry
   private readonly handovers: TaskMoves
   private readonly reviews: Reviews
+  private readonly landings: Landings
   private readonly unchanged: Unchanged
   private readonly lists: TaskLists
   private readonly cleanups: Cleanups
@@ -86,6 +88,7 @@ export class Dispatcher {
       working: (task) => this.cleanups.working(task),
       dropUnmerged: (project, task, pull) => this.cleanups.dropUnmerged(project, task, pull),
     })
+    this.landings = new Landings(state, deps, this.handovers, { hold: (chain, error) => this.halt(chain, error, true) })
     this.unchanged = new Unchanged(deps, this.handovers, (chain, error) => this.halt(chain, error, true))
     this.talks = new Talks(state, deps, this.handovers, this.unchanged, this.pauses, {
       chainOf: (project, task) => this.chainOf(project, task),
@@ -136,6 +139,7 @@ export class Dispatcher {
       carries: this.carries,
       handovers: this.handovers,
       reviews: this.reviews,
+      landings: this.landings,
       unchanged: this.unchanged,
       waits: this.waits,
       pauses: this.pauses,

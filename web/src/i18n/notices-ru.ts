@@ -279,6 +279,10 @@ export const noticesRu: NoticeTexts = {
   'sync.merge': (p) => `${p.remote}/${p.main} не сливается в ${p.main} чисто — слейте вручную`,
   'sync.push': (p) => `не удалось отправить ${p.main} в ${p.remote}`,
   'sync.checkRed': (p) => `${p.main} после слияния с коммитами другой машины не проходит проверку проекта (${p.command} завершилась с кодом ${p.code}); он не отправлен — слейте вручную`,
+  'landing.noBase': (p) => `посадка: не найден коммит ${p.main} до мержа сессии — отправьте ${p.main} вручную`,
+  'landing.notReset': (p) => `посадка: ${p.main} не удалось откатить на ${p.commit}, до мержа сессии — откатите вручную`,
+  'landing.refused': (p) => `посадку ${p.task} в ${p.main} ремоута отклонили`,
+  'landing.exhausted': (p) => `${p.task} ${p.rounds} раза вернулась из посадки в ${p.main} ремоута, больше её сессии не пишем`,
   'git.readOnly': (p) =>
     `токену профиля ${p.profile} не дают пушить в ${p.url}: дайте токену запись в содержимое репозитория в «Трекеры и CI»`,
 
@@ -966,6 +970,7 @@ const CONTINUED: Record<ContinuedWhy, string> = {
   answer: 'сессия продолжена после ответа',
   resume: 'сессия возобновлена',
   review: 'сессия получила отзыв на pull request',
+  landing: 'сессии сказали, что её мерж не сел',
   limit: 'сессия продолжена после лимита',
   credit: 'сессия продолжена после того, как на ключе кончились деньги',
   mainFixed: 'сессия продолжена после починки main',
@@ -980,6 +985,7 @@ const HANDOFFS: Record<HandoffWhy, string> = {
   credit: 'на ключе кончились деньги',
   mainFixed: 'после починки main',
   review: 'после отзыва на pull request',
+  landing: 'после мержа, который не сел',
   transient: 'после временной ошибки модели',
   returned: 'после возврата задачи',
   unblocked: 'после закрытия блокеров',

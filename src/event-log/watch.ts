@@ -280,7 +280,7 @@ function continuedWhy(entry: LaunchEntry): ContinuedWhy | undefined {
   if (entry.reason === 'answer' || entry.reason === 'review') return entry.reason
   if (entry.reason !== 'resume') return undefined
   const cause = entry.cause
-  return cause === 'limit' || cause === 'credit' || cause === 'mainFixed' || cause === 'transient' ? cause : 'resume'
+  return cause === 'limit' || cause === 'credit' || cause === 'mainFixed' || cause === 'transient' || cause === 'landing' ? cause : 'resume'
 }
 
 /** The entry of a session the chain stopped mid-turn: a red main or subscription overage (invariant 1). */

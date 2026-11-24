@@ -43,6 +43,7 @@ describe('chain store', { timeout: 30_000 }, () => {
       reviews: {
         ABC: [{ task: 'ABC-6', remote: 'origin', number: 3, url: 'https://github.com/john/abc/pull/3', branch: 'abc-6/task', at: 't', pushedAt: 't', markAt: 't', seen: [] }],
       },
+      landings: { ABC: [{ task: 'ABC-7', rounds: 2, resolving: true, waitingRemote: true, failures: 3, retryAt: 't' }] },
     }
     await saveChainState(store, state)
     expect(await loadChainState(store)).toEqual(state)

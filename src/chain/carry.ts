@@ -23,6 +23,11 @@ export class MainCarry {
     return this.state.ci[from]?.carry
   }
 
+  /** The release commit the carry session `task` resolves into the project, which its landing stands on (BTN-1581). */
+  commitOf(project: string, task: string): string | undefined {
+    return this.all().find(([, carry]) => carry.task === task && carry.into === project)?.[1].commit
+  }
+
   /** Records the carry asked for; `false` — the release project's carry is already asked for. */
   ask(from: string, carry: CarrySession): boolean {
     if (this.of(from) !== undefined) return false

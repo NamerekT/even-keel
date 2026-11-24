@@ -16,7 +16,7 @@ import type { BranchDiff, FoundRepository, SessionView, TaskWork } from '../stat
 /** The port's commands and queries, as the link names them: `port.<member>` with `{ args }` as the payload. */
 export const PORT_COMMANDS = [
   'launch', 'launchFix', 'launchCarry', 'resume', 'reply', 'relay', 'stop', 'locate',
-  'finish', 'sync', 'prepare', 'checkMain', 'runAfterGreen', 'head', 'tree', 'merged', 'carried', 'changes', 'history', 'modelBlock',
+  'finish', 'sync', 'prepare', 'checkMain', 'runAfterGreen', 'head', 'tree', 'merged', 'carried', 'land', 'changes', 'history', 'modelBlock',
 ] as const
 export type PortCommand = (typeof PORT_COMMANDS)[number]
 export const COMMAND_PREFIX = 'port.'

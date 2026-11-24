@@ -98,6 +98,8 @@ export interface SetupOptions {
   plain?: boolean
   /** The machines of the chain's pull (BTN-993); absent — the own machine alone. */
   machines?: ChainMachines
+  /** The landing of a session's merge (BTN-1581); absent — a merge counts as landed. */
+  land?: MachinePort['land']
 }
 
 /** The machines of the chain's pull for a test: `own` first, every one serving every project, each task free to bind. */
@@ -260,6 +262,7 @@ export function setup(options: SetupOptions = {}) {
       merged: async () => [],
       runAfterGreen: async () => ({ state: 'done' }),
       history: async () => ({ commits: [], greens: [] }),
+      ...(options.land !== undefined && { land: options.land }),
       ...options.main,
     },
     projects: () => options.projects ?? ['ABC', 'XYZ', 'DEF'],

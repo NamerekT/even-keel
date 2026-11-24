@@ -1,5 +1,6 @@
 import type { AfterGreenRun, Launched, LimitsWait, MainCheckRun, ModelWeekHold, PullCleanup } from '../chain/model.js'
 import type { AccountNow, HandoffReason, HandoffSession, LimitedSession } from '../chain/relay.js'
+import type { LandOutcome } from '../git/landing.js'
 import type { Changes, FinishOutcome } from '../git/types.js'
 import type { OverageSession } from '../limits/overage-session.js'
 import type { Notice } from '../notice/notice.js'
@@ -83,12 +84,19 @@ export interface MachinePort {
   /** Query. The tree of a commit; `null` — unknown. `machine` — the pool's only: whose checkout. */
   tree: (project: string, commit: string, machine?: string) => Promise<string | null>
   /**
-   * Query. The own commits of the task's branches, or the fix session's, that main has (`mergedCommits`); none — not
-   * merged. Commits, not a yes, for the merge closer's marks (BTN-1313).
+   * Query. The own commits of the task's branches, or the fix session's, that main has — of every remote, landed
+   * (`landedCommits`, BTN-1581); with `local`, the checkout's own main (`mergedCommits`). None — not merged. Commits, not
+   * a yes, for the merge closer's marks (BTN-1313).
    */
-  merged: (project: string, task: string) => Promise<string[]>
-  /** Query. Whether the project's main branch has the commit: the carry's release commit is in. */
+  merged: (project: string, task: string, local?: boolean) => Promise<string[]>
+  /** Query. Whether the project's main branch has the commit — of every remote, as `merged` counts it: the carry's release commit is in. */
   carried: (project: string, commit: string) => Promise<boolean>
+  /**
+   * Command. Lands what the task's session merged into the project's main (`landTask`, BTN-1581): pushes it to every
+   * remote, merging in and checking what they got meanwhile; a conflict or a red check rolls main back to before the
+   * merge. `commit` — a carry's release commit, standing for the branches. Absent — a merge counts as landed.
+   */
+  land?: (project: string, task: string, commit?: string) => Promise<LandOutcome>
   /** Query. What a session's working folder holds beyond main: commits ahead and uncommitted files. */
   changes: (project: string, workdir: string) => Promise<Changes>
   /** Query. The commits a red main's report lists up to `commit`, and which of `candidates` are green commits behind it. */

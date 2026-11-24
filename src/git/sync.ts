@@ -6,7 +6,7 @@ import type { Git, GitResult } from './types.js'
  * as `[rejected]` before sending, or as the remote's refusal to update the ref when the other push landed after this
  * one read the remote's refs (BTN-686). Other `[remote rejected]` reasons, a declined server hook among them, stay.
  */
-const REJECTED = /\[rejected\]|\[remote rejected\][^\n]*\((?:incorrect old value|failed to update ref|cannot lock ref|failed to lock|stale info)/
+export const REJECTED = /\[rejected\]|\[remote rejected\][^\n]*\((?:incorrect old value|failed to update ref|cannot lock ref|failed to lock|stale info)/
 
 /** What git (curl or ssh under it) says when it never reached the remote; a refusal of the remote is not among it. */
 const UNREACHABLE =
@@ -38,9 +38,14 @@ export async function syncMain(git: Git, repo: string, remotes: string[], main =
   return result
 }
 
-async function syncOnce(git: Git, repo: string, remotes: string[], main: string, check?: MergeCheck): Promise<Notice | null> {
+/** Whether the checkout's sync goes through a `git sync` alias, as `syncMain` reads it. */
+export async function syncAlias(git: Git, repo: string, main: string): Promise<boolean> {
   const alias = main === 'main' ? ['config', '--get', 'alias.sync'] : ['config', '--local', '--get', 'alias.sync']
-  if ((await git(repo, alias)).code === 0) {
+  return (await git(repo, alias)).code === 0
+}
+
+async function syncOnce(git: Git, repo: string, remotes: string[], main: string, check?: MergeCheck): Promise<Notice | null> {
+  if (await syncAlias(git, repo, main)) {
     const synced = await git(repo, ['sync'])
     return synced.code === 0 ? null : (readOnly(synced) ?? notice('sync.alias', { exit: synced.code }, { detail: synced.out }))
   }
@@ -79,12 +84,12 @@ async function syncOnce(git: Git, repo: string, remotes: string[], main: string,
 }
 
 /** A push the remote refused for writing with a profile's token (BTN-1541): the profile is named, with git's words. */
-function readOnly(pushed: GitResult): Notice | null {
+export function readOnly(pushed: GitResult): Notice | null {
   return pushed.denied === undefined ? null : notice('git.readOnly', { profile: pushed.denied.name, url: pushed.denied.url }, { detail: pushed.out })
 }
 
 /** Main and the remote's main each have commits the other lacks: merging them makes a commit nobody checked. */
-async function diverged(git: Git, repo: string, theirs: string): Promise<boolean> {
+export async function diverged(git: Git, repo: string, theirs: string): Promise<boolean> {
   if ((await git(repo, ['merge-base', '--is-ancestor', 'HEAD', theirs])).code === 0) return false
   return (await git(repo, ['merge-base', '--is-ancestor', theirs, 'HEAD'])).code !== 0
 }
