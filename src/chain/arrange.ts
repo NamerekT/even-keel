@@ -9,7 +9,8 @@ import { checkOrder, startsAhead } from './order.js'
 export interface ArrangeHost {
   /** The project's head lane; with `task` — the lane holding it, else the head. */
   chainOf: (project: string, task?: string) => ActiveChain | undefined
-  currentOf: (project: string) => string | undefined
+  /** What every lane of the project runs (BTN-1611): its task, or the one a running fix of main interrupted. */
+  runningOf: (project: string) => string[]
   requireProject: (project: string) => void
   release: (chain: ActiveChain, reason: ReleaseReason, blockers: string[]) => void
   /** Saves the state and steps the chains. */
@@ -85,11 +86,10 @@ export class Arrangement {
     this.host.requireProject(project)
     const tasks = this.lists.tasks.get(project) ?? []
     checkOrder(tasks, order)
-    const current = this.host.currentOf(project)
-    const holding = [...(this.state.skipped[project] ?? []), ...this.lists.waitingIds(project)]
-    if (current !== undefined && tasks.some((task) => task.id === current) && startsAhead(tasks, order, current, holding)) {
-      throw fail('chain.currentFirst', { task: current })
-    }
+    const running = this.host.runningOf(project).filter((id) => tasks.some((task) => task.id === id))
+    const holding = [...(this.state.skipped[project] ?? []), ...this.lists.waitingIds(project), ...running]
+    const ahead = running.find((current) => startsAhead(tasks, order, current, holding))
+    if (ahead !== undefined) throw fail('chain.currentFirst', { task: ahead })
     this.state.orders[project] = [...order]
     this.host.changed()
   }

@@ -7,9 +7,13 @@ export function inOrder(block: ChainBlock): boolean {
   return block.open && !isOwnName(block.id)
 }
 
-/** How many tasks lead the order and stay there: the current one, or the one a running fix of main interrupted. */
+/**
+ * How many tasks lead the order and stay there as one group: every lane's current one, or the one a running fix of main
+ * interrupted (BTN-1611).
+ */
 export function pinnedHead(open: ChainBlock[]): number {
-  return open[0]?.current || open[0]?.interrupted ? 1 : 0
+  const free = open.findIndex((block) => !block.current && !block.interrupted)
+  return free < 0 ? open.length : free
 }
 
 /** The displayed order, shared by the drag preview and the optimistic drop. */
