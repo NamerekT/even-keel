@@ -24,7 +24,10 @@ describe('an invitation of a new device', () => {
     expect(opened.view).toEqual({ state: 'waiting', digits: '47', expiresAt: made.expiresAt })
     expect(opened.claim).toEqual(expect.any(String))
     expect(await desk.live()).toEqual([{ id: made.id, createdAt: expect.any(String), expiresAt: made.expiresAt, opened: { device: PHONE.device, from: PHONE.address, at: expect.any(String), digits: '47' } }])
-    await desk.admit(made.id)
+    expect(book.signInOn()).toBe(false)
+    // The first "Let in" turns the sign-in on (BTN-1656).
+    expect(await desk.admit(made.id)).toBe(true)
+    expect(book.signInOn()).toBe(true)
     // The link and a wrong claim give no token: only the claiming browser's secret does.
     expect((await desk.open(made.secret, undefined, STRANGER)).signedIn).toBeUndefined()
     expect((await desk.wait('not-the-claim', STRANGER.address)).view).toEqual({ state: 'gone' })

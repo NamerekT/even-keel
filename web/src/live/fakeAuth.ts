@@ -31,7 +31,10 @@ function startInvites(now: number): InviteView[] {
   ]
 }
 
-/** "Sign-in and devices" of `dev:fake`: three passkeys on two names and four devices, this browser one of them. */
+/**
+ * "Sign-in and devices" of `dev:fake`: three passkeys on two names and four devices, this browser one of them;
+ * `?signInOn` — an invitation turned the sign-in on already.
+ */
 function freshView(now: number): DevicesView {
   const at = (hoursAgo: number) => new Date(now - hoursAgo * HOUR_MS).toISOString()
   return {
@@ -49,6 +52,7 @@ function freshView(now: number): DevicesView {
     invites: startInvites(now),
     current: 'dev-phone',
     keySet: true,
+    signInOn: new URLSearchParams(location.search).has('signInOn'),
   }
 }
 
@@ -77,10 +81,14 @@ export function fakeAuthQuery(name: string, body: Record<string, unknown>, keySe
       const invite = current.invites.find((each) => each.id === body.id && each.opened !== null)
       if (invite?.opened == null) throw fail('auth.inviteGone', {})
       const device = { id: `dev-${now}`, device: invite.opened.device, createdAt: new Date(now).toISOString(), seenAt: null, seenFrom: invite.opened.from, byKey: false, passkeyHost: null, byInvite: true }
-      view = { ...current, devices: [...current.devices, device], invites: current.invites.filter((each) => each !== invite) }
+      view = { ...current, devices: [...current.devices, device], invites: current.invites.filter((each) => each !== invite), signInOn: true }
       changed()
       return { ok: true }
     }
+    case 'auth/sign-in/off':
+      if (keySet) throw fail('auth.signInKeepsKey', {})
+      view = { ...current, devices: [], current: null, signInOn: false }
+      return { ok: true }
     case 'auth/invites/decline':
     case 'auth/invites/cancel':
       if (!current.invites.some((each) => each.id === body.id)) throw fail('auth.inviteGone', {})

@@ -132,10 +132,24 @@ export class InviteDesk {
     return again === undefined ? { view: { state: 'gone' } } : this.answerOf(again, address)
   }
 
-  /** "Let in": the claiming browser gets its token at its next ask. */
-  async admit(id: string): Promise<void> {
+  /**
+   * "Let in": the claiming browser gets its token at its next ask, and the sign-in is on from now (BTN-1656). Whether
+   * this turned it on.
+   */
+  async admit(id: string): Promise<boolean> {
     const row = await this.decide(id, 'admitted', ['opened'])
     this.log(`access: ${row.opened_device} (${row.opened_from}) was let in by an invitation`)
+    const turned = await this.book.turnSignInOn()
+    if (turned) this.log('access: the sign-in is on: a proxy name asks for it from now')
+    return turned
+  }
+
+  /** Back to a hub without the key that asks nobody; every device is signed out. How many. */
+  async signInOff(): Promise<number> {
+    const count = await this.book.turnSignInOff()
+    this.log(`access: the sign-in was turned off and ${count} device(s) signed out`)
+    this.options.changed?.()
+    return count
   }
 
   async decline(id: string): Promise<void> {

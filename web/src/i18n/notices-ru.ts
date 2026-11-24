@@ -896,6 +896,7 @@ export const noticesRu: NoticeTexts = {
   'auth.inviteGone': () => 'Это приглашение больше не ждёт: оно истекло, его отменили или решили на другом устройстве',
   'auth.invitesFull': (p) => `Уже ждут ${p.count} приглашений: отмените одно или дождитесь, пока истечёт`,
   'auth.inviteSlowDown': () => 'Слишком много попыток с этого адреса: подождите минуту и откройте ссылку снова',
+  'auth.signInKeepsKey': () => 'Пока задан ключ владельца, вход не выключить: сначала уберите ключ',
   'config.modelPromptPlaceholder': (p) => `в modelPrompts.${p.model} подстановка ${p.placeholder}, а промт модели передаётся как есть`,
   'config.contextPercents': () => 'context.warn и context.danger должны быть процентами, 0 < warn < danger <= 100',
   'config.compareKey': (p) => `stats.compare.${p.key} — не настройка сравнения`,

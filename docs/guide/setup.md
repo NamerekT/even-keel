@@ -682,7 +682,7 @@ If using a reverse proxy, preserve these response headers. An already open tab r
 
 Two ways to reach it from elsewhere:
 
-- **A proxy on the same machine** (recommended). For example a Tailscale Service, `tailscale serve --service=svc:even-keel --https=443 http://localhost:4747`, which also gives the page HTTPS, so it can be installed as an app. The proxy forwards the name it was reached by, so put that name into `allowedHosts`: `"allowedHosts": ["even-keel.example.ts.net"]`. Set the owner key too (`EVEN_KEEL_TOKEN` in `.env`, below): then a request by the proxy's name is asked to sign in, though it comes from loopback. Without the key who gets in is decided by the proxy alone — the tailnet's access rules — and the settings say "Sign-in is not set up".
+- **A proxy on the same machine** (recommended). For example a Tailscale Service, `tailscale serve --service=svc:even-keel --https=443 http://localhost:4747`, which also gives the page HTTPS, so it can be installed as an app. The proxy forwards the name it was reached by, so put that name into `allowedHosts`: `"allowedHosts": ["even-keel.example.ts.net"]`. Then turn the sign-in on: invite your first device ([below](#signing-in-on-a-new-device)) or set the owner key (`EVEN_KEEL_TOKEN` in `.env`). From then a request by the proxy's name is asked to sign in, though it comes from loopback. Until then who gets in is decided by the proxy alone — the tailnet's access rules — and the settings say "Sign-in is not set up".
 - **Listening on the network.** Set `EVEN_KEEL_HOST` in `.env` to `0.0.0.0` or the machine's address, put the names or addresses you open it by into `allowedHosts` (the configured address itself is let in), and set `EVEN_KEEL_TOKEN` in `.env`. Without the key the service does not start. Plain HTTP shows the key to anyone on the way and has no passkeys, so prefer a proxy with HTTPS.
 
 #### Signing in
@@ -703,9 +703,11 @@ A new phone or laptop does not need the owner key: invite it from a device that 
 3. On the first device the window now says which device opened the link and shows its two digits. Press **Let in** only if they are the same as on the new device; otherwise **Decline**.
 4. The new device signs in and offers to add a passkey, so next time it needs nothing.
 
-A link lives 10 minutes and lets in one device: the first one to open it takes it, any other gets "already used". Closing the window does not cancel the invitation: it stays a row under "Devices" with **Let in**, **Decline** and **Cancel** until it is decided or expires, and any signed-in device can decide it. A browser that is signed in already does not take a link. Without the owner key there is no **Invite a device**: such a hub asks nobody to sign in.
+A link lives 10 minutes and lets in one device: the first one to open it takes it, any other gets "already used". Closing the window does not cancel the invitation: it stays a row under "Devices" with **Let in**, **Decline** and **Cancel** until it is decided or expires, and any signed-in device can decide it. A browser that is signed in already does not take a link.
 
-Requests by a loopback name — `localhost`, `127.0.0.1`, `[::1]` — go without a sign-in: the sessions' hooks reach the page so, and so does a browser on the machine itself. Any proxy or tunnel on the same machine that forwards a loopback name, or runs without the owner key, must control who can reach Even Keel itself.
+Invitations work without the owner key too. On such a hub the first **Let in** turns the sign-in on: from then the proxy's name asks every browser to sign in, and the device you pressed **Let in** on stays signed in. Signing devices out does not turn it off. To go back to a hub that asks nobody, press **Turn sign-in off** under "Sign-in by key": every device is signed out. Lost every device? Open the page by `localhost` on the hub itself, or set the owner key and sign in with it.
+
+Requests by a loopback name — `localhost`, `127.0.0.1`, `[::1]` — go without a sign-in: the sessions' hooks reach the page so, and so does a browser on the machine itself. Any proxy or tunnel on the same machine that forwards a loopback name, or runs before the sign-in is on, must control who can reach Even Keel itself.
 
 Once the forwarded name is accepted by the `Host` check, a public tunnel without its own authentication lets anyone who knows its address drive the page and start sessions with automatic permissions.
 

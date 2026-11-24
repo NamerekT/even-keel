@@ -412,4 +412,13 @@ export const STEPS: readonly string[] = [
   );
   alter table access_tokens add column invite_id text;
   `,
+  // A hub without the owner key asks for a sign-in by a proxy's name once a device was let in by an invitation
+  // (BTN-1656, `docs/web/sign-in.md`): one row with the time it was turned on; none — off. A mark of its own, not
+  // "a live token is there", so that signing every device out never opens the page again.
+  `
+  create table sign_in_on (
+    id    smallint primary key check (id = 1),
+    since text not null
+  );
+  `,
 ]

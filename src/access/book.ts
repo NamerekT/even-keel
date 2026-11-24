@@ -1,6 +1,6 @@
 import type { DeviceBook } from '../guard.js'
 import type { Db } from '../storage/database.js'
-import { ensureOwner, hashOf, issueToken, keyMarkOf, liveTokens, revokeToken, tokenSeen, type AccessToken } from './store.js'
+import { ensureOwner, hashOf, issueToken, keyMarkOf, liveTokens, revokeToken, signInOnSince, tokenSeen, turnSignInOff, turnSignInOn, type AccessToken } from './store.js'
 
 /** How often a token's `seen_at` and `seen_from` reach the database; the memory has them at once. */
 export const SEEN_WRITE_MS = 60_000
@@ -21,6 +21,8 @@ export class AccessBook implements DeviceBook {
   private readonly byHash = new Map<string, AccessToken>()
   private readonly written = new Map<string, number>()
   private pending: Promise<unknown> = Promise.resolve()
+  /** An invitation turned the sign-in on (`sign_in_on`): a hub without the key asks by a proxy's name too. */
+  private on = false
 
   private constructor(
     private readonly db: Db,
@@ -32,6 +34,7 @@ export class AccessBook implements DeviceBook {
     const owner = await ensureOwner(db)
     const book = new AccessBook(db, owner.id, options)
     for (const { token, secretHash } of await liveTokens(db)) book.byHash.set(secretHash, token)
+    book.on = (await signInOnSince(db)) !== null
     return book
   }
 
@@ -83,6 +86,25 @@ export class AccessBook implements DeviceBook {
   keyIs(key: string | null): Promise<number> {
     const mark = key === null ? null : keyMarkOf(key)
     return this.revokeWhere((token) => token.keyMark !== null && token.keyMark !== mark)
+  }
+
+  signInOn(): boolean {
+    return this.on
+  }
+
+  /** A device was let in by an invitation (BTN-1656): whether the sign-in was off until now. */
+  async turnSignInOn(): Promise<boolean> {
+    if (this.on) return false
+    await turnSignInOn(this.db, this.now())
+    this.on = true
+    return true
+  }
+
+  /** Back to a hub that asks nobody: every device is signed out, so a later invitation revives no old token; how many. */
+  async turnSignInOff(): Promise<number> {
+    await turnSignInOff(this.db)
+    this.on = false
+    return this.revokeWhere(() => true)
   }
 
   /** The writes in flight are done: for tests and the service's stop. */

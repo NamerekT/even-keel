@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server'
-import { AUTH_PREFIX, deviceCookie, hostnameOf, SIGNED_OUT_COOKIE, type Visitor } from '../guard.js'
+import { AUTH_PREFIX, deviceCookie, hostnameOf, isLoopbackHost, SIGNED_OUT_COOKIE, type Visitor } from '../guard.js'
 import { englishOf, fail, noticeOf } from '../notice/notice.js'
 import { readJsonBody, sendJson } from '../server-response.js'
 import type { AccessBook } from './book.js'
@@ -107,11 +107,21 @@ const SIGNED_IN: Record<string, Handler> = {
     sendJson(response, 200, { revoked: count })
   },
   'POST invites/create': async ({ access, response, visitor }) => {
-    if (access.key() === null) throw fail('auth.noKey', {})
     sendJson(response, 200, await access.invites.create(visitor.device?.id ?? null))
   },
-  'POST invites/admit': async ({ access, request, response }) => {
-    await access.invites.admit(await idOf(request))
+  'POST invites/admit': async ({ access, request, response, visitor, host }) => {
+    const turned = await access.invites.admit(await idOf(request))
+    // A hub without the key that asked nobody asks from now: the browser that let the device in, by a proxy's name, stays in.
+    if (turned && access.key() === null && visitor.device === undefined && !isLoopbackHost(host)) {
+      const { secret } = await access.book.signIn({ device: deviceNameOf(request.headers['user-agent']), address: visitor.address, keyMark: null })
+      response.setHeader('set-cookie', deviceCookie(secret))
+    }
+    sendJson(response, 200, { ok: true })
+  },
+  'POST sign-in/off': async ({ access, response }) => {
+    if (access.key() !== null) throw fail('auth.signInKeepsKey', {})
+    await access.invites.signInOff()
+    response.setHeader('set-cookie', SIGNED_OUT_COOKIE)
     sendJson(response, 200, { ok: true })
   },
   'POST invites/decline': async ({ access, request, response }) => {
@@ -180,7 +190,7 @@ async function devicesOf(access: AccessControl, visitor: Visitor): Promise<Devic
     passkeyHost: token.passkeyHost,
     byInvite: token.inviteId !== null,
   }))
-  return { passkeys, devices, invites: await access.invites.live(), current: visitor.device?.id ?? null, keySet: access.key() !== null }
+  return { passkeys, devices, invites: await access.invites.live(), current: visitor.device?.id ?? null, keySet: access.key() !== null, signInOn: access.book.signInOn() }
 }
 
 /** Over the rate limit: answered 429 here. */
