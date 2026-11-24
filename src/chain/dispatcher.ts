@@ -85,7 +85,7 @@ export class Dispatcher {
         if (chain !== undefined && this.settle(chain, task, 'its pull request is merged')) this.letGo(chain)
       },
       refilter: (project) => this.refilter(project),
-      working: (task) => this.cleanups.working(task),
+      working: (project, task) => this.cleanups.working(project, task),
       dropUnmerged: (project, task, pull) => this.cleanups.dropUnmerged(project, task, pull),
     })
     this.landings = new Landings(state, deps, this.handovers, { hold: (chain, error) => this.halt(chain, error, true), wake: () => this.kick() }, deps.landingWaitMs)
