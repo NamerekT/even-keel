@@ -70,8 +70,7 @@ export class Cleanups {
     await this.retrySyncs()
     for (const [project, done] of this.done) {
       for (const task of done) {
-        if (this.working(task)) continue
-        await this.closeUp(project, task)
+        if (this.working(project, task) || !(await this.closeUp(project, task))) continue
         this.keepReleased(project, this.released(project).filter((id) => id !== task))
         this.deps.save(this.state)
       }
@@ -80,17 +79,28 @@ export class Cleanups {
 
   /**
    * Whether a done task's session holds its cleanup: a session whose turn ended on a background command does not. A
-   * machine not read since the hub's start shows no session of the task, which is unknown, not idle (BTN-1610).
+   * machine not read since the hub's start shows no session of the task, which is unknown, not idle (BTN-1610), unless
+   * the machine was revoked: it never posts again, and its task's cleanup only lets go of it (BTN-1627).
    */
-  working(task: string): boolean {
-    if (!this.deps.machine.sessionsRead(task)) return true
+  working(project: string, task: string): boolean {
+    if (!this.deps.machine.sessionsRead(task)) return !this.revokedHolder(project, task)
     return this.deps.machine.busy(task) && !this.deps.machine.shell(task)
   }
 
-  /** Cleans up after a done task and, once main is pushed, awaits the CI's verdict on it. */
-  async closeUp(project: string, task: string): Promise<void> {
+  private revokedHolder(project: string, task: string): boolean {
+    const machines = this.deps.machines
+    const holder = machines?.holder(project, task)
+    return holder !== undefined && machines?.gone?.(holder) === true
+  }
+
+  /**
+   * Cleans up after a done task and, once main is pushed, awaits the CI's verdict on it. `false` — the task's machine is
+   * off the link (`machine.away`, BTN-1627): nothing was done, the cleanup is to be tried again once it is back.
+   */
+  async closeUp(project: string, task: string): Promise<boolean> {
     const tree = this.main?.reportedTree(project, task) ?? null
     const outcome = await this.cleanUp(project, task, this.reviews.cleanupOf(project, task))
+    if (outcome === 'away') return false
     this.reviews.closedUp(project, task)
     dropLanding(this.state, project, task)
     this.syncRetries.delete(retryKey(project, outcome.machine))
@@ -98,10 +108,11 @@ export class Cleanups {
       this.keepOutcome(project, task, { warnings: outcome.warnings, syncError: null })
       const machine = outcome.machine === undefined ? {} : { machine: outcome.machine }
       this.retrySync({ project, task, tree, tries: 0, due: 0, ...machine }, outcome.syncError)
-      return
+      return true
     }
     this.keepOutcome(project, task, outcome)
     if (outcome.syncError === null) await this.main?.pushed(project, task, tree, outcome)
+    return true
   }
 
   /** The machine of the retry is off the link now and not revoked: its tries wait for it. */
@@ -159,19 +170,30 @@ export class Cleanups {
     this.deps.log(`git: sync of ${retry.project} after ${retry.task} ${failed}, trying again in ${wait / 1000} s: ${englishOf(error)}`)
   }
 
-  /** A task whose pull request was closed unmerged: its place and branch go, main is not pushed, the task stays open. */
-  async dropUnmerged(project: string, task: string, pull: PullCleanup): Promise<void> {
-    this.keepOutcome(project, task, await this.cleanUp(project, task, pull))
+  /**
+   * A task whose pull request was closed unmerged: its place and branch go, main is not pushed, the task stays open.
+   * `false` — its machine is off the link, as `closeUp` says.
+   */
+  async dropUnmerged(project: string, task: string, pull: PullCleanup): Promise<boolean> {
+    const outcome = await this.cleanUp(project, task, pull)
+    if (outcome === 'away') return false
+    this.keepOutcome(project, task, outcome)
     this.keepReleased(project, this.released(project).filter((id) => id !== task))
+    return true
   }
 
-  private async cleanUp(project: string, task: string, pull?: PullCleanup): Promise<FinishOutcome> {
+  /** `away` — the task's machine is off the link and the cleanup waits for it (`machinePool.finish`, BTN-1627). */
+  private async cleanUp(project: string, task: string, pull?: PullCleanup): Promise<FinishOutcome | 'away'> {
+    let outcome: FinishOutcome
     try {
-      if (!isOwnName(task) && pull?.unmerged !== true) this.deps.archiveClosed?.(project, task)
-      return await (pull === undefined ? this.deps.machine.finish(project, task) : this.deps.machine.finish(project, task, pull))
+      outcome = await (pull === undefined ? this.deps.machine.finish(project, task) : this.deps.machine.finish(project, task, pull))
     } catch (error) {
-      return { warnings: [notice('cleanup.failed', {}, { cause: noticeOf(error) })], syncError: null }
+      const failure = noticeOf(error)
+      if (failure.code === 'machine.away') return 'away'
+      outcome = { warnings: [notice('cleanup.failed', {}, { cause: failure })], syncError: null }
     }
+    if (!isOwnName(task) && pull?.unmerged !== true) this.deps.archiveClosed?.(project, task)
+    return outcome
   }
 
   private keepOutcome(project: string, task: string, outcome: FinishOutcome): void {
@@ -193,15 +215,11 @@ export class Cleanups {
       this.deps.save(this.state)
       return true
     }
-    if (this.working(task)) {
-      if (!quietTooLong()) return false
-      delete chain.closing
+    if (this.working(chain.project, task) && !quietTooLong()) return false
+    if (this.working(chain.project, task) || !(await this.closeUp(chain.project, task))) {
       const released = (this.state.released[chain.project] ??= [])
       if (!released.includes(task)) released.push(task)
-      this.deps.save(this.state)
-      return true
     }
-    await this.closeUp(chain.project, task)
     delete chain.closing
     this.deps.save(this.state)
     return true

@@ -20,9 +20,12 @@ export interface ReviewHost {
   /** The project's tasks go through the chain's filter again: a task with a pull request leaves the chain or comes back. */
   refilter(project: string): void
   /** Whether the task's session works on, which holds its cleanup. */
-  working(task: string): boolean
-  /** Cleans up after a task whose pull request was closed unmerged and keeps the warnings. */
-  dropUnmerged(project: string, task: string, pull: PullCleanup): Promise<void>
+  working(project: string, task: string): boolean
+  /**
+   * Cleans up after a task whose pull request was closed unmerged and keeps the warnings; `false` — its machine is off
+   * the link, the cleanup waits for it (BTN-1627).
+   */
+  dropUnmerged(project: string, task: string, pull: PullCleanup): Promise<boolean>
 }
 
 interface Polled {
@@ -329,8 +332,8 @@ export class Reviews {
     for (const [project, pulls] of Object.entries(this.state.reviews)) {
       for (const pull of pulls.filter((each) => each.closed === 'unmerged' && each.cleaned !== true)) {
         const led = this.state.active.some((chain) => chain.project === project && chain.current?.task === pull.task)
-        if (led || this.host.working(pull.task)) continue
-        await this.host.dropUnmerged(project, pull.task, { force: true, remote: pull.remote, unmerged: true })
+        if (led || this.host.working(project, pull.task)) continue
+        if (!(await this.host.dropUnmerged(project, pull.task, { force: true, remote: pull.remote, unmerged: true }))) continue
         if (pull.closedNote === undefined) this.drop(project, pull.task)
         else pull.cleaned = true
         const skipped = (this.state.skipped[project] ??= [])

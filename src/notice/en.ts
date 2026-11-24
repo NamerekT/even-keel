@@ -142,6 +142,7 @@ export const en = {
 
   'cleanup.failed': () => 'cleanup failed',
   'cleanup.syncFailed': () => 'sync of the main branch failed',
+  'cleanup.machineGone': () => "the task's machine was revoked: its worktree and branch stayed there, nothing was cleaned up",
   'cleanup.folderLeft': (p: ShownPath) => `the worktree folder ${p.path} was left behind, a process still holds it`,
   'cleanup.folderNotDeleted': (p: ShownPath) => `the worktree folder ${p.path} was left behind: it could not be deleted`,
   'cleanup.worktreeKept': (p: ShownPath) => `the worktree ${p.path} was kept`,

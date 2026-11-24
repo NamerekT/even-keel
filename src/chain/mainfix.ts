@@ -17,7 +17,8 @@ export interface FixHost {
   take(chain: ActiveChain, current: CurrentTask): void
   /** Remembers a task the chain no longer leads, for the cleanup once it is done. */
   release(project: string, task: string): void
-  closeUp(project: string, task: string): Promise<void>
+  /** `false` — the task's machine is off the link: nothing was cleaned up, the fix waits for it (BTN-1627). */
+  closeUp(project: string, task: string): Promise<boolean>
   handOver(project: string, task: string, session: HandoffSession, reason: HandoffReason, extra: string): Promise<string>
   /** Whether the launch waits for the CI's verdict on main. */
   heldByMain(chain: ActiveChain, task: string): boolean
@@ -138,7 +139,7 @@ export class MainFix {
     if (fix !== undefined && fix.task === current.task) {
       const working = this.deps.machine.busy(current.task) && !this.deps.machine.shell(current.task)
       if (working || !(await this.main.merged(project, fix.task))) return false
-      await this.host.closeUp(project, fix.task)
+      if (!(await this.host.closeUp(project, fix.task))) return false
       forgetSkipped(this.state, project, fix.task)
       const head = this.main.fixLanded(project)
       if (chain.interrupted !== undefined && head !== null) chain.interrupted.fixed = head
@@ -170,7 +171,7 @@ export class MainFix {
       }
       return false
     }
-    await this.host.closeUp(project, fix.task)
+    if (!(await this.host.closeUp(project, fix.task))) return false
     forgetSkipped(this.state, project, fix.task)
     if (chain.interrupted !== undefined) chain.interrupted.fixed = green
     this.ended(chain, 'unneeded', green)

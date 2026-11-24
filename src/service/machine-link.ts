@@ -498,6 +498,11 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     own: () => own,
     port: (machine) => (machine === own ? ownPort : network.port(machine)),
     machineOf: (project, task) => assignments.machineOf(project, task),
+    gone: (machine) => network.revoked(machine),
+    release: (project, task) => {
+      assignments.release(project, task)
+      moves.drop(project, task)
+    },
     projectOf: ctx.projectOf,
     sessionMachine,
     folderMachine: (folder) => (remote.page.sessions().some((view) => samePath(view.cwd, folder)) ? own : network.folderHolder(folder)),

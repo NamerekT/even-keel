@@ -10,7 +10,7 @@ export class MainCarry {
   constructor(
     private readonly state: ChainState,
     private readonly deps: DispatcherDeps,
-    private readonly host: { closeUp(project: string, task: string): Promise<void> },
+    private readonly host: { closeUp(project: string, task: string): Promise<boolean> },
   ) {}
 
   /** The carry the project's chain is to run, asked first. */
