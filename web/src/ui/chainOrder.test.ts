@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { ChainBlock } from '../state.js'
 import { pinnedHead, withOrder } from './chainOrder.js'
 import { reorderable } from '../pages/useChainDrag.js'
+import { moveItem } from './drag.js'
+import { clampDrop, dropBounds } from './reorder.js'
 
 const block = (id: string, extra: Partial<ChainBlock> = {}): ChainBlock =>
   ({ id, open: true, locked: false, blockedBy: [], after: [], current: false, ...extra }) as ChainBlock
@@ -51,6 +53,28 @@ describe('pinnedHead', () => {
 
   it('pins nothing when the first task is neither', () => {
     expect(pinnedHead([block('A-2'), block('A-3')])).toBe(0)
+  })
+
+  it('pins every running lane as one group (BTN-1611)', () => {
+    expect(pinnedHead([block('A-2', { current: true }), block('A-3', { current: true }), block('A-4')])).toBe(2)
+    expect(pinnedHead([block('A-2', { current: true }), block('A-3', { current: true }), block('A-4', { current: true }), block('A-5')])).toBe(3)
+  })
+
+  it('counts a lane whose task a fix interrupted among the running ones', () => {
+    expect(pinnedHead([block('A-2', { current: true }), block('A-3', { interrupted: true }), block('A-4')])).toBe(2)
+  })
+})
+
+describe('a drop above the running lanes (BTN-1611)', () => {
+  it('lands right after the last running task', () => {
+    const chain = [block('A-1', { open: false }), block('A-2', { current: true }), block('A-3', { current: true }), block('A-4'), block('A-5')]
+    const open = chain.filter((each) => each.open)
+    const order = ids(open)
+    const from = order.indexOf('A-5')
+    const bounds = dropBounds(order, new Map(open.map((each) => [each.id, each.after])), from, pinnedHead(open))
+    expect(bounds.min).toBe(2)
+    const to = clampDrop(bounds, 1, from)
+    expect(ids(withOrder(chain, moveItem(order, from, to)))).toEqual(['A-1', 'A-2', 'A-3', 'A-5', 'A-4'])
   })
 })
 

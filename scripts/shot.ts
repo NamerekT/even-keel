@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 import { chromium, type Browser, type Page } from 'playwright'
 import { createServer, type ViteDevServer } from 'vite'
 
-interface Step { kind: 'click' | 'context' | 'hover' | 'press' | 'fill' | 'upload' | 'wait' | 'wheel'; arg: string }
+interface Step { kind: 'click' | 'context' | 'hover' | 'press' | 'fill' | 'upload' | 'wait' | 'wheel' | 'drag'; arg: string }
 
 interface Audit { box: string; spill: string[]; cut: string[]; overlap: string[]; double: string[] }
 
@@ -79,7 +79,7 @@ function parse(args: string[]): Options {
     else if (arg === '--settle') options.settle = Number(value())
     else if (arg === '--limit') options.limit = Number(value())
     else if (arg === '--eval') options.evals.push(value())
-    else if (['--click', '--context', '--hover', '--press', '--fill', '--upload', '--wait', '--wheel'].includes(arg)) {
+    else if (['--click', '--context', '--hover', '--press', '--fill', '--upload', '--wait', '--wheel', '--drag'].includes(arg)) {
       options.steps.push({ kind: arg.slice(2) as Step['kind'], arg: value() })
     } else if (arg.startsWith('--')) throw new Error(`unknown option ${arg}`)
     else if (/^[?/#]/.test(arg) && options.selectors.length === 0 && options.route === '/') options.route = arg
@@ -131,6 +131,9 @@ async function run(page: Page, step: Step): Promise<void> {
     if (at < 0) throw new Error('--upload is SELECTOR=PATH[,PATH…]')
     const files = step.arg.slice(at + 1).split(',').map((path) => join(ROOT, path))
     await page.locator(step.arg.slice(0, at)).first().setInputFiles(files)
+  } else if (step.kind === 'drag') {
+    await page.locator(step.arg).first().hover()
+    await page.mouse.down()
   } else if (/^\d+$/.test(step.arg)) await page.waitForTimeout(Number(step.arg))
   else await page.locator(step.arg).first().waitFor()
 }

@@ -66,6 +66,20 @@ describe('Dispatcher with machines (BTN-993)', () => {
     expect(run.log).toContain('chain: a second lane of ABC on machine pc ends: a machine runs one task of a project at a time')
   })
 
+  it('refuses an order that puts a task between or above the running lanes (BTN-1611)', async () => {
+    const { machines } = fakeMachines({ pc: 1, server: 1 }, { width: { ABC: 2 } })
+    const run = setup({ machines })
+    run.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3'), task('ABC-4')])
+    await run.dispatcher.start('ABC')
+    await run.dispatcher.idle()
+    expect(lanesOf(run)).toEqual([['pc', 'ABC-1'], ['server', 'ABC-2']])
+
+    expect(() => run.dispatcher.reorder('ABC', ['ABC-1', 'ABC-4', 'ABC-2', 'ABC-3'])).toThrow('ABC-2 is running and stays first')
+    expect(() => run.dispatcher.reorder('ABC', ['ABC-4', 'ABC-1', 'ABC-2', 'ABC-3'])).toThrow('ABC-1 is running and stays first')
+    run.dispatcher.reorder('ABC', ['ABC-2', 'ABC-1', 'ABC-4', 'ABC-3'])
+    expect(run.dispatcher.state.orders.ABC).toEqual(['ABC-2', 'ABC-1', 'ABC-4', 'ABC-3'])
+  })
+
   it('hands the next task to the machine with a free place', async () => {
     const { machines, bound } = fakeMachines({ pc: 1, server: 1 }, { width: { ABC: 2 } })
     const run = setup({ machines })

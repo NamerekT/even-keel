@@ -124,7 +124,11 @@ export class Dispatcher {
     })
     this.arrange = new Arrangement(state, deps, this.lists, this.fixes, this.carries, {
       chainOf: (project, task) => this.chainOf(project, task),
-      currentOf: (project) => this.currentOf(project),
+      runningOf: (project) =>
+        lanesOf(this.state, project).flatMap(({ current, interrupted }) => {
+          const task = current?.task === undefined || isOwnName(current.task) ? interrupted?.task : current.task
+          return task === undefined ? [] : [task]
+        }),
       requireProject: (project) => this.requireProject(project),
       release: (chain, reason, blockers) => this.release(chain, reason, blockers),
       changed: () => this.changed(),

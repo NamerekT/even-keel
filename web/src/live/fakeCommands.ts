@@ -195,13 +195,17 @@ function requeue(state: EvenKeelState, order: string[]): EvenKeelState {
 function reorder(state: EvenKeelState, project: string, order: string[]): EvenKeelState {
   const tasks = state.tasks.filter((task) => task.id.startsWith(`${project}-`) && order.includes(task.id))
   checkOrder(tasks, order)
-  // As the dispatcher's `currentOf`: while a fix or a carry runs, the task it interrupted stays first.
-  const chain = chainIn(state, project)
-  const running = chain?.current?.task
-  const current = running === undefined || isOwnName(running) ? chain?.interrupted?.task : running
+  // As the dispatcher's `runningOf`: every lane's task leads, and while a fix or a carry runs, the task it interrupted.
+  const running = state.chain.active
+    .filter((chain) => chain.project === project)
+    .flatMap(({ current, interrupted }) => {
+      const task = current?.task === undefined || isOwnName(current.task) ? interrupted?.task : current.task
+      return task === undefined ? [] : [task]
+    })
   const kept = state.chain.projects[project] ?? { waiting: [], backlog: [] }
-  const holding = [...(state.chain.skipped[project] ?? []), ...kept.waiting]
-  if (current !== undefined && startsAhead(tasks, order, current, holding)) throw fail('chain.currentFirst', { task: current })
+  const holding = [...(state.chain.skipped[project] ?? []), ...kept.waiting, ...running]
+  const ahead = running.find((current) => startsAhead(tasks, order, current, holding))
+  if (ahead !== undefined) throw fail('chain.currentFirst', { task: ahead })
   return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { ...kept, order: [...order], error: null } } } }
 }
 
