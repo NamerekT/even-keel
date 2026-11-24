@@ -163,10 +163,13 @@ async function realSignIn(): Promise<SignInProps | null> {
   const state = (await response.json()) as AuthState
   if (state.signedIn) return null
   const post: AuthPost = async <T,>(name: string, body: object) => (await sendQuery(name, body)) as T
-  return { keySet: state.keySet, post, entered: () => location.reload() }
+  return { keySet: state.keySet, passkeyHere: state.passkeyHere, post, entered: () => location.reload() }
 }
 
-/** `dev:fake` shows the screen on `?signIn` (`?signIn=nokey` — no owner key on the hub); signing in drops the parameter. */
+/**
+ * `dev:fake` shows the screen on `?signIn` (`?signIn=nokey` — no owner key on the hub, `?signIn=nopasskey` — no passkey
+ * made on this name); signing in drops the parameter.
+ */
 async function fakeSignIn(): Promise<SignInProps | null> {
   const search = new URLSearchParams(location.search)
   if (!search.has('signIn')) return null
@@ -176,9 +179,10 @@ async function fakeSignIn(): Promise<SignInProps | null> {
     return fakeSignInPost(name, body as Record<string, unknown>) as T
   }
   const keySet = search.get('signIn') !== 'nokey'
+  const passkeyHere = search.get('signIn') !== 'nopasskey'
   search.delete('signIn')
   const rest = search.toString()
-  return { keySet, post, entered: () => location.replace(`${location.pathname}${rest === '' ? '' : `?${rest}`}`) }
+  return { keySet, passkeyHere, post, entered: () => location.replace(`${location.pathname}${rest === '' ? '' : `?${rest}`}`) }
 }
 
 watchTheme()

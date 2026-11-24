@@ -385,4 +385,9 @@ export const STEPS: readonly string[] = [
   `
   alter table access_tokens add column key_mark text;
   `,
+  // A device token signed in with a passkey keeps the host name the passkey was made on (BTN-1631, `docs/storage.md`):
+  // the devices list tells two browsers of one kind apart by it; null — the key's sign-in, and every token before the step.
+  `
+  alter table access_tokens add column passkey_host text;
+  `,
 ]

@@ -66,7 +66,7 @@ describe('the sign-in through a proxy on this machine', () => {
   it('asks a request by the proxy name to sign in, lets a loopback name through', async () => {
     const { send } = await hubOf()
     expect((await send('/api/state')).status).toBe(401)
-    expect(JSON.parse((await send('/api/auth/state')).body)).toEqual({ signedIn: false, keySet: true, device: null })
+    expect(JSON.parse((await send('/api/auth/state')).body)).toEqual({ signedIn: false, keySet: true, passkeyHere: false, device: null })
     expect((await send('/api/state', { host: '127.0.0.1' })).status).toBe(200)
   })
 
@@ -88,6 +88,8 @@ describe('the sign-in through a proxy on this machine', () => {
     const creation = JSON.parse((await send('/api/auth/passkey/register/options', { cookie, body: {} })).body)
     expect(creation.rp.id).toBe(HOST)
     expect((await send('/api/auth/passkey/register', { cookie, body: { response: authenticator.create(creation, ORIGIN) } })).status).toBe(200)
+    expect(JSON.parse((await send('/api/auth/state')).body).passkeyHere).toBe(true)
+    expect(JSON.parse((await send('/api/auth/state', { host: 'localhost' })).body).passkeyHere).toBe(false)
 
     const request = JSON.parse((await send('/api/auth/passkey/options', { body: {} })).body)
     const signedIn = await send('/api/auth/passkey', { body: { response: authenticator.get(request, ORIGIN) } })
@@ -95,7 +97,10 @@ describe('the sign-in through a proxy on this machine', () => {
     const passkeyCookie = cookieOf(signedIn)
     const view = JSON.parse((await send('/api/auth/devices', { cookie: passkeyCookie, body: {} })).body) as DevicesView
     expect(view.passkeys).toMatchObject([{ host: HOST, name: 'Safari on iPhone' }])
-    expect(view.devices.map((each) => each.byKey)).toEqual([true, false])
+    expect(view.devices.map((each) => [each.byKey, each.passkeyHost])).toEqual([
+      [true, null],
+      [false, HOST],
+    ])
   })
 
   it('refuses the passkey routes that add one before a sign-in', async () => {

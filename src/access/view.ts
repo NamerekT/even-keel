@@ -5,6 +5,8 @@ export interface AuthState {
   signedIn: boolean
   /** `EVEN_KEEL_TOKEN` is set: without it only loopback names reach the page. */
   keySet: boolean
+  /** The hub has a passkey made on the host name of this request: without one the screen offers no passkey button. */
+  passkeyHere: boolean
   /** This browser's sign-in; `null` — none (this machine by a loopback name, or not signed in). */
   device: string | null
 }
@@ -26,6 +28,8 @@ export interface DeviceView {
   seenFrom: string | null
   /** Signed in with the owner key: changing the key signs it out. */
   byKey: boolean
+  /** The host name of the passkey it signed in with; `null` — by key, or signed in before it was kept. */
+  passkeyHost: string | null
 }
 
 /** `GET /api/auth/devices`: the "Sign-in and devices" settings. */

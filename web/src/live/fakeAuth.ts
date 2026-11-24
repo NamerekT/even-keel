@@ -6,17 +6,19 @@ export const FAKE_OWNER_KEY = 'owner-key'
 
 const HOUR_MS = 60 * 60 * 1000
 
-/** "Sign-in and devices" of `dev:fake`: two passkeys and two devices, this browser one of them. */
+/** "Sign-in and devices" of `dev:fake`: three passkeys on two names and three devices, this browser one of them. */
 function freshView(now: number): DevicesView {
   const at = (hoursAgo: number) => new Date(now - hoursAgo * HOUR_MS).toISOString()
   return {
     passkeys: [
       { id: 'pk-phone', name: 'Safari on iPhone', host: 'hub.example.ts.net', createdAt: at(30), usedAt: at(0.1) },
       { id: 'pk-office', name: 'Chrome on Windows', host: 'hub.example.ts.net', createdAt: at(28), usedAt: at(2) },
+      { id: 'pk-local', name: 'Chrome on Windows', host: 'localhost', createdAt: at(26), usedAt: null },
     ],
     devices: [
-      { id: 'dev-phone', device: 'Safari on iPhone', createdAt: at(30), seenAt: at(0), seenFrom: '100.64.0.12', byKey: false },
-      { id: 'dev-office', device: 'Chrome on Windows', createdAt: at(28), seenAt: at(2), seenFrom: '100.64.0.7', byKey: true },
+      { id: 'dev-phone', device: 'Safari on iPhone', createdAt: at(30), seenAt: at(0), seenFrom: '100.64.0.12', byKey: false, passkeyHost: 'hub.example.ts.net' },
+      { id: 'dev-office', device: 'Chrome on Windows', createdAt: at(28), seenAt: at(2), seenFrom: '100.64.0.7', byKey: true, passkeyHost: null },
+      { id: 'dev-local', device: 'Chrome on Windows', createdAt: at(26), seenAt: at(5), seenFrom: '172.17.0.1', byKey: false, passkeyHost: 'localhost' },
     ],
     current: 'dev-phone',
     keySet: true,

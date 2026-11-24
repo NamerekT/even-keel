@@ -4,6 +4,7 @@ export const signInRu = {
   passkeyWaiting: 'Ждём passkey…',
   noPasskeyHere:
     'Passkey работает только в защищённом контексте — по HTTPS или на localhost. Здесь страница открыта по голому http, так что вход только ключом.',
+  noPasskeyOnName: 'На этом адресе passkey ещё нет: войдите ключом, и страница предложит его добавить.',
   or: 'или',
   key: 'Ключ владельца',
   keyHint: 'EVEN_KEEL_TOKEN в .env хаба. Кто может открыть этот файл на сервере, тот всегда войдёт: потерял все passkey — вошёл ключом и добавил новый.',
@@ -26,6 +27,7 @@ export const signInRu = {
   thisDevice: 'это устройство',
   byKey: 'ключом',
   byPasskey: 'passkey',
+  byPasskeyAt: (host: string) => `passkey на ${host}`,
   signOut: 'Выйти',
   signOutOthers: 'Выйти на всех, кроме этого',
   ownerKey: 'Вход ключом',
