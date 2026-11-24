@@ -293,7 +293,7 @@ export function Section({
   aside?: ReactNode
   danger?: boolean
   className?: string
-  children: ReactNode
+  children?: ReactNode
 }) {
   const id = useId()
   return (

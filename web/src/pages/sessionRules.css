@@ -16,6 +16,9 @@
 }
 
 .gets__fact dt {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-6);
   color: var(--fg-muted);
 }
 
@@ -33,7 +36,8 @@
   overflow-wrap: anywhere;
 }
 
-.gets__note {
+.gets__state {
+  margin: 0;
   color: var(--fg-muted);
   font-size: var(--text-13);
 }

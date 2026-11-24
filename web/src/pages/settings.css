@@ -86,7 +86,9 @@
   font-weight: 400;
 }
 
-.settings__hint {
+.feeds__empty,
+.standards__empty,
+.pull__state {
   color: var(--fg-muted);
   font-size: var(--text-13);
 }

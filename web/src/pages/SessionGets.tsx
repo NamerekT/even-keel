@@ -5,6 +5,7 @@ import type { PackagesView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { useToolsViews, type Loaded } from '../tools/useToolsViews.js'
 import { Loading } from '../ui/Loader.js'
+import { HelpTip } from './settingsParts.js'
 import { sessionGets } from './sessionRules.js'
 import { providerName } from './settingsRun.js'
 import './sessionRules.css'
@@ -55,7 +56,7 @@ function Gets({
   standards: string[]
 }) {
   const rules = loaded.state === 'ready' ? (loaded.view?.rules ?? null) : null
-  if (rules === null) return <p className="settings__hint">{t.settings.gets.unknown}</p>
+  if (rules === null) return <p className="gets__state">{t.settings.gets.unknown}</p>
   const gets = sessionGets(agent, rules, prompts, packages, project)
   const text = t.settings.gets
   const presence = (on: boolean) => (on ? text.present : text.absent)
@@ -65,32 +66,25 @@ function Gets({
     <div className="gets">
       {gets.none && <p className="notice notice--warn">{text.none}</p>}
       <dl className="gets__list">
-        <Fact label={text.instructions}>
+        <Fact
+          label={text.instructions}
+          tips={[gets.passed && text.passed, gets.files.length > 1 && text.together, gets.unread.length > 0 && text.unread(gets.unread.join(', '))]}
+        >
           {names(gets.files, text.noFile)}
-          {gets.passed && <span className="gets__note">{text.passed}</span>}
-          {gets.files.length > 1 && <span className="gets__note">{text.together}</span>}
-          {gets.unread.length > 0 && <span className="gets__note">{text.unread(gets.unread.join(', '))}</span>}
         </Fact>
         <Fact label={text.sharedPrompt}>{presence(gets.prompts.shared)}</Fact>
         <Fact label={text.projectPrompt}>{presence(gets.prompts.project)}</Fact>
-        <Fact label={text.skills}>
+        <Fact label={text.skills} tips={gets.missed.map((each) => text.missed(each.names.join(', '), each.folder))}>
           {names(gets.skills, text.absent)}
-          {gets.missed.map((each) => (
-            <span key={each.folder} className="gets__note">
-              {text.missed(each.names.join(', '), each.folder)}
-            </span>
-          ))}
         </Fact>
-        <Fact label={text.packages}>
+        <Fact label={text.packages} tips={[gets.packages.some((each) => !each.hooks) && text.noHooks]}>
           {names(
             gets.packages.map((each) => each.name),
             text.absent,
           )}
-          {gets.packages.some((each) => !each.hooks) && <span className="gets__note">{text.noHooks}</span>}
         </Fact>
-        <Fact label={text.standards}>
+        <Fact label={text.standards} tips={[standards.length > 0 && text.standardsHow]}>
           {names(standards, text.absent)}
-          {standards.length > 0 && <span className="gets__note">{text.standardsHow}</span>}
         </Fact>
       </dl>
       <AllAgents />
@@ -98,10 +92,15 @@ function Gets({
   )
 }
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+/** A fact of what the session gets; what is worth knowing about it stands in the "?" of its own row. */
+function Fact({ label, tips = [], children }: { label: string; tips?: (string | false)[]; children: ReactNode }) {
+  const lines = tips.filter((each): each is string => each !== false)
   return (
     <div className="gets__fact">
-      <dt>{label}</dt>
+      <dt>
+        {label}
+        {lines.length > 0 && <HelpTip text={lines.join('\n')} lines />}
+      </dt>
       <dd>{children}</dd>
     </div>
   )

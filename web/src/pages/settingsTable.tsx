@@ -210,7 +210,7 @@ export function RowsTable({
                 </td>
               </tr>
               {rowNote !== undefined && (
-                <tr className="rows__note">
+                <tr className="rows__state">
                   <td colSpan={columns.length + 1}>{rowNote(row)}</td>
                 </tr>
               )}

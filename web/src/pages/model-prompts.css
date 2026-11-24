@@ -1,4 +1,4 @@
-.rows__note > td {
+.rows__state > td {
   padding: var(--space-8) var(--space-12);
   background: var(--surface-muted);
 }
