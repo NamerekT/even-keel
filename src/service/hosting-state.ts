@@ -166,7 +166,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
       task,
       notice: ctx.noAccountFor(task, fallback, runSettings(ctx.configStore.current, project).provider),
     })),
-    mailbox: machine.mailbox(),
+    mailbox: ctx.machineLink.sessions.mailbox(),
     changelogs: ctx.changelogs.writtenTasks(),
     forwards: ctx.forwards.view(),
     eventLog: [...ctx.eventLog.entries],

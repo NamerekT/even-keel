@@ -39,7 +39,7 @@ import { ownMachine } from '../machine/own.js'
 import { folderMarks } from '../machine/marks.js'
 import type { FolderOwner, MachineEnd } from '../link/machine.js'
 import type { HubBuild, MachineProjectSettings } from '../link/view.js'
-import { allSessions, type PageReads, type SessionReads } from '../machine/page.js'
+import { allSessions, withHubMail, type PageReads, type SessionReads } from '../machine/page.js'
 import type { MachinePort } from '../machine/port.js'
 import { RemoteMachine } from '../machine/remote.js'
 import { machinePool } from '../machine/pool.js'
@@ -60,7 +60,8 @@ import { loadMail } from '../sessions/mailbox.js'
 import { MAX_KEEP_WARM_HOURS } from '../sessions/keepwarm.js'
 import { readWarmPings } from '../sessions/warm-pings.js'
 import { adoptMail } from '../sessions/mailbox-store.js'
-import type { MachineServices, TranscriptReads } from '../machine/services.js'
+import type { MachineChat, MachineServices, TranscriptReads } from '../machine/services.js'
+import { elsewhereChat } from '../sessions/chat.js'
 import { BriefSender, hubBrief } from './hub-brief.js'
 import type { MachineContext } from './machine-context.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
@@ -99,8 +100,16 @@ export interface LinkedMachine {
   records: MachineRecords
   /** What the page and the chat read of the machine's sessions and accounts: its mirror, never the machine's objects. */
   page: PageReads
-  /** The sessions of every machine's mirror, the own one's first: the page's state of the tasks' sessions (BTN-1314). */
+  /**
+   * The sessions of every machine's mirror, the own one's first: the page's state of the tasks' sessions (BTN-1314)
+   * and the chat's, the mailbox of a session elsewhere with the hub's own laid over (`withHubMail`, BTN-1633).
+   */
   sessions: SessionReads
+  /**
+   * The chat's commands for a session (BTN-1633): one elsewhere on the link steers, takes the inbox and the files on its
+   * machine, its mailbox is the hub's (`elsewhereChat`); any other the own machine's.
+   */
+  chatOf(sessionId: string): MachineChat
   /** The hub's mirror of a machine, the own one too; `undefined` — one elsewhere that has not posted a snapshot since the hub started. */
   mirror(machine: string): RemoteMachine | undefined
   /** The own machine's id; empty until `wireLinkedMachine` read its token. */
@@ -487,6 +496,11 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     const launch = ctx.launches.findLast((entry) => entry.sessionId === sessionId)
     return launch === undefined ? undefined : assignments.machineOf(launch.project, launch.task)
   }
+  const sessions = allSessions(() => [remote.page, ...network.pages()])
+  const elsewhereSessions = (): string[] => {
+    const here = new Set(remote.page.sessions().map((view) => view.sessionId))
+    return network.pages().flatMap((page) => page.sessions().map((view) => view.sessionId)).filter((sessionId) => !here.has(sessionId))
+  }
   const transcripts = sessionTranscripts({
     own: () => own,
     sessionMachine,
@@ -563,7 +577,12 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     reassigner,
     records,
     page: remote.page,
-    sessions: allSessions(() => [remote.page, ...network.pages()]),
+    sessions: { ...sessions, mailbox: () => withHubMail(sessions.mailbox(), elsewhereSessions(), ctx.mailRelay.mailbox) },
+    chatOf: (sessionId) => {
+      const machine = sessionMachine(sessionId)
+      const there = machine === undefined || machine === own || !network.connected(machine) ? undefined : network.remote(machine)?.services().chat
+      return there === undefined ? services.chat : elsewhereChat(services.chat, there)
+    },
     mirror: (machine) => (machine === own ? remote : network.remote(machine)),
     own: () => own,
     inPool: (machine, project) => hubMcp.inPool(machine, project),

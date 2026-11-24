@@ -458,3 +458,11 @@ To check, on the benches: a project of the bench hub with machine-1 in its pool 
 Assumed: Tally's read and the context read through the machine's link are what kept the answer late, and nothing else on the route takes over a second. If not, the machine's log keeps lines for `/checkpoint`, now with "no answer from the hub in 1800 ms".
 
 To check, once the hub and the machine run this version: the machine's log through an hour of a working session has no `did not get through` line for `/checkpoint` outside the hub's restarts.
+
+## A chat message mid-turn to a session elsewhere (BTN-1633)
+
+`docs/machines.md`, "The mirror" (the chat paragraph). The page's mailbox and a reply's `listens`, steering and live view read the session's machine's mirror, the hub's own mailbox laid over it; a reply's steer, inbox and files go to that machine, its mailbox rows stay on the hub, whose page its hooks ask. Unit tests (`src/machine/page.test.ts`, `src/chain/answer-inbox.test.ts`) and one end-to-end case (`src/e2e/elsewhere.test.ts`: a message mid-turn reaches the mail hook) cover it; the scripted agent has no inbox socket.
+
+Assumed: a real Claude session on a machine elsewhere with `agent-bridge` 1.8.0 has its field open mid-turn and takes the message through its inbox socket on that machine at once, the row `delivered` with `inbox`; a session without an inbox takes it at its next tool call through the hooks, and one that ends its turn first gets it by a resume, not back in the chat as "gone". If not, the field stays shut or the message comes back.
+
+To check, on the benches: a task of the bench hub's project run on machine-1; mid-turn, write in its chat and see the session act on it within seconds and the row marked delivered; then the same with a long command running, and once more right before the turn ends.
