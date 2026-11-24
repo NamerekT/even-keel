@@ -44,7 +44,9 @@ The owner key is `EVEN_KEEL_TOKEN` in the hub's `.env` (the "Owner key" row of t
 
 ## Revoking
 
-`AccessBook` keeps the live tokens in memory, so the guard stays synchronous, and writes every change through. A revoke — "Sign out" of a device, "Sign out everywhere but here", a new key, a sign-in over an old token — closes the open event streams of those devices (`EventHub.closeTagged`, each stream tagged by its device's token id): the page reconnects, gets 401 and loads the sign-in screen.
+`AccessBook` keeps the live tokens in memory, so the guard stays synchronous, and writes every change through. A revoke — "Sign out" of a device, "Sign out everywhere but here", a new key, a sign-in over an old token — closes the open event streams of those devices (`EventHub.closeTagged`, each stream tagged by its device's token id), and the page loads the sign-in screen.
+
+A stream the service ended after its 200 is reopened by the browser itself, and EventSource never says why a stream failed, so the page does not wait for a refused reconnect: on every failed stream, whether the browser retries or gave up, and each time the tab comes back into view (`visibilitychange`, where Safari may hold a dead stream with no error yet) `LiveConnection` asks `GET /api/auth/state` (BTN-1629). A 401 (a hub without sign-ins whose token changed) or `signedIn: false` stops the connection and reloads the page into the sign-in screen; a failed request or another status is a lost link, and the reconnecting banner stays. One question is in flight at a time.
 
 ## dev:fake
 
