@@ -9,8 +9,8 @@ The guard (`guard()` in `src/guard.ts`) runs before every route and gives one ve
 | Request | Verdict |
 | --- | --- |
 | From this machine by a loopback name (`localhost`, `127.0.0.1`, `[::1]`) | pass, no sign-in: the sessions' hooks (`EVEN_KEEL_URL`) and the browser on the machine itself |
-| From this machine by any other name — a proxy such as `tailscale serve` or a Tailscale Service — when the owner key is set | asked to sign in, as from the network; the hook routes (`hookRouteOf`) still pass |
-| No owner key set | as before: loopback only, no sign-in; the settings group shows a band "Sign-in is not set up" with the guide's link |
+| From this machine by any other name — a proxy such as `tailscale serve` or a Tailscale Service — when the owner key is set or an invitation turned the sign-in on | asked to sign in, as from the network; the hook routes (`hookRouteOf`) still pass |
+| No owner key set and the sign-in not turned on | as before: loopback only, no sign-in; the settings group shows a band "Sign-in is not set up" whose button invites a device |
 | `Authorization: Bearer <owner key>` | pass: scripts keep the key |
 | A device token in the cookie (or as a Bearer) | pass, with the device: its `seen_at`/`seen_from` are noted (written at most once a minute) |
 | `?token=<owner key>` in the address (an old link) | the device is signed in with the key and sent with 303 to the address without it |
@@ -18,6 +18,8 @@ The guard (`guard()` in `src/guard.ts`) runs before every route and gives one ve
 | Anything else | 401 |
 
 In Docker the host's browser reaches the hub through the container's gateway, not loopback: with the owner key set, `localhost` on the host is asked to sign in too, and the devices list shows the gateway's address for every device.
+
+**Without the key** (BTN-1656) a hub takes devices by invitation alone. The first "Let in" turns the sign-in on: the mark `sign_in_on` (step 83, `AccessBook.signInOn`, `DeviceBook.signInOn` for the guard) makes a proxy's name ask as the key does. It is a mark of its own, not "a live token is there", so "Sign out everywhere" or signing the last device out never opens the page again. The browser that pressed that first "Let in" by a proxy's name and had no token of its own gets one with the answer (`invites/admit`), else it would shut itself out; on a loopback name it needs none. Open pages of other browsers by the proxy's name get 401 from then and land on the sign-in screen, which without the key has no key field, only the passkey and the line about an invitation. The key stays the spare way in: set later, it signs in as before, and the mark stays. "Turn sign-in off" in the "Sign-in by key" card (`POST sign-in/off`, only without the key, behind a confirmation) drops the mark and signs every device out, so a later invitation revives no old token; with the key set it answers `auth.signInKeepsKey`. Without the key the OAuth callback's cookie is signed with a secret of the process instead (`oauthCallbackCookie`).
 
 The address of a request behind a proxy on this machine is the first `X-Forwarded-For` (`addressOf`); from elsewhere the socket's, which a header cannot fake. The machines' link, the MCP gateway and the hooks are not touched by the sign-in.
 
@@ -28,7 +30,7 @@ A blocked service (a broken config) has no book: there the cookie holds the key 
 `accessRoute` (`src/access/routes.ts`) answers `/api/auth/*`; an error is 400 `{ error, notice }` with an `auth.*` code.
 
 - Open to a visit: `GET state` (`AuthState`: signed in, key set, a passkey made on this request's host name, this device), `POST key { key }`, `POST passkey/options`, `POST passkey { response }`, `POST invite/open { link }` and `POST invite/wait` (`JoinView`, [Invitations](#invitations)).
-- Only signed in (else 401 `auth.signInFirst`): `POST passkey/register/options`, `POST passkey/register { response }`, `POST passkey/remove { id }`, `POST devices` (`DevicesView`; a POST as the page's other queries), `POST devices/revoke { id }`, `POST devices/revoke-others`, `POST invites/create` (`InviteMade`), `POST invites/admit|decline|cancel { id }`, `POST sign-out`.
+- Only signed in (else 401 `auth.signInFirst`): `POST passkey/register/options`, `POST passkey/register { response }`, `POST passkey/remove { id }`, `POST devices` (`DevicesView`; a POST as the page's other queries), `POST devices/revoke { id }`, `POST devices/revoke-others`, `POST invites/create` (`InviteMade`), `POST invites/admit|decline|cancel { id }`, `POST sign-in/off`, `POST sign-out`. `DevicesView.signInOn` says an invitation turned the sign-in on.
 
 A sign-in sets the cookie (`HttpOnly`, `SameSite=Strict`, a year) and revokes the token the browser held before, so one browser is one row.
 
@@ -55,7 +57,7 @@ A new device can sign in without the key: a device signed in invites it (BTN-165
 - **Wait.** `invite/wait` is a long request: it answers at once when the invitation is decided, else after `WAIT_MS` (25 s) with `waiting`, and the page asks again. `admitted` comes with the device's own token in the sign-in cookie, the same as after the key; only the claiming browser can collect it, since the claim is the cookie, not the link or the digits.
 - **Decide.** The dialog and the card read "Sign-in and devices" anew on the event `devices` of the stream (`InviteDesk.changed` → `EventHub.broadcast`, `LiveSource.onDevices`), so "Waiting…" turns into "<device> opened the link at <time>", the digits large, "Let in" and "Decline". "Let in" is for a person who saw the same digits on the new device: a link that leaked and was opened first by someone else shows other digits. Any device signed in can decide. A closed dialog leaves the invitation as a row of the "Devices" card with "Let in" and "Decline" once opened, and "Cancel"; nothing else on the page tells about it, so it is never approved by habit.
 - **Limits.** A link lives `INVITE_MS` (10 minutes), is used once and dies on cancel; at most `MAX_INVITES` (5) wait at once (`auth.invitesFull`). The open routes take `INVITE_CALLS` (30) calls a minute per address (`RateLimit`, `src/access/rate.ts`), the next is 429 `auth.inviteSlowDown`.
-- **Without the key** there is no "Invite a device" button and `invites/create` answers `auth.noKey`: such a hub asks nobody to sign in yet.
+- **Without the key** the invitation works the same, and its first "Let in" turns the sign-in on ([Who is asked](#who-is-asked)); the band "Sign-in is not set up" offers it.
 - **The new device** (`web/src/pages/InviteJoin.tsx`, drawn by `main.tsx` on `/invite` before the page) shows the digits and "Waiting for approval where the link was made", then its own screen for each end — declined, expired, cancelled, used by another device, gone — or, let in, the passkey offer of the key's sign-in and the page. A browser signed in already does not take the link: the screen says so and leads to the page, since the link may be meant for another device.
 - The sign-in screen says under the key field where to get an invitation, with a link to the guide.
 
@@ -67,11 +69,12 @@ A stream the service ended after its 200 is reopened by the browser itself, and 
 
 ## dev:fake
 
-`/?signIn` draws the screen (`?signIn=nokey` — no owner key on the hub, `?signIn=elsewhere` — passkeys made only on other names): the key is `owner-key`, a passkey always passes without the browser's dialog (`?signIn=nopasskeys` — refused at once, as by a browser without passkeys), and signing in drops the parameter. The settings group reads `web/src/live/fakeAuth.ts`: three passkeys on two names and four devices, two of them "Chrome on Windows", one by invitation, this browser one of them; its band follows the fake `EVEN_KEEL_TOKEN`. `&invites` starts with two invitations waiting, one opened; an invitation made in the dialog is opened by a fake phone 3 s later, digits 47. `/invite` is a browser signed in already, `/invite?signIn` the new device: let in 3 s after opening, or `&invite=declined|expired|cancelled|waiting|used|gone`.
+`/?signIn` draws the screen (`?signIn=nokey` — no owner key on the hub, `?signIn=elsewhere` — passkeys made only on other names): the key is `owner-key`, a passkey always passes without the browser's dialog (`?signIn=nopasskeys` — refused at once, as by a browser without passkeys), and signing in drops the parameter. The settings group reads `web/src/live/fakeAuth.ts`: three passkeys on two names and four devices, two of them "Chrome on Windows", one by invitation, this browser one of them; its band follows the fake `EVEN_KEEL_TOKEN` (unset by default), `&signInOn` starts with the sign-in an invitation turned on, and a fake "Let in" turns it on. `&invites` starts with two invitations waiting, one opened; an invitation made in the dialog is opened by a fake phone 3 s later, digits 47. `/invite` is a browser signed in already, `/invite?signIn` the new device: let in 3 s after opening, or `&invite=declined|expired|cancelled|waiting|used|gone`.
 
 ```sh
 npm run shot -- '/?signIn&lang=ru' .sign-in__card --size 390x844
 npm run shot -- '/settings?lang=ru' --click '.settings-nav__item:has-text("Вход и устройства")' --wait '.sign-ins'
+npm run shot -- '/settings?lang=ru&signInOn' --click '.settings-nav__item:has-text("Вход и устройства")' --wait '.sign-ins'
 npm run shot -- '/settings?lang=ru&invites' --click '.settings-nav__item:has-text("Вход и устройства")' --click 'button:has-text("Пригласить устройство")' --wait '.invite__qr'
 npm run shot -- '/invite?signIn&invite=waiting&lang=ru#fake' .sign-in__card --wait '.sign-in__digits' --size 390x844
 ```

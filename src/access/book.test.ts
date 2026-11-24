@@ -65,3 +65,26 @@ it('a new owner key signs out every device signed in with the old one; passkey s
   expect(await book.keyIs(null)).toBe(1)
   expect(book.find(unset.secret)).toBeUndefined()
 })
+
+it('keeps the sign-in turned on by an invitation across a load and through signing every device out (BTN-1656)', async () => {
+  const { db, book } = await bookOf()
+  expect(book.signInOn()).toBe(false)
+  expect(await book.turnSignInOn()).toBe(true)
+  expect(await book.turnSignInOn()).toBe(false)
+  const phone = await book.signIn({ device: 'Safari on iPhone', address: '192.0.2.7', keyMark: null })
+  await book.revoke(phone.token.id)
+  expect(book.signInOn()).toBe(true)
+  expect((await AccessBook.load(db)).signInOn()).toBe(true)
+})
+
+it('turning the sign-in off signs every device out, kept across a load (BTN-1656)', async () => {
+  const { db, book, revoked } = await bookOf()
+  await book.turnSignInOn()
+  const phone = await book.signIn({ device: 'Safari on iPhone', address: '192.0.2.7', keyMark: null })
+  const laptop = await book.signIn({ device: 'Firefox on Linux', address: '192.0.2.8', keyMark: null })
+  expect(await book.turnSignInOff()).toBe(2)
+  expect(book.signInOn()).toBe(false)
+  expect(book.devices()).toEqual([])
+  expect(revoked).toEqual([[phone.token.id, laptop.token.id]])
+  expect((await AccessBook.load(db)).signInOn()).toBe(false)
+})

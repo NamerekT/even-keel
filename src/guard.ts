@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { AccessToken } from './access/store.js'
 import { hookRouteOf } from './link/hooks.js'
 import { fail } from './notice/notice.js'
@@ -29,6 +29,8 @@ export interface DeviceBook {
   seen(token: AccessToken, address: string): void
   /** Issues a device a token of its own; `keyMark` — signed in with the owner key. */
   signIn(entry: { device: string; address: string; keyMark: string | null }): Promise<{ token: AccessToken; secret: string }>
+  /** An invitation turned the sign-in on (BTN-1656): without the key a proxy's name is asked as with it. */
+  signInOn(): boolean
 }
 
 const TOKEN_FORM = {
@@ -85,6 +87,7 @@ const OAUTH_COOKIE = 'even-keel-oauth'
 const OAUTH_SECONDS = 600
 const TOKEN_SHAPE = /^[A-Za-z0-9._~+/=-]{16,}$/
 const COOKIE_MAX_AGE = 365 * 24 * 60 * 60
+const PROCESS_SECRET = randomBytes(32)
 const LOOPBACK_NAMES = ['localhost', '127.0.0.1', '::1']
 const WILDCARDS = ['0.0.0.0', '::']
 
@@ -122,11 +125,13 @@ export function guard(settings: GuardSettings, request: GuardRequest): GuardVerd
   }
   const admitted = typeVerdict(request)
   const token = settings.token
-  // A proxy on this machine sends its own name: only loopback names and the hooks go without a sign-in (BTN-1619).
-  if (fromThisMachine(request) && (token === null || isLoopbackHost(host) || hookRouteOf(request.method, request.url) !== undefined)) return admitted
-  if (token === null) return { kind: 'refuse', status: 401, reason: `${request.remote} is not on this machine and no token is set` }
-
   const book = settings.book
+  // Without the key a hub asks nobody until an invitation let a device in (BTN-1656).
+  const asks = token !== null || book?.signInOn() === true
+  // A proxy on this machine sends its own name: only loopback names and the hooks go without a sign-in (BTN-1619).
+  if (fromThisMachine(request) && (!asks || isLoopbackHost(host) || hookRouteOf(request.method, request.url) !== undefined)) return admitted
+  if (!asks) return { kind: 'refuse', status: 401, reason: `${request.remote} is not on this machine and no token is set` }
+
   if (same(bearerOf(request.authorization), token)) return admitted
   if (book === undefined && same(cookieOf(request.cookie), token)) return admitted
   const device = book === undefined ? undefined : deviceOf(book, request)
@@ -135,7 +140,7 @@ export function guard(settings: GuardSettings, request: GuardRequest): GuardVerd
   const url = new URL(request.url, 'http://localhost')
   if (isOAuthCallback(request) && validOAuthCookie(request.cookie, token)) return { kind: 'pass' }
   const offered = url.searchParams.get('token')
-  if (request.method === 'GET' && offered !== null && same(offered, token)) {
+  if (token !== null && request.method === 'GET' && offered !== null && same(offered, token)) {
     url.searchParams.delete('token')
     const location = url.pathname + url.search
     if (book !== undefined) return { kind: 'signIn', location }
@@ -168,19 +173,20 @@ export function isOAuthCallback(request: Pick<GuardRequest, 'method' | 'url'>): 
 }
 
 /** A short-lived credential with no authority outside the browser callback. */
-export function oauthCallbackCookie(token: string): string {
+export function oauthCallbackCookie(token: string | null): string {
   const expires = Date.now() + OAUTH_SECONDS * 1000
   return `${OAUTH_COOKIE}=${expires}.${oauthSignature(token, expires)}; Path=${OAUTH_CALLBACK_PATH}; HttpOnly; SameSite=Lax; Max-Age=${OAUTH_SECONDS}`
 }
 
-function validOAuthCookie(header: string | undefined, token: string): boolean {
+function validOAuthCookie(header: string | undefined, token: string | null): boolean {
   const [expiry, signature] = cookieOf(header, OAUTH_COOKIE)?.split('.') ?? []
   const expires = Number(expiry)
   return Number.isSafeInteger(expires) && expires > Date.now() && same(signature, oauthSignature(token, expires))
 }
 
-function oauthSignature(token: string, expires: number): string {
-  return createHmac('sha256', token).update(`oauth-callback:${expires}`).digest('base64url')
+/** Signed with the key; a hub without one signs with a secret of this process, so a restart drops the cookie. */
+function oauthSignature(token: string | null, expires: number): string {
+  return createHmac('sha256', token ?? PROCESS_SECRET).update(`oauth-callback:${expires}`).digest('base64url')
 }
 
 function bare(host: string): string {
@@ -254,8 +260,8 @@ function bearerOf(header: string | undefined): string | undefined {
   return /^Bearer\s+(\S+)$/i.exec(header ?? '')?.[1]
 }
 
-function same(offered: string | undefined, token: string): boolean {
-  if (offered === undefined) return false
+function same(offered: string | undefined, token: string | null): boolean {
+  if (offered === undefined || token === null) return false
   const digest = (text: string) => createHash('sha256').update(text).digest()
   return timingSafeEqual(digest(offered), digest(token))
 }

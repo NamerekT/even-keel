@@ -30,16 +30,16 @@ interface Answer {
 }
 
 /** A hub behind a proxy on this machine: every request comes from loopback by the proxy's name. */
-async function hubOf() {
+async function hubOf(key: string | null = KEY) {
   const db = await memoryDatabase()
   const hub = new EventHub()
   const book = await AccessBook.load(db, { revoked: (ids) => hub.closeTagged(ids) })
   const invites = new InviteDesk(db, book, { log: () => {}, waitMs: 50, changed: () => hub.broadcast('devices', { changedAt: Date.now() }) })
-  const access = { book, passkeys: new PasskeyDesk(db, book.person), invites, inviteRate: new RateLimit(INVITE_CALLS, 60_000), key: () => KEY }
+  const access = { book, passkeys: new PasskeyDesk(db, book.person), invites, inviteRate: new RateLimit(INVITE_CALLS, 60_000), key: () => key }
   const deps = {
     hub,
     getState: () => ({ fake: true }),
-    guard: () => ({ hosts: guardHosts('127.0.0.1', [HOST]), token: KEY, book }),
+    guard: () => ({ hosts: guardHosts('127.0.0.1', [HOST]), token: key, book }),
     access,
   }
   const server = createEvenKeelServer(deps as unknown as ServerDeps)
@@ -50,7 +50,7 @@ async function hubOf() {
     new Promise<Answer>((resolve, reject) => {
       const headers: Record<string, string> = { host: options.host ?? HOST, 'user-agent': options.agent ?? AGENT, 'x-forwarded-for': options.from ?? '100.64.0.9' }
       if (options.cookie !== undefined) headers.cookie = options.cookie
-      if (options.body !== undefined) Object.assign(headers, { 'content-type': 'application/json', origin: ORIGIN })
+      if (options.body !== undefined) Object.assign(headers, { 'content-type': 'application/json', origin: options.host === undefined ? ORIGIN : `https://${options.host}` })
       const req = request({ port, host: '127.0.0.1', path, method: options.method ?? (options.body === undefined ? 'GET' : 'POST'), agent: false, headers }, (res) => {
         let body = ''
         res.setEncoding('utf8').on('data', (chunk) => (body += chunk)).on('end', () => resolve({ status: res.statusCode!, headers: res.headers, body }))
@@ -206,5 +206,64 @@ describe('an invitation of a new device through the routes (BTN-1655)', () => {
     expect(JSON.parse(refused.body).notice.code).toBe('auth.inviteSlowDown')
     expect((await send('/api/auth/invite/wait', { body: {}, from: '198.51.100.20' })).status).toBe(429)
     expect((await send('/api/auth/invite/open', { body: { link: 'guess' }, from: '198.51.100.21' })).status).toBe(200)
+  })
+})
+
+describe('a hub without the owner key: the first device let in turns the sign-in on (BTN-1656)', () => {
+  const ANDROID = 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
+  const claimOf = (answer: Answer) => [answer.headers['set-cookie'] ?? []].flat().find((each) => each.startsWith(`${INVITE_COOKIE}=`))!.split(';')[0]!
+
+  async function letIn(send: Awaited<ReturnType<typeof hubOf>>['send'], decider?: string) {
+    const made = JSON.parse((await send('/api/auth/invites/create', { cookie: decider, body: {} })).body) as InviteMade
+    const claim = claimOf(await send('/api/auth/invite/open', { body: { link: made.secret }, agent: ANDROID, from: '100.64.0.12' }))
+    const admit = await send('/api/auth/invites/admit', { cookie: decider, body: { id: made.id } })
+    expect(admit.status).toBe(200)
+    const joined = cookieOf(await send('/api/auth/invite/wait', { cookie: claim, body: {} }))
+    return { admit, joined }
+  }
+
+  it('asks the proxy name for a sign-in once a device was let in; the browser that let it in is signed in too', async () => {
+    const { send, book } = await hubOf(null)
+    expect((await send('/api/state')).status).toBe(200)
+    const before = JSON.parse((await send('/api/auth/devices', { body: {} })).body) as DevicesView
+    expect(before).toMatchObject({ keySet: false, signInOn: false })
+    const { admit, joined } = await letIn(send)
+    const decider = cookieOf(admit)
+    expect((await send('/api/state')).status).toBe(401)
+    expect((await send('/api/state', { cookie: decider })).status).toBe(200)
+    expect((await send('/api/state', { cookie: joined })).status).toBe(200)
+    expect((await send('/api/state', { host: 'localhost' })).status).toBe(200)
+    expect(JSON.parse((await send('/api/auth/devices', { cookie: joined, body: {} })).body)).toMatchObject({ keySet: false, signInOn: true })
+    expect(book.devices().map((each) => each.device)).toEqual(['Safari on iPhone', 'Chrome on Android'])
+  })
+
+  it('stays on when every other device signs out, and turning it off signs every device out and opens the proxy name again', async () => {
+    const { send, book } = await hubOf(null)
+    const { admit, joined } = await letIn(send)
+    expect(JSON.parse((await send('/api/auth/devices/revoke-others', { cookie: joined, body: {} })).body)).toEqual({ revoked: 1 })
+    expect((await send('/api/state', { cookie: cookieOf(admit) })).status).toBe(401)
+    expect((await send('/api/state')).status).toBe(401)
+    const off = await send('/api/auth/sign-in/off', { cookie: joined, body: {} })
+    expect(off.status).toBe(200)
+    expect(book.devices()).toEqual([])
+    expect((await send('/api/state')).status).toBe(200)
+  })
+
+  it('a browser on a loopback name lets a device in without getting a token itself', async () => {
+    const { send, book } = await hubOf(null)
+    const made = JSON.parse((await send('/api/auth/invites/create', { host: 'localhost', body: {} })).body) as InviteMade
+    await send('/api/auth/invite/open', { body: { link: made.secret }, agent: ANDROID })
+    const admit = await send('/api/auth/invites/admit', { host: 'localhost', body: { id: made.id } })
+    expect(admit.headers['set-cookie']).toBeUndefined()
+    expect(book.devices()).toEqual([])
+    expect((await send('/api/state')).status).toBe(401)
+  })
+
+  it('with the key set, the sign-in cannot be turned off', async () => {
+    const { send } = await hubOf()
+    const owner = cookieOf(await send('/api/auth/key', { body: { key: KEY } }))
+    const off = await send('/api/auth/sign-in/off', { cookie: owner, body: {} })
+    expect(off.status).toBe(400)
+    expect(JSON.parse(off.body).notice.code).toBe('auth.signInKeepsKey')
   })
 })

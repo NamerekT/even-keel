@@ -206,3 +206,18 @@ export async function removePasskey(db: Db, credentialId: string): Promise<boole
   const { affectedRows } = await db.query('delete from passkeys where credential_id = $1', [credentialId])
   return (affectedRows ?? 0) > 0
 }
+
+/** When an invitation turned the sign-in on (step 83); `null` — it is off. */
+export async function signInOnSince(db: Queryable): Promise<string | null> {
+  const { rows } = await db.query<{ since: string }>('select since from sign_in_on where id = 1')
+  return rows[0]?.since ?? null
+}
+
+/** Turns the sign-in on; on already, it keeps the first time. */
+export async function turnSignInOn(db: Db, at = new Date()): Promise<void> {
+  await db.query('insert into sign_in_on (id, since) values (1, $1) on conflict (id) do nothing', [at.toISOString()])
+}
+
+export async function turnSignInOff(db: Db): Promise<void> {
+  await db.query('delete from sign_in_on')
+}

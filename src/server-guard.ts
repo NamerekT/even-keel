@@ -63,7 +63,8 @@ export function guardedServer(settings: () => GuardSettings, handle: GuardedHand
     }
     const device = verdict.kind === 'pass' ? verdict.device : undefined
     if (device !== undefined) current.book?.seen(device, address)
-    if (verdict.kind === 'pass' && current.token !== null && request.method === 'POST' && request.url?.split('?')[0] === '/api/profiles/oauth/start') {
+    const asks = current.token !== null || current.book?.signInOn() === true
+    if (verdict.kind === 'pass' && asks && request.method === 'POST' && request.url?.split('?')[0] === '/api/profiles/oauth/start') {
       response.setHeader('set-cookie', oauthCallbackCookie(current.token))
       response.setHeader('cache-control', 'no-store')
     }

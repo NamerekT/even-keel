@@ -69,4 +69,6 @@ export interface DevicesView {
   /** This browser's device id; `null` — not one of them. */
   current: string | null
   keySet: boolean
+  /** An invitation turned the sign-in on (BTN-1656): without the key a proxy's name asks for it too. */
+  signInOn: boolean
 }

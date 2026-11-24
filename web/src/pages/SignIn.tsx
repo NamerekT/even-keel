@@ -111,14 +111,15 @@ export function SignIn({ keySet, passkeyHere, post, entered }: { keySet: boolean
                   {t.signIn.enter}
                 </button>
               </form>
-              <p className="sign-in__ask">
-                {t.signIn.noKeyAsk}{' '}
-                <a href={INVITE_GUIDE} target="_blank" rel="noreferrer">
-                  {t.signIn.noKeyAskLink}
-                </a>
-              </p>
             </>
           )}
+          {/* A hub without the key lets devices in only by invitation (BTN-1656). */}
+          <p className="sign-in__ask">
+            {t.signIn.noKeyAsk}{' '}
+            <a href={INVITE_GUIDE} target="_blank" rel="noreferrer">
+              {t.signIn.noKeyAskLink}
+            </a>
+          </p>
         </Card>
       ) : (
         <Card className="sign-in__card" title={t.signIn.offerTitle}>

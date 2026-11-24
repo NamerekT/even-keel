@@ -7,6 +7,7 @@ import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { Band } from '../ui/blocks.js'
+import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { PlusIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -23,8 +24,6 @@ function methodOf(device: DeviceView): string {
   return device.passkeyHost === null ? t.signIn.byPasskey : t.signIn.byPasskeyAt(device.passkeyHost)
 }
 
-const KEY_GUIDE = 'https://github.com/NamerekT/even-keel/blob/main/docs/guide/setup.md#reaching-the-page-from-another-machine'
-
 /**
  * The settings group "Sign-in and devices" (BTN-1619, `docs/web/sign-in.md`): the passkeys, the devices signed in with
  * their "Sign out", and the owner key. Each change is sent at once, no draft.
@@ -37,6 +36,7 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
   const [failure, setFailure] = useState<Notice | null>(null)
   const [made, setMade] = useState<InviteMade | null>(null)
   const [inviteFailure, setInviteFailure] = useState<Notice | null>(null)
+  const [turningOff, setTurningOff] = useState(false)
   const now = useNow(view?.invites.length ? 1000 : 30_000)
 
   // A device signed in or out, an invitation opened or decided elsewhere: the service says so on the event stream.
@@ -104,13 +104,13 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
 
   return (
     <>
-      {view !== null && !view.keySet && (
+      {view !== null && !view.keySet && !view.signInOn && (
         <Band
           tone="warn"
           action={
-            <a className="button button--small" href={KEY_GUIDE} target="_blank" rel="noreferrer">
-              {t.signIn.unprotectedFix}
-            </a>
+            <button type="button" className="button button--small" disabled={busy} onClick={() => void invite()}>
+              {t.signIn.invite}
+            </button>
           }
         >
           {t.signIn.unprotected}
@@ -229,26 +229,22 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
                   ))}
                 </ul>
               )}
-              {(view.current !== null || view.keySet) && (
-                <div className="sign-ins__actions">
-                  {view.keySet && (
-                    <button type="button" className="button" disabled={busy} onClick={() => void invite()}>
-                      <PlusIcon />
-                      {t.signIn.invite}
-                    </button>
-                  )}
-                  {view.current !== null && view.devices.length > 1 && (
-                    <button type="button" className="button" disabled={busy} onClick={() => void act(() => post('auth/devices/revoke-others', {}))}>
-                      {t.signIn.signOutOthers}
-                    </button>
-                  )}
-                  {view.current !== null && (
-                    <button type="button" className="button" disabled={busy} onClick={() => void signOut()}>
-                      {t.signIn.signOut}
-                    </button>
-                  )}
-                </div>
-              )}
+              <div className="sign-ins__actions">
+                <button type="button" className="button" disabled={busy} onClick={() => void invite()}>
+                  <PlusIcon />
+                  {t.signIn.invite}
+                </button>
+                {view.current !== null && view.devices.length > 1 && (
+                  <button type="button" className="button" disabled={busy} onClick={() => void act(() => post('auth/devices/revoke-others', {}))}>
+                    {t.signIn.signOutOthers}
+                  </button>
+                )}
+                {view.current !== null && (
+                  <button type="button" className="button" disabled={busy} onClick={() => void signOut()}>
+                    {t.signIn.signOut}
+                  </button>
+                )}
+              </div>
             </Section>
           </>
         )}
@@ -271,8 +267,29 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
         />
       )}
       <Section title={t.signIn.ownerKey}>
+        {view !== null && !view.keySet && view.signInOn && (
+          <>
+            <p className="sign-ins__empty">{t.signIn.signInOn}</p>
+            <div className="sign-ins__actions">
+              <button type="button" className="button" disabled={busy} onClick={() => setTurningOff(true)}>
+                {t.signIn.signInOff}
+              </button>
+            </div>
+          </>
+        )}
         <PageToken state={state} />
       </Section>
+      {turningOff && (
+        <ConfirmDialog
+          title={t.signIn.signInOff}
+          question={t.signIn.signInOffQuestion}
+          confirm={t.signIn.signInOffYes}
+          cancel={t.signIn.signInOffNo}
+          busy={busy}
+          onConfirm={() => void act(() => post('auth/sign-in/off', {}), () => location.reload())}
+          onClose={() => setTurningOff(false)}
+        />
+      )}
     </>
   )
 }
