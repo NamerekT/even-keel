@@ -73,8 +73,10 @@ function readPicture(line: FeedLine, subjects: Map<string, string>): string | nu
 export function transcriptMedia(lines: FeedLine[], urls: MediaUrls, fallback: string): TranscriptMedia {
   const items: Media[] = []
   const keys: string[] = []
-  const add = (item: Media, key: string): number => {
+  const paths: (string | undefined)[] = []
+  const add = (item: Media, key: string, path?: string): number => {
     keys.push(keys.includes(key) ? `${key}#${keys.filter((each) => each === key || each.startsWith(`${key}#`)).length + 1}` : key)
+    paths.push(path)
     return items.push(item) - 1
   }
   const byTool = new Map<string, number[]>()
@@ -95,7 +97,8 @@ export function transcriptMedia(lines: FeedLine[], urls: MediaUrls, fallback: st
       if (frame !== undefined) byTool.set(line.tool, [frame.place])
       else {
         const name = line.text || toolTexts.get(line.tool) || fallback
-        const places = Array.from({ length: line.images ?? 0 }, (_, index) => add({ kind: 'image', name, url: urls.image(line.tool!, index) }, path === null ? `tool:${line.tool}/${index}` : sentKey(fileName(path))))
+        const source = [line.text, subjects.get(line.tool) ?? ''].find((each) => /[\\/]/.test(each))
+        const places = Array.from({ length: line.images ?? 0 }, (_, index) => add({ kind: 'image', name, url: urls.image(line.tool!, index) }, path === null ? `tool:${line.tool}/${index}` : sentKey(fileName(path)), source))
         if (path !== null) frames.push({ place: places[0]!, path, read: true })
         byTool.set(line.tool, places)
       }
@@ -116,18 +119,41 @@ export function transcriptMedia(lines: FeedLine[], urls: MediaUrls, fallback: st
         : read !== undefined
           ? { kind: 'image', name, url: urls.image(read.tool, 0) }
           : { kind: 'image', name, url: urls.file(name), inbox: true }
-      const place = add(item, sentKey(name))
+      const place = add(item, sentKey(name), file)
       frames.push({ place, path: file, read: false })
       byFile.set(file, place)
     }
     if (line.share !== undefined && line.tool !== undefined) {
       line.share.files.forEach((file, index) => {
         if (sharedKind(file) !== 'image') return
-        byShare.set(`${line.tool}/${index}`, add({ kind: 'image', name: fileName(file), url: urls.shared(line.tool!, index) }, `share:${line.tool}/${index}`))
+        byShare.set(`${line.tool}/${index}`, add({ kind: 'image', name: fileName(file), url: urls.shared(line.tool!, index) }, `share:${line.tool}/${index}`, file))
       })
     }
   }
-  return { items, keys, byTool, byFile, byShare }
+  return { items: distinguish(items, paths), keys, byTool, byFile, byShare }
+}
+
+/**
+ * Pictures named by one file name but read from different folders (`npm run shot` puts each run into its own folder)
+ * are named by as many of their folders as tell each from the rest; a unique name and the same file stay as they are.
+ */
+function distinguish(items: Media[], paths: (string | undefined)[]): Media[] {
+  const parts = paths.map((path, place) => {
+    // A bare name tells no folder and may be any of the files of its name.
+    if (path === undefined || !/[\\/]/.test(path) || fileName(path).toLowerCase() !== items[place]!.name.toLowerCase()) return undefined
+    return path.split(/[\\/]/).filter((part) => part !== '')
+  })
+  return items.map((item, place) => {
+    const own = parts[place]
+    if (own === undefined) return item
+    const suffix = (segments: string[], length: number): string => segments.slice(-length).join('/').toLowerCase()
+    const whole = own.join('/').toLowerCase()
+    const others = parts.filter((each): each is string[] => each !== undefined && each.join('/').toLowerCase() !== whole && suffix(each, 1) === suffix(own, 1))
+    if (others.length === 0) return item
+    let length = 2
+    while (length < own.length && others.some((each) => suffix(each, length) === suffix(own, length))) length += 1
+    return { ...item, name: own.slice(-length).join('/') }
+  })
 }
 
 const sentKey = (name: string): string => `sent:${name.toLowerCase()}`

@@ -127,6 +127,31 @@ describe('transcriptMedia', () => {
     expect(media.byFile.get('C:\\repos\\example\\.temp\\inbox\\later.png')).toBe(4)
   })
 
+  it('names pictures of one file name from different folders by as many folders as tell them apart (BTN-1685)', () => {
+    const read = (tool: string, path: string): FeedLine[] => [
+      { at, kind: 'tool', text: `Read ${path}`, tool, name: 'Read', subject: path },
+      { at, kind: 'image', text: path.split(/[\\/]/).pop()!, tool, images: 1 },
+    ]
+    const lines: FeedLine[] = [
+      ...read('toolu_a', '/home/doe/example/.temp/shot/mock-a/1-chain.png'),
+      ...read('toolu_b', '/home/doe/example/.temp/shot/mock-b/1-chain.png'),
+      ...read('toolu_c', 'C:\\repos\\example\\.temp\\phone\\shot\\mock-a\\1-chain.png'),
+      ...read('toolu_d', '/home/doe/example/.temp/shot/mock-a/1-chain.png'),
+      ...read('toolu_e', '/home/doe/example/.temp/shot/mock-a/2-alone.png'),
+    ]
+
+    const media = transcriptMedia(lines, urls, 'Picture')
+
+    expect(media.items.map((item) => item.name)).toEqual([
+      '.temp/shot/mock-a/1-chain.png',
+      'mock-b/1-chain.png',
+      'phone/shot/mock-a/1-chain.png',
+      '.temp/shot/mock-a/1-chain.png',
+      '2-alone.png',
+    ])
+    expect(media.items.map((item) => item.url)).toEqual(['img:toolu_a/0', 'img:toolu_b/0', 'img:toolu_c/0', 'img:toolu_d/0', 'img:toolu_e/0'])
+  })
+
   it('adds the pictures a session sent the user, by the call and the place of the file', () => {
     const share = { caption: 'Shots', files: ['C:\\repos\\example\\.temp\\audit.md', 'C:\\repos\\example\\.temp\\dark.PNG'], folder: 'C:\\repos\\example' }
     const lines: FeedLine[] = [{ at, kind: 'tool', text: 'SendUserFile Shots', tool: 'toolu_s', share }]
