@@ -1,6 +1,7 @@
 import { milestoneComparator } from '../../../src/chain/order.js'
 import type { OutsideReason, OutsideTask } from '../../../src/state.js'
 import type { StatusCategory, Task, TaskMilestone, TaskStatus } from '../../../src/tracker/model.js'
+import { isClosedLamp, type BlockLamp } from '../state.js'
 import { milestonePage } from './chainPage.js'
 
 /** The groups of the "Outside the chain" view in their order (BTN-1428), the order a task with several reasons is filed by. */
@@ -99,6 +100,16 @@ export function outsidePage(group: OutsideGroup, more: number): OutsidePage {
     return statuses.length === 0 ? [] : [{ milestone: section.milestone, count, statuses }]
   })
   return { sections, hidden: page.hidden, next: page.next }
+}
+
+/**
+ * The chain's tasks that hold a task of the view (BTN-1714): the open ones among its `blockedBy`, in the chain's order. A
+ * closed blocker is not shown; a locked row is no chain task but a blocker outside it.
+ */
+export function chainHolders<B extends { id: string; lamp: BlockLamp; locked: boolean }>(blockedBy: readonly string[], chain: readonly B[]): B[] {
+  if (blockedBy.length === 0) return []
+  const wanted = new Set(blockedBy)
+  return chain.filter((block) => wanted.has(block.id) && !block.locked && !isClosedLamp(block.lamp))
 }
 
 /** The groups open on this device, from their saved text; nothing saved — the default ones. */

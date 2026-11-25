@@ -51,13 +51,16 @@ export async function fakeOutside(state: EvenKeelState, body: Record<string, unk
   })
   const second = 'Hand'
   const old = mode === 'many' ? 140 : 31
+  // Chain tasks that hold tasks of the view (BTN-1714): the chain's first one holds two of them, the next two hold one.
+  const order = state.chain.projects[String(body.project)]?.order ?? []
+  const held = (each: OutsideTask, ...by: (string | undefined)[]): OutsideTask => ({ ...each, task: { ...each.task, blockedBy: by.filter((id) => id !== undefined) } })
   return [
     task('label', 'Check the Linear import live on the bench', IN_REVIEW, 'v0.3', 'Manual', 'high'),
     task('label', 'Move the bench to the server: Docker, VPN, backup', IN_PROGRESS, 'v0.3', second),
-    task('label', 'Backup encryption: pick the key and where it lives', TODO, 'v0.4', second, 'urgent'),
-    task('label', 'Dark theme on the phone: check it live', TODO, 'v0.4', 'Manual'),
+    held(task('label', 'Backup encryption: pick the key and where it lives', TODO, 'v0.4', second, 'urgent'), order[1], order[2]),
+    held(task('label', 'Dark theme on the phone: check it live', TODO, 'v0.4', 'Manual'), order[0]),
     task('label', 'Record the site video: the chain on the phone', BACKLOG, 'v0.4', second, 'low'),
-    task('label', 'Write the release post', BACKLOG, 'v0.4', 'Manual'),
+    held(task('label', 'Write the release post', BACKLOG, 'v0.4', 'Manual'), order[0]),
     task('label', 'Ask the hosting about a second disk', BACKLOG, null, second),
     ...Array.from({ length: old }, (_, index) => task('milestone', `Leftover of an old milestone ${index + 1}`, BACKLOG, index % 3 === 0 ? 'v0.0' : 'v0.1')),
     task('status', 'Review: the pull request waits for a second reviewer', BLOCKED, 'v0.4'),

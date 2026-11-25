@@ -3,7 +3,7 @@ import type { OutsideTask } from '../../../src/state.js'
 import type { Task, TaskMilestone, TaskStatus } from '../../../src/tracker/model.js'
 import { compareTasks } from '../pages/backlogOrder.js'
 import { CHAIN_MORE, CHAIN_PAGE } from './chainPage.js'
-import { outsideGroups, outsidePage, parseOpen, openText, type OutsideSection } from './outside.js'
+import { chainHolders, outsideGroups, outsidePage, parseOpen, openText, type OutsideSection } from './outside.js'
 
 const milestone = (label: string, targetDate: number | null = null): TaskMilestone => ({ label, targetDate })
 const task = (id: string, at: TaskMilestone | null = null): Task => ({
@@ -126,5 +126,22 @@ describe('open groups', () => {
     expect(parseOpen('')).toEqual([])
     expect(parseOpen('milestone,bogus')).toEqual(['milestone'])
     expect(openText(['status', 'milestone'])).toBe('status,milestone')
+  })
+})
+
+describe('chainHolders', () => {
+  const block = (id: string, lamp: 'working' | 'ahead' | 'done' | 'canceled' = 'ahead', locked = false) => ({ id, lamp, locked })
+  const chain = [block('ABC-1', 'working'), block('ABC-2'), block('ABC-3', 'done'), block('ABC-4', 'canceled'), block('ABC-5', 'ahead', true), block('ABC-6')]
+
+  it('gives the open chain tasks among the blockers, in the chain order', () => {
+    expect(chainHolders(['ABC-6', 'ABC-1', 'ABC-9'], chain).map((each) => each.id)).toEqual(['ABC-1', 'ABC-6'])
+  })
+
+  it('leaves out a closed blocker and a locked row, which is no chain task', () => {
+    expect(chainHolders(['ABC-3', 'ABC-4', 'ABC-5', 'ABC-2'], chain).map((each) => each.id)).toEqual(['ABC-2'])
+  })
+
+  it('gives none for a task without blockers', () => {
+    expect(chainHolders([], chain)).toEqual([])
   })
 })

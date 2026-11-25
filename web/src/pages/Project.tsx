@@ -268,7 +268,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         <TermsRefused state={state} project={key} />
         {view === 'outside' ? (
           <Suspense fallback={null}>
-            <OutsideView key={`outside-${key}`} project={key} switcher={feedSwitcher} edits={edits} onCard={openCard} />
+            <OutsideView key={`outside-${key}`} project={key} switcher={feedSwitcher} chain={blocks} edits={edits} onCard={openCard} />
           </Suspense>
         ) : showParents ? (
           // The parents are out of the chain's order: no ghosts, no moves, no buttons that put a task in or out of the chain.

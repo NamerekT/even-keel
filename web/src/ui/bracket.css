@@ -1,0 +1,31 @@
+/* The blockers' brackets (BTN-1714, `Bracket.tsx`): one thin solid accent line over the list, in the blockers' indent. */
+
+.chain__blocks:has(> .bracket) {
+  position: relative;
+}
+
+.bracket {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bracket__lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  overflow: visible;
+}
+
+.bracket__lines path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+}
+
+/* Rows a drag moves leave their brackets behind: hidden until the list stands still again. */
+.chain__list--dragging .bracket,
+.chain__list--settling .bracket {
+  opacity: 0;
+}

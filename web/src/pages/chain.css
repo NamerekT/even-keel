@@ -36,10 +36,16 @@
   --family-3: var(--series-7);
   --family-4: var(--series-4);
   --family-5: var(--series-6);
+  /* How far a blocker row stands in from the rows, its bracket in the room left (BTN-1714): 14 px, never a ladder. */
+  --blocker-indent: calc(var(--space-12) + var(--space-2));
 }
 
 .chain .chain__blocks {
   interpolate-size: allow-keywords;
+}
+
+.chain .block--locked {
+  margin-left: var(--blocker-indent);
 }
 
 .chain .block {
