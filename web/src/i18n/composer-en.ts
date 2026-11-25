@@ -37,6 +37,7 @@ export const composerEn = {
   commands: {
     menu: 'Commands',
     filter: 'Type to filter',
+    groups: { 'even-keel': 'Even Keel', user: 'Your commands and skills', package: "From the project's packages" },
   },
   thinking: 'Thinking',
   background: (command: string | null) => (command === null ? 'Waiting for its background command' : `Waiting for its background command: ${command}`),

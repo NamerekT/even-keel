@@ -307,6 +307,17 @@ describe('a task pins versions, not the set (BTN-706)', () => {
     expect(existsSync(join(cache, 'tools@example', 'old'))).toBe(false)
     expect(packages.otherPlugins('project', 'ABC-1', enabled)).toEqual({ 'tools@example': false })
   })
+
+  it("gives the chat menu the task's pinned plugin folders and a project chat's current ones, changing no pin (BTN-1695)", () => {
+    const { packages, file, cache } = pinned()
+    packages.choose('project', 'extra@example', 'on')
+    expect(packages.pluginFolders('project', 'ABC-1')).toEqual([
+      { plugin: 'tools', dir: join(cache, 'tools@example', 'old', 'plugin') },
+      { plugin: 'extra', dir: join(cache, 'extra@example', 'e1', 'plugin') },
+    ])
+    expect(packages.pluginFolders('project', null).map((each) => each.dir)).toEqual([join(cache, 'tools@example', 'new', 'plugin'), join(cache, 'extra@example', 'e1', 'plugin')])
+    expect(loadPackages(file)!.pins.project).toEqual({ 'ABC-1': { 'tools@example': 'old' } })
+  })
 })
 
 describe('servers before the gateway listens (BTN-1225)', () => {

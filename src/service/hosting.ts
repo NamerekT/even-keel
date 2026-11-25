@@ -55,6 +55,7 @@ import { profilesControl } from '../profiles/control.js'
 import { disabledNotice } from '../profiles/service.js'
 import { archiveOf, outsideArchiveOf, outsideOf, taskHistory } from './hosting-state.js'
 import { Dictation } from '../dictation/transcribe.js'
+import { createMenuSource } from '../sessions/menuSource.js'
 import { withinWindow } from '../stats/checkpoint.js'
 import { taskCheckpoint } from '../stats/task-checkpoint.js'
 import { setStateValue } from '../storage/service-state.js'
@@ -696,6 +697,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     builtinExports,
     builtinImports,
     chats: ctx.projectChats,
+    chatMenu: createMenuSource({ config: () => ctx.configStore.current, packages: ctx.packages, globalDir: ctx.homes.global.dir, trim: () => ctx.dispatcher.state.trimTools, git: runGit, branchOf: ctx.branchOf }),
     dictation: new Dictation(() => ctx.db),
     backup: ctx.backups,
     configConflicts: ctx.memory,

@@ -10,6 +10,7 @@ import { takenFiles } from './chatFiles.js'
 import { sendsReply } from './chatKeys.js'
 import { CommandText, type CommandTextHandle } from './CommandText.js'
 import { DictateButton } from './DictateButton.js'
+import { evenKeelMenu, type ChatMenu } from './useChatMenu.js'
 
 interface BoxProps {
   command: RefObject<CommandTextHandle | null>
@@ -23,13 +24,14 @@ interface BoxProps {
   busy?: boolean
   reason?: string | null
   sendTip?: string
-  /** `false` — no slash button and no commands menu (a project chat). */
-  commands?: boolean
+  /** The `/` menu (`useChatMenu`); `null` — no slash button and no menu; absent — Even Keel's commands alone. */
+  menu?: ChatMenu | null
 }
 
 /** The field of a chat with its files, attach and command buttons and the send button: the same in an open and a shut chat. */
-export function ComposerBox({ command, text, files, sending, rows, onText, onFiles, sendOff, busy, reason, sendTip, commands = true }: BoxProps) {
+export function ComposerBox({ command, text, files, sending, rows, onText, onFiles, sendOff, busy, reason, sendTip, menu: given }: BoxProps) {
   const coarsePointer = useCoarsePointer()
+  const menu = given === undefined ? evenKeelMenu() : given
   const tip = reason ?? sendTip
   // A command goes only at the start of the message, so the button inserts one into an empty field only.
   const slashFree = text.trim() === '' && !sending
@@ -52,7 +54,7 @@ export function ComposerBox({ command, text, files, sending, rows, onText, onFil
       <div className="chat__row">
         <AttachButton sending={sending} onAttach={attach} />
         {/* A field already starting with a command keeps the plain tip: the press that put it there leaves the tip open. */}
-        {commands && (
+        {menu !== null && (
           <Tipped inline align="start" tip={slashFree || text.startsWith('/') ? t.session.chat.slash : t.session.chat.slashTaken}>
             <button
               type="button"
@@ -69,7 +71,7 @@ export function ComposerBox({ command, text, files, sending, rows, onText, onFil
         )}
         <CommandText
           handle={command}
-          commands={commands}
+          menu={menu}
           rows={rows}
           value={text}
           disabled={sending}

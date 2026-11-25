@@ -37,6 +37,7 @@ export const composerRu = {
   commands: {
     menu: 'Команды',
     filter: 'Введите для фильтра',
+    groups: { 'even-keel': 'Even Keel', user: 'Ваши команды и навыки', package: 'Из пакетов проекта' },
   },
   thinking: 'Думает',
   background: (command: string | null) => (command === null ? 'Ждёт фоновую команду' : `Ждёт фоновую команду: ${command}`),

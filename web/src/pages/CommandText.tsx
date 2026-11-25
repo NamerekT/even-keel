@@ -1,8 +1,8 @@
-import { useId, useImperativeHandle, useLayoutEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type Ref } from 'react'
-import { commandIn, matchingCommands, type ChatCommand } from '../../../src/sessions/commands.js'
+import { useEffect, useId, useImperativeHandle, useLayoutEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type Ref } from 'react'
 import { language, t } from '../i18n/index.js'
 import { isNarrow } from '../layout/useNarrow.js'
-import { ghostOf, menuQuery, snappedSelection, tokenCut, withCommand } from './chatCommands.js'
+import { ghostOf, matchingItems, menuQuery, snappedSelection, tokenCut, typedItem, withCommand, type MenuItem } from './chatCommands.js'
+import type { ChatMenu } from './useChatMenu.js'
 import './chatCommands.css'
 
 interface Props {
@@ -15,8 +15,8 @@ interface Props {
   /** Keys the commands menu did not take. */
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   handle?: Ref<CommandTextHandle>
-  /** `false` — a chat with no commands (a project chat): no menu, no command colouring. */
-  commands?: boolean
+  /** What the `/` menu offers (`useChatMenu`); `null` — no menu, no command colouring. */
+  menu: ChatMenu | null
 }
 
 /** What the composer calls on the field. */
@@ -38,7 +38,7 @@ interface Spot {
  * the field, and a command there is drawn as one coloured piece with what may follow it muted. The colour comes from a
  * copy of the text behind the field, whose own text goes transparent while a command is in it.
  */
-export function CommandText({ value, onChange, rows, disabled, placeholder, onPaste, onKeyDown, handle, commands = true }: Props) {
+export function CommandText({ value, onChange, rows, disabled, placeholder, onPaste, onKeyDown, handle, menu }: Props) {
   const field = useRef<HTMLDivElement>(null)
   const area = useRef<HTMLTextAreaElement>(null)
   const mirror = useRef<HTMLDivElement>(null)
@@ -51,12 +51,19 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
   const [pointed, setPointed] = useState<{ name: string; top: number } | null>(null)
   const [tokenSpot, setTokenSpot] = useState<Spot | null>(null)
 
-  const query = commands ? menuQuery(value) : null
-  const options = query === null ? [] : matchingCommands(query)
+  const items = menu?.items ?? []
+  const query = menu === null ? null : menuQuery(value)
+  const options = query === null ? [] : matchingItems(query, items)
   const open = focused && !disabled && options.length > 0 && dismissed !== value
   const chosen = Math.min(active, options.length - 1)
-  const typed = commands ? commandIn(value) : null
-  const ghost = commands ? ghostOf(value, language) : null
+  const typed = menu === null ? null : typedItem(value, items)
+  const ghost = menu === null ? null : ghostOf(value, language, items)
+
+  // The session's part of the menu follows the configuration and the packages: it is read again each time the menu opens.
+  const asking = query !== null
+  useEffect(() => {
+    if (asking) menu?.refresh()
+  }, [asking])
 
   useLayoutEffect(() => {
     if (caret.current === null || area.current === null) return
@@ -89,8 +96,8 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
     box.setSelectionRange(box.value.length, box.value.length)
     box.scrollTop = box.scrollHeight
   }
-  const pick = (command: ChatCommand) => {
-    const text = withCommand(value, command.name)
+  const pick = (item: MenuItem) => {
+    const text = withCommand(value, item.name)
     change(text, text.length)
     area.current?.focus()
   }
@@ -113,7 +120,7 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
       return
     }
     const box = event.currentTarget
-    const cut = box.selectionStart === box.selectionEnd ? tokenCut(value, box.selectionStart, event.key) : null
+    const cut = box.selectionStart === box.selectionEnd ? tokenCut(value, box.selectionStart, event.key, items) : null
     if (cut !== null) {
       event.preventDefault()
       change(cut.text, cut.caret)
@@ -136,6 +143,7 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
   const name = typed === null ? '' : value.slice(typed.start, typed.end)
   const rest = typed === null ? value : value.slice(typed.end)
   const pointedCommand = pointed === null ? undefined : options.find((each) => each.name === pointed.name)
+  const grouped = new Set(options.map((each) => each.group)).size > 1
 
   return (
     <div ref={field} className={`chat__field${marked ? ' chat__field--marked' : ''}`}>
@@ -191,7 +199,7 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
         }}
         onSelect={(event) => {
           const box = event.currentTarget
-          const snapped = snappedSelection(value, box.selectionStart, box.selectionEnd)
+          const snapped = snappedSelection(value, box.selectionStart, box.selectionEnd, items)
           if (snapped !== null) box.setSelectionRange(...snapped)
         }}
         onMouseMove={(event) => (marked ? pointAt(event.clientX, event.clientY) : undefined)}
@@ -200,7 +208,12 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
       {open && (
         <div className="chat__commands">
           <ul id={menuId} className="chat__commands-list" role="listbox" aria-label={t.session.chat.commands.menu} onMouseLeave={() => setPointed(null)}>
-            {options.map((command, index) => (
+            {options.map((command, index) => [
+              grouped && options[index - 1]?.group !== command.group && (
+                <li key={`group-${command.group}`} role="presentation" className="chat__commands-group">
+                  {t.session.chat.commands.groups[command.group]}
+                </li>
+              ),
               <li
                 key={command.name}
                 id={`${menuId}-${index}`}
@@ -215,20 +228,20 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
                 onClick={() => pick(command)}
               >
                 {command.name}
-              </li>
-            ))}
+              </li>,
+            ])}
           </ul>
-          {pointedCommand !== undefined && (
+          {pointedCommand !== undefined && pointedCommand.description !== '' && (
             <div className="chat__commands-tip" style={{ '--row-top': `${pointed!.top}px` } as CSSProperties} role="tooltip">
-              {pointedCommand.description[language]}
+              {pointedCommand.description}
             </div>
           )}
         </div>
       )}
       {typed !== null && tokenSpot !== null && (
         <div className="chat__command-card" style={{ left: tokenSpot.left, bottom: tokenSpot.bottom }} role="tooltip">
-          <span className="chat__command-card-name">/{typed.command.name}</span>
-          <span>{typed.command.description[language]}</span>
+          <span className="chat__command-card-name">/{typed.item.name}</span>
+          {typed.item.description !== '' && <span>{typed.item.description}</span>}
         </div>
       )}
     </div>

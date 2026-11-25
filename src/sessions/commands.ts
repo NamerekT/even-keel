@@ -20,6 +20,20 @@ export const CHAT_COMMANDS: readonly ChatCommand[] = [
   },
 ]
 
+/**
+ * An entry of the chat's `/` menu that the session expands itself (BTN-1695, `docs/web/session-panel/turn.md`): a command or
+ * skill of the user's configuration copy, or a skill of the project's package plugin as `<plugin>:<skill>`. It goes to
+ * the session as typed.
+ */
+export interface MenuEntry {
+  name: string
+  kind: 'command' | 'skill'
+  from: 'user' | 'package'
+  description: string
+  /** `argument-hint` of its frontmatter; empty — none. */
+  args: string
+}
+
 /** A known command at the start of a message; `start` and `end` — where `/name` stands in the text. */
 export interface TypedCommand {
   command: ChatCommand
@@ -30,19 +44,19 @@ export interface TypedCommand {
 
 const HEAD = /^(\s*)\/(\S+)(?=\s|$)/
 
-/** The command a message starts with, spaces before it allowed; `null` for anything else, an unknown name included. */
-export function commandIn(text: string): TypedCommand | null {
+/** The `/name` a message starts with, spaces before it allowed, whatever the name; `null` — no slash at its start. */
+export function headOf(text: string): { name: string; args: string; start: number; end: number } | null {
   const match = HEAD.exec(text)
   if (match === null) return null
-  const command = CHAT_COMMANDS.find((each) => each.name === match[2])
-  if (command === undefined) return null
   const start = match[1]!.length
   const end = match[0].length
-  return { command, args: text.slice(end).trim(), start, end }
+  return { name: match[2]!, args: text.slice(end).trim(), start, end }
 }
 
-/** The commands whose name holds what was typed after `/`. */
-export function matchingCommands(typed: string): ChatCommand[] {
-  const query = typed.toLowerCase()
-  return CHAT_COMMANDS.filter((command) => command.name.includes(query))
+/** The command a message starts with, spaces before it allowed; `null` for anything else, an unknown name included. */
+export function commandIn(text: string): TypedCommand | null {
+  const head = headOf(text)
+  const command = head === null ? undefined : CHAT_COMMANDS.find((each) => each.name === head.name)
+  if (head === null || command === undefined) return null
+  return { command, args: head.args, start: head.start, end: head.end }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { replyPrompt } from './ask.js'
-import { commandIn, matchingCommands } from './commands.js'
+import { commandIn, headOf } from './commands.js'
 import { commandPrompt, typedText } from './commandPrompt.js'
 import { userLine } from './transcript.js'
 
@@ -30,12 +30,18 @@ describe('commandIn', () => {
   })
 })
 
-describe('matchingCommands', () => {
-  it('filters the registry by the typed name', () => {
-    expect(matchingCommands('').map((command) => command.name)).toEqual(['handoff'])
-    expect(matchingCommands('hand').map((command) => command.name)).toEqual(['handoff'])
-    expect(matchingCommands('OFF').map((command) => command.name)).toEqual(['handoff'])
-    expect(matchingCommands('plan')).toEqual([])
+describe('headOf', () => {
+  it('reads any name after a slash at the start, a plugin skill included', () => {
+    expect(headOf(' /tasks:split now')).toEqual({ name: 'tasks:split', args: 'now', start: 1, end: 13 })
+    expect(headOf('text /coding')).toBeNull()
+    expect(headOf('/')).toBeNull()
+  })
+})
+
+describe('a skill the session expands', () => {
+  it('goes to the session and back to the feed as typed (BTN-1695)', () => {
+    expect(commandPrompt('/tasks:split keep it small', 'en')).toBe('/tasks:split keep it small')
+    expect(typedText('/coding')).toBe('/coding')
   })
 })
 

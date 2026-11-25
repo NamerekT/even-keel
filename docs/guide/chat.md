@@ -120,6 +120,10 @@ It works the same in every state of the session — idle, mid-turn or answering 
 
 A command only counts from the chat: the same text in a tracker comment reaches the session as written.
 
+In a Claude session the menu also lists, each under its own heading, your own commands and skills from `~/.claude-config` ([your Claude Code configuration](hub-machine.md)) as the hub has them and the skills and commands of the project's [packages](packages.md), named `/plugin:skill`. A row shows the description its file gives. A skill hidden from Claude Code's own `/` menu is hidden here too, and a task's session leaves out the skills "Trim the tools" takes away from it. The menu is read again each time it opens, so a changed configuration or package shows without a restart. Even Keel's own commands win over a skill of the same name.
+
+Such a command or skill goes to the session as you typed it, `/name` and its words, and Claude Code runs it; the chat shows it as typed. Other agents call skills their own way, so their menu has only Even Keel's commands.
+
 ## When something fails
 
 If a turn stops on an API error, send a reply from the chat to resume the session. While the agent is still working or retrying the request, the usual rules for messages during a turn apply.
@@ -151,7 +155,7 @@ The chats are the **Chats** tab of the project page, between Backlog and Setting
 - **Active** lists the chats, those waiting for you first, then by their last event. A card shows the agent's icon in the chat's colour (blue — working, amber — waiting for you, green — answered, grey — the cache went cold, red — a limit or an error), the title, the machine when the project has more than one, the account, the model and effort, how full the context is and the last message.
 - **Archive** lists the older chats, with a search over titles and messages, twenty to a page.
 - **New session** opens a window that, when the project has several machines, starts with the machine to run the chat on: the machines of the project's pool, or every machine with a folder of the project when the pool is empty. The one a chat would go to anyway is picked already; a machine that is off the link or has no folder of the project is greyed, its reason in the tip. The machines stay at the top while the accounts scroll, so you can switch back and forth. Below are the accounts of the machine you picked, by agent and their 5-hour and weekly limits, named as on the accounts page; only the ones signed in on that machine are listed, so an account to sign in there first, or an API account whose key was refused, is not. The account the project's chain runs on is tagged "chain", and one at its limit cannot be picked until its reset. Below are the model and the effort. **Start chat** opens an empty chat: the session starts with your first message.
-- A chat opens in the same window as a task's session, without the commands menu.
+- A chat opens in the same window as a task's session. Its `/` menu has no `/handoff`: a Claude chat lists your commands and skills and the packages' ones, other agents' chats have no menu.
 
 - You choose the machine, the account, the model and the effort when you create a chat, and they stay until the chat ends. Even Keel offers your last choice in that project for the next chat.
 - Your first message appears in the chat as soon as you send it and stays visible while the session starts. You can type and attach files for your next message while the previous one uploads. If the upload fails, the chat shows the reason and puts the original text and attachments before your new draft, even if you closed the chat.

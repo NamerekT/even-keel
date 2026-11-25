@@ -373,6 +373,8 @@ export interface ServerDeps {
   builtinImports?: Pick<BuiltinImports, 'plan' | 'stopPlan' | 'start' | 'state' | 'switch'>
   /** The project chats (BTN-1230); without them their calls are refused. */
   chats?: import('./chats/chats.js').ProjectChats
+  /** The `/` menu's entries a Claude session expands itself (BTN-1695); `task` null — a project chat's. Without it, none. */
+  chatMenu?: (project: string, task: string | null) => Promise<import('./sessions/commands.js').MenuEntry[]>
   /** The chat microphone's recordings to text through LiteLLM (BTN-1391); without it `dictation/transcribe` is refused. */
   dictation?: Pick<import('./dictation/transcribe.js').Dictation, 'transcribe'>
   launches: () => unknown

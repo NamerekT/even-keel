@@ -438,6 +438,17 @@ export class Packages {
     return otherPlugins(settings, set)
   }
 
+  /**
+   * The plugin folders a session of the task gets, on its pinned installs; `task` null — a project chat's, on the
+   * current ones. Only reads: the chat's `/` menu (BTN-1695).
+   */
+  pluginFolders(project: string, task: string | null): { plugin: string; dir: string }[] {
+    return Object.entries(installsFor(this.file, project, task, this.builtIn)).flatMap(([name, id]) => {
+      const plugin = this.file.packages[name]?.plugin
+      return plugin === undefined ? [] : [{ plugin: plugin.name, dir: pluginDir(this.deps.cache, name, id) }]
+    })
+  }
+
   /** The plugins and servers the project's sessions get from its set now. */
   reach(project: string): SessionReach {
     return sessionReach(this.file, project)

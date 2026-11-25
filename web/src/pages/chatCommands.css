@@ -83,6 +83,18 @@
   background: var(--surface-muted);
 }
 
+/* Where the menu's part changes (BTN-1695): Even Keel's commands, the user's, the packages'. */
+.chat__commands-group {
+  padding: var(--space-8) var(--space-8) var(--space-2);
+  color: var(--fg-muted);
+  font: var(--text-12)/1.45 var(--font);
+  cursor: default;
+}
+
+.chat__commands-group:first-child {
+  padding-top: var(--space-4);
+}
+
 /* The description of the row under the pointer, at once, beside the menu. */
 .chat__commands-tip {
   position: absolute;

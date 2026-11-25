@@ -1,5 +1,43 @@
 import { describe, expect, it } from 'vitest'
-import { ghostOf, menuQuery, snappedSelection, tokenCut, withCommand } from './chatCommands.js'
+import type { MenuEntry } from '../../../src/sessions/commands.js'
+import { ghostOf, matchingItems, menuItems, menuQuery, snappedSelection, tokenCut, withCommand } from './chatCommands.js'
+
+const ENTRIES: MenuEntry[] = [
+  { name: 'handoff', kind: 'skill', from: 'user', description: 'a skill of the same name', args: '' },
+  { name: 'coding', kind: 'skill', from: 'user', description: 'Working rules', args: '' },
+  { name: 'tasks:split', kind: 'skill', from: 'package', description: 'Split a task', args: '[task]' },
+]
+
+describe('menuItems (BTN-1695)', () => {
+  it("puts Even Keel's commands first and drops a session entry of the same name", () => {
+    expect(menuItems('en', true, ENTRIES).map((item) => [item.name, item.group])).toEqual([
+      ['handoff', 'even-keel'],
+      ['coding', 'user'],
+      ['tasks:split', 'package'],
+    ])
+    expect(menuItems('ru', true, [])[0]!.description).toBe('Передать задачу новой сессии с запиской')
+  })
+
+  it("leaves Even Keel's commands out of a project chat", () => {
+    expect(menuItems('en', false, ENTRIES).map((item) => item.name)).toEqual(['handoff', 'coding', 'tasks:split'])
+    expect(menuItems('en', false, ENTRIES)[0]!.group).toBe('user')
+  })
+
+  it('filters by any part of the name, a plugin prefix included', () => {
+    const items = menuItems('en', true, ENTRIES)
+    expect(matchingItems('SPL', items).map((item) => item.name)).toEqual(['tasks:split'])
+    expect(matchingItems('tasks:', items).map((item) => item.name)).toEqual(['tasks:split'])
+  })
+
+  it("draws a session's skill as a command, its hint muted, and keeps it one piece", () => {
+    const items = menuItems('en', true, ENTRIES)
+    expect(ghostOf('/tasks:split', 'en', items)).toEqual({ kind: 'args', text: '[task]', gap: true })
+    expect(ghostOf('/coding', 'en', items)).toBeNull()
+    expect(snappedSelection('/coding now', 3, 3, items)).toEqual([0, 7])
+    expect(tokenCut('/coding now', 7, 'Backspace', items)).toEqual({ text: ' now', caret: 0 })
+    expect(tokenCut('/coding now', 7, 'Backspace')).toBeNull()
+  })
+})
 
 describe('menuQuery', () => {
   it('opens on a slash at the start of the field, spaces before it allowed', () => {

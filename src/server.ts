@@ -283,6 +283,8 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
     if (dictation === undefined) throw fail('dictation.off', {})
     return { text: await dictation.transcribe(textOf(body.audio, 'audio'), textOf(body.type, 'type')) }
   },
+  'chat/menu': async ({ chatMenu }, body) =>
+    (await chatMenu?.(projectOf(body), body.task === null || body.task === undefined ? null : textOf(body.task, 'task'))) ?? [],
 }
 
 const MAX_BODY_BYTES = 64 * 1024

@@ -19,6 +19,7 @@ import { useChatDraft, type DraftOwner } from './useChatDraft.js'
 import { ColdReplyDialog } from './ColdReplyDialog.js'
 import { coldReply } from './coldReply.js'
 import type { CommandTextHandle } from './CommandText.js'
+import { useChatMenu } from './useChatMenu.js'
 
 /** How long the composer stays shut after a reply went out, unless the session moves on sooner. */
 const SENT_HOLD_MS = 90_000
@@ -68,6 +69,7 @@ interface Props {
  */
 export function ChatComposer({ project, task, owner, closed, session, aside, renews, accepts, mail, answered, onSent, handing, onRenew, restore, handle, status }: Props) {
   const command = useRef<CommandTextHandle>(null)
+  const menu = useChatMenu(project, task, session.agent)
   const accept = useCommand()
   const { deliver: post } = useLive()
   const draft = useChatDraft(owner, session.sessionId, mail)
@@ -220,6 +222,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
       </FoldPresence>
       <ComposerBox
         command={command}
+        menu={menu}
         text={text}
         files={files}
         sending={accept.sending}

@@ -17,6 +17,7 @@ import { useChatDraft } from './useChatDraft.js'
 import { ComposerBanner } from './ComposerBanner.js'
 import { ComposerBox, ReadOnlyComposer } from './ComposerBox.js'
 import type { CommandTextHandle } from './CommandText.js'
+import { useChatMenu } from './useChatMenu.js'
 import { TranscriptWindow, type WindowFoot } from './TranscriptWindow.js'
 
 const NO_MAIL: SessionMail = { listens: false, steers: false, mail: [] }
@@ -119,6 +120,7 @@ interface FieldProps {
 /** The field of a project chat: the open question's options or a free message, with files; shut while the chat starts, or works in a session that takes nothing mid-turn. */
 function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: FieldProps) {
   const command = useRef<CommandTextHandle>(null)
+  const menu = useChatMenu(chat.project, null, chat.agent)
   const { state, query, deliver } = useLive()
   const mail = chat.sessionId === null ? undefined : state?.mailbox[chat.sessionId]
   const { text, files, setText, setFiles, sending, failure, dismissFailure, send } = useChatDraft({ project: chat.project, task: chat.id }, chat.sessionId ?? chat.id, mail)
@@ -221,7 +223,7 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
       </FoldPresence>
       <ComposerBox
         command={command}
-        commands={false}
+        menu={menu}
         text={text}
         files={files}
         sending={false}
