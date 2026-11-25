@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runGit } from '../../git/run.js'
-import { memoryFile, parseMemoryFile } from '../record.js'
+import { memoryFile } from '../record.js'
+import { CONFLICTS_FILE, pendingConflicts } from './conflicts.js'
 import { MEMORY_BRANCH, MemorySync, SETTLE_MS, RETRY_MS } from './sync.js'
 
 let root: string
@@ -50,6 +51,9 @@ function copy(name: string, remote = bare): Copy {
 }
 
 const record = (name: string, description: string, body = 'Body.') => memoryFile({ name, description, type: 'project', body })
+/** A record as the CLI writes it, with the service fields it adds itself. */
+const cli = (body: string, modified: string, session = 'b1e2d3c4') =>
+  `---\nname: tone\ndescription: Short answers\nmetadata:\n  node_type: memory\n  type: feedback\n  originSessionId: ${session}\n  modified: ${modified}\n---\n\n${body}\n`
 const write = (at: Copy, file: string, text: string) => writeFileSync(join(at.folder, file), text)
 const read = (at: Copy, file: string) => readFileSync(join(at.folder, file), 'utf8')
 const files = (at: Copy) => readdirSync(at.folder).filter((name) => name !== '.git').sort()
@@ -121,27 +125,91 @@ describe('MemorySync', { timeout: 120_000 }, () => {
     expect(read(a, 'MEMORY.md')).toBe(read(b, 'MEMORY.md'))
   })
 
-  it('keeps its own version of a record changed on both sides and lays the other beside it to be merged', async () => {
+  it('keeps the newer version of a record changed on the same lines on both sides, the other for sessions to merge', async () => {
     const a = copy('a')
     const b = copy('b')
     await a.sync.start()
-    write(a, 'tone.md', record('tone', 'Short answers'))
+    write(a, 'tone.md', cli('Base.', '2026-11-24T09:00:00.000Z'))
     await a.sync.sync()
     await b.sync.start()
-    write(a, 'tone.md', record('tone', 'Short answers', 'Version of a.'))
-    write(b, 'tone.md', record('tone', 'Short answers', 'Version of b.'))
+    write(a, 'tone.md', cli('Version of a.', '2026-11-24T10:00:00.000Z'))
+    write(b, 'tone.md', cli('Version of b.', '2026-11-24T11:00:00.000Z'))
     await a.sync.sync()
-    expect(await b.sync.sync()).toMatchObject({ conflicts: ['tone.conflict.md'], reached: true })
+    expect(await b.sync.sync()).toMatchObject({ conflicts: ['tone.md'], reached: true })
     expect(existsSync(join(b.folder, '.git', 'rebase-merge'))).toBe(false)
-    expect(parseMemoryFile(read(b, 'tone.md'), 'tone').body).toBe('Version of b.')
-    const side = parseMemoryFile(read(b, 'tone.conflict.md'), 'tone.conflict')
-    expect(side).toMatchObject({ name: 'tone.conflict', body: 'Version of a.' })
-    expect(side.description).toMatch(/^MERGE into tone\.md, then delete this file/)
-    expect(read(b, 'MEMORY.md')).toContain(`- [tone.conflict](tone.conflict.md) — ${side.description}\n`)
+    expect(files(b)).toEqual(['.gitattributes', 'MEMORY.md', 'tone.md'])
+    expect(read(b, 'tone.md')).toBe(cli('Version of b.', '2026-11-24T11:00:00.000Z'))
+    const [conflict] = pendingConflicts(b.folder)
+    expect(conflict).toMatchObject({ file: 'tone.md', otherText: cli('Version of a.', '2026-11-24T10:00:00.000Z') })
+    expect(conflict!.note).toContain('Version of a.')
+    expect(await git(b.folder, 'show', `${conflict!.other}:tone.md`)).toContain('Version of a.')
 
     await a.sync.sync()
-    expect(parseMemoryFile(read(a, 'tone.md'), 'tone').body).toBe('Version of b.')
-    expect(read(a, 'tone.conflict.md')).toBe(read(b, 'tone.conflict.md'))
+    expect(read(a, 'tone.md')).toBe(read(b, 'tone.md'))
+    expect(pendingConflicts(a.folder)).toMatchObject([{ file: 'tone.md', otherText: conflict!.otherText }])
+
+    write(a, 'tone.md', cli('Version of a.\n\nVersion of b.', '2026-11-24T12:00:00.000Z'))
+    expect(pendingConflicts(a.folder)).toEqual([])
+    await a.sync.sync()
+    expect(existsSync(join(a.folder, CONFLICTS_FILE))).toBe(false)
+    expect(existsSync(join(b.folder, CONFLICTS_FILE))).toBe(true)
+    await b.sync.sync()
+    expect(existsSync(join(b.folder, CONFLICTS_FILE))).toBe(false)
+  })
+
+  it('keeps the remote version when it is newer and its own in the history for the merge', async () => {
+    const a = copy('a')
+    const b = copy('b')
+    await a.sync.start()
+    write(a, 'tone.md', cli('Base.', '2026-11-24T09:00:00.000Z'))
+    await a.sync.sync()
+    await b.sync.start()
+    write(a, 'tone.md', cli('Version of a.', '2026-11-24T11:00:00.000Z'))
+    write(b, 'tone.md', cli('Version of b.', '2026-11-24T10:00:00.000Z'))
+    await a.sync.sync()
+    expect(await b.sync.sync()).toMatchObject({ conflicts: ['tone.md'], reached: true })
+    expect(read(b, 'tone.md')).toBe(cli('Version of a.', '2026-11-24T11:00:00.000Z'))
+    expect(pendingConflicts(b.folder)).toMatchObject([{ file: 'tone.md', otherText: cli('Version of b.', '2026-11-24T10:00:00.000Z') }])
+  })
+
+  it('merges a record whose copies differ in the service fields and in different lines', async () => {
+    const a = copy('a')
+    const b = copy('b')
+    await a.sync.start()
+    write(a, 'tone.md', cli('First.\n\nSecond.\n\nThird.', '2026-11-24T09:00:00.000Z', 'base'))
+    await a.sync.sync()
+    await b.sync.start()
+    write(a, 'tone.md', cli('First of a.\n\nSecond.\n\nThird.', '2026-11-24T10:00:00.000Z', 'aaa'))
+    write(b, 'tone.md', cli('First.\n\nSecond.\n\nThird.\n\nFourth of b.', '2026-11-24T11:00:00.000Z', 'bbb'))
+    await a.sync.sync()
+    expect(await b.sync.sync()).toMatchObject({ conflicts: [], reached: true })
+    expect(read(b, 'tone.md')).toBe(cli('First of a.\n\nSecond.\n\nThird.\n\nFourth of b.', '2026-11-24T11:00:00.000Z', 'bbb'))
+    expect(existsSync(join(b.folder, CONFLICTS_FILE))).toBe(false)
+    await a.sync.sync()
+    expect(read(a, 'tone.md')).toBe(read(b, 'tone.md'))
+  })
+
+  it('meets a copy of its own history without a conflict: equal records are one, different ones keep the newer', async () => {
+    const a = copy('a')
+    mkdirSync(a.folder)
+    write(a, 'tone.md', cli('Same.', '2026-11-24T18:31:00.000Z', 'aaa'))
+    write(a, 'pace.md', cli('Old pace.', '2026-11-24T18:31:00.000Z'))
+    write(a, 'tool.md', cli('Newer tool.', '2026-11-24T21:00:00.000Z'))
+    await a.sync.start()
+    const b = copy('b')
+    mkdirSync(b.folder)
+    write(b, 'tone.md', cli('Same.', '2026-11-24T20:46:00.000Z', 'bbb'))
+    write(b, 'pace.md', cli('New pace.', '2026-11-24T20:46:00.000Z'))
+    write(b, 'tool.md', cli('Older tool.', '2026-11-24T20:46:00.000Z'))
+    expect(await b.sync.start()).toMatchObject({ conflicts: [], reached: true })
+    expect(files(b)).toEqual(['.gitattributes', 'MEMORY.md', 'pace.md', 'tone.md', 'tool.md'])
+    expect(read(b, 'tone.md')).toBe(cli('Same.', '2026-11-24T20:46:00.000Z', 'bbb'))
+    expect(read(b, 'pace.md')).toBe(cli('New pace.', '2026-11-24T20:46:00.000Z'))
+    expect(read(b, 'tool.md')).toBe(cli('Newer tool.', '2026-11-24T21:00:00.000Z'))
+    expect(await git(b.folder, 'log', '-p', '--format=', '--', 'tool.md')).toContain('Older tool.')
+    expect(existsSync(join(b.folder, CONFLICTS_FILE))).toBe(false)
+    await a.sync.sync()
+    expect(read(a, 'pace.md')).toBe(read(b, 'pace.md'))
   })
 
   it('keeps a changed record over a deletion on the other side', async () => {
@@ -229,7 +297,7 @@ describe('MemorySync', { timeout: 120_000 }, () => {
     await git(b.folder, 'fetch', '-q', 'origin')
     await expect(git(b.folder, 'rebase', `origin/${MEMORY_BRANCH}`)).rejects.toThrow()
     expect(existsSync(join(b.folder, '.git', 'rebase-merge'))).toBe(true)
-    expect(await b.sync.sync()).toMatchObject({ conflicts: ['tone.conflict.md'], reached: true })
+    expect(await b.sync.sync()).toMatchObject({ conflicts: ['tone.md'], reached: true })
     expect(logs.some((line) => line.includes('a rebase was left unfinished'))).toBe(true)
   })
 

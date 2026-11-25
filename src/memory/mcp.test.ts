@@ -3,8 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { TasksScope } from '../taskmcp/calls.js'
+import { saveConflicts } from './git/conflicts.js'
 import type { MemoryHub } from './git/hub.js'
 import { isMemoryUrl, MemoryMcp } from './mcp.js'
+import { fileHash } from './record.js'
 
 const PROJECT = '11111111-1111-4111-8111-111111111111'
 const HUB: TasksScope = { project: PROJECT, task: 'ABC-2' }
@@ -148,5 +150,20 @@ describe('the memory server over the working copy (BTN-1029, BTN-1646)', () => {
   it('takes a version sent as a string', async () => {
     const v1 = keptVersion((await call('memory_write', fact)).text)
     expect((await call('memory_write', { ...fact, body: 'y', version: String(v1) })).error).toBe(false)
+  })
+
+  it('tells of a record in a sync conflict in the answers of memory_read and memory_write until it is saved (BTN-1686)', async () => {
+    await call('memory_write', fact)
+    const file = `${fact.name}.md`
+    const text = readFileSync(join(folder, file), 'utf8')
+    const conflict = { file, commit: 'c1', other: 'c0', since: '2026-11-24T20:46:00Z', hash: fileHash(text), otherText: 'Start Podman first.\n', note: '' }
+    saveConflicts(folder, [conflict])
+    const read = (await call('memory_read', { names: [fact.name] })).text
+    expect(read).toContain('Start Docker first.')
+    expect(read).toContain(`The project memory record ${fact.name} is in a sync conflict`)
+    expect(read).toContain('Start Podman first.')
+    const merged = await call('memory_write', { ...fact, body: 'Start Docker or Podman first.', version: keptVersion(read.split('\n')[0]!.replace(/^.*version (\d+).*$/, 'version $1.')) })
+    expect(merged.text).toMatch(/^Kept tests-need-docker, version \d+\.$/)
+    expect((await call('memory_read', { names: [fact.name] })).text).not.toContain('sync conflict')
   })
 })
