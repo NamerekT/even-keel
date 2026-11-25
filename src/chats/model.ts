@@ -43,6 +43,11 @@ export interface ChatRecord {
    * the service in between launches it again with the same message. `null` — nothing waits.
    */
   pending: string | null
+  /**
+   * Its own choice of packages over the project's set (BTN-1696): `true` on, `false` off, a package not named — as the
+   * project has it. Chosen at its creation, like the account.
+   */
+  packages: Record<string, boolean>
 }
 
 export type ChatSpeaker = 'user' | 'agent' | 'ask'
@@ -92,6 +97,8 @@ export interface ChatChoice {
   account: string
   model: string | null
   effort: string | null
+  /** The chat's own choice of packages (`ChatRecord.packages`); absent — none of its own. */
+  packages?: Record<string, boolean>
 }
 
 /** Why a machine cannot take a new chat of the project: off the link, or no folder of the project there. */

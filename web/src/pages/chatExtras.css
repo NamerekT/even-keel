@@ -1,0 +1,102 @@
+/* The "More" window over a new chat's (BTN-1696). */
+.chat-extras .add-package__body {
+  gap: var(--space-12);
+}
+
+.chat-extras__group {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.chat-extras__head {
+  margin: 0;
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+  border-radius: var(--radius-inner) var(--radius-inner) 0 0;
+  font-size: var(--text-13);
+  font-weight: 600;
+}
+
+.chat-extras__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 44px;
+  padding: var(--space-6) var(--space-12);
+}
+
+.chat-extras__row + .chat-extras__row {
+  border-top: 1px solid var(--border);
+}
+
+/* A removed package's row stands alone under the groups, boxed as they are. */
+.add-package__body > .chat-extras__row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.chat-extras__name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.chat-extras__label {
+  overflow: hidden;
+  font-size: var(--text-14);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-extras__state {
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+}
+
+.chat-extras__state--own {
+  color: var(--accent);
+}
+
+.chat-extras__gone {
+  color: var(--warn-fg);
+  font-size: var(--text-12);
+}
+
+.chat-extras__foot {
+  justify-content: flex-end;
+}
+
+/* The count of the chat's own values on the More button. Inline: a flex button loses the buttons' text trim and grows. */
+.new-chat__more-count {
+  display: inline-block;
+  min-width: 18px;
+  margin-inline-start: var(--space-6);
+  vertical-align: middle;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-fill);
+  font-size: var(--text-12);
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .chat-extras__row {
+    flex-wrap: wrap;
+  }
+
+  .chat-extras__row .segmented {
+    flex: 1 1 100%;
+  }
+
+  .chat-extras__row .segmented > * {
+    flex: 1 1 0;
+  }
+}

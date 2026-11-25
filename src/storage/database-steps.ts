@@ -438,4 +438,11 @@ export const STEPS: readonly string[] = [
   alter table closed_tasks add column priority text;
   alter table closed_tasks add column labels text;
   `,
+  // A project chat's own choice of packages over the project's set (BTN-1696, `docs/sessions/project-chats.md`): a JSON
+  // object of package name and on or off, kept with the chat and with the project's last choice. Null — none of its own,
+  // as every chat and choice before the step.
+  `
+  alter table chats add column packages text;
+  alter table chat_choices add column packages text;
+  `,
 ]

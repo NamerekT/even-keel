@@ -47,3 +47,11 @@ The CLI 2.1.330 gave a bridged server up about 18 s after its stream dropped, an
 Assumed: each of the three reads `~/.agents/skills` of the home folder outside the project, its own account folder notwithstanding: Codex with its `CODEX_HOME` set to an account folder, Copilot with its `COPILOT_HOME`, OpenCode with `OPENCODE_DISABLE_EXTERNAL_SKILLS` through `skills.paths`; and each follows a link (a junction on Windows) to a skill's folder. Only the project's `.agents/skills` was seen read by all three (2026-10-24, `docs/sessions/protection.md`). If not, an agent's chain sessions miss the user's own skills: its sessions' skill listing has none of them.
 
 To check, on the benches: with a skill in `~/.claude/skills` on the bench hub, start the service and see `skills: … linked <name>` in the log and the link in `~/.agents/skills`; then on a chain session of each of Codex, Copilot and OpenCode ask for the list of its skills (`copilot skill list` for Copilot) and see the skill there. Delete the skill and see its link gone after the next sync.
+
+## A project chat's own packages (BTN-1696)
+
+A chat's own values in "More" of "New session" go with each launch and message to the machine, which builds the chat's set with them over the project's (`docs/sessions/project-chats.md`, "Its own packages"). Covered by tests: the record and the last choice in the database (step 86), the hub sending them on launch, send and relaunch, `renew` keeping them, `chatStartOf` turning a package on and off for the chat and never the built-in one, the window's rows and sources.
+
+Assumed: a chat with a package on that the project has off gets its plugin and its MCP server through the gateway, and one with a package off has neither, on Claude Code and the other agents; a chat on a machine elsewhere gets the same set. If not, the chat's session has the project's set as if nothing were chosen, or misses a package it was given.
+
+To check, on the bench hub: in a project with a plugin and an MCP server off, start a Claude chat with both on in "More" and one of the project's on packages off; `/mcp` and `/plugin` in the chat list the two and not the third. Do the same on a machine elsewhere and with a Codex chat.

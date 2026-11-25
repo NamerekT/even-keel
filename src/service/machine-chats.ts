@@ -30,7 +30,8 @@ export type MachineChatsContext = Pick<MachineContext,
 /**
  * The machine's side of the project chats (BTN-1230, `docs/sessions/project-chats.md`): a chain session without a task
  * (BTN-1694) in the project's folder — the project's packages behind the gateway, not the account's or the folder's own
- * plugins and servers, and a Claude chat's own `--settings` (`chatSettingsFor`). Every start takes the set current then.
+ * plugins and servers, the chat's own choice over the set (BTN-1696), and a Claude chat's own `--settings`
+ * (`chatSettingsFor`). Every start takes the set current then.
  * The hub sends the whole choice with every call; the machine keeps nothing of a chat.
  */
 export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
@@ -45,8 +46,8 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       protection: config.settings[project]?.protection ?? config.protection,
       mainBranch: ctx.branchOf(project),
       ...(agent !== CLAUDE && config.execution[agent] === 'bypass' ? { bypassSandbox: true } : {}),
-      ...(agent === CLAUDE ? { settings: ctx.chatSettingsFor(project, folder) } : {}),
-      ...ctx.packages.chatStartOf(project, agent),
+      ...(agent === CLAUDE ? { settings: ctx.chatSettingsFor(project, folder, start.packages ?? {}) } : {}),
+      ...ctx.packages.chatStartOf(project, agent, start.packages ?? {}),
       ...(isPlain(config, project) ? { outsideRepo: true } : {}),
     }
   }

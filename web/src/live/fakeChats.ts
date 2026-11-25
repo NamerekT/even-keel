@@ -196,7 +196,7 @@ function fakeMail(card: ChatCard): Mail[] {
 
 /**
  * The project chats of `dev:fake` (BTN-1231): `?chats=none` — none, `?chats=many` — a dozen active ones, `?chats=long`
- * an OpenCode one with a long model name first; by default four active (waiting, answered unread, working, cold on
+ * an OpenCode one with a long model name first, `?chats=packages` a last choice with packages of its own; by default four active (waiting, answered unread, working, cold on
  * Codex) and 25 archived. Kept per page load, so a new chat, a message and a read stay until a reload.
  */
 export function fakeChats(mode: string | null) {
@@ -216,7 +216,16 @@ export function fakeChats(mode: string | null) {
       list = {
         active: [...cards, ...extra],
         archived: mode === 'none' ? [] : archived(state, project, cards[1]?.id ?? ''),
-        choice: mode === 'none' ? null : { account: accountOf(state, 'claude', 'global'), model: 'claude-sonnet-5-5', effort: 'medium' },
+        choice:
+          mode === 'none'
+            ? null
+            : {
+                account: accountOf(state, 'claude', 'global'),
+                model: 'claude-sonnet-5-5',
+                effort: 'medium',
+                // The "More" window with the chat's own values, one of a package out of the catalog (BTN-1696).
+                ...(mode === 'packages' && { packages: { 'github@even-keel': true, forgejo: false, 'old-review@example': true } }),
+              },
       }
       lists.set(project, list)
     }
@@ -293,7 +302,8 @@ export function fakeChats(mode: string | null) {
         made += 1
         const created = card(state, project, { id: `${project}-new-${made}`, agent, ...choice, machine, state: 'new', context: null, lastAt: new Date().toISOString() })
         list.active = [created, ...list.active]
-        list.choice = choice
+        // The window opens with the last choice of packages again (BTN-1696).
+        list.choice = { ...choice, ...(typeof body.packages === 'object' && body.packages !== null && { packages: body.packages as Record<string, boolean> }) }
         return created
       }
       if (name === 'chats/chat') {
