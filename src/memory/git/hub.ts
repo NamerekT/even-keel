@@ -128,12 +128,28 @@ export class MemoryHub {
     mkdirSync(this.deps.dir, { recursive: true })
     const draft = `${repository}.new`
     rmSync(draft, { recursive: true, force: true })
-    const made = await (this.deps.git ?? runGit)(this.deps.dir, ['init', '--bare', '-q', '-b', MEMORY_BRANCH, draft])
+    const git = this.deps.git ?? runGit
+    const made = await git(this.deps.dir, ['init', '--bare', '-q', '-b', MEMORY_BRANCH, draft])
     if (made.code !== 0) {
       rmSync(draft, { recursive: true, force: true })
       throw new Error(`git init: ${made.out}`)
     }
+    const seeded = await this.seed(git, project, draft)
     renameSync(draft, repository)
-    this.deps.log(`memory: ${project} has a new repository ${repository}`)
+    this.deps.log(`memory: ${project} has a new repository ${repository}${seeded ? ', its history taken from the mirror' : ''}`)
+  }
+
+  /**
+   * A new repository takes the project's branch of the memory mirror when there is one (BTN-1674): the working copies'
+   * history then lands on the one it came from and the mirror goes on moving forward. None or unreachable — it stays
+   * empty, and the first copy with a history pushes it.
+   */
+  private async seed(git: Git, project: string, draft: string): Promise<boolean> {
+    const address = this.deps.mirror?.() ?? null
+    if (address === null || address.startsWith('-')) return false
+    const fetched = await git(draft, ['fetch', '-q', address, `+refs/heads/${project}:refs/heads/${MEMORY_BRANCH}`], { GCM_INTERACTIVE: 'never' })
+    if (fetched.code === 0) return true
+    if (!/couldn't find remote ref/i.test(fetched.out)) this.deps.log(`memory: ${project} takes no history from the mirror: ${fetched.out.split('\n')[0]}`)
+    return false
   }
 }

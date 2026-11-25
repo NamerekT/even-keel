@@ -111,6 +111,28 @@ describe('RemoteMirror (BTN-1649)', { timeout: 60_000 }, () => {
     expect(logs).toEqual([`memory: the mirror's branch ${ONE} has commits the hub's repository lacks: it is left as it is`])
   })
 
+  it('shows on the page a branch left behind, until a push reaches it again (BTN-1674)', async () => {
+    await land(ONE, 'a.md')
+    await mirror.push(ONE)
+    const other = join(root, 'other')
+    await git(root, 'clone', '-q', '-b', ONE, join(root, 'mirror.git'), other)
+    writeFileSync(join(other, 'c.md'), 'y')
+    await git(other, 'add', '-A')
+    await git(other, 'commit', '-q', '-m', 'c')
+    await git(other, 'push', '-q', 'origin', `HEAD:refs/heads/${ONE}`)
+    await land(ONE, 'b.md')
+    await mirror.push(ONE)
+    expect(mirror.view()).toEqual({ code: 'memory.mirrorBehind', params: { address, projects: ONE } })
+    await land(ONE, 'd.md')
+    await mirror.push(ONE)
+    expect(logs).toHaveLength(1)
+
+    await git(root, '-C', join(root, 'mirror.git'), 'update-ref', '-d', `refs/heads/${ONE}`)
+    await land(ONE, 'e.md')
+    await mirror.push(ONE)
+    expect(mirror.view()).toEqual({ code: 'memory.mirrorPrivate', params: { address } })
+  })
+
   it('pushes every project at the first apply and at a new address, not at an unchanged one', async () => {
     const one = await land(ONE, 'a.md')
     const two = await land(TWO, 'b.md')
