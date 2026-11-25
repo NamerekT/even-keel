@@ -1,53 +1,37 @@
-import type { Server } from 'node:https'
-import { networkInterfaces } from 'node:os'
-import { dockerJoinOf, installCommandOf } from '../cli-install.js'
 import { fail } from '../notice/notice.js'
-import { hubUrlOf, writtenAddressOf } from '../link/address.js'
 import { colorOf, machineColors } from '../link/colors.js'
-import { createHubServer } from '../link/hub-server.js'
 import { kindOf } from '../link/kinds.js'
 import type { MachineKind } from '../state.js'
 import type { MachineRecord } from '../link/hub-store.js'
-import { HubEnd, type HubHandlers, type Invite } from '../link/hub.js'
-import { ASSIGN_COMMAND, HEARTBEAT_MS, SNAPSHOT_TOO_LARGE_EVENT, TAKEN_EVENT, megabytes, type AssignPayload, type FolderTaken, type SnapshotTooLarge } from '../link/protocol.js'
-import type { AddressChoice, HubBuild, MachineFollow, MachineInvite, MachineSignIn, MachineView, StateTooLarge, TakenFolder } from '../link/view.js'
+import { HubEnd } from '../link/hub.js'
+import { ASSIGN_COMMAND, HEARTBEAT_MS, type AssignPayload } from '../link/protocol.js'
+import type { AddressChoice, HubBuild, MachineProjectSettings, MachineView, StateTooLarge, TakenFolder } from '../link/view.js'
 import type { LimitsPlan, MachineAccounts } from '../limits/polls.js'
-import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
-import { RemoteMachine } from '../machine/remote.js'
+import type { RemoteMachine } from '../machine/remote.js'
 import type { MachinePort } from '../machine/port.js'
-import { CLONE_PROGRESS_EVENT, type CloneTold, type MachineFolders, type MachineServices } from '../machine/services.js'
 import type { CloneProgress } from '../git/clone-progress.js'
-import type { MachineProjectSettings, ProjectPool } from '../link/view.js'
 import { samePath } from '../paths.js'
-import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
-import { BriefSender } from './hub-brief.js'
-import { folderUnder, insideRoot, type MachineNetworkOptions, type NetworkPeers, type Peer, type PoolTarget } from './machine-network-options.js'
-import { machineAccountOf } from './machine-page.js'
-import { afterGreenOn, settingsColumn, settingsFromColumn } from './machine-settings.js'
+import * as accounts from './machine-network-accounts.js'
+import * as briefing from './machine-network-briefs.js'
+import { HubDoor } from './machine-network-door.js'
+import { folderUnder, insideRoot, type MachineNetworkOptions, type NetworkHost, type NetworkPeers, type Peer, type PoolTarget } from './machine-network-options.js'
+import * as pools from './machine-network-pool.js'
 
 export type { AddressChoice, MachineView }
 export { folderUnder, insideRoot }
 export type { MachineNetworkOptions, NetworkPeers, PoolTarget }
 
-/** The monitor's word that the machine has read its sessions: the hub catches it up with its brief. */
-const SESSIONS_READ_EVENT = 'sessions.read'
-
-const LOOPBACK = /^(127\.|::1$|localhost$)/
-const WILDCARD = new Set(['0.0.0.0', '::', ''])
-/** The port a proxy that ends TLS takes HTTPS at when the address names none. */
-const HTTPS_PORT = 443
-
 /**
  * The hub's door for machines elsewhere (BTN-1242): a `HubEnd` of its own over the hub's store, serving every machine
  * but the hub's own, and the HTTPS listener behind it, open only while "Hub address for machines" is set. Each such
  * machine has its own mirror (`RemoteMachine`), its brief of the projects in its pool and its plan of account limits
- * (`peers`); the chain still launches only on the hub's own machine.
+ * (`peers`); the chain still launches only on the hub's own machine. Its other topics live in files of their own over
+ * `NetworkHost`, each named by the comment above its members here.
  */
 export class MachineNetwork {
   readonly hub: HubEnd
-  private server: Server | undefined
-  private listeningFor: string | null = null
-  private applying: Promise<void> = Promise.resolve()
+  private readonly host: NetworkHost
+  private readonly door: HubDoor
   private readonly peers = new Map<string, Peer>()
   /** By machine and project, the machine whose mark holds the project's folder there; kept in memory, told again at the next assignment. */
   private readonly taken = new Map<string, Map<string, TakenFolder>>()
@@ -70,6 +54,25 @@ export class MachineNetwork {
   private readonly tooLarge = new Map<string, StateTooLarge>()
 
   constructor(private readonly options: MachineNetworkOptions) {
+    const hub = (): HubEnd => this.hub
+    this.host = {
+      options,
+      get hub() {
+        return hub()
+      },
+      peers: this.peers,
+      taken: this.taken,
+      clones: this.clones,
+      wentOff: this.wentOff,
+      tooLarge: this.tooLarge,
+      refresh: () => this.refresh(),
+      foreign: (machine) => this.foreign(machine),
+      folderOf: (project, folder, root) => this.folderOf(project, folder, root),
+      folderOn: (machine, project, root) => this.folderOn(machine, project, root),
+      holds: (machine, project, owner) => this.holds(machine, project, owner),
+      brief: (machine) => briefing.brief(this.host, machine),
+    }
+    this.door = new HubDoor(this.host)
     this.hub = new HubEnd({
       store: options.store,
       admits: (machine) => machine !== options.own(),
@@ -77,7 +80,7 @@ export class MachineNetwork {
       version: options.version,
       ...(options.commit !== undefined && { commit: options.commit }),
       log: options.log,
-      handlers: this.handlers(),
+      handlers: briefing.hubHandlers(this.host),
     })
   }
 
@@ -242,20 +245,6 @@ export class MachineNetwork {
     this.options.changed()
   }
 
-  /** The projects of the machine's pool, each with its folder there and whether the machine takes its tasks. */
-  async foldersOf(machine: string): Promise<Array<{ project: string; folder: string; enabled: boolean }>> {
-    const own = machine === this.options.own()
-    const root = own ? null : ((await this.options.store.machine(machine))?.about?.root ?? null)
-    const { rows } = await this.options.db.query<{ project_id: string; folder: string | null; enabled: boolean }>(
-      'select project_id, folder, enabled from project_machines where machine_id = $1 order by project_id',
-      [machine],
-    )
-    return rows.flatMap((row) => {
-      const folder = own ? this.options.repoOf(row.project_id) : this.folderOf(row.project_id, row.folder, root)
-      return folder === undefined ? [] : [{ project: row.project_id, folder, enabled: row.enabled }]
-    })
-  }
-
   /** The hub's row of a machine, the own one too. */
   record(machine: string): Promise<MachineRecord | undefined> {
     return this.options.store.machine(machine)
@@ -271,161 +260,53 @@ export class MachineNetwork {
     return [...(this.taken.get(machine)?.values() ?? [])]
   }
 
-  /**
-   * Each machine elsewhere's accounts and its sign-in under way, as its last post showed them (BTN-1245): what the hub's
-   * page offers to sign in to there. Only the panel's names and states: the credentials never leave the machine.
-   */
-  signIns(): MachineSignIn[] {
-    return [...this.peers].flatMap(([machine, peer]) => {
-      const panel = peer.remote.page.panel()
-      if (panel === undefined) return []
-      const { login } = panel
-      const { polled, differs } = this.options
-      const polls = polled === undefined ? undefined : { panel: panel.accounts, identities: peer.remote.facts()?.identities, polled, ...(differs !== undefined && { differs }) }
-      return [{
-        machine,
-        name: peer.name,
-        online: this.hub.connected(machine),
-        accounts: panel.accounts.map((entry) => machineAccountOf(entry, polls)),
-        ...(panel.active !== '' && { active: panel.active }),
-        login: login === null ? null : {
-          agent: login.agent,
-          ...(login.method !== undefined && { method: login.method }),
-          target: login.target,
-          startedAt: login.startedAt,
-          urls: login.urls,
-          deviceCode: login.deviceCode,
-          output: login.output,
-          error: login.error,
-          codeSent: login.codeSent,
-        },
-        missing: panel.missing,
-        ...(panel.globals !== undefined && panel.globals.length > 0 && { globals: panel.globals }),
-        ...(panel.installs !== undefined && { installs: panel.installs }),
-        ...(panel.install !== undefined && { install: panel.install }),
-      }]
-    })
+  // The accounts, sign-ins and services on a machine elsewhere: `machine-network-accounts.ts`.
+  signIns() {
+    return accounts.signIns(this.host)
   }
 
-  /**
-   * Starts a sign-in on the machine through its CLI (`docs/machines/machine-side.md`, "Signing in on a machine"): again in its folder
-   * `account` when it has one, else in a new folder named after the account signed in. The link and the code go
-   * through the hub; the token the CLI gets stays in the machine's folder.
-   */
-  async login(machine: string, agent: string, account?: string, method?: string): Promise<void> {
-    const control = await this.accountsOf(machine)
-    const has = account !== undefined && this.peers.get(machine)?.remote.page.panel()?.accounts.some((entry) => entry.key === account) === true
-    this.options.log(`machines: a sign-in of ${agent} is started on machine ${machine}${has ? ` in its folder ${account}` : ''}`)
-    if (has) await control.renew(account)
-    else await control.add(agent, method)
+  login(machine: string, agent: string, account?: string, method?: string) {
+    return accounts.login(this.host, machine, agent, account, method)
   }
 
-  /**
-   * The machine's CLI folder of `agent` that is signed in but not added becomes its account (BTN-1568). It uses that
-   * folder's own sign-in, so there is no new one. The machine checks the sign-in again and applies its own rules, as
-   * `account/global` on the hub does.
-   */
-  async useGlobal(machine: string, agent: string): Promise<void> {
-    const offered = this.peers.get(machine)?.remote.page.panel()?.globals?.some((each) => each.agent === agent) === true
-    const control = await this.accountsOf(machine)
-    if (!offered) throw fail('account.unknown', { key: agent })
-    this.options.log(`machines: the CLI folder of ${agent} is added on machine ${machine}`)
-    await control.useGlobal(agent)
+  useGlobal(machine: string, agent: string) {
+    return accounts.useGlobal(this.host, machine, agent)
   }
 
-  /**
-   * A Claude folder on the machine signed in with a long token of `claude setup-token` (BTN-1002), tied to the hub's
-   * folder `account`'s claude.ai account, so the hub hands it that account's limits. The token passes through the hub
-   * only as the command's payload and is not logged; the machine checks it with one short turn.
-   */
-  async token(machine: string, account: string, token: string, name = ''): Promise<void> {
-    const of = this.options.hubAccount?.(account)
-    if (of === undefined) throw fail('account.unknown', { key: account })
-    const control = await this.accountsOf(machine)
-    this.options.log(`machines: a long token of ${of.email ?? of.account} is added on machine ${machine}`)
-    await control.addLongToken(name, token, null, of)
+  token(machine: string, account: string, token: string, name?: string) {
+    return accounts.token(this.host, machine, account, token, name)
   }
 
-  /**
-   * The machine signed in on the long token the hub's folder `from` runs on (BTN-1501), in a folder of the same name:
-   * the page names only the folder, the token goes from the hub's folder into the command's payload as `token`'s does.
-   * Tied to the account the hub's folder was said to be of — its full sign-in `sameAs`, else the account its token file
-   * names; neither — none, and the machine finds its folder by that name (BTN-1512).
-   */
-  async sharedToken(machine: string, from: string): Promise<void> {
-    const held = this.options.hubLongToken?.(from)
-    if (held === undefined) throw fail('account.unknown', { key: from })
-    const of = (held.sameAs === undefined ? undefined : this.options.hubAccount?.(held.sameAs)) ?? held.account ?? null
-    const control = await this.accountsOf(machine)
-    this.options.log(`machines: the long token of the hub's folder ${from} is added on machine ${machine}`)
-    await control.addLongToken(from, held.token, null, of)
+  sharedToken(machine: string, from: string) {
+    return accounts.sharedToken(this.host, machine, from)
   }
 
-  /** The code the person got on the sign-in page, for the machine's CLI waiting for it; it is not logged. */
-  async code(machine: string, code: string): Promise<void> {
-    await (await this.accountsOf(machine)).code(code)
+  code(machine: string, code: string) {
+    return accounts.code(this.host, machine, code)
   }
 
-  async cancel(machine: string): Promise<void> {
-    await (await this.accountsOf(machine)).cancel()
+  cancel(machine: string) {
+    return accounts.cancel(this.host, machine)
   }
 
-  /** The agent's official installer on the machine (BTN-1502); its output comes back in the machine's panel. */
-  async installCli(machine: string, agent: string): Promise<void> {
-    this.options.log(`machines: the CLI of ${agent} is installed on machine ${machine}`)
-    await (await this.accountsOf(machine)).installCli(agent)
+  installCli(machine: string, agent: string) {
+    return accounts.installCli(this.host, machine, agent)
   }
 
-  async checkClis(machine: string): Promise<void> {
-    await (await this.accountsOf(machine)).checkClis()
+  checkClis(machine: string) {
+    return accounts.checkClis(this.host, machine)
   }
 
-  /**
-   * Git's `user.name` and `user.email` written on the machine (BTN-1503): its report takes what git read back there at
-   * once, so its facts and its cards change without waiting for its next handshake, which reports the same.
-   */
-  async gitIdentity(machine: string, name: string, email: string): Promise<void> {
-    const record = await this.foreign(machine)
-    const read = await (await this.servicesOf(machine)).git.identity(name, email)
-    this.options.log(`machines: git's name and e-mail are set on machine ${record.id} (${record.name})`)
-    const about = (await this.options.store.machine(record.id))?.about ?? record.about
-    if (about !== null) {
-      const { gitName: _name, gitEmail: _email, ...rest } = about
-      await this.options.store.described(record.id, {
-        ...rest,
-        gitUser: read.name !== null && read.email !== null,
-        ...(read.name !== null && { gitName: read.name }),
-        ...(read.email !== null && { gitEmail: read.email }),
-      })
-    }
-    this.options.changed()
+  gitIdentity(machine: string, name: string, email: string) {
+    return accounts.gitIdentity(this.host, machine, name, email)
   }
 
-  /**
-   * The machine's update to the hub's build (BTN-1609, `update.follow`): `null` — it moves; what keeps it where it is
-   * goes into its report at once, as its next handshake would bring it.
-   */
-  async follow(machine: string, build: HubBuild, force: boolean): Promise<MachineFollow | null> {
-    const answer = await (await this.servicesOf(machine)).update.follow(build, force)
-    if (answer !== null) {
-      const about = (await this.options.store.machine(machine))?.about ?? null
-      if (about !== null) await this.options.store.described(machine, { ...about, follow: answer })
-      this.options.changed()
-    }
-    return answer
+  follow(machine: string, build: HubBuild, force: boolean) {
+    return accounts.follow(this.host, machine, build, force)
   }
 
-  async accountsOf(machine: string): Promise<MachineServices['account']> {
-    return (await this.servicesOf(machine)).account
-  }
-
-  private async servicesOf(machine: string): Promise<MachineServices> {
-    const record = await this.foreign(machine)
-    const peer = this.peers.get(record.id)
-    // Its answers come no sooner than its state: a call would wait for good (BTN-1560).
-    if (this.tooLarge.has(record.id)) throw fail('machines.tooLarge', { name: record.name })
-    if (peer === undefined || !this.hub.connected(record.id)) throw fail('machines.offline', { name: record.name })
-    return peer.remote.services()
+  accountsOf(machine: string) {
+    return accounts.accountsOf(this.host, machine)
   }
 
   async tellLimits(machine: string, plan: LimitsPlan): Promise<void> {
@@ -434,105 +315,9 @@ export class MachineNetwork {
     await peer.remote.tellLimits(plan)
   }
 
-  /** Sends every machine online the brief that changed since the one it took. */
-  async catchUp(): Promise<void> {
-    for (const machine of this.peers.keys()) if (this.hub.connected(machine)) await this.brief(machine)
-  }
-
-  private handlers(): HubHandlers {
-    const { peers, log } = this.options
-    const changed = (machine: string, online: boolean) => {
-      if (online) this.wentOff.delete(machine)
-      else this.wentOff.set(machine, Date.now())
-      // A machine that comes online is read anew: one just joined is counted among the live ones at once, and the
-      // system it reported at the handshake reaches its icon (BTN-1595).
-      if (online) {
-        void this.refresh().then(() => this.options.changed(), (error: unknown) => log(`machines: the machines could not be read anew: ${error instanceof Error ? error.message : String(error)}`))
-      }
-      this.options.changed()
-    }
-    if (peers === undefined) {
-      return {
-        snapshot: () => {},
-        event: () => {
-          throw new Error('the events of a machine elsewhere are taken only by a hub that serves them')
-        },
-        online: (machine) => changed(machine, true),
-        offline: (machine) => changed(machine, false),
-      }
-    }
-    return {
-      snapshot: async (machine, snapshot) => {
-        const peer = this.peer(machine, peers)
-        const record = await this.options.store.machine(machine)
-        peer.name = record?.name ?? machine
-        peer.capacity = record?.capacity ?? 1
-        if (record?.about != null) this.options.seen?.(machine, record.about)
-        if (this.tooLarge.delete(machine)) log(`machines: machine ${machine} (${peer.name}) sends its state to the hub again`)
-        peers.connected(machine)
-        // A new connection may be a new process of the machine, which holds no brief yet.
-        peer.briefs.forget()
-        await peer.remote.handlers().snapshot(machine, snapshot)
-        void this.brief(machine).then(() => this.options.briefed?.(machine))
-      },
-      event: async (machine, event) => {
-        if (event.type === SELECTION_EVENT) {
-          // The hub's settings are its own machine's: a choice made on a machine elsewhere stays there.
-          const selection = event.payload as MachineSelection
-          log(`machines: machine ${machine} chose ${selection.kind} ${selection.value} for ${selection.provider}; the hub's settings are not changed by it`)
-        } else if (event.type === TAKEN_EVENT) await this.refused(machine, event.payload as FolderTaken)
-        else if (event.type === KEPT_WRITE_EVENT) await peers.write(machine, event.payload as KeptWrite)
-        else if (event.type === SESSIONS_READ_EVENT) void this.brief(machine)
-        else if (event.type === SNAPSHOT_TOO_LARGE_EVENT) await this.stateOverLimit(machine, event.payload as SnapshotTooLarge, peers)
-        else if (event.type === CLONE_PROGRESS_EVENT) {
-          const told = event.payload as CloneTold
-          this.clones.get(`${machine}\0${told.project}`)?.(told.progress)
-        } else await this.peer(machine, peers).remote.handlers().event(machine, event)
-      },
-      mcp: (machine, request) => peers.mcp(machine, request),
-      hook: (machine, request) => peers.hook(machine, request),
-      tally: (machine, rows) => peers.tally?.(machine, rows) ?? Promise.resolve({ taken: false }),
-      credentials: (machine, project, urls) =>
-        peers.credentials?.(machine, project, urls, this.clones.has(`${machine}\0${project}`)) ?? Promise.resolve({ credentials: [] }),
-      skills: (machine, install) => peers.skills?.(machine, install) ?? { skills: null },
-      git: (machine, project, request) => peers.git?.(machine, project, request) ?? { status: 404, contentType: 'text/plain', body: '' },
-      online: (machine) => changed(machine, true),
-      offline: (machine) => {
-        this.peers.get(machine)?.remote.lost()
-        changed(machine, false)
-        peers.changed()
-      },
-    }
-  }
-
-  /**
-   * The machine's snapshot does not go (BTN-1560): the page marks it, and the page's and the pool's calls waiting for it
-   * are let go with the reason, as are new ones till a snapshot comes. Logged once, where the size changes little.
-   */
-  private async stateOverLimit(machine: string, told: SnapshotTooLarge, peers: NetworkPeers): Promise<void> {
-    const name = (await this.options.store.machine(machine))?.name ?? machine
-    if (!this.tooLarge.has(machine)) {
-      this.options.log(`machines: machine ${machine} (${name}) cannot send its state to the hub: ${megabytes(told.bytes)} is over the link's limit; its largest parts: ${told.parts}`)
-    }
-    this.tooLarge.set(machine, { bytes: told.bytes, since: this.tooLarge.get(machine)?.since ?? Date.now() })
-    this.peer(machine, peers).remote.refuseServices(() => fail('machines.tooLarge', { name }))
-    this.options.changed()
-  }
-
-  private peer(machine: string, peers: NetworkPeers): Peer {
-    let peer = this.peers.get(machine)
-    if (peer !== undefined) return peer
-    const remote: RemoteMachine = new RemoteMachine({
-      ...peers.remote(machine),
-      send: (to, command) => this.hub.send(to, command),
-      machine: () => machine,
-      changed: () => peers.changed(),
-      briefNow: () => this.brief(machine),
-    })
-    const made: Peer = { remote, port: remote.port(), capacity: 1, folders: {}, settings: {}, name: machine, briefs: new BriefSender(() => peers.brief(made.folders, made.settings, machine),(brief) => remote.tellBrief(brief)) }
-    peer = made
-    this.peers.set(machine, peer)
-    return peer
+  // The hub's handlers and the briefs: `machine-network-briefs.ts`.
+  catchUp() {
+    return briefing.catchUp(this.host)
   }
 
   /**
@@ -558,12 +343,6 @@ export class MachineNetwork {
     this.options.log(`machines: the folder of project ${project} on machine ${machine} is served by machine ${owner.machine} (${name}): refused there`)
     this.options.changed()
     return false
-  }
-
-  private async refused(machine: string, taken: FolderTaken): Promise<void> {
-    if (await this.holds(machine, taken.project, taken)) {
-      await this.hub.send(machine, { type: ASSIGN_COMMAND, project: taken.project, folder: taken.folder, payload: { takeOver: taken.machine } satisfies AssignPayload })
-    }
   }
 
   /**
@@ -599,89 +378,17 @@ export class MachineNetwork {
     return this.folderOf(project, rows[0]?.folder ?? null, root)
   }
 
-  /**
-   * The machine's brief, its pool's folders read anew. A machine turned off keeps its projects there: their packages
-   * install before its folder is checked, and a task it holds goes on; the chain pulls only from the ones turned on.
-   */
-  private async brief(machine: string): Promise<void> {
-    const peer = this.peers.get(machine)
-    if (peer === undefined) return
-    try {
-      const root = (await this.options.store.machine(machine))?.about?.root ?? null
-      const { rows } = await this.options.db.query<{ project_id: string; folder: string | null; settings: string | null }>(
-        'select project_id, folder, settings from project_machines where machine_id = $1',
-        [machine],
-      )
-      const folders: Record<string, string> = {}
-      const settings: Record<string, MachineProjectSettings> = {}
-      for (const row of rows) {
-        const folder = this.folderOf(row.project_id, row.folder, root)
-        if (folder === undefined) continue
-        folders[row.project_id] = folder
-        settings[row.project_id] = settingsFromColumn(row.settings)
-      }
-      peer.folders = folders
-      peer.settings = settings
-      await peer.briefs.send()
-    } catch (error) {
-      this.options.log(`machines: the brief for machine ${machine} was not taken: ${error instanceof Error ? error.message : String(error)}`)
-    }
+  // The listener and the connection strings: `machine-network-door.ts`.
+  apply() {
+    return this.door.apply()
   }
 
-  /** Opens or closes the listener by the setting as it is now; called at the start and at every change of the settings. */
-  apply(): Promise<void> {
-    this.applying = this.applying.then(() => this.refresh()).then(() => this.applyNow()).catch((error: unknown) => {
-      this.options.log(`machines: the listener for machines did not start: ${error instanceof Error ? error.message : String(error)}`)
-    })
-    return this.applying
+  addresses() {
+    return this.door.addresses()
   }
 
-  /** The names the page offers for the setting, each once. */
-  addresses(): AddressChoice[] {
-    const choices: AddressChoice[] = this.options.allowedHosts().map((address) => ({ address, from: 'allowedHosts' }))
-    for (const [adapter, entries] of Object.entries(this.options.inContainer ? {} : networkInterfaces())) {
-      for (const entry of entries ?? []) {
-        if (entry.internal || LOOPBACK.test(entry.address) || entry.address.startsWith('169.254.') || /^fe80:/i.test(entry.address)) continue
-        choices.push({ address: entry.family === 'IPv6' ? `[${entry.address}]` : entry.address, from: 'adapter', adapter })
-      }
-    }
-    const host = this.options.serviceHost.trim().toLowerCase()
-    if (!WILDCARD.has(host) && !LOOPBACK.test(host)) choices.push({ address: host, from: 'service' })
-    return choices.filter((choice, index) => choices.findIndex((other) => other.address === choice.address) === index)
-  }
-
-  /**
-   * A connection string for a machine to join with, and the one command that installs the machine with it; the strings
-   * issued before and never joined with stop working. `given` — the address the window chose (BTN-1056): it becomes
-   * "Hub address for machines" first. No name — the machine is named by its host when it joins. `proxied` — the
-   * address is a proxy that ends TLS with a public authority's certificate (BTN-1286): the string pins no fingerprint,
-   * and an address without a port means 443, not the machines' port.
-   */
-  async invite(name: string, given?: string, color?: string, proxied = false): Promise<Invite & Pick<MachineInvite, 'command' | 'docker' | 'byAddress'>> {
-    const painted = color === undefined ? undefined : colorOf(color)
-    if (color !== undefined && painted === undefined) throw fail('request.required', { field: 'color' })
-    const chosen = given?.trim().toLowerCase()
-    if (chosen && chosen !== this.options.address()) {
-      this.options.saveAddress?.(chosen)
-      await this.apply()
-    }
-    const address = this.options.address()
-    const url = address === null ? undefined : hubUrlOf(address, proxied ? HTTPS_PORT : this.options.port)
-    if (url === undefined) throw fail('machines.noAddress', {})
-    const fingerprint = proxied ? '' : (await this.options.certificate()).fingerprint
-    const invite = await this.hub.invite(name.trim(), url, fingerprint)
-    if (painted !== undefined) {
-      await this.options.store.setColor(invite.machine, painted)
-      await this.refresh()
-    }
-    this.options.log(`machines: a connection string for "${name.trim() || '(its host)'}" was issued, good until ${new Date(invite.expiresAt).toISOString()}`)
-    const written = writtenAddressOf(url)
-    return {
-      ...invite,
-      command: installCommandOf(this.options.version, invite.line),
-      docker: dockerJoinOf(this.options.version, invite.line),
-      byAddress: { command: installCommandOf(this.options.version, written), docker: dockerJoinOf(this.options.version, written) },
-    }
+  invite(name: string, given?: string, color?: string, proxied?: boolean) {
+    return this.door.invite(name, given, color, proxied)
   }
 
   async revoke(machine: string): Promise<void> {
@@ -713,234 +420,67 @@ export class MachineNetwork {
     }))
   }
 
-  /**
-   * Puts the machine into the pools of the projects and tells it the folder of each: inside its folder of projects,
-   * named as on the hub. The machine agrees to it by itself; a folder outside its root it refuses.
-   */
-  async attach(machine: string, projects: string[]): Promise<void> {
-    const record = await this.foreign(machine)
-    if (record.joinedAt === null) throw fail('machines.notJoined', {})
-    const root = record.about?.root ?? null
-    if (root === null) throw fail('machines.noRoot', {})
-    const repos = projects.map((project) => [project, this.options.repoOf(project)] as const)
-    if (repos.some(([, repo]) => repo === undefined)) throw fail('machines.unknownProject', {})
-    for (const [project] of repos) {
-      await this.options.db.query(
-        'insert into project_machines (project_id, machine_id) values ($1, $2) on conflict (project_id, machine_id) do update set enabled = true',
-        [project, record.id],
-      )
-      this.taken.get(record.id)?.delete(project)
-      await this.hub.send(record.id, { type: ASSIGN_COMMAND, project, folder: (await this.folderOn(record.id, project, root))! })
-    }
-    await this.refresh()
-    this.options.log(`machines: machine ${record.id} (${record.name}) was given ${projects.length} project(s)`)
-    if (this.hub.connected(record.id)) void this.brief(record.id)
-    this.options.changed()
+  // The project's pool: `machine-network-pool.ts`.
+  foldersOf(machine: string) {
+    return pools.foldersOf(this.host, machine)
   }
 
-  /** The project's pool for its section "Machines" (BTN-1271): the own machine's folder is the project's repository. */
-  async pool(project: string): Promise<ProjectPool> {
-    const repo = this.options.repoOf(project)
-    if (repo === undefined) throw fail('machines.unknownProject', {})
-    const own = this.options.own()
-    const records = (await this.options.store.listMachines()).filter((record) => record.revokedAt !== null ? false : record.id === own || record.joinedAt !== null)
-    const { rows } = await this.options.db.query<{ machine_id: string; folder: string | null; enabled: boolean; settings: string | null }>(
-      'select machine_id, folder, enabled, settings from project_machines where project_id = $1 order by machine_id',
-      [project],
-    )
-    const settings = this.options.projectSettings?.(project)
-    const folderIn = (record: MachineRecord, folder: string | null) => (record.id === own ? repo : this.folderOf(project, folder, record.about?.root ?? null) ?? null)
-    const online = (record: MachineRecord) => record.id === own || this.hub.connected(record.id)
-    return {
-      machines: rows.flatMap((row) => {
-        const record = records.find((each) => each.id === row.machine_id)
-        if (record === undefined) return []
-        const isOwn = record.id === own
-        const values = isOwn ? {} : settingsFromColumn(row.settings)
-        return [{ id: record.id, name: record.name, own: isOwn, online: online(record), folder: folderIn(record, row.folder) ?? '', enabled: row.enabled, settings: values, afterGreen: afterGreenOn(settings, values) }]
-      }),
-      others: records
-        .filter((record) => !rows.some((row) => row.machine_id === record.id))
-        .map((record) => ({
-          id: record.id,
-          name: record.name,
-          own: record.id === own,
-          online: online(record),
-          folder: folderIn(record, null),
-          root: record.id === own ? null : (record.about?.root ?? null),
-        })),
-      servers: this.options.servers?.(project) ?? [],
-      ...(settings !== undefined && { commands: { beforeStart: settings.beforeStart, check: settings.check, afterGreen: settings.afterGreen } }),
-    }
+  attach(machine: string, projects: string[]) {
+    return pools.attach(this.host, machine, projects)
   }
 
-  /**
-   * Keeps a machine elsewhere's own values in the project (BTN-994) and briefs it: its next session, check and command
-   * after a green main take them. The own machine has none: its values are the project's.
-   */
-  async setSettings(project: string, machine: string, values: MachineProjectSettings): Promise<void> {
-    if (this.options.repoOf(project) === undefined) throw fail('machines.unknownProject', {})
-    if (machine === this.options.own()) throw fail('pool.ownMachine', {})
-    const record = await this.foreign(machine)
-    const { rows } = await this.options.db.query('update project_machines set settings = $3 where project_id = $1 and machine_id = $2 returning machine_id', [project, record.id, settingsColumn(values)])
-    if (rows.length === 0) throw fail('pool.notInPool', {})
-    this.options.log(`machines: machine ${record.id} (${record.name}) has its own values in project ${project}: ${Object.keys(values).join(', ') || 'none'}`)
-    await this.poolChanged(record.id)
+  pool(project: string) {
+    return pools.pool(this.host, project)
   }
 
-  /**
-   * The machines of the project's pool turned on, each with the commands after a green main it runs and the last green
-   * commit they were started on there (BTN-994); `machine` — only that one.
-   */
-  async afterGreenPool(project: string, machine?: string): Promise<Array<{ machine: string; commands: string[]; ran: string | null }>> {
-    const { rows } = await this.options.db.query<{ machine_id: string; settings: string | null; after_green: string | null }>(
-      'select machine_id, settings, after_green from project_machines where project_id = $1 and enabled and ($2::text is null or machine_id = $2) order by machine_id',
-      [project, machine ?? null],
-    )
-    const own = this.options.own()
-    const settings = this.options.projectSettings?.(project)
-    return rows.map((row) => ({ machine: row.machine_id, commands: afterGreenOn(settings, row.machine_id === own ? {} : settingsFromColumn(row.settings)), ran: row.after_green }))
+  setSettings(project: string, machine: string, values: MachineProjectSettings) {
+    return pools.setSettings(this.host, project, machine, values)
   }
 
-  /** The projects whose pool has the machine turned on. */
-  async projectsOf(machine: string): Promise<string[]> {
-    const { rows } = await this.options.db.query<{ project_id: string }>('select project_id from project_machines where machine_id = $1 and enabled order by project_id', [machine])
-    return rows.map((row) => row.project_id)
+  afterGreenPool(project: string, machine?: string) {
+    return pools.afterGreenPool(this.host, project, machine)
   }
 
-  /** The mark of the green commit the machine's commands after a green main start on, written before they start. */
-  async markAfterGreen(project: string, machine: string, commit: string): Promise<void> {
-    await this.options.db.query('update project_machines set after_green = $3 where project_id = $1 and machine_id = $2', [project, machine, commit])
+  projectsOf(machine: string) {
+    return pools.projectsOf(this.host, machine)
   }
 
-  /**
-   * Turns the machine's taking of the project's tasks on or off; a task it holds goes on either way. The own machine
-   * is put into the pool by this alone: its folder is the project's repository, checked when the project was added.
-   */
-  async setEnabled(project: string, machine: string, enabled: boolean): Promise<void> {
-    if (this.options.repoOf(project) === undefined) throw fail('machines.unknownProject', {})
-    if (machine === this.options.own()) {
-      await this.options.db.query(
-        'insert into project_machines (project_id, machine_id, enabled) values ($1, $2, $3) on conflict (project_id, machine_id) do update set enabled = $3',
-        [project, machine, enabled],
-      )
-    } else {
-      const record = await this.foreign(machine)
-      const { rows } = await this.options.db.query('update project_machines set enabled = $3 where project_id = $1 and machine_id = $2 returning machine_id', [project, record.id, enabled])
-      if (rows.length === 0) throw fail('pool.notInPool', {})
-    }
-    this.options.log(`machines: machine ${machine} ${enabled ? 'takes' : 'no longer takes'} the tasks of project ${project}`)
-    await this.poolChanged(machine)
+  markAfterGreen(project: string, machine: string, commit: string) {
+    return pools.markAfterGreen(this.host, project, machine, commit)
   }
 
-  /** A machine elsewhere the project may be connected to: joined, with a folder of projects; the own one is refused. */
-  async target(machine: string): Promise<PoolTarget> {
-    if (machine === this.options.own()) throw fail('pool.ownMachine', {})
-    const record = await this.foreign(machine)
-    if (record.joinedAt === null) throw fail('machines.notJoined', {})
-    const root = record.about?.root ?? null
-    if (root === null) throw fail('machines.noRoot', {})
-    return { id: record.id, name: record.name, root }
+  setEnabled(project: string, machine: string, enabled: boolean) {
+    return pools.setEnabled(this.host, project, machine, enabled)
   }
 
-  /** The folders group of a machine connected now. */
-  folders(target: PoolTarget): MachineFolders {
-    const peer = this.peers.get(target.id)
-    if (this.tooLarge.has(target.id)) throw fail('machines.tooLarge', { name: target.name })
-    if (peer === undefined || !this.hub.connected(target.id)) throw fail('pool.offline', { name: target.name })
-    return peer.remote.services().folders
+  target(machine: string) {
+    return pools.target(this.host, machine)
   }
 
-  /** Shows a clone's progress on the machine until the returned function is called. */
-  watchClone(machine: string, project: string, show: (progress: CloneProgress) => void): () => void {
-    const key = `${machine}\0${project}`
-    this.clones.set(key, show)
-    return () => {
-      if (this.clones.get(key) === show) this.clones.delete(key)
-    }
+  folders(target: PoolTarget) {
+    return pools.folders(this.host, target)
   }
 
-  /**
-   * Puts the project's folder on the machine into its pool turned off, tells the machine the folder and briefs it, so
-   * its packages install before the checks. Answers whether the row is new: Cancel takes back only such a row.
-   * `copyFrom` — a machine of the pool whose own values in the project this one takes (BTN-994).
-   */
-  async place(target: PoolTarget, project: string, folder: string, copyFrom?: string): Promise<boolean> {
-    if (!insideRoot(folder, target.root)) throw fail('pool.outside', { folder, root: target.root })
-    const { rows } = await this.options.db.query<{ enabled: boolean }>('select enabled from project_machines where project_id = $1 and machine_id = $2', [project, target.id])
-    await this.options.db.query(
-      `insert into project_machines (project_id, machine_id, enabled, folder) values ($1, $2, false, $3)
-       on conflict (project_id, machine_id) do update set folder = $3`,
-      [project, target.id, folder],
-    )
-    if (copyFrom !== undefined && copyFrom !== target.id) {
-      const copied = await this.options.db.query<{ settings: string | null }>('select settings from project_machines where project_id = $1 and machine_id = $2', [project, copyFrom])
-      if (copied.rows.length === 0) throw fail('pool.notInPool', {})
-      await this.options.db.query('update project_machines set settings = $3 where project_id = $1 and machine_id = $2', [project, target.id, copied.rows[0]!.settings])
-    }
-    this.taken.get(target.id)?.delete(project)
-    await this.hub.send(target.id, { type: ASSIGN_COMMAND, project, folder })
-    this.options.log(`machines: machine ${target.id} (${target.name}) is given the folder ${folder} of project ${project}, to be checked`)
-    await this.poolChanged(target.id)
-    return rows.length === 0
+  watchClone(machine: string, project: string, show: (progress: CloneProgress) => void) {
+    return pools.watchClone(this.host, machine, project, show)
   }
 
-  /** Takes the machine out of the project's pool: Cancel of a connection that put it there. */
-  async unplace(machine: string, project: string): Promise<void> {
-    await this.options.db.query('delete from project_machines where project_id = $1 and machine_id = $2', [project, machine])
-    await this.poolChanged(machine)
+  place(target: PoolTarget, project: string, folder: string, copyFrom?: string) {
+    return pools.place(this.host, target, project, folder, copyFrom)
   }
 
-  private async poolChanged(machine: string): Promise<void> {
-    await this.refresh()
-    if (this.hub.connected(machine)) await this.brief(machine)
-    this.options.changed()
+  unplace(machine: string, project: string) {
+    return pools.unplace(this.host, machine, project)
   }
 
   async close(): Promise<void> {
     this.hub.stop()
-    await this.stopListening()
+    await this.door.stopListening()
   }
 
   private async foreign(machine: string): Promise<MachineRecord> {
     const record = await this.options.store.machine(machine)
     if (record === undefined || record.id === this.options.own() || record.revokedAt !== null) throw fail('machines.unknown', {})
     return record
-  }
-
-  private async applyNow(): Promise<void> {
-    const address = this.options.address()
-    if (address === this.listeningFor && (address === null) === (this.server === undefined)) return
-    if (address === null) {
-      await this.stopListening()
-      this.listeningFor = null
-      return
-    }
-    // A new name changes nothing of the listener: the strings issued from now carry it.
-    this.listeningFor = address
-    if (this.server !== undefined) return
-    const certificate = await this.options.certificate()
-    const { requests } = this.options
-    const server = createHubServer({ hub: this.hub, certificate, log: this.options.log, ...(requests !== undefined && { requests }) })
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject)
-      server.listen(this.options.port, () => {
-        server.off('error', reject)
-        resolve()
-      })
-    })
-    server.on('error', (error) => this.options.log(`machines: the listener for machines: ${error.message}`))
-    this.server = server
-    this.options.log(`machines: listening for machines on port ${this.options.port}`)
-  }
-
-  private async stopListening(): Promise<void> {
-    const server = this.server
-    if (server === undefined) return
-    this.server = undefined
-    this.hub.stop()
-    server.closeAllConnections()
-    await new Promise((resolve) => server.close(resolve))
-    this.options.log('machines: the listener for machines is closed')
   }
 }
