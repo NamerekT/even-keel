@@ -17,7 +17,7 @@ import {
   type SetupFacts,
 } from './setupSteps.js'
 
-const NOTHING: SetupFacts = { language: null, defaultGit: null, git: undefined, agentReady: false, profiles: 0, tally: null, passed: [] }
+const NOTHING: SetupFacts = { language: null, defaultGit: null, git: undefined, agentReady: false, profiles: 0, tally: null, signInOn: false, passed: [] }
 const ANSWERED: SetupFacts = {
   language: 'en',
   defaultGit: false,
@@ -25,7 +25,8 @@ const ANSWERED: SetupFacts = {
   agentReady: true,
   profiles: 0,
   tally: null,
-  passed: ['tracker', 'updates', 'stats'],
+  signInOn: false,
+  passed: ['phone', 'tracker', 'updates', 'stats'],
 }
 
 describe('stepAnswered', () => {
@@ -59,13 +60,20 @@ describe('stepAnswered', () => {
     expect(stepAnswered('agent', { ...NOTHING, passed: ['git', 'tracker', 'updates', 'stats'] })).toBe(false)
     expect(stepAnswered('agent', { ...NOTHING, agentReady: true })).toBe(true)
   })
+
+  it('takes phone access as answered once a device was let in by an invitation, or once skipped (BTN-1638)', () => {
+    expect(stepAnswered('phone', NOTHING)).toBe(false)
+    expect(stepAnswered('phone', { ...NOTHING, signInOn: true })).toBe(true)
+    expect(stepAnswered('phone', { ...NOTHING, passed: ['phone'] })).toBe(true)
+  })
 })
 
 describe('setupStop', () => {
   it('names the first step without an answer', () => {
     expect(setupStop(NOTHING)).toBe('language')
     expect(setupStop({ ...ANSWERED, agentReady: false })).toBe('agent')
-    expect(setupStop({ ...ANSWERED, passed: ['stats'] })).toBe('tracker')
+    expect(setupStop({ ...ANSWERED, passed: ['stats'] })).toBe('phone')
+    expect(setupStop({ ...ANSWERED, signInOn: true, passed: ['stats'] })).toBe('tracker')
   })
 
   it('is null once every step has its answer: the project wizard is next', () => {
@@ -155,8 +163,9 @@ describe('setupStep', () => {
 })
 
 describe('stepBeside', () => {
-  it('goes through the steps with the stats last', () => {
-    expect(stepBeside('language', 1)).toBe('git')
+  it('goes through the steps with phone access right after the languages and the stats last', () => {
+    expect(stepBeside('language', 1)).toBe('phone')
+    expect(stepBeside('phone', 1)).toBe('git')
     expect(stepBeside('git', 1)).toBe('agent')
     expect(stepBeside('updates', 1)).toBe('stats')
     expect(stepBeside('stats', 1)).toBeNull()

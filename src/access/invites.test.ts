@@ -118,4 +118,16 @@ describe('an invitation of a new device', () => {
     for (let count = 0; count < MAX_INVITES; count++) await desk.create(null)
     await expect(desk.create(null)).rejects.toMatchObject({ notice: { code: 'auth.invitesFull' } })
   })
+
+  it('tells of the change once more after the first "Let in" turned the sign-in on, so the page state shows it (BTN-1638)', async () => {
+    const db = await memoryDatabase()
+    const book = await AccessBook.load(db)
+    const seen: boolean[] = []
+    const desk = new InviteDesk(db, book, { changed: () => seen.push(book.signInOn()), log: () => {}, digits: () => '47' })
+    const made = await desk.create(null)
+    await desk.open(made.secret, undefined, PHONE)
+    seen.length = 0
+    await desk.admit(made.id)
+    expect(seen.at(-1)).toBe(true)
+  })
 })

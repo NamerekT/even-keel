@@ -140,7 +140,11 @@ export class InviteDesk {
     const row = await this.decide(id, 'admitted', ['opened'])
     this.log(`access: ${row.opened_device} (${row.opened_from}) was let in by an invitation`)
     const turned = await this.book.turnSignInOn()
-    if (turned) this.log('access: the sign-in is on: a proxy name asks for it from now')
+    if (turned) {
+      this.log('access: the sign-in is on: a proxy name asks for it from now')
+      // The page state's `signInOn` checks the setup's "Phone access" step (BTN-1638): the change before this one came too early.
+      this.options.changed?.()
+    }
     return turned
   }
 

@@ -14,6 +14,7 @@ import { providerName } from './settingsRun.js'
 import { AgentStep } from './SetupAgent.js'
 import { Cards, type Save } from './SetupChoices.js'
 import { GitStep } from './SetupGit.js'
+import { PhoneStep } from './SetupPhone.js'
 import { ADD_PROJECT, FROM_SETUP, setupFacts } from './SetupAsk.js'
 import { accountShortName, gitStepReady, gitYesToKeep, OPTIONAL_STEPS, profileShortName, SETUP_STEPS, setupStep, stepAnswered, stepBeside, stepPath, type SetupStep } from './setupSteps.js'
 import { trackerProfiles, TrackerStep } from './SetupTracker.js'
@@ -29,7 +30,7 @@ import './tally.css'
 import './setup.css'
 
 /**
- * The first run's setup (BTN-310, BTN-346): the languages, the agent and its account, a tracker profile, the update
+ * The first run's setup (BTN-310, BTN-346): the languages, phone access (BTN-1638), the agent and its account, a tracker profile, the update
  * check and the stats in the wizard's own frame, each written at once as the shared settings; the stats end it, and the
  * project wizard comes next, the line's last dot.
  */
@@ -63,7 +64,8 @@ export function SetupPage({ state }: { state: EvenKeelState }) {
 
   // Nothing to go on with on the tracker step but a profile: without one, skipping is the way on.
   // The stats step goes on by its cards; skipped, it is asked again once there is a project, so with one it is not skipped.
-  const ahead = step === 'tracker' && trackerProfiles(state).length === 0 ? null : next
+  // Phone access goes on only once a device is in; until then skipping is the way on (BTN-1638).
+  const ahead = (step === 'tracker' && trackerProfiles(state).length === 0) || (step === 'phone' && state.signInOn !== true) ? null : next
   const gitHeld = step === 'git' && !gitStepReady(shared.defaultGit, state.git)
   const skippable = OPTIONAL_STEPS.includes(step) && (ahead === null || gitHeld) && !(step === 'stats' && own > 0)
   const skip = !skippable ? undefined : () => void skipped()
@@ -147,6 +149,7 @@ export function summaryOf(step: SetupStep, state: EvenKeelState): StepSummary | 
     if (profiles.length === 1) return summary
     return { ...summary, more: profiles.length - 1, tip: profiles.map((profile) => `${name(profile)} (${title(profile.kind)})`) }
   }
+  if (step === 'phone') return state.signInOn === true ? { text: t.setup.phone.summary } : null
   if (step === 'updates') return { text: t.setup.updates[shared.updates.check ? 'on' : 'off'] }
   return state.tally === null ? null : { text: t.tally.modes[state.tally] }
 }
@@ -189,6 +192,7 @@ function StepBody({ step, state, save, sending, onDone, onPicked }: BodyProps) {
       </div>
     )
   }
+  if (step === 'phone') return <PhoneStep state={state} />
   if (step === 'git') return <GitStep state={state} save={save} sending={sending} onPicked={onPicked} />
   if (step === 'agent') return <AgentStep state={state} save={save} sending={sending} />
   if (step === 'tracker') return <TrackerStep state={state} />

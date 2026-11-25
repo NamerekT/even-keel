@@ -427,6 +427,11 @@ export interface EvenKeelState {
    * and key are set. Read live; absent or `false` — the browser's own recognition.
    */
   dictation?: boolean
+  /**
+   * A device was let in by an invitation (BTN-1656): the setup's "Phone access" step is done (BTN-1638). Absent — a
+   * state without it, such as a fake one.
+   */
+  signInOn?: boolean
   /** The Huly client's install into the data folder (BTN-666) while it runs or after it failed; `null` — none. */
   hulyClient?: Notice | null
   updates: UpdatesView

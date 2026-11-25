@@ -136,6 +136,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     tally: ctx.tallyMode(),
     tallyHealth: ctx.tally.health(),
     dictation: dictationSettings(process.env) !== undefined,
+    signInOn: ctx.access.book.signInOn(),
     hulyClient: hulyClient.view(),
     updates: { ...ctx.releasesView(), ...ctx.updater.view() },
     backup: ctx.backups.view(),
