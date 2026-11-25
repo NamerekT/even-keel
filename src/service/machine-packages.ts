@@ -10,7 +10,8 @@ import type { MachineContext } from './machine-context.js'
 
 export function wireMachinePackages(ctx: MachineContext): Packages {
   return new Packages({
-    hub: false,
+    // The hub's own machine follows Even Keel's own marketplace; a machine on the network (`planFirst`) the hub's installs (BTN-1689).
+    hub: ctx.planFirst !== true,
     hubServers: () => ctx.brief.hubServers(),
     file: join(ctx.stateDir, 'packages.json'),
     cache: join(ctx.stateDir, 'packages'),
