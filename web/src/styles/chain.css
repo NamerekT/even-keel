@@ -319,6 +319,35 @@
   border-color: var(--accent);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--fg) 18%, transparent);
   cursor: grabbing;
+  scale: 1.02;
+  animation: block-lift var(--motion-fast) ease-out;
+}
+
+/* The card let go settles from its lift as it glides into its place, its own or the new one (BTN-1651). */
+.chain__list .block--dropped {
+  z-index: 2;
+  animation: block-drop var(--motion-fast) ease-out;
+}
+
+@keyframes block-lift {
+  from {
+    scale: 1;
+    box-shadow: 0 0 0 transparent;
+  }
+}
+
+@keyframes block-drop {
+  from {
+    scale: 1.02;
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--fg) 18%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chain__list .block--dragged,
+  .chain__list .block--dropped {
+    animation: none;
+  }
 }
 
 /* The pointed, selected or dragged task's links: its blockers light the key they hold for it, its dependents the lock it keeps shut. */
