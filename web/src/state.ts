@@ -18,11 +18,11 @@ import type { Lamp } from '../../src/sessions/agents.js'
 import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../src/limits/usage.js'
 import { notice, type Notice } from '../../src/notice/notice.js'
-import type { EvenKeelState, ContextScale, PinWait, ProjectTask, SessionView, TaskWork, TrackerUrls } from '../../src/state.js'
+import type { ActiveChainView, EvenKeelState, ContextScale, PinWait, ProjectTask, SessionView, TaskWork, TrackerUrls } from '../../src/state.js'
 import { formatMoment } from './format.js'
 import { say, t } from './i18n/index.js'
 import { shownWork } from '../../src/shown-work.js'
-import { taskLamp } from './taskLamp.js'
+import { limitHeld, taskLamp } from './taskLamp.js'
 import { completionTasks, needsReply } from './completion.js'
 import { laneOfTask, lanesOf, pinnedMachines, taskMachines, type TaskMachine } from './lanes.js'
 
@@ -261,7 +261,7 @@ export function withParents(tasks: Task[], parents: Task[]): Task[] {
  * The open tasks an open task waits for and the open ones waiting for it; a closed task holds nothing.
  * A blocker missing from `tasks` stays, as it cannot be told closed.
  */
-export function taskLinks(tasks: Task[], sessions: SessionView[]): (id: string) => TaskLinks {
+export function taskLinks(tasks: Task[], sessions: SessionView[], lanes: readonly ActiveChainView[] = []): (id: string) => TaskLinks {
   const byId = new Map(tasks.map((task) => [task.id, task]))
   const waiting = new Map<string, string[]>()
   for (const task of tasks) {
@@ -275,7 +275,7 @@ export function taskLinks(tasks: Task[], sessions: SessionView[]): (id: string) 
   const linked = (ids: string[]): LinkedTask[] =>
     ids.toSorted(byNumber).map((id) => {
       const task = byId.get(id)
-      return { id, title: task?.title ?? null, lamp: taskLamp(task, taskSession(sessions, id) ?? null) }
+      return { id, title: task?.title ?? null, lamp: taskLamp(task, taskSession(sessions, id) ?? null, false, limitHeld(lanes, id)) }
     })
   return (id) => {
     const task = byId.get(id)
@@ -470,7 +470,7 @@ export function cardTask(state: EvenKeelState, project: string): CardTask | null
   return {
     id,
     title: isFixName(id) ? t.chain.fix : isCarryName(id) ? t.chain.carry(carryLabel(state, id)) : (task?.title ?? null),
-    lamp: taskLamp(task, taskSession(state.sessions, id) ?? null, completionTasks(state).has(id)),
+    lamp: taskLamp(task, taskSession(state.sessions, id) ?? null, completionTasks(state).has(id), limitHeld(lanesOf(state.chain, project), id)),
     next: current === undefined && next !== undefined,
     ...(next === undefined && { held: skipped.includes(id) ? 'skipped' : 'blocked' }),
   }
@@ -550,7 +550,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     const pinned = machines === undefined ? pinnedMachines(state, pins) : undefined
     const pinWait = state.pinWaits?.[project]?.[id]
     const stranded = lane === undefined ? state.stranded?.[project]?.[id] : undefined
-    const lamp = taskLamp(task, session, refused.has(id))
+    const lamp = taskLamp(task, session, refused.has(id), limitHeld(lanes, id))
     const left = (state.chain.leftovers[project] ?? []).filter((each) => each.task === id)
     const work = shownWork(state, project, id)
     return {
@@ -613,7 +613,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     // With machines the fix runs in the lane `MainFix.fixer` chose, not always the head one (BTN-1572).
     const machines = taskMachines(state, sessions, laneOfTask(lanes, name))
     return {
-      ...fixRow(id, title, taskLamp(undefined, session), rows[at]?.milestone ?? null, session, sessions),
+      ...fixRow(id, title, taskLamp(undefined, session, false, limitHeld(lanes, name)), rows[at]?.milestone ?? null, session, sessions),
       ...(machines !== undefined && { machines }),
       open: true,
       current: name === current,

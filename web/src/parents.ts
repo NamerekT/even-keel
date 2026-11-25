@@ -1,7 +1,8 @@
 import { isOpen, type ParentTask } from '../../src/tracker/model.js'
 import type { EvenKeelState } from '../../src/state.js'
 import { taskSession, type ChainBlock, type ChainStatus } from './state.js'
-import { taskLamp } from './taskLamp.js'
+import { limitHeld, taskLamp } from './taskLamp.js'
+import { lanesOf } from './lanes.js'
 
 /** The address parameter of the project page's feed view: `?view=parents` shows the parents instead of the chain (BTN-1041). */
 export const VIEW_PARAM = 'view'
@@ -86,7 +87,7 @@ export function parentBlocks(state: ParentsSource, project: string): ChainBlock[
       title: task.title,
       status: task.status.name,
       stage: task.status.category,
-      lamp: taskLamp(task, session),
+      lamp: taskLamp(task, session, false, limitHeld(lanesOf(state.chain, project), task.id)),
       open: false,
       locked: false,
       blockedBy: [],

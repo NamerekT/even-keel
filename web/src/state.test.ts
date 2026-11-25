@@ -934,6 +934,28 @@ describe('chainBlocks', () => {
     expect(chainBlocks(acted, 'ABC')[0]?.limit).toBeNull()
   })
 
+  it('lights a task whose session finished on a limit the chain waits out as the limit, on the row and the card alike (BTN-1702)', () => {
+    const hold = { at: '2026-01-01T10:00:00.000Z', account: null, resetsAt: '2026-01-01T13:00:00.000Z', lastReplyAt: null, then: 'relay' as const, acted: null as 'relay' | null }
+    const held = (limit: typeof hold) =>
+      stateOf({
+        tasks: [task('ABC-1', 'Active'), task('ABC-2', 'ToDo')],
+        sessions: [view('ABC-1', 'finished', null)],
+        chain: chain({
+          active: { ...running('ABC-1', true), current: { task: 'ABC-1', sessionId: 's', since: 't', limit } },
+          projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error: null } },
+        }),
+      })
+    const [row] = chainBlocks(held(hold), 'ABC')
+    expect(row).toMatchObject({ lamp: 'limit' })
+    expect(row?.halted).toBeUndefined()
+    expect(cardTask(held(hold), 'ABC')?.lamp).toBe('limit')
+    expect(taskLinks([task('ABC-1'), task('ABC-2', 'ToDo', ['ABC-1'])], held(hold).sessions, held(hold).chain.active)('ABC-2').blockers[0]?.lamp).toBe('limit')
+
+    const acted = held({ ...hold, acted: 'relay' })
+    expect(chainBlocks(acted, 'ABC')[0]).toMatchObject({ lamp: 'stopped', halted: true })
+    expect(cardTask(acted, 'ABC')?.lamp).toBe('stopped')
+  })
+
   it("carries the spent limit of the current task's account, which holds New session (BTN-1359)", () => {
     const spent = { until: '2026-01-01T13:00:00.000Z', account: 'Account B', provider: 'codex' }
     const state = stateOf({

@@ -82,6 +82,7 @@ import { ADD_PARAM, PACKAGES_PARAM } from '../tools/packageGroups.js'
 import { BADGE_PARAM } from './BadgeButton.js'
 import { useArrival } from './useArrival.js'
 import { chainRunControl } from '../hotkeys/actions.js'
+import { lanesOf } from '../lanes.js'
 import { useHotkey } from '../hotkeys/useHotkeys.js'
 import './project.css'
 
@@ -211,7 +212,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const feedSwitcher = narrow ? undefined : switcher
   const feedFocus = focus === BACKLOG_HASH || focus === SETTINGS_HASH || chatsOpen || helpOpen || ciAt.open ? '' : focus
   const tracker = state.trackers.find((view) => view.projects.includes(key))
-  const links = taskLinks(withParents(state.tasks, state.parents?.[key] ?? []), state.sessions)
+  const links = taskLinks(withParents(state.tasks, state.parents?.[key] ?? []), state.sessions, lanesOf(state.chain, key))
   const opened = new URLSearchParams(location.search).get(CARD_PARAM)
   const openCard = (task: string) => {
     const search = new URLSearchParams(location.search)

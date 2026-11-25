@@ -17,7 +17,7 @@ function stateOf(parents: ParentTask[], sessions: Partial<SessionView>[] = []) {
     parents: { p1: parents },
     sessions: sessions as SessionView[],
     taskSessions: { 'ABC-3': [{ sessionId: 's-old', at: '2026-11-11T10:00:00Z' }] },
-    chain: { projects: { p1: { order: [], waiting: [], backlog: [], error: null, milestones: [{ label: 'v0.3', fresh: false }, { label: 'v0.4', fresh: false }] } } },
+    chain: { active: [], projects: { p1: { order: [], waiting: [], backlog: [], error: null, milestones: [{ label: 'v0.3', fresh: false }, { label: 'v0.4', fresh: false }] } } },
   } as unknown as Pick<EvenKeelState, 'parents' | 'sessions' | 'taskSessions' | 'chain'>
 }
 
