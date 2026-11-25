@@ -31,7 +31,7 @@ const AVAILABLE_MS = 60_000
 type Offer = ReturnType<typeof pluginOffer>
 
 export interface PackagesDeps {
-  /** False for a machine assembled with a separate hub gateway. */
+  /** False for a machine elsewhere: it follows the hub's installs instead of Even Keel's own marketplace (`ownCurrent`). */
   hub?: boolean
   hubServers?: () => string[]
   /** `state/packages.json`. */
@@ -91,8 +91,6 @@ export class Packages {
   private readonly notes = new Map<string, Notice>()
   /** The machine's gateway: sessions and probes reach their servers here. */
   private readonly gateway: McpGateway
-  /** The hub's (BTN-990): the servers holding keys and the tasks server, asked only by the link on behalf of a machine. */
-  private readonly hubGateway: McpGateway
   private readonly probes: Probes
   private gatewayError: Notice | null = null
   private imports: Record<string, string[]> = {}
@@ -124,7 +122,6 @@ export class Packages {
       save: () => this.save(),
     })
     this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log, tasks: deps.tasks, memory: deps.memory })
-    this.hubGateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: (line) => deps.log(`hub ${line}`), tasks: deps.tasks, memory: deps.memory })
     this.probes = new Probes({
       urlOf: (project, name, install, server) => (this.gateway.listening ? `${this.gateway.origin}${routeOf(project, name, install, server)}` : undefined),
       now: () => Date.now(),
@@ -144,11 +141,6 @@ export class Packages {
       this.gatewayError = noticeOf(error)
       this.deps.log(`mcp gateway: ${(error as Error).message}`)
     }
-    try {
-      if (this.deps.hub !== false) await this.hubGateway.listen(0)
-    } catch (error) {
-      this.deps.log(`hub mcp gateway: ${(error as Error).message}`)
-    }
     for (const [name, record] of Object.entries(this.file.packages)) if (record.removed !== true && record.installs.length === 0) void this.install(name).catch(() => {})
     this.ownCurrent()
     // After the newer versions: one installed anew needs no copy of the old.
@@ -161,7 +153,7 @@ export class Packages {
   async close(): Promise<void> {
     clearInterval(this.ownTimer)
     this.ownTimer = undefined
-    await Promise.all([this.gateway.close(), this.hubGateway.close()])
+    await this.gateway.close()
   }
 
   /**
@@ -192,11 +184,6 @@ export class Packages {
   /** The hub publishes only route names to machines, never the resolved targets containing its keys. */
   hubServers(): string[] {
     return hubRoutes(this.file, this.deps, Object.keys(this.deps.repos))
-  }
-
-  /** Where the link asks the hub's servers for a machine; `undefined` until the hub's gateway listens. */
-  get hubOrigin(): string | undefined {
-    return this.hubGateway.listening ? this.hubGateway.origin : undefined
   }
 
   /** The hub's catalog for a machine elsewhere serving `projects` (BTN-1299); `hubRoutes` — the hub's `hubServers()`. */
