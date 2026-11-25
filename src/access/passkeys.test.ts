@@ -13,8 +13,9 @@ async function deskOf() {
   const db = await memoryDatabase()
   const owner = await ensureOwner(db)
   let now = new Date('2026-11-24T08:00:00.000Z')
-  const desk = new PasskeyDesk(db, owner.id, () => now)
-  return { db, owner, desk, later: (ms: number) => (now = new Date(now.getTime() + ms)) }
+  const changes = { count: 0 }
+  const desk = new PasskeyDesk(db, owner.id, { clock: () => now, changed: () => changes.count++ })
+  return { db, owner, desk, changes, later: (ms: number) => (now = new Date(now.getTime() + ms)) }
 }
 
 async function registered(desk: PasskeyDesk, authenticator = new FakeAuthenticator()) {
@@ -78,4 +79,17 @@ it('offers a new registration without the passkeys already on the host, and remo
   expect((await desk.registrationOptions('other.example.com')).excludeCredentials).toEqual([])
   expect(await desk.remove(passkey.credentialId)).toBe(true)
   expect(await passkeysOf(db, owner.id)).toEqual([])
+})
+
+it('tells the pages on a passkey made, used or removed, not on a removal that found none (BTN-1662)', async () => {
+  const { desk, changes } = await deskOf()
+  const { authenticator, passkey } = await registered(desk)
+  expect(changes.count).toBe(1)
+  const options = await desk.authenticationOptions(HOST)
+  await desk.authenticate({ host: HOST, origin: ORIGIN, response: authenticator.get(options, ORIGIN) })
+  expect(changes.count).toBe(2)
+  expect(await desk.remove(passkey.credentialId)).toBe(true)
+  expect(changes.count).toBe(3)
+  expect(await desk.remove(passkey.credentialId)).toBe(false)
+  expect(changes.count).toBe(3)
 })

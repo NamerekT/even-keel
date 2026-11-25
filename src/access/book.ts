@@ -9,6 +9,11 @@ export interface BookOptions {
   clock?: () => Date
   /** The tokens just revoked: their devices' open streams close (`EventHub.closeTagged`). */
   revoked?: (ids: string[]) => void
+  /**
+   * A token issued or revoked: the pages read "Sign-in and devices" anew (the `devices` event, BTN-1662). Not on a
+   * token seen — `seenAt` moves on every request.
+   */
+  changed?: () => void
   log?: (line: string) => void
 }
 
@@ -73,6 +78,7 @@ export class AccessBook implements DeviceBook {
     this.byHash.set(hashOf(issued.secret), token)
     this.written.set(token.id, now.getTime())
     if (entry.inviteId != null) this.unpresented.add(token.id)
+    this.options.changed?.()
     return { token, secret: issued.secret }
   }
 
@@ -134,6 +140,7 @@ export class AccessBook implements DeviceBook {
     }
     for (const [, token] of gone) await revokeToken(this.db, token.id, at)
     this.options.revoked?.(gone.map(([, token]) => token.id))
+    this.options.changed?.()
     return gone.length
   }
 

@@ -9,9 +9,33 @@ async function bookOf(start = '2026-11-24T08:00:00.000Z') {
   const db = await memoryDatabase()
   let now = new Date(start)
   const revoked: string[][] = []
-  const book = await AccessBook.load(db, { clock: () => now, revoked: (ids) => revoked.push(ids) })
-  return { db, book, revoked, later: (ms: number) => (now = new Date(now.getTime() + ms)) }
+  const changes = { count: 0 }
+  const book = await AccessBook.load(db, { clock: () => now, revoked: (ids) => revoked.push(ids), changed: () => changes.count++ })
+  return { db, book, revoked, changes, later: (ms: number) => (now = new Date(now.getTime() + ms)) }
 }
+
+it('tells the pages on every token issued or revoked, not on a token seen nor on a revoke that took none (BTN-1662)', async () => {
+  const { book, changes, later } = await bookOf()
+  const first = await book.signIn({ device: 'A', address: '192.0.2.1', keyMark: keyMarkOf(KEY) })
+  const second = await book.signIn({ device: 'B', address: '192.0.2.2', keyMark: null })
+  await book.signIn({ device: 'C', address: '192.0.2.3', keyMark: null })
+  expect(changes.count).toBe(3)
+  later(120_000)
+  book.seen(first.token, '192.0.2.9')
+  await book.settled()
+  expect(changes.count).toBe(3)
+  await book.revoke(second.token.id)
+  expect(changes.count).toBe(4)
+  await book.revoke(second.token.id)
+  expect(await book.keyIs(KEY)).toBe(0)
+  expect(changes.count).toBe(4)
+  await book.revokeOthers(first.token.id)
+  expect(changes.count).toBe(5)
+  await book.keyIs(null)
+  expect(changes.count).toBe(6)
+  await book.turnSignInOff()
+  expect(changes.count).toBe(6)
+})
 
 it('signs a device in with a token of its own, found by its secret and kept across a load', async () => {
   const { db, book } = await bookOf()

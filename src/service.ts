@@ -436,17 +436,19 @@ const profileStatuses = hubBootstrap.assembleProfileStatuses(context)
 // last read moves only its own entry (BTN-1256), a CI poll only its project's CI (BTN-1326).
 const hub = new EventHub({ state: { sessions: 'sessionId', eventLog: 'id', trackers: 'name', ci: OWN_KEYS } })
 // The page's sign-in (BTN-1619): a device signed out loses its event stream; a key changed while the service was
-// down signs out the devices that came in with the old one.
-const accessBook = await AccessBook.load(db, { revoked: (ids) => hub.closeTagged(ids) })
+// down signs out the devices that came in with the old one. A token issued or revoked and a passkey made, used or
+// removed make the pages read "Sign-in and devices" anew (BTN-1662).
+const devicesChanged = (): void => hub.broadcast('devices', { changedAt: Date.now() })
+const accessBook = await AccessBook.load(db, { revoked: (ids) => hub.closeTagged(ids), changed: devicesChanged })
 await accessBook.keyIs(token)
 const access: AccessControl = {
   book: accessBook,
-  passkeys: new PasskeyDesk(db, accessBook.person),
+  passkeys: new PasskeyDesk(db, accessBook.person, { changed: devicesChanged }),
   // The invitations of new devices (BTN-1655): every change makes the pages read "Sign-in and devices" anew, and the
   // state carries `signInOn` for the setup's "Phone access" step (BTN-1638).
   invites: new InviteDesk(db, accessBook, {
     changed: () => {
-      hub.broadcast('devices', { changedAt: Date.now() })
+      devicesChanged()
       stateChanged()
     },
   }),

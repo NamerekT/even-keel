@@ -21,6 +21,12 @@ const USER_NAME = 'owner'
 /** At most this many ceremonies wait at once: the sign-in routes are open to anyone who reaches the page. */
 const PENDING_LIMIT = 200
 
+export interface PasskeyOptions {
+  clock?: () => Date
+  /** A passkey made, used or removed: the pages read "Sign-in and devices" anew (the `devices` event, BTN-1662). */
+  changed?: () => void
+}
+
 interface Pending {
   kind: 'register' | 'signIn'
   host: string
@@ -35,18 +41,26 @@ export class PasskeyDesk {
   /** By the challenge, base64url: an answer names its own. */
   private readonly pending = new Map<string, Pending>()
 
+  private readonly clock: () => Date
+  private readonly changed: () => void
+
   constructor(
     private readonly db: Db,
     private readonly person: string,
-    private readonly clock: () => Date = () => new Date(),
-  ) {}
+    options: PasskeyOptions = {},
+  ) {
+    this.clock = options.clock ?? (() => new Date())
+    this.changed = options.changed ?? (() => {})
+  }
 
   list(): Promise<Passkey[]> {
     return passkeysOf(this.db, this.person)
   }
 
-  remove(credentialId: string): Promise<boolean> {
-    return removePasskey(this.db, credentialId)
+  async remove(credentialId: string): Promise<boolean> {
+    const removed = await removePasskey(this.db, credentialId)
+    if (removed) this.changed()
+    return removed
   }
 
   async registrationOptions(host: string): Promise<PublicKeyCredentialCreationOptionsJSON> {
@@ -87,6 +101,7 @@ export class PasskeyDesk {
       name: answer.name,
       now,
     })
+    this.changed()
     return (await passkeyById(this.db, credential.id))!
   }
 
@@ -112,6 +127,7 @@ export class PasskeyDesk {
     }).catch(() => undefined)
     if (verified?.verified !== true) throw fail('auth.passkeyRefused', {})
     await passkeyUsed(this.db, passkey.credentialId, verified.authenticationInfo.newCounter, this.clock())
+    this.changed()
     return passkey
   }
 
