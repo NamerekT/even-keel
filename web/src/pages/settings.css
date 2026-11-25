@@ -104,6 +104,34 @@
   resize: vertical;
 }
 
+/*
+ * A text area grows with its text, or with its placeholder while empty, from its `rows` up to seven lines and
+ * scrolls past them. `field-sizing` drops `rows`, so the floor comes back as a min-height; 18px is the padding and
+ * the border. A browser without `field-sizing` stays at its `rows`.
+ */
+textarea.settings__text {
+  --rows: 2;
+  field-sizing: content;
+  min-height: calc(var(--rows) * 1lh + 18px);
+  max-height: calc(7lh + 18px);
+}
+
+textarea.settings__text[rows='1'] {
+  --rows: 1;
+}
+
+textarea.settings__text[rows='3'] {
+  --rows: 3;
+}
+
+textarea.settings__text[rows='4'] {
+  --rows: 4;
+}
+
+textarea.settings__text[rows='5'] {
+  --rows: 5;
+}
+
 .settings__text--mono {
   font-family: var(--mono);
   font-size: var(--text-13);

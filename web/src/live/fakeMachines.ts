@@ -400,12 +400,20 @@ export class FakeNetwork {
   }
 }
 
-/** The command lists and the stdio servers every project of `dev:fake` has, for a machine's own ones (BTN-994). */
-const FAKE_COMMANDS = { beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], afterGreen: ['npm run build'] }
+/**
+ * The command lists and the stdio servers every project of `dev:fake` has, for a machine's own ones (BTN-994). The
+ * commands after a green main and the files server's arguments run to several lines: an empty field grows by its
+ * placeholder (BTN-1640).
+ */
+const FAKE_COMMANDS = {
+  beforeStart: ['npm ci'],
+  check: ['npm run typecheck', 'npm test'],
+  afterGreen: ['npm run build', 'pwsh -NoProfile -File service/restart.ps1 -Name ExampleService -WaitSeconds 30', 'npm run badge -- --push'],
+}
 /** A machine's own commands after a green main in `?machines=pooledCommands`: the first too long for a line of the panel. */
 const OWN_AFTER_GREEN = ['git -C "$HOME/example-run" pull -q --ff-only origin main && "$HOME/example-run/service/rebuild.sh" "$(git rev-parse HEAD)" >>"$HOME/example-run/logs/rebuild.log" 2>&1', 'npm run deploy']
 const FAKE_SERVERS = [
-  { package: 'files', server: 'files', command: 'npx', args: ['-y', 'example-files-mcp', '/home/example/shared'] },
+  { package: 'files', server: 'files', command: 'npx', args: ['-y', 'example-files-mcp', '--root', '/home/example/shared', '--read-only', '--max-size', '10mb'] },
   // A package whose server is named apart from it: its name shows the server as a tag (BTN-1381).
   { package: 'tracker', server: 'issues', command: 'npx', args: ['-y', 'example-issues-mcp'] },
 ]
