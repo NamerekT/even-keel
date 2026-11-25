@@ -18,6 +18,8 @@ function run(script: string, args: string[], input: string, cwd: string, env: No
     child.stderr.on('data', (data: Buffer) => { stderr += data.toString() })
     child.on('error', reject)
     child.on('close', (code) => done({ stdout, stderr, code }))
+    // A script that reads no input may exit before the write: EPIPE there is not a failure (BTN-1557).
+    child.stdin.on('error', () => {})
     child.stdin.end(input)
   })
 }
