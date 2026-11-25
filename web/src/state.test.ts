@@ -131,7 +131,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     works: {},
     context: { warn: 50, danger: 80 },
     configError: null,
-    packages: { gateway: null, packages: [], projects: {}, keys: [], available: [], marketplace: null, imports: {}, skills: { package: 'my-skills@even-keel-skills', list: [] } },
+    packages: { gateway: null, packages: [], projects: {}, keys: [], available: [], marketplace: null, imports: {} },
     secrets: { variables: [], sessionsPending: false },
     profiles: { profiles: [], kinds: [] },
     language: null,

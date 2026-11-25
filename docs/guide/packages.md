@@ -87,6 +87,10 @@ The page names the package; update Even Keel, or for now run the task on another
 
 ## Your own skills
 
-Your own skills (`~/.claude/skills`, Codex's skills folder) reach only their own agent; **Add a package → My skills** in **Settings → Packages** wraps the ones you tick into one plugin package, so Codex, OpenCode and Copilot sessions get them too, and an edit of a skill shows as an update of the package.
+Your own skills need no package. Claude Code reads them from `~/.claude/skills`; Even Keel keeps them in `~/.claude-config/skills` (the same on every machine, [your Claude Code configuration](hub-machine.md)) and links each one into `~/.agents/skills`, where Codex, OpenCode and Copilot read them, so an edit of a skill reaches every agent at once. A skill of your own in `~/.agents/skills` stays as it is, and a link you made there to somewhere else too; the link of a skill you delete goes with it.
+
+Skills you turned off for the chain in `skillOverrides` stay off only in Claude Code sessions: Codex, OpenCode and Copilot chain sessions still see them.
+
+Until v0.4 your skills were wrapped by **Add a package → My skills** into the package `my-skills@even-keel-skills`; Even Keel removes that package from every project by itself.
 
 A skill that leans on Claude Code's own tools (Edit, `/rewind`, subagents) works poorly on another agent.

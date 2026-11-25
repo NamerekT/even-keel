@@ -6,7 +6,7 @@ import { partsOf } from './body-size.js'
 import {
   EVENTS_PATH, SNAPSHOT_PATH, TooLarge, bearerOf, isRefusal, parseToken,
   type Command, type EventsAnswer, type EventsPost, type Frame, type MachineAbout, type MachineEvent, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand, type Refusal,
-  type HookAnswer, type HookPost, type HookRequest, type SnapshotPost, type TallyAnswer, type TallyPost, type CredentialsAnswer, type CredentialsPost, type SkillsAnswer, type SkillsPost, type GitAnswer, type GitPost,
+  type HookAnswer, type HookPost, type HookRequest, type SnapshotPost, type TallyAnswer, type TallyPost, type CredentialsAnswer, type CredentialsPost, type GitAnswer, type GitPost,
 } from './protocol.js'
 
 export const HUB_ADDRESS = 'https://hub.example.com:4750'
@@ -269,10 +269,6 @@ export class Wire implements HubTransport {
     return this.carry(async () => carried(await this.hub.git(this.authorization, carried(post))))
   }
 
-  async skills(post: SkillsPost): Promise<SkillsAnswer | Refusal> {
-    return this.carry(async () => carried(await this.hub.skills(this.authorization, carried(post))))
-  }
-
   private async carry<T>(call: () => Promise<T>): Promise<T> {
     if (this.down) throw new Error('the hub is unreachable')
     if (this.hang) return new Promise<T>(() => {})
@@ -330,9 +326,6 @@ export async function bench() {
         credentialed.push({ machine, project, urls })
         return { credentials: urls.map((url) => ({ url, username: 'x-access-token', password: 'ghp_example', profile: { id: 'p1', name: 'John GitHub' } })) }
       },
-      skills: (_machine, install) => ({
-        skills: install === 'held' ? { version: '1.0.0+0000abcd', files: [{ path: 'example/SKILL.md', data: Buffer.from('# Example\n').toString('base64') }] } : null,
-      }),
     },
   })
   const token = parseToken(await hub.issue('Example server', HUB_ADDRESS, FINGERPRINT))!

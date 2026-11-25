@@ -75,7 +75,7 @@ export async function bridgePackages(work: string, agent: string, log: (line: st
   const packages = new Packages({
     file, cache: join(work, 'packages'), envFile: join(work, '.env'), repos: { 'cli-check': work },
     globalDir: join(work, 'package-config'), ownDir: root, skillsDir: join(work, 'skills'),
-    skillRoots: () => [], claudeConfigs: () => [], rules: { aliases: {}, trackers: [] },
+    claudeConfigs: () => [], rules: { aliases: {}, trackers: [] },
     tracker: () => undefined, agentOf: () => agent, updateMarketplace: async () => {}, addMarketplace: async () => {},
     baseEnv: () => ({}), poolOf: () => ({}), port: 0, log, onChange: () => {},
   })

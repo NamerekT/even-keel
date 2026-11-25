@@ -4,7 +4,7 @@ What chain sessions get besides the CLI's own tools: plugins and MCP servers, as
 
 Service wiring lives in `src/service/account-packages.ts`: `wirePackages` connects the catalog and gateway to the service, and `briefOn` selects tracker briefing from the enabled servers. `src/service/accounts.ts` re-exports both entry points.
 
-The class `Packages` (`service.ts`) keeps the catalog, the project sets, the pins and the gateways; a new install, the hub's install on a machine elsewhere and the npm steps are `Installs` (`installs.ts`), the user's skills package `skills-package.ts`, the seed and the repositories' `.mcp.json` offers `repo-reads.ts`.
+The class `Packages` (`service.ts`) keeps the catalog, the project sets, the pins and the gateways; a new install, the hub's install on a machine elsewhere and the npm steps are `Installs` (`installs.ts`), the seed and the repositories' `.mcp.json` offers `repo-reads.ts`.
 
 ## Subtopics
 
@@ -12,6 +12,6 @@ The area is split by subtopic, a file each in `docs/packages/`: read this table,
 
 | File | What is in it |
 | --- | --- |
-| [`files.md`](packages/files.md) | The file and the cache, `agent-bridge`, install and update, the user's skills, keys |
+| [`files.md`](packages/files.md) | The file and the cache, `agent-bridge`, install and update, the user's skills in `~/.agents/skills`, keys |
 | [`gateway.md`](packages/gateway.md) | The MCP gateway, the launch flags, the check before a launch |
 | [`page.md`](packages/page.md) | The packages on the page |

@@ -648,12 +648,6 @@ export const en = {
     `packages: the files of ${p.name} ${p.version} are gone on this host; press Install at the package in the catalog`,
   'packages.lostMarketplace': (p: { name: string; version: string; marketplace: string }) =>
     `packages: the files of ${p.name} ${p.version} are gone on this host, and Claude Code here lacks its marketplace ${p.marketplace}; add it, then press Install at the package in the catalog`,
-  'packages.skillsAway': (p: { name: string; version: string }) =>
-    `packages: this machine takes the skills of ${p.name} ${p.version} from its hub, and the hub is not reachable now; it is tried again in 10 minutes`,
-  'packages.skillsNotOnHub': (p: { name: string; version: string }) =>
-    `packages: the hub holds no files of its install ${p.version} of ${p.name}; press Install or Update at the package in the hub's catalog`,
-  'packages.noSkills': () => 'packages: choose at least one skill',
-  'packages.unknownSkill': (p: { name: string }) => `packages: there is no skill ${p.name} in ~/.claude/skills or the Codex skills folder`,
   'packages.npmFailed': (p: { spec: string }) => `packages: npm could not install ${p.spec}`,
   'huly.clientInstalling': () => 'huly: the Huly client is being installed, a minute or two; Huly projects wait for it',
   'huly.clientFailed': () => 'huly: npm could not install the Huly client; Huly projects wait until it is retried',

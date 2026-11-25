@@ -34,7 +34,6 @@ const view = (over: Partial<PackagesView> = {}): PackagesView => ({
   available: [],
   marketplace: { name: 'even-keel', dir: 'C:\\even-keel', known: true },
   imports: {},
-  skills: { package: 'my-skills@even-keel-skills', list: [] },
   ...over,
 })
 
@@ -52,7 +51,7 @@ describe('packageGroups', () => {
     const packages = [
       pkg('db'),
       pkg('playwright@claude-plugins-official'),
-      pkg('my-skills@even-keel-skills'),
+      pkg('notes@example-skills'),
       pkg('old@even-keel', { removed: true }),
       pkg('linear@even-keel'),
       pkg('huly@even-keel'),
@@ -63,7 +62,7 @@ describe('packageGroups', () => {
       ['own', 'even-keel'],
       ['marketplace', 'acme'],
       ['marketplace', 'claude-plugins-official'],
-      ['marketplace', 'even-keel-skills'],
+      ['marketplace', 'example-skills'],
       ['mcp', null],
     ])
     expect(groups[0]!.packages.map((each) => each.name)).toEqual(['huly@even-keel', 'linear@even-keel', 'old@even-keel'])

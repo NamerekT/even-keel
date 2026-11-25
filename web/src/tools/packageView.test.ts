@@ -12,7 +12,6 @@ const view = (over: Partial<PackagesView> = {}): PackagesView => ({
   available: [],
   marketplace: null,
   imports: {},
-  skills: { package: 'my-skills@even-keel-skills', list: [] },
   ...over,
 })
 

@@ -5,10 +5,10 @@ import { fingerprintOf } from './cert.js'
 import { joinCodeOf, newNonce } from './join-code.js'
 import type { HubTransport, StreamSink } from './machine.js'
 import {
-  API_VERSION, CREDENTIALS_PATH, EVENTS_PATH, GIT_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, REQUEST_ANSWER_PATH, REQUEST_PATH, SKILLS_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, TooLarge,
+  API_VERSION, CREDENTIALS_PATH, EVENTS_PATH, GIT_PATH, HOOK_PATH, JOIN_PATH, MAX_BODY_BYTES, MCP_PATH, REQUEST_ANSWER_PATH, REQUEST_PATH, SNAPSHOT_PATH, STREAM_PATH, TALLY_PATH, TooLarge,
   bearerOf, isRefusal,
   type ConnectionToken, type CredentialsAnswer, type EventsAnswer, type Frame, type GitAnswer, type HookAnswer, type JoinAnswer, type MachineAbout, type McpAnswer, type Refusal, type RequestAnswer,
-  type RequestState, type SkillsAnswer, type TallyAnswer,
+  type RequestState, type TallyAnswer,
 } from './protocol.js'
 
 export interface TransportOptions {
@@ -24,8 +24,6 @@ const MCP_TIMEOUT_MS = 10 * 60_000
 export const HOOK_TIMEOUT_MS = 1_800
 /** A post of Tally rows is up to 2 MB the hub writes into its database before it answers. */
 const TALLY_TIMEOUT_MS = 2 * 60_000
-/** The answer to a skills request carries every file of the user's skills. */
-const SKILLS_TIMEOUT_MS = 2 * 60_000
 
 /**
  * A TLS connection to the token's hub, checked before a byte is written to it, so the secret goes to no other server.
@@ -275,10 +273,6 @@ export function httpsTransport(token: ConnectionToken, options: TransportOptions
     mcp: (body) => post<McpAnswer>(MCP_PATH, body, answered, MCP_TIMEOUT_MS),
     tally: (body) => post<TallyAnswer>(TALLY_PATH, body, (value) => typeof (value as TallyAnswer).taken === 'boolean', TALLY_TIMEOUT_MS),
     credentials: (body) => post<CredentialsAnswer>(CREDENTIALS_PATH, body, (value) => Array.isArray((value as CredentialsAnswer).credentials)),
-    skills: (body) => post<SkillsAnswer>(SKILLS_PATH, body, (value) => {
-      const { skills } = value as Partial<SkillsAnswer>
-      return skills === null || (typeof skills === 'object' && skills !== undefined && Array.isArray(skills.files))
-    }, SKILLS_TIMEOUT_MS),
     git: (body) => post<GitAnswer>(GIT_PATH, body, (value) => typeof (value as GitAnswer).status === 'number' && typeof (value as GitAnswer).body === 'string'),
     hook: (body) => {
       const limit = Math.min(timeoutMs, HOOK_TIMEOUT_MS)

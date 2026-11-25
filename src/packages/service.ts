@@ -13,12 +13,10 @@ import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './k
 import { bridgePlugins, ensureMarketplace, ensureServerless, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { catalogFor, followCatalog, type CatalogBrief } from './follow.js'
 import { Installs } from './installs.js'
-import { current, defaultsOf, installsFor, keepBuiltIn, packageSettings, pluginKey, retireCheckpoint, unpinned, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
+import { current, defaultsOf, installsFor, keepBuiltIn, OWN_SKILLS_PACKAGE, packageSettings, pluginKey, retireCheckpoint, retireOwnSkills, unpinned, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { repoImports, seedCatalog, SERVER_NAME } from './repo-reads.js'
 import { pageSettings } from './settings.js'
 import { availablePlugins, builtInPackage, FETCHED, knowsMarketplace, locatePlugin, ownMarketplace, ownPackage, pluginOffer, readJson, serversIn, TASKS_PLUGIN } from './plugins.js'
-import { readsOwnSkills, skillsChanged, SKILLS_MARKETPLACE, SKILLS_PACKAGE, SKILLS_PLUGIN, type SkillRoot, type SkillsCopy } from './skills.js'
-import { installedSkills, ownSkills, rewrap, wrapChosen, wrapsSkills, type SkillsPlace } from './skills-package.js'
 import { loadPackages, savePackages } from './store.js'
 import { heldPackages } from './held.js'
 import { hubRoutes, packageTarget } from './hub.js'
@@ -46,11 +44,8 @@ export interface PackagesDeps {
   globalDir: string
   /** Even Keel's checkout: its `.claude-plugin/marketplace.json` offers its own plugins. */
   ownDir: string
-  /** `state/skills`: the marketplace of the user's own skills, wrapped into one plugin (BTN-339). */
+  /** `state/skills`: where the retired package of the user's own skills was built (`retireOwnSkills`); removed at start. */
   skillsDir: string
-  /** The user's skills folders, Claude Code's first: what the page offers to wrap. */
-  skillRoots: () => SkillRoot[]
-  skillsFromHub?: SkillsPlace['skillsFromHub']
   /** `.claude.json` files sessions read: their user scope servers seed the catalog. */
   claudeConfigs: () => string[]
   rules: KeyRules
@@ -94,7 +89,7 @@ export class Packages {
   private readonly probes: Probes
   private gatewayError: Notice | null = null
   private imports: Record<string, string[]> = {}
-  private plugins: { at: number; list: PackagesView['available']; marketplace: PackagesView['marketplace']; skills: PackagesView['skills']['list'] } | undefined
+  private plugins: { at: number; list: PackagesView['available']; marketplace: PackagesView['marketplace'] } | undefined
   private offers: { at: number; byName: Map<string, Offer> } | undefined
   private readonly checks = new PassMemo()
 
@@ -111,7 +106,11 @@ export class Packages {
     if (retired !== undefined) deps.log(`packages: ${retired} replaced by ${this.builtIn}`)
     const repaired = loaded === undefined || this.builtIn === undefined ? [] : keepBuiltIn(this.file, this.builtIn)
     if (repaired.length > 0) deps.log(`packages: ${this.builtIn} is built in and restored: ${repaired.join(', ')}`)
-    if (loaded === undefined || retired !== undefined || repaired.length > 0) savePackages(deps.file, this.file)
+    const ownSkills = retireOwnSkills(this.file)
+    if (ownSkills) deps.log(`packages: ${OWN_SKILLS_PACKAGE} removed: the user's skills reach every agent from the config store`)
+    if (loaded === undefined || retired !== undefined || repaired.length > 0 || ownSkills) savePackages(deps.file, this.file)
+    rmSync(join(deps.cache, OWN_SKILLS_PACKAGE), { recursive: true, force: true })
+    rmSync(deps.skillsDir, { recursive: true, force: true })
     this.installs = new Installs({
       deps,
       file: () => this.file,
@@ -191,11 +190,6 @@ export class Packages {
     return catalogFor(this.file, projects, hubRoutes)
   }
 
-  /** The skills of this hub's install of the user's skills package, asked by a machine elsewhere (BTN-1565). */
-  skillsOf(install: string): SkillsCopy | null {
-    return installedSkills(this.deps.cache, install)
-  }
-
   /**
    * A machine elsewhere follows the hub's catalog from its brief (BTN-1299): the hub's packages and its projects' sets
    * replace its own, and the hub's installs it lacks are installed here under their ids.
@@ -227,7 +221,7 @@ export class Packages {
         // A current install whose files are gone here is installed anew by the row's Install (BTN-1542).
         installed: install !== undefined && !this.installs.lostHere(name, install),
         version: install?.version ?? null,
-        latest: install !== undefined && offer !== undefined && (name === SKILLS_PACKAGE ? skillsChanged : isNewer)(offer.version, install.version) ? offer.version : null,
+        latest: install !== undefined && offer !== undefined && isNewer(offer.version, install.version) ? offer.version : null,
         fetched: offer?.fetched ?? null,
         installing: this.installs.installing.has(name),
         error: this.installs.errors.get(name) ?? null,
@@ -243,48 +237,31 @@ export class Packages {
       }
     })
     const projects = Object.fromEntries(Object.keys(this.deps.repos).map((project) => [project, this.check(project)]))
-    const { marketplace, skills } = this.marketplaces()
-    return { gateway: this.gatewayError, packages, projects, keys: this.keys(), available: this.available(), marketplace, imports: this.imports, skills: { package: SKILLS_PACKAGE, list: skills } }
+    const { marketplace } = this.marketplaces()
+    return { gateway: this.gatewayError, packages, projects, keys: this.keys(), available: this.available(), marketplace, imports: this.imports }
   }
 
-  /** The marketplaces' plugins not in the catalog; the user's skills are added by their own step. */
+  /** The marketplaces' plugins not in the catalog. */
   private available(): PackagesView['available'] {
     return this.marketplaces().list.filter((each) => {
       const known = this.file.packages[pluginKey(each.plugin, each.marketplace)]
-      return each.marketplace !== SKILLS_MARKETPLACE && (known === undefined || known.removed === true)
+      return known === undefined || known.removed === true
     })
   }
 
-  /** Even Keel's checkout, then the user's wrapped skills. */
+  /** Even Keel's checkout. */
   private get local(): string[] {
-    return [this.deps.ownDir, this.deps.skillsDir]
+    return [this.deps.ownDir]
   }
 
-  /**
-   * The marketplaces' plugins, whether Claude Code knows Even Keel's own, and the user's skills; the files are read
-   * again at most once a minute, and the wrapped skills copied again then, so an edit of one shows as an update.
-   */
+  /** The marketplaces' plugins and whether Claude Code knows Even Keel's own; the files are read again at most once a minute. */
   private marketplaces(): NonNullable<Packages['plugins']> {
     if (this.plugins === undefined || Date.now() - this.plugins.at > AVAILABLE_MS) {
-      if (wrapsSkills(this.file)) rewrap(this.deps)
       const name = ownMarketplace(this.deps.ownDir)
       const marketplace = name === undefined ? null : { name, dir: this.deps.ownDir, known: knowsMarketplace(this.deps.globalDir, name) }
-      this.plugins = { at: Date.now(), list: availablePlugins(this.deps.globalDir, this.local), marketplace, skills: ownSkills(this.file, this.deps) }
+      this.plugins = { at: Date.now(), list: availablePlugins(this.deps.globalDir, this.local), marketplace }
     }
     return this.plugins
-  }
-
-  /**
-   * The chosen skills become the plugin `my-skills` of the marketplace in `state/skills/`: a new package, on in every
-   * project or in `project`, or a new install of the one in the catalog, whose projects stay as they are.
-   */
-  async wrapSkills(names: string[], project?: string): Promise<void> {
-    this.projectKnown(project)
-    wrapChosen(this.deps, names)
-    this.plugins = undefined
-    this.offers = undefined
-    if (wrapsSkills(this.file)) await this.update(SKILLS_PACKAGE)
-    else this.addPlugin(SKILLS_PLUGIN, SKILLS_MARKETPLACE, project)
   }
 
   /** Even Keel's own marketplace into Claude Code, for the sessions started by hand; chain sessions do without it. */
@@ -390,7 +367,7 @@ export class Packages {
   /**
    * What a session of the task gets on the agent. The pin follows the set it starts with (BTN-706): a package the project
    * turned on since joins on its current install, one turned off leaves, and an install no pin holds any more goes.
-   * Claude Code goes without the user's wrapped skills: it reads them from its account folder. A pin on an install whose
+   * A pin on an install whose
    * files are gone here moves to the current one; a session whose install is lost does not start (BTN-1542): Claude
    * would run without the plugin and nobody would know, Codex fails on its missing `plugin.json`.
    */
@@ -414,8 +391,7 @@ export class Packages {
       }
       if (record.plugin !== undefined) ensureMarketplace(this.deps.cache, name, id, record.plugin.name)
     }
-    const skip = readsOwnSkills(agent) ? pluginDir(this.deps.cache, SKILLS_PACKAGE, found.installs[SKILLS_PACKAGE] ?? '') : undefined
-    return { mcp: found.mcp, plugins: found.plugins.filter((each) => each.dir !== skip) }
+    return { mcp: found.mcp, plugins: found.plugins }
   }
 
   /** Whether a session's `plugins` bring the built-in one, whose hooks ask for the chat's mail mid-turn. */
@@ -500,7 +476,6 @@ export class Packages {
   /** A new install next to the current one when the plugin's or a server's version changed; the page shows which. */
   async update(name: string): Promise<void> {
     const record = this.recordOf(name)
-    if (name === SKILLS_PACKAGE) rewrap(this.deps)
     if (record.plugin !== undefined) {
       const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.local)
       if (FETCHED.has(place.kind)) {
@@ -545,7 +520,6 @@ export class Packages {
         first ??= fail('packages.marketplaceUpdate', { marketplace }, { detail: (error as Error).message }, { cause: error })
       }
     }
-    if (wrapsSkills(this.file)) rewrap(this.deps)
     this.plugins = undefined
     this.offers = undefined
     this.deps.onChange()

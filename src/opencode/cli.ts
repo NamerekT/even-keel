@@ -1,6 +1,7 @@
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { closeSync, existsSync, openSync, readdirSync, readFileSync } from 'node:fs'
 import { appendFile, readFile, rm, stat } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
@@ -495,10 +496,11 @@ async function lastChange(home: AccountHome, session: CodexSession): Promise<num
 }
 
 /**
- * The plugin packages' `skills/` and the project's own skill folders `OPENCODE_DISABLE_EXTERNAL_SKILLS` drops along with
- * `~/.claude/skills` and `~/.agents/skills` (OpenCode 1.18.25, BTN-340).
+ * The plugin packages' `skills/`, the project's own skill folders `OPENCODE_DISABLE_EXTERNAL_SKILLS` drops along with
+ * `~/.claude/skills` and `~/.agents/skills` (OpenCode 1.18.25, BTN-340), and `~/.agents/skills` back: Even Keel links
+ * the user's own skills there (`linkAgentSkills`, BTN-1691).
  */
-export function skillDirs(start: Pick<SessionStart, 'plugins'>, cwd: string): string[] {
+export function skillDirs(start: Pick<SessionStart, 'plugins'>, cwd: string, home: string = homedir()): string[] {
   const own = passedSkillFolders(OPENCODE).map((folder) => join(cwd, ...folder.split('/')))
-  return [...(start.plugins ?? []).map((plugin) => join(plugin.dir, 'skills')), ...own].filter((dir) => existsSync(dir))
+  return [...(start.plugins ?? []).map((plugin) => join(plugin.dir, 'skills')), ...own, join(home, '.agents', 'skills')].filter((dir) => existsSync(dir))
 }

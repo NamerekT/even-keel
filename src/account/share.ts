@@ -35,7 +35,8 @@ const PROJECT_KEYS = [
 ]
 const ONBOARDING_KEYS = ['hasCompletedOnboarding', 'lastOnboardingVersion']
 const LINKED_DIRS = ['agents', 'commands', 'hooks', 'output-styles']
-const OWN_SKILLS = new Set(['synced', '.trash'])
+/** Folders of `~/.claude/skills` that are the CLI's own, not skills. */
+export const OWN_SKILLS = new Set(['synced', '.trash'])
 export const API_KEY_VARIABLE = 'ANTHROPIC_API_KEY'
 /** The long-lived token of `claude setup-token` (BTN-1005): it makes a long-token account, never shared between folders. */
 export const OAUTH_TOKEN_VARIABLE = 'CLAUDE_CODE_OAUTH_TOKEN'
