@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { DevicesView, DeviceView } from '../../../src/access/view.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
@@ -25,10 +25,11 @@ function methodOf(device: DeviceView): string {
 }
 
 /**
- * The settings group "Sign-in and devices" (BTN-1619, `docs/web/sign-in.md`): the passkeys, the devices signed in with
- * their "Sign out", and the owner key. Each change is sent at once, no draft.
+ * The settings group "Sign-in and devices" (BTN-1619, `docs/web/sign-in.md`): the page's names (`addresses`, the
+ * group's draft form, BTN-1660), the passkeys, the devices signed in with their "Sign out", and the owner key. Each
+ * change but the names is sent at once, no draft.
  */
-export function SignInSettings({ state }: { state: EvenKeelState }) {
+export function SignInSettings({ state, addresses }: { state: EvenKeelState; addresses: ReactNode }) {
   const { read, query, onDevices } = useLive()
   const [view, setView] = useState<DevicesView | null>(null)
   const [asked, setAsked] = useState(0)
@@ -95,6 +96,7 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
           {t.signIn.unprotected}
         </Band>
       )}
+      {addresses}
       <Loading busy={view === null && failure === null} label={t.signIn.reading} fit="block">
         {view !== null && (
           <>

@@ -186,6 +186,8 @@ export const en: Messages = {
     shared: 'Open the setting',
     trackers: 'Open Settings → Trackers and CI',
     page: 'Open Settings → Interface',
+    signIn: 'Open Settings → Sign-in and devices',
+    machines: 'Open Settings → Machines',
     accounts: 'Open Accounts',
     addOn: 'Add account',
     moves: 'Open the statuses on actions',

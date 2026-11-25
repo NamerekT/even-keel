@@ -4,7 +4,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { fieldOf, type FieldError } from './settingsField.js'
 
 type ProjectTab = 'repo' | 'tracker' | 'sessions' | 'ci'
-type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 'backup' | 'stats'
+type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 'signIn' | 'machines' | 'backup' | 'stats'
 
 /**
  * Where the page fixes what a notice reports: a tab of a project's settings (`project` — the project a config error
@@ -37,6 +37,7 @@ export type NoticeFix =
 
 export const PROFILES: NoticeFix = { to: 'shared', tab: 'trackers' }
 const PAGE: NoticeFix = { to: 'shared', tab: 'page' }
+const SIGN_IN: NoticeFix = { to: 'shared', tab: 'signIn' }
 const ACCOUNTS: NoticeFix = { to: 'accounts' }
 
 const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
@@ -75,8 +76,8 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'ci.rerunDenied': PROFILES,
   'review.denied': PROFILES,
   'git.readOnly': PROFILES,
-  'config.token': PAGE,
-  'config.tokenShape': PAGE,
+  'config.token': SIGN_IN,
+  'config.tokenShape': SIGN_IN,
   'builtin.fileTooLarge': PAGE,
   'claude.untrusted': { to: 'resume' },
   'claude.trustWriteFailed': { to: 'resume' },
@@ -126,7 +127,9 @@ const SHARED_TABS: Record<Exclude<SharedTab, 'trackers'>, readonly string[]> = {
   models: ['provider', 'models', 'accounts', 'autoCompactWindow', 'codexAutoCompactWindow', 'openCodeAutoCompactWindow', 'execution', 'cli', 'cliCheck', 'modelPrompts', 'promptLanguage'],
   sessions: ['hiddenSkills', 'context', 'contextHandoffs', 'checkpointTokens', 'checkpointShares', 'cacheTtl', 'keepWarm', 'chatSessions'],
   ci: ['ci', 'landingHold'],
-  page: ['language', 'allowedHosts', 'attachmentLimit'],
+  page: ['language', 'attachmentLimit'],
+  signIn: ['allowedHosts'],
+  machines: ['machinesAddress'],
   backup: ['backupDir', 'backupKeep', 'backup', 'memoryMirror'],
   stats: ['stats'],
 }

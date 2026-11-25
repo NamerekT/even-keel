@@ -56,7 +56,9 @@ export function fixLabel(fix: Extract<NoticeFix, { to: 'accounts' | 'project' | 
   if (fix.to === 'milestoneOrder') return t.fix.milestoneOrder
   if (fix.to === 'moves') return t.fix.moves
   if (fix.to === 'packages') return t.fix.packages
-  return fix.to === 'accounts' ? t.fix.accounts : fix.to === 'project' ? t.fix.project : fix.tab === 'trackers' ? t.fix.trackers : fix.tab === 'page' ? t.fix.page : t.fix.shared
+  if (fix.to === 'accounts') return t.fix.accounts
+  if (fix.to === 'project') return t.fix.project
+  return fix.tab === 'trackers' || fix.tab === 'page' || fix.tab === 'signIn' || fix.tab === 'machines' ? t.fix[fix.tab] : t.fix.shared
 }
 
 /** Opens "Add account" over the page with the machine picked as the place it signs in (BTN-1308). */

@@ -96,9 +96,10 @@ const GROUPS = [
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask', 'rerun', 'landingHold'] },
   // The catalog of packages (BTN-802): each change is sent at once, no draft.
   { id: 'packages', keys: [] },
-  { id: 'page', keys: ['language', 'allowedHosts', 'machinesAddress', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
-  // Passkeys, devices and the owner key (BTN-1619): each change is sent at once, no draft.
-  { id: 'signIn', keys: [] },
+  { id: 'page', keys: ['language', 'attachmentLimit', 'updatesCheck', 'updatesNotify'] },
+  // The page's names go through the draft; passkeys, devices and the owner key (BTN-1619) are each sent at once.
+  { id: 'signIn', keys: ['allowedHosts'] },
+  { id: 'machines', keys: ['machinesAddress'] },
   { id: 'backup', keys: ['backupDir', 'backupKeep', 'memoryMirror'] },
   // Each switch applies at once, as "Don't show again" on a banner does (BTN-759): no draft.
   { id: 'notices', keys: [] },
@@ -615,20 +616,28 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {check('updatesNotify', t.shared.updatesNotify, t.shared.updatesNotifyHint)}
           {numberRow('attachmentLimit', t.shared.attachmentLimit, wholeOf(text('attachmentLimit'), 1) === undefined || errorOf('attachmentLimit') !== null, t.shared.attachmentLimitHint)}
         </Section>
-        <Section title={t.shared.sections.access}>
-          <div className={marks.box('allowedHosts')}>
-            <FieldHead label={t.shared.allowedHosts} hint={t.shared.allowedHostsHint} mark={marks.note('allowedHosts')} />
-            <ListTable
-              field="allowedHosts"
-              label={t.shared.allowedHosts}
-              value={text('allowedHosts')}
-              add={t.shared.allowedHostsAdd}
-              empty={t.shared.allowedHostsEmpty}
-              mono
-              onChange={(value) => edit('allowedHosts', value)}
-            />
-            <FieldNote error={errorOf('allowedHosts')} />
-          </div>
+      </>
+    ),
+    signIn: () => (
+      <Section title={t.shared.sections.addresses}>
+        <div className={marks.box('allowedHosts')}>
+          <FieldHead label={t.shared.allowedHosts} hint={t.shared.allowedHostsHint} mark={marks.note('allowedHosts')} />
+          <ListTable
+            field="allowedHosts"
+            label={t.shared.allowedHosts}
+            value={text('allowedHosts')}
+            add={t.shared.allowedHostsAdd}
+            empty={t.shared.allowedHostsEmpty}
+            mono
+            onChange={(value) => edit('allowedHosts', value)}
+          />
+          <FieldNote error={errorOf('allowedHosts')} />
+        </div>
+      </Section>
+    ),
+    machines: () => (
+      <>
+        <Section title={t.shared.sections.connect}>
           <Row
             className={marks.box('machinesAddress')}
             label={t.shared.machinesAddress}
@@ -701,16 +710,15 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     ),
     trackers: () => <SettingsProfiles state={state} onRules={(id) => setOpen(profileGroup(id))} />,
     notices: () => <NoticeSettings />,
-    signIn: () => <SignInSettings state={state} />,
     packages: () => <PackageCatalog state={state} />,
   }
 
-  const draftForm = (titled: boolean) => (
+  const draftForm = (titled: boolean, between = false) => (
     <TableDraft value={{ draft, setDraft }}>
     <form
       ref={formRef}
       key={open}
-      className={titled ? 'settings__form settings-page__form' : 'settings__form'}
+      className={titled ? 'settings__form settings-page__form' : between ? 'settings__form settings__form--between' : 'settings__form'}
       aria-labelledby={titled ? 'settings-group' : undefined}
       onSubmitCapture={(event) => validateTables(event, invalidPending(draft, keysOf(open)))}
       onSubmit={(event) => {
@@ -774,17 +782,19 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             {ruledOpen !== undefined ? <ProfileRules key={ruledOpen.id} state={state} profile={ruledOpen} /> : draftForm(false)}
           </section>
         ) : open === 'trackers' || open === 'notices' || open === 'packages' || open === 'signIn' || open === 'stats' ? (
-          // Every profile, notice switch and package change is applied on its own, so the tab is not a form; Tally's place and its classifier are applied on their own, ahead of the draft.
+          // Every profile, notice switch and package change is applied on its own, so the tab is not a form; Tally's place and its classifier, a passkey or a device are applied on their own, beside the draft.
           <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
             {groupTitle(open)}
-            {open !== 'stats' ? (
-              groups[open]()
-            ) : (
+            {open === 'stats' ? (
               <>
                 <TallySettings state={state} />
                 <ClassifierSettings state={state} />
                 {draftForm(false)}
               </>
+            ) : open === 'signIn' ? (
+              <SignInSettings state={state} addresses={draftForm(false, true)} />
+            ) : (
+              groups[open]()
             )}
           </section>
         ) : (

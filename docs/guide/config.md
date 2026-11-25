@@ -26,8 +26,8 @@ The project wizard includes its started milestone row when adding the project.
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `allowedHosts` | `[]` | host names the page may be opened by besides `localhost`, `127.0.0.1`, `[::1]` and `EVEN_KEEL_HOST`, such as a proxy's name; any other `Host` gets 403 |
-| `machinesAddress` | `null` | "Hub address for machines": the name or IP other machines reach this one by, `:port` after it when a router or proxy forwards another; set, the hub listens on `EVEN_KEEL_MACHINES_PORT`. A proxy's name works only if the proxy passes that port too |
+| `allowedHosts` | `[]` | host names the page may be opened by besides `localhost`, `127.0.0.1`, `[::1]` and `EVEN_KEEL_HOST`, such as a proxy's name; any other `Host` gets 403; **Other names of the page** in **Settings** → **Sign-in and devices** |
+| `machinesAddress` | `null` | "Hub address for machines": the name or IP other machines reach this one by, `:port` after it when a router or proxy forwards another; set, the hub listens on `EVEN_KEEL_MACHINES_PORT`. A proxy's name works only if the proxy passes that port too; in **Settings** → **Machines** |
 | `language` | the browser's | language of the page: `en` or `ru` |
 | `updates.check` | `true` | ask GitHub for the Even Keel releases at start and every 12 hours, without a token, though not before the first start's setup is through (it asks this); `false` — never go there, and the update window has nothing to offer ([Updating](updating.md#updating)) |
 | `updates.notify` | `true` | a newer release gets a notification in the corner of the page; `false` — only the mark next to the version in the gear menu |

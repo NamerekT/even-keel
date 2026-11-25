@@ -69,9 +69,9 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(notice('task.relabelFailed', { task: 'ABC-1' }))).toEqual({ to: 'shared', tab: 'trackers' })
   })
 
-  it('sends the page token to Interface', () => {
-    expect(noticeFixOf(notice('config.token', { host: '0.0.0.0' }))).toEqual({ to: 'shared', tab: 'page' })
-    expect(noticeFixOf(notice('config.tokenShape', {}))).toEqual({ to: 'shared', tab: 'page' })
+  it('sends the page token to Sign-in and devices, where the owner key is (BTN-1660)', () => {
+    expect(noticeFixOf(notice('config.token', { host: '0.0.0.0' }))).toEqual({ to: 'shared', tab: 'signIn' })
+    expect(noticeFixOf(notice('config.tokenShape', {}))).toEqual({ to: 'shared', tab: 'signIn' })
   })
 
   it('sends a file over the attachment limit to Interface, where the limit is', () => {
@@ -114,7 +114,9 @@ describe('fieldFixOf', () => {
     expect(fieldFixOf({ project: null, field: 'parallel' })).toEqual({ to: 'shared', tab: 'chain' })
     expect(fieldFixOf({ project: null, field: 'execution.claude' })).toEqual({ to: 'shared', tab: 'models' })
     expect(fieldFixOf({ project: null, field: 'context' })).toEqual({ to: 'shared', tab: 'sessions' })
-    expect(fieldFixOf({ project: null, field: 'allowedHosts' })).toEqual({ to: 'shared', tab: 'page' })
+    expect(fieldFixOf({ project: null, field: 'language' })).toEqual({ to: 'shared', tab: 'page' })
+    expect(fieldFixOf({ project: null, field: 'allowedHosts' })).toEqual({ to: 'shared', tab: 'signIn' })
+    expect(fieldFixOf({ project: null, field: 'machinesAddress' })).toEqual({ to: 'shared', tab: 'machines' })
     expect(fieldFixOf({ project: null, field: 'stats' })).toEqual({ to: 'shared', tab: 'stats' })
     expect(fieldFixOf({ project: null, field: 'backupDir' })).toEqual({ to: 'shared', tab: 'backup' })
   })

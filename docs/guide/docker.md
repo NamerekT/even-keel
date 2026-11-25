@@ -17,7 +17,7 @@ docker compose up -d
 docker compose logs -f even-keel
 ```
 
-The page listens on all interfaces **inside** the container. Compose publishes it on the host's loopback address. For a server or NAS, forward that port through SSH, or configure the proxy name under **Other names of the page** before exposing the page through an HTTPS proxy. See [the page on other devices](remote.md#reaching-the-page-from-another-machine). Compose publishes the port for [machines](#machines), 4749, on loopback too.
+The page listens on all interfaces **inside** the container. Compose publishes it on the host's loopback address. For a server or NAS, forward that port through SSH, or configure the proxy name under **Other names of the page** (**Settings** → **Sign-in and devices**) before exposing the page through an HTTPS proxy. See [the page on other devices](remote.md#reaching-the-page-from-another-machine). Compose publishes the port for [machines](#machines), 4749, on loopback too.
 
 ## Data, accounts and repositories
 

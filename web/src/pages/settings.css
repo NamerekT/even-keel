@@ -1099,6 +1099,11 @@
   visibility: hidden;
 }
 
+/* A draft form between cards applied at once (the page's names above the passkeys): an idle bar there would be a hole. */
+.settings__form--between > .settings__bar--idle {
+  display: none;
+}
+
 .settings-page .settings__bar {
   bottom: 0;
   margin: 0;
