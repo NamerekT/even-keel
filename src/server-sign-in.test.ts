@@ -188,6 +188,26 @@ describe('an invitation of a new device through the routes (BTN-1655)', () => {
     expect(after.invites).toEqual([])
   })
 
+  it('signs the new device in by its claim again when the answer with its token was lost, until the token is used (BTN-1664)', async () => {
+    const { send } = await hubOf()
+    const owner = cookieOf(await send('/api/auth/key', { body: { key: KEY } }))
+    const made = JSON.parse((await send('/api/auth/invites/create', { cookie: owner, body: {} })).body) as InviteMade
+    const claim = claimCookieOf(await send('/api/auth/invite/open', { body: { link: made.secret }, agent: ANDROID, from: '100.64.0.12' }))
+    await send('/api/auth/invites/admit', { cookie: owner, body: { id: made.id } })
+    const lost = cookieOf(await send('/api/auth/invite/wait', { cookie: claim, body: {} }))
+    const again = await send('/api/auth/invite/wait', { cookie: claim, body: {} })
+    expect(JSON.parse(again.body)).toEqual({ state: 'admitted', device: 'Chrome on Android' })
+    const device = cookieOf(again)
+    expect((await send('/api/state', { cookie: lost })).status).toBe(401)
+    expect((await send('/api/state', { cookie: device })).status).toBe(200)
+    // Presented now: the claim gives nothing more.
+    const late = await send('/api/auth/invite/wait', { cookie: claim, body: {} })
+    expect(JSON.parse(late.body)).toEqual({ state: 'gone' })
+    expect(late.headers['set-cookie']).toBeUndefined()
+    const view = JSON.parse((await send('/api/auth/devices', { cookie: owner, body: {} })).body) as DevicesView
+    expect(view.devices.map((each) => each.device)).toEqual(['Safari on iPhone', 'Chrome on Android'])
+  })
+
   it('answers a wrong link "gone", as an expired one, and a link another browser opened first "used"', async () => {
     const { send } = await hubOf()
     const owner = cookieOf(await send('/api/auth/key', { body: { key: KEY } }))

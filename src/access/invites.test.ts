@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { memoryDatabase } from '../storage/memory.js'
 import { AccessBook } from './book.js'
-import { INVITE_MS, InviteDesk, MAX_INVITES } from './invites.js'
+import { INVITE_MS, InviteDesk, MAX_INVITES, REISSUE_MS } from './invites.js'
 import { tokensOf } from './store.js'
 
 const PHONE = { device: 'Safari on iPhone', address: '100.64.0.12' }
@@ -35,9 +35,63 @@ describe('an invitation of a new device', () => {
     expect(answer.view).toEqual({ state: 'admitted', device: PHONE.device })
     expect(book.find(answer.signedIn!.secret)).toMatchObject({ device: PHONE.device, inviteId: made.id, keyMark: null })
     expect((await tokensOf(db, book.person)).map((token) => token.inviteId)).toEqual([made.id])
-    // Collected once: asking again gives no second token.
-    expect((await desk.wait(opened.claim, PHONE.address)).signedIn).toBeUndefined()
+    // Once the token was presented, asking again gives no second one.
+    book.seen(book.find(answer.signedIn!.secret)!, PHONE.address)
+    expect(await desk.wait(opened.claim, PHONE.address)).toEqual({ view: { state: 'gone' } })
+    expect(book.devices()).toHaveLength(1)
     expect(await desk.live()).toEqual([])
+  })
+
+  it('gives the same browser its sign-in again when the answer with the token never reached it, and leaves one device (BTN-1664)', async () => {
+    const { book, desk, later } = await deskOf()
+    const made = await desk.create(null)
+    const claim = (await desk.open(made.secret, undefined, PHONE)).claim
+    await desk.admit(made.id)
+    // The phone's screen went dark: this answer, its token in a cookie, is lost on the way.
+    const lost = await desk.wait(claim, PHONE.address)
+    later(60_000)
+    expect(await desk.wait('not-the-claim', STRANGER.address)).toEqual({ view: { state: 'gone' } })
+    expect((await desk.open(made.secret, undefined, STRANGER)).signedIn).toBeUndefined()
+    const again = await desk.wait(claim, PHONE.address)
+    expect(again.view).toEqual({ state: 'admitted', device: PHONE.device })
+    expect(again.signedIn!.secret).not.toBe(lost.signedIn!.secret)
+    expect(book.find(lost.signedIn!.secret)).toBeUndefined()
+    expect(book.devices().map((token) => token.id)).toEqual([again.signedIn!.token.id])
+    // Opening the link again in the same browser does the same.
+    const reopened = await desk.open(made.secret, claim, PHONE)
+    expect(reopened.view.state).toBe('admitted')
+    expect(book.devices().map((token) => token.id)).toEqual([reopened.signedIn!.token.id])
+    book.seen(reopened.signedIn!.token, PHONE.address)
+    expect((await desk.wait(claim, PHONE.address)).signedIn).toBeUndefined()
+    expect(book.devices().map((token) => token.id)).toEqual([reopened.signedIn!.token.id])
+  })
+
+  it('gives the sign-in again only until the invitation ends, or for a short while after "Let in" when it ends sooner', async () => {
+    const { book, desk, later } = await deskOf()
+    const made = await desk.create(null)
+    const claim = (await desk.open(made.secret, undefined, PHONE)).claim
+    later(INVITE_MS - 1_000)
+    await desk.admit(made.id)
+    const lost = await desk.wait(claim, PHONE.address)
+    later(REISSUE_MS - 1_000)
+    const again = await desk.wait(claim, PHONE.address)
+    expect(again.view.state).toBe('admitted')
+    later(REISSUE_MS)
+    expect(await desk.wait(claim, PHONE.address)).toEqual({ view: { state: 'gone' } })
+    expect(book.find(lost.signedIn!.secret)).toBeUndefined()
+    expect(book.find(again.signedIn!.secret)).toBeDefined()
+  })
+
+  it('gives one token when two tabs of the same browser ask at once after a lost answer', async () => {
+    const { book, desk } = await deskOf()
+    const made = await desk.create(null)
+    const claim = (await desk.open(made.secret, undefined, PHONE)).claim
+    await desk.admit(made.id)
+    await desk.wait(claim, PHONE.address)
+    const answers = await Promise.all([desk.wait(claim, PHONE.address), desk.wait(claim, PHONE.address)])
+    const tokens = answers.flatMap((answer) => (answer.signedIn === undefined ? [] : [answer.signedIn.token.id]))
+    expect(book.devices().map((token) => token.id)).toEqual([tokens.at(-1)])
+    expect(tokens.length).toBeGreaterThanOrEqual(1)
   })
 
   it('goes to the first browser that opens it: the next one sees it used and nothing reaches the owner', async () => {

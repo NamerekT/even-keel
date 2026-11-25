@@ -9,6 +9,11 @@ import type { InviteMade, InviteView, JoinView } from './view.js'
 export const INVITE_MS = 10 * 60_000
 /** How long `invite/wait` holds its answer when nothing changes: the new device asks again. */
 export const WAIT_MS = 25_000
+/**
+ * How long after "Let in" the claiming browser may still collect its sign-in again while its token was never presented,
+ * when the invitation itself ends sooner: the answer that carried the token may have been lost (BTN-1664).
+ */
+export const REISSUE_MS = 2 * 60_000
 /** How many invitations wait at once. */
 export const MAX_INVITES = 5
 /** How long an invitation stays in the table after it expired. */
@@ -27,9 +32,11 @@ interface InviteRow {
   opened_device: string | null
   opened_from: string | null
   digits: string | null
+  decided_at: string | null
+  token_id: string | null
 }
 
-const COLUMNS = 'id, created_by, created_at, expires_at, state, claim_hash, opened_at, opened_device, opened_from, digits'
+const COLUMNS = 'id, created_by, created_at, expires_at, state, claim_hash, opened_at, opened_device, opened_from, digits, decided_at, token_id'
 
 export interface InviteDeskOptions {
   clock?: () => Date
@@ -179,19 +186,45 @@ export class InviteDesk {
     return rows[0]
   }
 
-  /** The claiming browser's view of its invitation; let in — the token, issued once. */
+  /** The claiming browser's view of its invitation; let in — the token, issued again only while none was presented. */
   private async answerOf(row: InviteRow, address: string): Promise<JoinAnswer> {
     switch (row.state) {
       case 'opened':
         return { view: row.expires_at <= this.now().toISOString() ? { state: 'expired' } : { state: 'waiting', digits: row.digits!, expiresAt: row.expires_at } }
       case 'admitted':
         return this.collect(row, address)
+      case 'used':
+        return this.reissue(row, address)
       case 'declined':
       case 'cancelled':
         return { view: { state: row.state } }
       default:
         return { view: { state: 'gone' } }
     }
+  }
+
+  /**
+   * The claiming browser asks again after its token was issued: the answer that carried it never arrived (the phone's
+   * screen went dark mid-wait), since no request has presented it. That token goes and a new one comes, so "Devices"
+   * keeps one row; once presented, or after the window, the invitation is `gone`.
+   */
+  private async reissue(row: InviteRow, address: string): Promise<JoinAnswer> {
+    const gone: JoinAnswer = { view: { state: 'gone' } }
+    const old = row.token_id
+    if (old === null || !this.book.isUnpresented(old)) return gone
+    const now = this.now()
+    const until = Math.max(Date.parse(row.expires_at), Date.parse(row.decided_at ?? row.expires_at) + REISSUE_MS)
+    if (now.getTime() >= until) return gone
+    // Two tabs of the same browser at once: one takes the old token over.
+    const { rows } = await this.db.query<{ id: string }>(`update device_invites set token_id = null where id = $1 and token_id = $2 returning id`, [row.id, old])
+    if (rows[0] === undefined) return gone
+    await this.book.revoke(old)
+    const device = row.opened_device!
+    const signedIn = await this.book.signIn({ device, address, keyMark: null, inviteId: row.id })
+    await this.db.query('update device_invites set token_id = $2 where id = $1', [row.id, signedIn.token.id])
+    this.log(`access: ${device} (${address}) asked again for the sign-in its invitation gave, never used: a new token replaced it`)
+    this.changed(row.id)
+    return { view: { state: 'admitted', device }, signedIn }
   }
 
   private async collect(row: InviteRow, address: string): Promise<JoinAnswer> {
