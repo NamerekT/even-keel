@@ -2,6 +2,7 @@ import { CLAUDE } from '../claude/name.js'
 import type { TasksScope } from '../taskmcp/calls.js'
 import type { ToolSpec } from '../taskmcp/tools.js'
 import { folderRecord, folderRecords, removeRecord, writeRecord } from './files.js'
+import { conflictNote, pendingConflicts } from './git/conflicts.js'
 import type { MemoryHub } from './git/hub.js'
 import { indexLine, MEMORY_NAME, MEMORY_TYPES, similarRecords, type MemoryFact, type MemoryRecord } from './record.js'
 
@@ -153,10 +154,10 @@ export class MemoryMcp {
       case 'memory_read': {
         const names = args.names
         if (!Array.isArray(names) || names.length === 0 || names.some((each) => typeof each !== 'string')) throw new Refused('names must be a list of record names')
-        return inFolder((folder) => (names as string[]).map((each) => {
+        return inFolder((folder) => withConflicts(folder, (names as string[]).map((each) => {
           const record = folderRecord(folder, each)
           return record === undefined ? `## ${each}\nThere is no such record.` : recordText(record)
-        }).join('\n\n'))
+        }).join('\n\n')))
       }
       case 'memory_write':
         return this.write(args, inFolder)
@@ -194,7 +195,7 @@ export class MemoryMcp {
         }
       } else if (current?.version !== version) throw new Refused(refusal(fact.name, { kind: 'changed', current }))
       const kept = writeRecord(folder, fact, current?.file)
-      return `Kept ${fact.name}, version ${kept.version}.`
+      return withConflicts(folder, `Kept ${fact.name}, version ${kept.version}.`)
     }, true)
   }
 }
@@ -206,6 +207,12 @@ function refusal(name: string, outcome: Refusal): string {
   }
   if (current === undefined) return `Not kept: there is no record ${name}: it was deleted, or never written. To add it, write it without a version.`
   return `Not kept: ${name} changed since you read it. Its current text, version ${current.version}, is below: apply your change to it and repeat the call with version ${current.version}.\n\n${recordText(current)}`
+}
+
+/** The answer with the conflicts the last sync left open (BTN-1686): what the hook tells a session with file memory. */
+function withConflicts(folder: string, text: string): string {
+  const pending = pendingConflicts(folder)
+  return pending.length === 0 ? text : [text, ...pending.map((conflict) => conflictNote(conflict, folder, 'tool'))].join('\n\n')
 }
 
 function recordText(record: MemoryRecord): string {

@@ -1,9 +1,10 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, watch as watchFolder, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, watch as watchFolder, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runGit } from '../../git/run.js'
 import type { Git, GitResult } from '../../git/types.js'
 import { fileHash, MEMORY_INDEX, MIRROR_MARK, parseMemoryFile, type MemoryFact } from '../record.js'
-import { settleConflicts } from './conflicts.js'
+import { conflictTrailer, openConflicts, saveConflicts } from './conflicts.js'
+import { settleTexts, type Sides } from './merge.js'
 import { reindex } from './reindex.js'
 import { findSecrets } from './secrets.js'
 
@@ -18,6 +19,11 @@ export const ATTRIBUTES = `${MEMORY_INDEX} merge=union\n`
 const PUSH_ROUNDS = 3
 const REBASE_STEPS = 200
 const SCAN_LIMIT = 1024 * 1024
+/** Where a sync puts the texts it merges, inside `.git` so that the folder's watcher never sees them. */
+const SCRATCH = '.git/even-keel-merge'
+
+/** What a rebase met of a file changed on both sides: the remote's version and their common one. */
+type Met = Omit<Sides, 'own' | 'ownCommitted'>
 
 export interface MemorySyncDeps {
   /** The working copy: a project's memory folder (`sharedMemory`). */
@@ -40,7 +46,7 @@ export interface SyncOutcome {
   committed: string[]
   /** Files kept out of it for what looks like a key (`findSecrets`). */
   withheld: string[]
-  /** Side files made for records changed on both sides (`settleConflicts`). */
+  /** Records changed on the same lines on both sides: the newer version kept, sessions asked to merge the other. */
   conflicts: string[]
   /** The remote was reached: fetched, rebased onto and pushed what was ahead. */
   reached: boolean
@@ -49,10 +55,11 @@ export interface SyncOutcome {
 /**
  * A project's memory folder kept in step with its bare repository (BTN-1645), on the hub and on a machine alike.
  * A sync commits the folder's edits, fetches, rebases onto the remote (`MEMORY.md` merges by union and is tidied after
- * by `reindex`; a record changed on both sides by `settleConflicts`) and pushes. A folder that is missing, empty or not
+ * by `reindex`; a record changed on both sides by `settleTexts`) and pushes. A folder that is missing, empty or not
  * a repository becomes one and takes the remote's history, so an empty folder never deletes a record: only a commit
  * of a deletion does. An empty folder with an empty remote commits nothing. Without the remote the commits stay local
- * until a sync reaches it. One sync runs at a time.
+ * until a sync reaches it. One sync runs at a time. After each the conflicts the history leaves open go into
+ * `CONFLICTS_FILE` for the hook and the memory tools (BTN-1686).
  */
 export class MemorySync {
   private readonly git: Git
@@ -134,6 +141,7 @@ export class MemorySync {
         if (step === 'failed') break
         outcome.reached = step === 'pushed'
       }
+      saveConflicts(this.deps.folder, await openConflicts((...args) => this.run(...args), this.deps.folder))
     } catch (error) {
       this.deps.log(`memory: ${this.deps.folder} sync failed: ${(error as Error).message}`)
     }
@@ -258,9 +266,14 @@ export class MemorySync {
     return 'failed'
   }
 
-  /** Local commits onto the remote's; never left unfinished: a conflict is settled, anything else aborted. */
+  /**
+   * Local commits onto the remote's; never left unfinished: a file changed on both sides takes its own version for the
+   * rest of the rebase, so that it stays in the history, and is settled once the rebase is done (`settleMet`); anything
+   * else aborts it.
+   */
   private async rebase(upstream: string, outcome: SyncOutcome): Promise<boolean> {
     const { folder } = this.deps
+    const met = new Map<string, Met>()
     let step = await this.run('rebase', '-q', '--autostash', upstream)
     for (let n = 0; step.code !== 0; n++) {
       if (!this.rebasing() || n >= REBASE_STEPS) {
@@ -274,17 +287,114 @@ export class MemorySync {
         step = await this.run('rebase', '--skip')
         continue
       }
-      const sides = await settleConflicts((...args) => this.run(...args), folder)
-      if (sides === null) {
+      if (!(await this.takeOwn(upstream, met))) {
         await this.run('rebase', '--abort')
         this.deps.log(`memory: ${folder} cannot settle a conflict with its repository (${unmerged.join(', ')}): the local commits are kept`)
         return false
       }
-      for (const side of sides) this.deps.log(`memory: ${folder} ${side} is another machine's version of a record changed here too: to be merged`)
-      outcome.conflicts.push(...sides)
       step = await this.run('rebase', '--continue')
     }
+    await this.settleMet(met, outcome)
     return true
+  }
+
+  /**
+   * Every unmerged path of a stopped rebase takes the own version, the remote's kept in `met` for `settleMet`. During a
+   * rebase stage 2 is the upstream's and stage 3 the commit being replayed. A side that deleted the file loses to the
+   * side that changed it: only an uncontested deletion removes a record.
+   */
+  private async takeOwn(upstream: string, met: Map<string, Met>): Promise<boolean> {
+    const listed = await this.run('ls-files', '-u', '-z')
+    if (listed.code !== 0) return false
+    const stages = new Map<string, Set<string>>()
+    for (const entry of listed.out.split('\0')) {
+      const match = /^\d+ [0-9a-f]+ ([123])\t(.+)$/s.exec(entry)
+      if (match !== null) stages.set(match[2]!, (stages.get(match[2]!) ?? new Set()).add(match[1]!))
+    }
+    for (const [path, has] of stages) {
+      const both = has.has('2') && has.has('3')
+      if (both && path !== MEMORY_INDEX && !met.has(path)) {
+        const remote = await this.stageText(path, '2')
+        const base = has.has('1') ? await this.stageText(path, '1') : null
+        if (remote === null || (has.has('1') && base === null)) return false
+        met.set(path, { base, remote, remoteCommitted: await this.authored(upstream, path) })
+      }
+      const keep = await this.run('checkout', has.has('3') ? '--theirs' : '--ours', '--', path)
+      if (keep.code !== 0 || (await this.run('add', '--', path)).code !== 0) return false
+    }
+    return true
+  }
+
+  /** The exact text of a stage of an unmerged path (`cat-file` would lose its trailing newlines to the runner's trim). */
+  private async stageText(path: string, stage: '1' | '2'): Promise<string | null> {
+    const scratch = join(this.deps.folder, SCRATCH)
+    try {
+      if ((await this.run('checkout-index', '-f', `--stage=${stage}`, `--prefix=${SCRATCH}/`, '--', path)).code !== 0) return null
+      return readFileSync(join(scratch, path), 'utf8')
+    } catch {
+      return null
+    } finally {
+      rmSync(scratch, { recursive: true, force: true })
+    }
+  }
+
+  /** When `path` was last committed on `ref`, by its author's time, which a rebase keeps; 0 — unknown. */
+  private async authored(ref: string, path: string): Promise<number> {
+    const time = Number((await this.run('log', '-1', '--format=%at', ref, '--', path)).out)
+    return Number.isFinite(time) ? time * 1000 : 0
+  }
+
+  /**
+   * The files the rebase met on both sides, each settled by `settleTexts` against the own version it ended with. A real
+   * conflict gets two commits: the first puts the other version into the file, the second the newer one with the
+   * trailer (`conflictTrailer`), so the other is the second's parent wherever the history goes.
+   */
+  private async settleMet(met: ReadonlyMap<string, Met>, outcome: SyncOutcome): Promise<void> {
+    const { folder, author } = this.deps
+    const finals = new Map<string, string>()
+    const others = new Map<string, string>()
+    for (const [path, sides] of met) {
+      const at = join(folder, path)
+      if (!existsSync(at)) continue
+      const own = readFileSync(at, 'utf8')
+      const ownCommitted = await this.authored('HEAD', path)
+      const settled = await settleTexts({ ...sides, own, ownCommitted }, (base, mine, theirs) => this.mergeTexts(base, mine, theirs))
+      if (settled.text !== own) finals.set(path, settled.text)
+      if (settled.kind === 'conflict') {
+        outcome.conflicts.push(path)
+        finals.set(path, settled.text)
+        if (settled.newer === 'own') others.set(path, sides.remote)
+        this.deps.log(`memory: ${folder} ${path} was changed on the same lines on two machines: the newer version is kept, sessions are asked to merge the other`)
+      } else if (settled.kind !== 'same') {
+        this.deps.log(`memory: ${folder} ${path} was changed on two machines: ${settled.kind === 'merged' ? 'merged' : 'the newer version is kept, they had no common one'}`)
+      }
+    }
+    if (others.size > 0) {
+      for (const [path, text] of others) writeFileSync(join(folder, path), text)
+      await this.must('add', '--', ...others.keys())
+      await this.must('commit', '-q', '--no-verify', '-m', `memory: other versions of ${[...others.keys()].join(', ')} from ${author}`)
+    }
+    if (finals.size === 0) return
+    for (const [path, text] of finals) writeFileSync(join(folder, path), text)
+    await this.must('add', '--', ...finals.keys())
+    const title = outcome.conflicts.length > 0 ? `memory: conflict in ${outcome.conflicts.join(', ')} from ${author}` : `memory: ${finals.size === 1 ? '1 file' : `${finals.size} files`} merged from ${author}`
+    const trailers = outcome.conflicts.map(conflictTrailer)
+    await this.must('commit', '-q', '--no-verify', '--allow-empty', '-m', title, ...(trailers.length > 0 ? ['-m', trailers.join('\n')] : []))
+  }
+
+  /** A three-way merge of texts by `git merge-file`; `null` — the same lines changed on both sides. */
+  private async mergeTexts(base: string, own: string, remote: string): Promise<string | null> {
+    const scratch = join(this.deps.folder, SCRATCH)
+    mkdirSync(scratch, { recursive: true })
+    try {
+      writeFileSync(join(scratch, 'own'), own)
+      writeFileSync(join(scratch, 'base'), base)
+      writeFileSync(join(scratch, 'remote'), remote)
+      const merged = await this.run('merge-file', '-q', `${SCRATCH}/own`, `${SCRATCH}/base`, `${SCRATCH}/remote`)
+      return merged.code === 0 ? readFileSync(join(scratch, 'own'), 'utf8') : null
+    } finally {
+      rmSync(scratch, { recursive: true, force: true })
+    }
   }
 
   /**
