@@ -178,7 +178,7 @@ async function realJoin(): Promise<JoinProps | null> {
   if (response === null || !response.ok) return null
   const state = (await response.json()) as AuthState
   const post: AuthPost = async <T,>(name: string, body: object) => (await sendQuery(name, body)) as T
-  return { signedIn: state.signedIn, link: location.hash.slice(1), post, entered: () => location.replace('/') }
+  return { signedIn: !state.takesInvite, link: location.hash.slice(1), post, entered: () => location.replace('/') }
 }
 
 /** `dev:fake`'s `/invite`: signed in already, or with `?signIn` a new device (`?invite=` picks the outcome, `fakeAuth.ts`). */
