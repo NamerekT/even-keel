@@ -45,7 +45,7 @@ it('preserves code, existing links, addresses, branches, word boundaries and unk
   ].join('\n\n')
   try {
     await act(async () => root.render(cardMarkdown(state, vi.fn(), []).render(source)))
-    expect([...host.querySelectorAll('button')].map(button => button.textContent)).toEqual(['ABC-16', 'ABC-17'])
+    expect([...host.querySelectorAll('button.task-card__inline-ref')].map(button => button.textContent)).toEqual(['ABC-16', 'ABC-17'])
     expect([...host.querySelectorAll('a')].map(link => link.textContent)).toEqual(['see ABC-3', 'see ABC-4', 'see ABC-6', 'https://example.com/ABC-7'])
   } finally {
     await act(async () => root.unmount())

@@ -1,5 +1,6 @@
 import Markdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { CodeBlock } from './CodeBlock.js'
 import './markdown.css'
 
 const PARTS: Components = {
@@ -12,6 +13,7 @@ const PARTS: Components = {
       <span>{children}</span>
     ),
   img: ({ alt }) => (alt ? <span className="markdown__image">[{alt}]</span> : null),
+  pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
 }
 
 /** Markdown a session wrote: only web and mail links open, pictures stay their alt text. */

@@ -57,6 +57,7 @@ export const en: Messages = {
     readingOptions: 'Reading the values…',
     copyCommand: 'Copy the command',
     copyPath: 'Copy the path',
+    copyCode: 'Copy',
     commandCopied: 'Copied',
   },
   units: {
