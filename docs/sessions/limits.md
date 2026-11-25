@@ -21,7 +21,7 @@
 
 ### Limits of OpenCode and Copilot (BTN-341)
 
-Subscription extra-usage facts are kept separately from the included windows (`RateLimits.overage`): Claude SDK rate-limit events, ChatGPT API/rollout credits and Copilot quota/billing data. They feed the display only; exhausted windows still hold the next launch as before. Sources, units, freshness and the evidence needed for an **on credits** chip are in [accounts.md](../accounts.md#subscription-credits-and-extra-usage-btn-532).
+Subscription extra-usage facts are kept separately from the included windows (`RateLimits.overage`): Claude SDK rate-limit events, ChatGPT API/rollout credits and Copilot quota/billing data. They feed the display only; exhausted windows still hold the next launch as before. Sources, units, freshness and the evidence needed for an **on credits** chip are in [accounts.md](../accounts/page.md#subscription-credits-and-extra-usage-btn-532).
 
 Polled every 5 minutes like `/usage`, through the adapters' `usage`; the page shows the source as "from the provider's API" (`source: 'api'`).
 

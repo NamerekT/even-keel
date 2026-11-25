@@ -12,7 +12,7 @@ import { databaseVersion, type BeforeSteps } from './database.js'
 import { databaseDirOf, filesDirOf, memoryDirOf } from './owner.js'
 
 // The service's daily copy of the state database (BTN-1083): the rows are read here, the copy is written and checked
-// on its own thread. `docs/storage.md`, "Backup, export, rollback".
+// on its own thread. `docs/storage/first-start.md`, "Backup, export, rollback".
 
 const MINUTE = 60_000
 export const BACKUP_FIRST_LOOK_MS = 5 * MINUTE

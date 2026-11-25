@@ -56,11 +56,11 @@ The account's row says "long token" and its last day. A month before it the row 
 
 At most one ChatGPT account may be on the free plan across Codex and OpenCode: Even Keel refuses a different second free account and holds any already added. The same e-mail may be used in both agents, sharing its allowance.
 
-Paid plans have no limit on the number of accounts. An unreadable plan remains unknown; Even Keel does not guess that it is free ([docs/accounts.md](../accounts.md#the-codex-folders-btn-168-btn-176)).
+Paid plans have no limit on the number of accounts. An unreadable plan remains unknown; Even Keel does not guess that it is free ([docs/accounts.md](../accounts/other-agents.md#the-codex-folders-btn-168-btn-176)).
 
 ### OpenCode
 
-OpenCode accounts are folders of their own too, signed in with ChatGPT or GitHub Copilot (a link and a one-time code), on an Anthropic or OpenAI API key, or with no sign-in for OpenCode's free models. There is no Claude subscription for OpenCode: Anthropic allows it only in Claude Code, so Claude in OpenCode is an API key ([docs/accounts.md](../accounts.md#the-opencode-folders-btn-214)).
+OpenCode accounts are folders of their own too, signed in with ChatGPT or GitHub Copilot (a link and a one-time code), on an Anthropic or OpenAI API key, or with no sign-in for OpenCode's free models. There is no Claude subscription for OpenCode: Anthropic allows it only in Claude Code, so Claude in OpenCode is an API key ([docs/accounts.md](../accounts/other-agents.md#the-opencode-folders-btn-214)).
 
 OpenCode can use ChatGPT, API keys or its free models.
 
@@ -94,7 +94,7 @@ GitHub Copilot accounts are folders too.
 
 One runs on the GitHub sign-in already on the machine (`copilot login`, which Copilot keeps for the whole machine, not per folder); for several GitHub accounts, add each with a fine-grained token that has the "Copilot Requests" permission.
 
-GitHub's terms allow one free account per person: several tokens are for several paid seats, not to stretch a free budget ([docs/accounts.md](../accounts.md#the-copilot-folders-btn-215)).
+GitHub's terms allow one free account per person: several tokens are for several paid seats, not to stretch a free budget ([docs/accounts.md](../accounts/other-agents.md#the-copilot-folders-btn-215)).
 
 An account added with a token shows its monthly allowance, "N left, resets on the 1st", and a spent one waits for the 1st; give the token the "Plan" read permission too, or the card can only count what was spent, or nothing.
 
@@ -112,7 +112,7 @@ If GitHub supplies no quota or no usage rows, the card explains that no data is 
 
 An account can also be an Anthropic API key, checked with Anthropic when added and then hourly: its sessions pay from the key, the page shows its spend today instead of usage windows (with statistics on), and it has no Remote Control.
 
-A session whose key runs out of credit is held, the key is checked every 5 minutes, and the chain goes on once it is topped up ([account details](../accounts.md#api-accounts-btn-99)).
+A session whose key runs out of credit is held, the key is checked every 5 minutes, and the chain goes on once it is topped up ([account details](../accounts/claude-kinds.md#api-accounts-btn-99)).
 
 A spending cap also holds the current task: the account problem band and session panel show the reset date from the error, and the chain retries then, or sooner if a five-minute check succeeds after you raise the cap. You can switch accounts to continue immediately. Automatic recovery from a real spending cap and the workspace variant have [not yet been checked live](../unverified/sessions.md#api-spending-cap-recovery).
 
@@ -142,7 +142,7 @@ SSO profiles, short-term Bedrock API keys and keys with a session token expire w
 
 Like an API key, a Bedrock account has no usage windows (the page shows its spend and region), runs through the Agent SDK under `Auto`, and has no Remote Control; Bedrock also has no web search, so WebSearch does not work in its sessions. Bedrock throttling stops a session like any error rather than holding it as a limit.
 
-A Bedrock account has [not yet run a live session](../unverified/accounts.md#claude-on-amazon-bedrock-btn-822); details are in [account details](../accounts.md#cloud-accounts-btn-822).
+A Bedrock account has [not yet run a live session](../unverified/accounts.md#claude-on-amazon-bedrock-btn-822); details are in [account details](../accounts/claude-kinds.md#cloud-accounts-btn-822).
 
 ### Google Vertex AI
 
@@ -182,7 +182,7 @@ Each account is a row: its name, role chips and limits; the page also shows sess
 
 Click the row, or focus it and press Enter/Space, to move Even Keel or VS Code onto it, rename it or remove it. Unavailable actions say why.
 
-The Claude desktop app can be launched on a folder by hand ([account details](../accounts.md#the-claude-desktop-app)).
+The Claude desktop app can be launched on a folder by hand ([account details](../accounts/page.md#the-claude-desktop-app)).
 
 Problems appear above the list with their fix. Shared limits and the source and age of readings are in tips.
 
@@ -256,4 +256,4 @@ An emptying also includes expiry dates, the selected CLI version, live session P
 
 The first check after a service restart establishes a baseline and reports already empty tokens once.
 
-Preserve the log before signing in again; it helps investigation but does not determine the cause. See [account diagnostics](../accounts.md#oauth-token-diagnostics-btn-763).
+Preserve the log before signing in again; it helps investigation but does not determine the cause. See [account diagnostics](../accounts/folders.md#oauth-token-diagnostics-btn-763).
