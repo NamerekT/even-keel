@@ -9,6 +9,12 @@ export interface AuthState {
   passkeyHere: boolean
   /** This browser's sign-in; `null` — none (this machine by a loopback name, or not signed in). */
   device: string | null
+  /**
+   * `/invite` takes a link here (BTN-1667): a browser not signed in, or one a hub without the key and the sign-in off
+   * let in unasked by a proxy's name, which the first invitation turns the sign-in on for. One with its own token or
+   * on a loopback name is in already.
+   */
+  takesInvite: boolean
 }
 
 export interface PasskeyView {

@@ -73,7 +73,7 @@ describe('the sign-in through a proxy on this machine', () => {
   it('asks a request by the proxy name to sign in, lets a loopback name through', async () => {
     const { send } = await hubOf()
     expect((await send('/api/state')).status).toBe(401)
-    expect(JSON.parse((await send('/api/auth/state')).body)).toEqual({ signedIn: false, keySet: true, passkeyHere: false, device: null })
+    expect(JSON.parse((await send('/api/auth/state')).body)).toEqual({ signedIn: false, keySet: true, passkeyHere: false, device: null, takesInvite: true })
     expect((await send('/api/state', { host: '127.0.0.1' })).status).toBe(200)
   })
 
@@ -270,6 +270,23 @@ describe('a hub without the owner key: the first device let in turns the sign-in
     expect(off.status).toBe(200)
     expect(book.devices()).toEqual([])
     expect((await send('/api/state')).status).toBe(200)
+  })
+
+  it('a browser let in by the proxy name without being asked takes the first invitation; one with its token or a loopback name does not (BTN-1667)', async () => {
+    const { send, book } = await hubOf(null)
+    const stateOf = async (options: { cookie?: string; host?: string } = {}) => JSON.parse((await send('/api/auth/state', options)).body)
+    expect(await stateOf()).toMatchObject({ signedIn: true, device: null, takesInvite: true })
+    expect(await stateOf({ host: 'localhost' })).toMatchObject({ signedIn: true, takesInvite: false })
+    // The phone by the same proxy name opens the link the browser on this machine made.
+    const made = JSON.parse((await send('/api/auth/invites/create', { body: {} })).body) as InviteMade
+    const opened = await send('/api/auth/invite/open', { body: { link: made.secret }, agent: ANDROID, from: '100.64.0.12' })
+    expect(JSON.parse(opened.body)).toMatchObject({ state: 'waiting' })
+    const decider = cookieOf(await send('/api/auth/invites/admit', { body: { id: made.id } }))
+    const joined = cookieOf(await send('/api/auth/invite/wait', { cookie: claimOf(opened), body: {} }))
+    expect(book.signInOn()).toBe(true)
+    expect(await stateOf({ cookie: joined })).toMatchObject({ signedIn: true, device: 'Chrome on Android', takesInvite: false })
+    expect(await stateOf({ cookie: decider })).toMatchObject({ signedIn: true, takesInvite: false })
+    expect(await stateOf()).toMatchObject({ signedIn: false, takesInvite: true })
   })
 
   it('a browser on a loopback name lets a device in without getting a token itself', async () => {
