@@ -37,6 +37,11 @@ import type { ServerDeps } from './server-control.js'
 
 type Command = (deps: ServerDeps, body: Record<string, unknown>) => void | Promise<void>
 
+function takeOf(raw: unknown): 'kept' | 'other' {
+  if (raw !== 'kept' && raw !== 'other') throw fail('request.required', { field: 'take' })
+  return raw
+}
+
 const COMMANDS: Record<string, Command> = {
   'chain/start': ({ control }, body) => control.start(projectOf(body)),
   'chain/resume': ({ control }, body) => control.resume(projectOf(body)),
@@ -109,6 +114,8 @@ const COMMANDS: Record<string, Command> = {
   'cli/check': ({ cli }) => cli?.check(),
   'huly/install': ({ hulyClient }) => hulyClient?.install(),
   'storage/backup': ({ backup }) => backup?.copyNow(),
+  'config/settleConflict': ({ configConflicts }, body) =>
+    configConflicts?.settleConfig(textOf(body.file, 'file'), textOf(body.hash, 'hash'), takeOf(body.take)),
   'machines/revoke': ({ machines }, body) => machines?.revoke(textOf(body.machine, 'machine')),
   'machines/decline': ({ machineRequests }, body) => machineRequests?.decline(textOf(body.request, 'request')),
   'machines/join': ({ pool }, body) => pool?.join(textOf(body.machine, 'machine'), joinRequestsOf(body)),

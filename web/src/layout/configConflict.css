@@ -1,0 +1,61 @@
+/* A global configuration conflict (BTN-1692): per file the sentence, then the two versions as small boxes at the
+   left and the buttons at the right; on a phone the buttons go under the versions. */
+.banner__inner.config-conflict {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.config-conflict > :first-child { grid-column: 1 / -1; }
+
+.config-conflict + .config-conflict {
+  margin-top: var(--space-12);
+  padding-top: var(--space-12);
+  border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+@media (max-width: 600px) {
+  .banner__inner.config-conflict { grid-template-columns: minmax(0, 1fr); }
+  .config-conflict .banner__actions { margin-left: 0; }
+}
+
+.config-conflict__versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.config-conflict__version {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-6);
+  max-width: 100%;
+  min-width: 0;
+  padding: var(--space-2) var(--space-8);
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: var(--radius-control);
+  font-size: var(--text-12);
+}
+
+.config-conflict__label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.config-conflict__line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+
+.config-conflict__full {
+  display: block;
+  max-height: 60dvh;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+  font-size: var(--text-12);
+}

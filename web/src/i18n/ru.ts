@@ -243,6 +243,11 @@ export const ru = {
       packages === null ? `Следующая задача ждёт пакеты машины ${machine}: они там не готовы.`
         : `Следующая задача ждёт пакеты машины ${machine}: ${packages} — запустится, когда они там ответят.`,
     unattended: 'Включён режим без присмотра: сессии не задают вопросов. Выключается в настройках → Цепочка.',
+    configKeptVersion: 'В файле',
+    configOtherVersion: 'Другая',
+    configEmpty: '(пусто)',
+    configKeep: 'Оставить эту',
+    configTakeOther: 'Взять другую',
   },
   limits: {
     fiveHour: '5 часов',

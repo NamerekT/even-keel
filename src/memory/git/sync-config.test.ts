@@ -105,4 +105,70 @@ describe('MemorySync of the global configuration (BTN-1690)', { timeout: 120_000
     expect(conflict!.human).toBeUndefined()
     expect(conflict!.note).toContain('global configuration')
   })
+
+  describe("a person's choice of a version (BTN-1692)", () => {
+    /** `a` pushes a hook first, `b` meets it with its own: the conflict is met on `b`, `b`'s version newer. */
+    async function conflicted(): Promise<[Copy, Copy]> {
+      const a = copy('a')
+      write(a, 'hooks/guard.mjs', '// guard\n')
+      await a.sync.start()
+      const b = copy('b')
+      await b.sync.start()
+      write(a, 'hooks/guard.mjs', '// guard of a\n')
+      write(b, 'hooks/guard.mjs', '// guard of b\n')
+      await a.sync.sync()
+      await b.sync.sync()
+      await a.sync.sync()
+      return [a, b]
+    }
+
+    it('names the machine the conflict was met on', async () => {
+      const [a, b] = await conflicted()
+      expect(pendingConflicts(a.folder)).toMatchObject([{ file: 'hooks/guard.mjs', by: 'b', human: true }])
+      expect(pendingConflicts(b.folder)).toMatchObject([{ file: 'hooks/guard.mjs', by: 'b' }])
+    })
+
+    it('keeps this version by a commit that closes the conflict on every copy, the file unchanged', async () => {
+      const [a, b] = await conflicted()
+      const [conflict] = pendingConflicts(a.folder)
+      expect(await a.sync.settle('hooks/guard.mjs', conflict!.hash, 'kept')).toBe(true)
+      expect(read(a, 'hooks/guard.mjs')).toBe('// guard of b\n')
+      expect(pendingConflicts(a.folder)).toEqual([])
+      expect((await runGit(a.folder, ['log', '-1', '--format=%B'])).out).toContain('Config-Settled: hooks/guard.mjs')
+      await b.sync.sync()
+      expect(pendingConflicts(b.folder)).toEqual([])
+    })
+
+    it('takes the other version into the file on every copy', async () => {
+      const [a, b] = await conflicted()
+      const [conflict] = pendingConflicts(b.folder)
+      expect(await b.sync.settle('hooks/guard.mjs', conflict!.hash, 'other')).toBe(true)
+      expect(read(b, 'hooks/guard.mjs')).toBe('// guard of a\n')
+      expect(pendingConflicts(b.folder)).toEqual([])
+      await a.sync.sync()
+      expect(read(a, 'hooks/guard.mjs')).toBe('// guard of a\n')
+      expect(pendingConflicts(a.folder)).toEqual([])
+    })
+
+    it('refuses a choice the conflict has moved past: settled already, or the file saved since', async () => {
+      const [a] = await conflicted()
+      const [conflict] = pendingConflicts(a.folder)
+      expect(await a.sync.settle('hooks/guard.mjs', 'stale', 'other')).toBe(false)
+      expect(await a.sync.settle('skills/none/SKILL.md', conflict!.hash, 'other')).toBe(false)
+      expect(await a.sync.settle('hooks/guard.mjs', conflict!.hash, 'kept')).toBe(true)
+      expect(await a.sync.settle('hooks/guard.mjs', conflict!.hash, 'other')).toBe(false)
+      expect(read(a, 'hooks/guard.mjs')).toBe('// guard of b\n')
+    })
+
+    it('opens again at a later conflict in the same file', async () => {
+      const [a, b] = await conflicted()
+      await a.sync.settle('hooks/guard.mjs', pendingConflicts(a.folder)[0]!.hash, 'kept')
+      await b.sync.sync()
+      write(a, 'hooks/guard.mjs', '// guard of a, again\n')
+      write(b, 'hooks/guard.mjs', '// guard of b, again\n')
+      await b.sync.sync()
+      await a.sync.sync()
+      expect(pendingConflicts(a.folder)).toMatchObject([{ file: 'hooks/guard.mjs', by: 'a' }])
+    })
+  })
 })

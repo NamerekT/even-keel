@@ -142,6 +142,7 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
     updates: { ...ctx.releasesView(), ...ctx.updater.view() },
     backup: ctx.backups.view(),
     memoryMirror: ctx.memory.mirrorView(),
+    configConflicts: ctx.memory.configConflicts(),
     noticesDismissed: ctx.dismissedNotices,
     hotkeys: ctx.browserHotkeys,
     cliVersions: [...ctx.cliVersions.view(), ...ctx.daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],

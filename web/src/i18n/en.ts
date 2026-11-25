@@ -236,6 +236,11 @@ export const en: Messages = {
       packages === null ? `The next task waits for the packages of ${machine}: they are not ready there.`
         : `The next task waits for the packages of ${machine}: ${packages} — it starts once they answer there.`,
     unattended: 'Unattended mode is on: sessions ask no questions. Turn it off in Settings → Chain.',
+    configKeptVersion: 'In the file',
+    configOtherVersion: 'Other',
+    configEmpty: '(empty)',
+    configKeep: 'Keep this',
+    configTakeOther: 'Take the other',
   },
   limits: {
     fiveHour: '5 hours',

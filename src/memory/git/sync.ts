@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { runGit } from '../../git/run.js'
 import type { Git, GitResult } from '../../git/types.js'
 import { fileHash, MEMORY_INDEX, MIRROR_MARK, parseMemoryFile, type MemoryFact } from '../record.js'
-import { conflictTrailer, openConflicts, saveConflicts } from './conflicts.js'
+import { conflictTrailer, openConflicts, pendingConflicts, saveConflicts } from './conflicts.js'
 import { flavorOf, MEMORY_FLAVOR, type SyncFlavor, type SyncKind } from './flavor.js'
 import { settleTexts, type Settled, type Sides } from './merge.js'
 import { reindex } from './reindex.js'
@@ -46,6 +46,8 @@ export interface MemorySyncDeps {
   beforeCommit?(): void
   /** Runs inside each sync once it is done with the remote, reached or not. */
   afterSync?(): void
+  /** After each sync and each `settle`, once `CONFLICTS_FILE` is written: the page's view of them (BTN-1692). */
+  conflictsSaved?(): void
 }
 
 export interface SyncOutcome {
@@ -129,6 +131,32 @@ export class MemorySync {
     return next
   }
 
+  /**
+   * A person's choice of a version for a conflict they settle (`SyncFlavor.human`, BTN-1692): `kept` leaves the file as
+   * it is, `other` writes the other version into it; either is one commit with the `settled` trailer, then a sync, so
+   * the conflict ends on every copy. `false` — no such conflict open with the file as `hash` says: settled already, or
+   * the file saved since.
+   */
+  async settle(file: string, hash: string, take: 'kept' | 'other'): Promise<boolean> {
+    const { folder, author } = this.deps
+    const done = await this.edit(async () => {
+      const conflict = pendingConflicts(folder).find((each) => each.human === true && each.file === file && each.hash === hash)
+      if (conflict === undefined) return false
+      if (take === 'other') writeFileSync(join(folder, file), conflict.otherText)
+      await this.must('add', '--', file)
+      const title = `${this.label}: ${file} settled by a person on ${author}, ${take === 'kept' ? 'its version kept' : 'the other version taken'}`
+      await this.must('commit', '-q', '--no-verify', '--allow-empty', '-m', title, '-m', `${this.flavor.settled}: ${file}`)
+      saveConflicts(folder, pendingConflicts(folder).filter((each) => each.file !== file))
+      this.deps.conflictsSaved?.()
+      return true
+    })
+    if (done) {
+      this.deps.log(`${this.label}: ${folder} ${file} settled by a person: ${take === 'kept' ? 'the newer version kept' : 'the other version taken'}`)
+      await this.sync()
+    }
+    return done
+  }
+
   private arm(ms: number, retry: boolean): void {
     if (retry && this.cancel !== null) return
     this.cancel?.()
@@ -160,6 +188,7 @@ export class MemorySync {
     } catch (error) {
       this.deps.log(`${this.label}: ${this.deps.folder} sync failed: ${(error as Error).message}`)
     }
+    this.deps.conflictsSaved?.()
     if (!this.stopped) {
       this.watchFolder()
       if (!outcome.reached) this.arm(RETRY_MS, true)

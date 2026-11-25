@@ -2,6 +2,8 @@ import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { runGit } from '../../git/run.js'
 import type { Git } from '../../git/types.js'
+import { fail } from '../../notice/notice.js'
+import type { ConfigConflictView } from '../../state.js'
 import type { Queryable } from '../../storage/database.js'
 import { folderRecords } from '../files.js'
 import { indexLine } from '../record.js'
@@ -29,6 +31,8 @@ export interface MemoryHubDeps {
   watch?: MemorySyncDeps['watch']
   /** The global folder whose configuration the hub keeps as its copy of the `config` repository (BTN-1690); absent — none. */
   globalDir?: string
+  /** The configuration copy wrote its conflicts: the page's banner may change (BTN-1692). */
+  conflictsSaved?(): void
 }
 
 /**
@@ -99,6 +103,7 @@ export class MemoryHub {
           author: deps.author,
           log: deps.log,
           pushed: () => this.pushed(CONFIG_REPOSITORY),
+          ...(deps.conflictsSaved !== undefined && { conflictsSaved: deps.conflictsSaved }),
           ...(deps.git !== undefined && { git: deps.git }),
           ...(deps.schedule !== undefined && { schedule: deps.schedule }),
           ...(deps.watch !== undefined && { watch: deps.watch }),
@@ -121,6 +126,19 @@ export class MemoryHub {
   /** The page's warning while the memory mirror is set. */
   mirrorView(): ReturnType<RemoteMirror['view']> {
     return this.mirror.view()
+  }
+
+  /**
+   * The global configuration's conflicts a person settles (BTN-1692), met here or on any machine: a machine's sync
+   * pushes its conflict into the repository, and the hub's copy syncs after each push.
+   */
+  configConflicts(): ConfigConflictView[] {
+    return this.config?.conflicts() ?? []
+  }
+
+  /** "Keep this" or "Take the other" of the banner: a commit of the hub's copy that ends the conflict everywhere. */
+  async settleConfig(file: string, hash: string, take: 'kept' | 'other'): Promise<void> {
+    if (this.config === null || !(await this.config.settle(file, hash, take))) throw fail('config.conflictGone', { file })
   }
 
   stop(): void {

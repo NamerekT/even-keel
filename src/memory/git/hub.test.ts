@@ -7,7 +7,8 @@ import { runGit } from '../../git/run.js'
 import { openDatabase } from '../../storage/database.js'
 import { memoryFile } from '../record.js'
 import { MemoryHub, memoryDirOf } from './hub.js'
-import { MEMORY_BRANCH } from './sync.js'
+import { pendingConflicts } from './conflicts.js'
+import { MEMORY_BRANCH, MemorySync } from './sync.js'
 
 const ONE = '11111111-1111-4111-8111-111111111111'
 const TWO = '22222222-2222-4222-8222-222222222222'
@@ -124,6 +125,39 @@ describe('MemoryHub (BTN-1646)', { timeout: 120_000 }, () => {
     const head = async () => (await runGit(join(dir, 'config.git'), ['rev-parse', MEMORY_BRANCH])).out
     const mirrored = async () => (await runGit(root, ['ls-remote', mirror, 'refs/heads/config'])).out.split('\t')[0]
     await vi.waitFor(async () => expect(await mirrored()).toBe(await head()), { timeout: 30_000, interval: 100 })
+  })
+
+  it("shows a settings.json conflict met on a machine and takes the other version into the global folder, its env kept (BTN-1692)", async () => {
+    const globalDir = join(root, 'home', '.claude')
+    mkdirSync(globalDir, { recursive: true })
+    const settings = (model: string, env?: Record<string, string>) => `${JSON.stringify({ model, x: 1, y: 2, ...(env && { env }) }, null, 2)}\n`
+    writeFileSync(join(globalDir, 'settings.json'), settings('opus', { ONLY_HERE: '1' }))
+    let saved = 0
+    hub.stop()
+    hub = new MemoryHub({ db, dir, folders: () => ({}), author: 'hub', log: (line) => logs.push(line), globalDir, schedule: () => () => {}, watch: () => () => {}, conflictsSaved: () => saved++ })
+    await hub.apply()
+    await hub.syncAll('config')
+    const laptop = join(root, 'laptop')
+    const machine = new MemorySync({ kind: 'config', folder: laptop, remote: join(dir, 'config.git'), author: 'laptop', log: (line) => logs.push(line), schedule: () => () => {}, watch: () => () => {} })
+    await machine.start()
+    writeFileSync(join(globalDir, 'settings.json'), settings('sonnet', { ONLY_HERE: '1' }))
+    await hub.syncAll('config')
+    writeFileSync(join(laptop, 'settings.json'), settings('haiku'))
+    expect(await machine.sync()).toMatchObject({ conflicts: ['settings.json'], reached: true })
+    await hub.syncAll('config')
+    const [conflict, ...more] = hub.configConflicts()
+    expect(more).toEqual([])
+    expect(conflict).toMatchObject({ file: 'settings.json', machine: 'laptop', kept: settings('haiku'), other: settings('sonnet') })
+    expect(conflict!.notice).toMatchObject({ code: 'memory.configConflict', params: { file: 'settings.json', machine: 'laptop' } })
+    expect(saved).toBeGreaterThan(0)
+    await hub.settleConfig('settings.json', conflict!.hash, 'other')
+    expect(hub.configConflicts()).toEqual([])
+    expect(readFileSync(join(globalDir, 'settings.json'), 'utf8')).toBe(settings('sonnet', { ONLY_HERE: '1' }))
+    await machine.sync()
+    expect(readFileSync(join(laptop, 'settings.json'), 'utf8')).toBe(settings('sonnet'))
+    expect(pendingConflicts(laptop)).toEqual([])
+    await expect(hub.settleConfig('settings.json', conflict!.hash, 'kept')).rejects.toMatchObject({ notice: { code: 'config.conflictGone' } })
+    machine.stop()
   })
 
   it("makes a lost repository from the mirror's branch of the project, its history as it was (BTN-1674)", async () => {

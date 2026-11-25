@@ -38,6 +38,8 @@ Machine icons (BTN-1595): the fake machines cover every kind — the hub and the
 
 `?machines=tooLarge` (BTN-1560): "Example laptop"'s state is over the link's limit — its card in the machines panel is blocked with the reason, `/machines/machine-1?machines=tooLarge` has the band with the size (`--wait '.machine-page__body'`).
 
+`?configConflict=on` (BTN-1692) puts two global configuration conflicts into the header's banners: `settings.json` met on "laptop-01" and a hook with no machine known. A version's tip opens at once on a press (`--click '.config-conflict__version >> nth=3'`), a hover waits for the pointer to rest; "Keep this" takes the line away. `gone` refuses the choice as a conflict settled elsewhere: the line's sentence turns into the refusal.
+
 ```sh
 npm run shot -- '/p/ABC?machines=signIn#settings' 'dialog[open]' --click '#settings-tab-machines' --wait '.pool' --click '.pool__actions button' --click 'dialog button[type=submit]' --wait 500
 ```
