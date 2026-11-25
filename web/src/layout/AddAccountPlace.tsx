@@ -5,12 +5,13 @@ import type { MachineSignIn } from '../../../src/state.js'
 import { HUB_PLACE } from '../accountAdd.js'
 import { machineAddChoices, type MachineAddChoice } from '../machineAdd.js'
 import { t } from '../i18n/index.js'
-import { CheckIcon } from '../ui/icons.js'
+import { CheckIcon, KeyIcon } from '../ui/icons.js'
 import { MachineMark } from '../ui/MachineIcon.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AgentIcon } from './accountParts.js'
 import { MachineClaudeSign } from './MachineClaudeSign.js'
 import { MachineCliInstall } from './MachineCliInstall.js'
+import { MACHINE_KEY_AGENTS, MachineKeyForm } from './MachineKey.js'
 import './machineAccounts.css'
 
 export interface Place {
@@ -97,7 +98,12 @@ export function MachineAgents({ machine, accounts, busy, failure, back, onPick, 
   const view = t.machinePanel.view
   const [claude, setClaude] = useState<MachineAddChoice | null>(null)
   const [installing, setInstalling] = useState<string | null>(null)
+  const [keying, setKeying] = useState(false)
   const choices = machineAddChoices(machine)
+  const keyAgents = MACHINE_KEY_AGENTS.filter((agent) => !machine.missing.includes(agent))
+  if (keying) {
+    return <MachineKeyForm machine={{ id: machine.machine, name: machine.name }} agents={keyAgents} busy={busy} onAdded={onAdded} back={() => setKeying(false)} />
+  }
   // The step stays while the CLI is missing: once the machine finds it, its tile is there to pick.
   if (installing !== null && choices.some((choice) => choice.agent === installing && choice.missing)) {
     return <MachineCliInstall machine={machine} agent={installing} back={() => setInstalling(null)} />
@@ -137,6 +143,15 @@ export function MachineAgents({ machine, accounts, busy, failure, back, onPick, 
               <div key={choice.agent} className="machine-add__agent">{tile}</div>
             )
           })}
+          {keyAgents.length > 0 && (
+            <div className="machine-add__agent">
+              <button type="button" className="add-package__kind" disabled={busy} onClick={() => setKeying(true)}>
+                <span className="add-package__kind-icon"><KeyIcon /></span>
+                <span className="add-package__kind-title">{view.wayKey}</span>
+                <span className="add-package__kind-desc">{view.keyTileGets}</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
       {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{failure}</p>}

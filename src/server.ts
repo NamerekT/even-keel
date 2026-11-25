@@ -147,6 +147,12 @@ const COMMANDS: Record<string, Command> = {
   'machines/account/name': ({ machineAccounts }, body) =>
     machineAccounts?.rename(textOf(body.machine, 'machine'), accountOf(body), typeof body.name === 'string' ? body.name : ''),
   'machines/account/switch': ({ machineAccounts }, body) => machineAccounts?.switchTo(textOf(body.machine, 'machine'), accountOf(body)),
+  'machines/key': ({ machineAccounts }, body) => machineAccounts?.key(textOf(body.machine, 'machine'), {
+    agent: body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent'),
+    key: textOf(body.key, 'key'),
+    name: typeof body.name === 'string' ? body.name : '',
+    ...(typeof body.folder === 'string' && body.folder !== '' && { folder: body.folder }),
+  }),
   // The page sends its language: on the first run none is chosen yet, and the demo speaks the one the person reads.
   'demo/start': async ({ demo }, body) => void (await demo?.start(isLanguage(body.language) ? body.language : undefined)),
   'demo/again': async ({ demo }, body) => void (await demo?.again(isLanguage(body.language) ? body.language : undefined)),

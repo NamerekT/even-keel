@@ -132,7 +132,7 @@ describe('the page of a machine (BTN-1272)', () => {
       ...facts,
       panel: {
         accounts: [
-          { key: 'key', agent: 'codex', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: true },
+          { key: 'key', agent: 'codex', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: true, keyReplaceable: true },
           { key: 'cloud', agent: 'claude', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: false, cloud: { cloud: 'bedrock' } },
           { key: 'bare', agent: 'codex', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: false },
           ...panel.accounts,
@@ -142,6 +142,8 @@ describe('the page of a machine (BTN-1272)', () => {
     } as unknown as MachineFacts
     const page = await machinePageControl(deps({ mirror: () => ({ facts: () => folders, page: pageReads(() => folders) }) })).view('srv')
     expect(Object.fromEntries(page.accounts.map((each) => [each.key, each.paysPerToken === true]))).toEqual({ key: true, cloud: true, bare: false, main: false })
+    // The key it keeps can be replaced from the hub (BTN-1684); a cloud's credentials cannot.
+    expect(Object.fromEntries(page.accounts.map((each) => [each.key, each.keyReplaceable === true]))).toEqual({ key: true, cloud: false, bare: false, main: false })
   })
 
   it("writes the own machine's capacity into `parallel` and a machine elsewhere's into its row", async () => {
