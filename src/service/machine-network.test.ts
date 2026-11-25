@@ -553,6 +553,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       login,
       missing: ['opencode'],
       globals: [{ key: 'global', agent: 'claude', email: 'john.doe@example.com' }],
+      active: 'codex',
     }])
     expect(republished).toBeGreaterThan(0)
 

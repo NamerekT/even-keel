@@ -238,6 +238,8 @@ export interface MachineSignIn {
   name: string
   online: boolean
   accounts: MachineAccount[]
+  /** Its folder the chain's tasks there start on (its panel's `active`, BTN-1311); none — not told. */
+  active?: string
   login: MachineLogin | null
   /** The agents whose CLI the machine does not find: no sign-in of theirs is offered there. */
   missing: string[]
@@ -257,6 +259,8 @@ export interface MachineAccount {
   signedIn: boolean
   /** Signed in with a long token (BTN-1002): no Remote Control there. */
   longToken?: true
+  /** It runs on a key or a cloud there (BTN-1585): signed out, it gets no browser sign-in. */
+  paysPerToken?: true
   /** A long token whose account no machine polls: its limits come only from its sessions (BTN-1266). */
   sessionsOnly?: true
   /** A long token whose sessions tell other limit windows than the poll of its account's full sign-in (BTN-1267). */

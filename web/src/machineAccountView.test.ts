@@ -38,8 +38,8 @@ describe('machineAccountView', () => {
     ])
     expect(view.view.active).toBe('claude:folder')
     expect([...view.away]).toEqual([
-      ['claude:mary', { agent: 'claude', account: 'mary', why: 'out', noCli: false }],
-      ['hub:jane', { agent: 'claude', why: 'hub', noCli: false }],
+      ['claude:mary', { agent: 'claude', account: 'mary', why: 'out', way: 'subscription', noCli: false }],
+      ['hub:jane', { agent: 'claude', why: 'hub', way: 'subscription', noCli: false }],
     ])
     expect([...view.here]).toEqual([['john', 'claude:folder'], ['mary', 'claude:mary'], ['jane', 'hub:jane']])
   })
@@ -51,7 +51,7 @@ describe('machineAccountView', () => {
       ['codex:other', 'codex', 'Spare', null],
       ['hub:john', 'claude', null, 'john@example.com'],
     ])
-    expect(view.away.get('hub:john')).toEqual({ agent: 'claude', why: 'hub', noCli: true })
+    expect(view.away.get('hub:john')).toEqual({ agent: 'claude', why: 'hub', way: 'subscription', noCli: true })
     expect(view.view.active).toBe('')
   })
 

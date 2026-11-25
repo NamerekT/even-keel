@@ -3,6 +3,7 @@ import type { AccountLevel } from '../../src/account/header-levels.js'
 import type { MachineCard, MachineCardAccount, MachineSignIn } from '../../src/state.js'
 import { hubFolderOf } from '../../src/account/same-account.js'
 import { hubGapsOn } from './machineAdd.js'
+import { folderWay, type FolderWay } from './machineSignIn.js'
 
 /** A row of a machine's view it is not signed in to: a hub account not there, or its own folder signed out. */
 export interface MachineAway {
@@ -10,6 +11,8 @@ export interface MachineAway {
   /** The machine's folder its "Sign in" signs in again; absent — a new account there. */
   account?: string
   why: 'hub' | 'out'
+  /** How its sign-in goes (BTN-1585): a hub subscription not there is always a subscription's. */
+  way: FolderWay
   /** The machine's CLI folder signed in as the account, not added: "Use it" adds it instead of a sign-in (BTN-1568). */
   global?: string
   /** The machine has no CLI of the agent: nothing to sign in with. */
@@ -62,7 +65,7 @@ export function machineAccountView(hub: AccountView, card: MachineCard, signIn: 
     folders.set(key, account.key)
     if (match !== undefined) hubFolders.set(key, match.key)
     if (match !== undefined && !here.has(match.key)) here.set(match.key, key)
-    if (!account.signedIn) away.set(key, { agent: account.agent, account: account.key, why: 'out', noCli: signIn?.missing.includes(account.agent) === true })
+    if (!account.signedIn) away.set(key, { agent: account.agent, account: account.key, why: 'out', way: folderWay(account, hub.accounts), noCli: signIn?.missing.includes(account.agent) === true })
     return {
       ...BLANK,
       key,
@@ -85,7 +88,7 @@ export function machineAccountView(hub: AccountView, card: MachineCard, signIn: 
   const gaps = signIn === undefined ? [] : hubGapsOn(hub.accounts, signIn).map(({ entry, gap }): AccountEntry => {
     const key = `hub:${entry.key}`
     if (!here.has(entry.key)) here.set(entry.key, key)
-    away.set(key, { agent: entry.agent, ...(gap.account !== undefined && { account: gap.account }), ...(gap.global !== undefined && { global: gap.global }), why: 'hub', noCli: gap.noCli })
+    away.set(key, { agent: entry.agent, ...(gap.account !== undefined && { account: gap.account }), ...(gap.global !== undefined && { global: gap.global }), why: 'hub', way: 'subscription', noCli: gap.noCli })
     return { ...BLANK, key, name: entry.name, agent: entry.agent, status: entry.status }
   })
   const active = card.accounts.find((each) => each.key === card.active)

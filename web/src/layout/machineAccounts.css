@@ -87,6 +87,22 @@
   }
 }
 
+/* The facts of a sign-in on a machine (BTN-1585): three in a row while they fit, fewer on a phone; no word breaks inside. */
+.machine-login__facts {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.machine-login__facts dd {
+  overflow-wrap: anywhere;
+}
+
+/* A key's or a long token's folder signed out (BTN-1585): its note and the machine page's ⋯ on one line. */
+.machine-accounts__way {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
 /* "Add account" of a machine: three agents in a row, one under another on a narrow screen. */
 .add-package__kinds.account-add__providers.machine-add__agents {
   grid-template-columns: repeat(3, minmax(0, 1fr));

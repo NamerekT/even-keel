@@ -5,12 +5,15 @@ import { OPENCODE } from '../../../src/opencode/name.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { fullSignIn, hubSessionsOnly, machineLogin, machineMarks, machineSend } from '../machineSignIn.js'
+import { agentLabel } from '../accountName.js'
+import { fullSignIn, hubSessionsOnly, machineLogin, machineLoginFacts, machineMarks, machineSend } from '../machineSignIn.js'
+import { Fact, FactList } from '../ui/blocks.js'
 import { MachineLabels } from '../ui/MachineLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { LOGIN_FOCUS, LoginSteps, type Send } from './accountParts.js'
 import { CloseIcon } from '../ui/icons.js'
 import '../tools/addPackage.css'
+import './machineAccounts.css'
 
 /**
  * Under a hub long-token folder nobody polls for (BTN-1266), "limits from sessions only" with "Sign in fully". The
@@ -91,6 +94,7 @@ export function MachineLoginDialog() {
   if (machine?.login == null) return null
   const { login } = machine
   const remote = machineSend(machine.machine, send)
+  const facts = machineLoginFacts(machine, state?.account.accounts ?? [])
   const cancel = () => void remote('account/cancel')
 
   return (
@@ -105,12 +109,23 @@ export function MachineLoginDialog() {
     >
       <div className="add-package__frame">
         <header className="add-package__head">
-          <h2 id={title} className="add-package__title">{t.account.machineLogin(machine.name)}</h2>
+          <h2 id={title} className="add-package__title">{t.account.machineLogin(agentLabel(login.agent), machine.name)}</h2>
           <button type="button" className="panel__close" aria-label={t.account.cancelLogin} disabled={sending} onClick={cancel}>
             <CloseIcon />
           </button>
         </header>
         <div className="add-package__body">
+          {facts !== null && (
+            <>
+              <FactList className="machine-login__facts">
+                <Fact label={t.account.machineLoginAgent}><dd>{agentLabel(login.agent)}</dd></Fact>
+                <Fact label={t.account.machineLoginProvider}><dd>{t.account.access[facts.access]}</dd></Fact>
+                <Fact label={t.account.machineLoginFolder}><dd>{facts.folder ?? t.account.machineLoginNewFolder}</dd></Fact>
+                {facts.email !== null && facts.email !== facts.folder && <Fact label={t.account.machineLoginEmail}><dd>{facts.email}</dd></Fact>}
+              </FactList>
+              <p className="add-package__lead">{facts.used ? t.account.machineLoginUsed(machine.name) : t.account.machineLoginUnused(machine.name)}</p>
+            </>
+          )}
           <p className="login-rows__aside">{t.account.machineLoginNote}</p>
           <LoginSteps login={login} device={login.agent === CODEX || login.agent === OPENCODE} sending={sending} send={remote} />
         </div>

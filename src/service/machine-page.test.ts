@@ -119,6 +119,23 @@ describe('the page of a machine (BTN-1272)', () => {
     expect(Object.fromEntries(page.accounts.map((each) => [each.key, each.limitsDiffer === true]))).toEqual({ token: true, main: false })
   })
 
+  it('marks a folder on a key or a cloud: its sign-in is no browser one (BTN-1585)', async () => {
+    const folders = {
+      ...facts,
+      panel: {
+        accounts: [
+          { key: 'key', agent: 'codex', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: true },
+          { key: 'cloud', agent: 'claude', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: false, cloud: { cloud: 'bedrock' } },
+          { key: 'bare', agent: 'codex', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: false },
+          ...panel.accounts,
+        ],
+        missing: [],
+      },
+    } as unknown as MachineFacts
+    const page = await machinePageControl(deps({ mirror: () => ({ facts: () => folders, page: pageReads(() => folders) }) })).view('srv')
+    expect(Object.fromEntries(page.accounts.map((each) => [each.key, each.paysPerToken === true]))).toEqual({ key: true, cloud: true, bare: false, main: false })
+  })
+
   it("writes the own machine's capacity into `parallel` and a machine elsewhere's into its row", async () => {
     const all = deps()
     const control = machinePageControl(all)

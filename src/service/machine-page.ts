@@ -49,6 +49,7 @@ export function machineAccountOf(entry: PanelEntry, polls?: PollsOf): MachineAcc
     email: entry.status?.email ?? entry.longToken?.account?.email ?? entry.lastEmail ?? null,
     signedIn: entry.status?.loggedIn === true && !entry.needsLogin,
     ...(entry.longToken !== undefined && { longToken: true as const }),
+    ...((entry.apiKey || entry.cloud !== undefined) && { paysPerToken: true as const }),
     ...(polls !== undefined && sessionsOnly(entry, polls) && { sessionsOnly: true as const }),
     ...(polls !== undefined && limitsDiffer(entry, polls) && { limitsDiffer: true as const }),
   }

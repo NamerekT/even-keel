@@ -280,6 +280,7 @@ export class MachineNetwork {
         name: peer.name,
         online: this.hub.connected(machine),
         accounts: panel.accounts.map((entry) => machineAccountOf(entry, polls)),
+        ...(panel.active !== '' && { active: panel.active }),
         login: login === null ? null : {
           agent: login.agent,
           ...(login.method !== undefined && { method: login.method }),

@@ -14,8 +14,9 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountColors, nearAccountColor } from '../machineColor.js'
 import { hubGapsOn, machineAccountsChecking, machineAccountsEmpty, machineAgents, machineChecks, osLabel } from '../machineAdd.js'
-import { gapCommand, machineLogin } from '../machineSignIn.js'
+import { folderWay, gapCommand, machineLogin } from '../machineSignIn.js'
 import { SignIn } from '../layout/MachineAccounts.js'
+import { FolderSignIn } from '../layout/MachineFolderSignIn.js'
 import { projectPath } from '../state.js'
 import { packagesPath } from '../tools/packageGroups.js'
 import { AccountTag } from '../ui/AccountTag.js'
@@ -596,7 +597,10 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
                   </span>
                 )}
               </span>
-              {account.signedIn ? <Limits limits={account.limits} now={now} /> : !isChecking(account) && signIn(account.agent, account.key)}
+              {account.signedIn ? <Limits limits={account.limits} now={now} /> : !isChecking(account) && (page.own ? signIn(account.agent, account.key) : (
+                <FolderSignIn machine={{ id: page.id, name: page.name, online: page.online }} agent={account.agent} folder={account.key}
+                  way={folderWay(account, state.account.accounts)} busy={busy} noCli={page.missing.includes(account.agent) ? agentName(account.agent) : null} send={send} menu />
+              ))}
             </li>
           ))}
           {unread.map((account) => (

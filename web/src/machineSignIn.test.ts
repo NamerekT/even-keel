@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineSignIn } from '../../src/state.js'
-import { fullSignIn, gapCommand, hubSessionsOnly, machineGaps, machineLogin, machineMarks, machineSend, machineTokens } from './machineSignIn.js'
+import { folderWay, fullSignIn, gapCommand, hubSessionsOnly, loginAccess, machineGaps, machineLogin, machineLoginFacts, machineMarks, machineSend, machineTokens } from './machineSignIn.js'
 
 const hub = (patch: Partial<AccountEntry> = {}): AccountEntry => ({
   key: 'john.doe@example.com', name: null, global: false, agent: 'claude',
@@ -153,5 +153,49 @@ describe('signing in on the hub and on a machine', () => {
       ['machines/login', { machine: 'machine-2', account: 'work' }],
       ['machines/login', { machine: 'machine-2', agent: 'codex', method: 'device' }],
     ])
+  })
+})
+
+describe("a machine's signed-out folder (BTN-1585)", () => {
+  const folder = (patch: Partial<MachineSignIn['accounts'][number]> = {}) => ({ key: 'work', agent: 'codex', email: null, signedIn: false, ...patch })
+
+  it('signs a subscription folder in through a browser, known by the e-mail it last had', () => {
+    expect(folderWay(folder({ email: 'john.doe@example.com' }), [])).toBe('subscription')
+  })
+
+  it('gives a key, a cloud or a long token no browser sign-in: by what the machine tells or by the hub folder of the same key', () => {
+    expect(folderWay(folder({ paysPerToken: true, email: 'john.doe@example.com' }), [])).toBe('key')
+    expect(folderWay(folder({ longToken: true, email: 'john.doe@example.com' }), [])).toBe('token')
+    expect(folderWay(folder(), [hub({ key: 'work', agent: 'codex', apiKey: true, status: null })])).toBe('key')
+    expect(folderWay(folder({ agent: 'claude' }), [hub({ key: 'work', cloud: { cloud: 'bedrock' } as AccountEntry['cloud'] })])).toBe('key')
+    expect(folderWay(folder({ agent: 'claude' }), [hub({ key: 'work', longToken: { until: null } })])).toBe('token')
+  })
+
+  it("asks how a folder signs in when neither the machine nor the hub tells: no e-mail, no hub folder of the key's kind", () => {
+    expect(folderWay(folder(), [])).toBe('unknown')
+    expect(folderWay(folder(), [hub({ key: 'work', agent: 'claude', apiKey: true })])).toBe('unknown')
+  })
+})
+
+describe('what a sign-in on a machine names (BTN-1585)', () => {
+  const login = (patch: Partial<NonNullable<MachineSignIn['login']>> = {}): NonNullable<MachineSignIn['login']> =>
+    ({ agent: 'codex', target: 'work', startedAt: '2026-11-17T10:00:00.000Z', urls: [], deviceCode: null, output: '', error: null, codeSent: false, ...patch })
+
+  it("names the provider by the agent and its way: Claude's subscription, ChatGPT, GitHub", () => {
+    expect(loginAccess('claude')).toBe('claudeSubscription')
+    expect(loginAccess('codex')).toBe('chatgpt')
+    expect(loginAccess('opencode', 'chatgpt')).toBe('chatgpt')
+    expect(loginAccess('opencode', 'none')).toBe('zen')
+    expect(loginAccess('copilot')).toBe('github')
+  })
+
+  it("names the folder, its e-mail, and whether the chain's tasks there take it: the machine's own launch account or a hub folder of a project", () => {
+    const accounts = [{ key: 'work', agent: 'codex', email: 'john.doe@example.com', signedIn: false }, { key: 'spare', agent: 'codex', email: null, signedIn: false }]
+    const on = machine({ login: login(), accounts, active: 'spare' })
+    expect(machineLoginFacts(on, [])).toEqual({ access: 'chatgpt', folder: 'work', email: 'john.doe@example.com', used: false })
+    const used = hub({ key: 'hub-work', agent: 'codex', status: { loggedIn: true, authMethod: 'chatgpt', email: 'john.doe@example.com', orgName: null, subscriptionType: null }, projects: ['p1'] })
+    expect(machineLoginFacts(on, [used])?.used).toBe(true)
+    expect(machineLoginFacts(machine({ login: login({ target: 'spare' }), accounts, active: 'spare' }), [])?.used).toBe(true)
+    expect(machineLoginFacts(machine({ login: login({ target: null }), accounts }), [used])).toEqual({ access: 'chatgpt', folder: null, email: null, used: false })
   })
 })

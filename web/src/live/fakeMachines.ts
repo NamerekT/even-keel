@@ -532,7 +532,8 @@ function joinJob(state: EvenKeelState, body: Record<string, unknown>): StepJob {
  * other machine on long tokens (BTN-1002), `tokenAlone` on long tokens of the hub's Claude folders signed out, so no
  * machine polls them (BTN-1266; with `?accounts=tokenOnly`), `tokenDiffer` on long tokens whose windows differ from
  * the hub's poll (BTN-1267), `global` with the laptop's global Claude folder signed in as the active account but not
- * added (BTN-1568). Its commands go through `fakeMachineCommand`.
+ * added (BTN-1568), `folders` with the laptop's folders signed out — a subscription's, its launch account, a key's and
+ * one that tells no way (BTN-1585). Its commands go through `fakeMachineCommand`.
  */
 export function fakeMachineSignIns(state: EvenKeelState, mode: string | null): MachineSignIn[] | undefined {
   if (mode === null) return undefined
@@ -555,12 +556,19 @@ export function fakeMachineSignIns(state: EvenKeelState, mode: string | null): M
     machine: 'machine-1', name: 'Example laptop', online: mode !== 'offline', login: null, missing: mode === 'nocli' ? ['claude'] : [],
     ...(mode === 'nocli' && { installs: { claude: installCommand('claude', 'linux') } }),
     ...(mode === 'global' && activeEmail !== null && { globals: [{ key: 'global', agent: active?.agent ?? 'claude', email: activeEmail }] }),
-    accounts: mode === 'checking' ? desktop.accounts.slice(0, 1) : [],
+    accounts: mode === 'checking' ? desktop.accounts.slice(0, 1) : mode === 'folders' ? FOLDERS : [],
+    ...(mode === 'folders' && { active: 'john.doe@example.com' }),
   }
   if (mode === 'many') return [...manyMachines(state, laptop), desktop]
   const machines = [laptop, desktop]
   return mode === 'login' ? machines.map((machine) => (machine === laptop ? { ...machine, login: loginOf('claude', null) } : machine)) : machines
 }
+
+const FOLDERS: MachineSignIn['accounts'] = [
+  { key: 'john.doe@example.com', agent: 'claude', email: 'john.doe@example.com', signedIn: false },
+  { key: 'example-api', agent: 'codex', email: null, signedIn: false, paysPerToken: true },
+  { key: 'spare', agent: 'claude', email: null, signedIn: false },
+]
 
 /**
  * `many`: the laptop keeps the active account's folder signed out, the nodes run it — 5 and 6 on long tokens, 9 off

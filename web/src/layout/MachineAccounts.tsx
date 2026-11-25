@@ -15,6 +15,7 @@ import { AccountBlock } from './AccountBlock.js'
 import { agentLabel } from '../accountName.js'
 import { AgentIcon } from './accountParts.js'
 import { Limits } from './Limits.js'
+import { FolderSignIn } from './MachineFolderSignIn.js'
 import { useMachineFilter } from './MachineFilter.js'
 import { machineSend, machineSwitchOff, type MachineRows } from './machineRows.js'
 import { usePopover } from './usePopover.js'
@@ -132,6 +133,10 @@ export function useMachineRows(card: MachineCard, project?: string): MachineRows
     send: machineSend(send, card.id, accounts.folders),
     switchOff: machineSwitchOff(accounts, card),
     signIn: (away) => {
+      if (away.global === undefined && away.why === 'out' && away.account !== undefined) {
+        return <FolderSignIn machine={{ id: card.id, name: card.name, online }} agent={away.agent} folder={away.account} way={away.way} busy={busy}
+          noCli={away.noCli ? agentLabel(away.agent) : null} send={send} />
+      }
       const [name, body] = gapCommand(away.agent, { machine: card.id, name: card.name, online, noCli: away.noCli, ...(away.account !== undefined && { account: away.account }), ...(away.global !== undefined && { global: away.global }) })
       return <SignIn name={card.name} online={online} busy={busy} noCli={away.noCli ? agentLabel(away.agent) : null} global={away.global !== undefined} onClick={() => void send(name, body)} />
     },

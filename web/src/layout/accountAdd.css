@@ -257,7 +257,7 @@
 
 .login-rows__row {
   display: grid;
-  grid-template-columns: 24px 1fr;
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: var(--space-8) var(--space-12);
   padding: var(--space-12);
@@ -315,6 +315,12 @@
 .login-rows__code {
   display: flex;
   gap: var(--space-8);
+}
+
+/* A phone's narrow row shrinks the field, not pushes "Send" past the box. */
+.login-rows__code > .account__input {
+  flex: 1;
+  min-width: 0;
 }
 
 .login-rows__aside,
