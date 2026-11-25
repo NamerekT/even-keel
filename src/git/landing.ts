@@ -45,7 +45,8 @@ const BASE_DEPTH = 200
  * Lands what the session merged into the checkout's main: main is pushed once it holds the main of each remote, merged
  * in first when a remote went ahead — checked then, if the request has a check. A push the remote rejected because
  * another clone pushed meanwhile gets the whole landing again, twice at most, as `syncMain` does. A `git sync` alias,
- * read as `syncMain` reads it, does the fetch, merge and push itself; its conflict is told by the files it leaves.
+ * read as `syncMain` reads it, does the fetch, merge and push itself; its conflict is told by the files it leaves or, when it
+ * aborted the merge itself, by the `CONFLICT` lines of its output — no files at all when neither names them.
  */
 export async function landTask(git: Git, repo: string, request: LandRequest): Promise<LandOutcome> {
   const { main } = request
@@ -101,9 +102,10 @@ async function landOnce(git: Git, repo: string, remotes: string[], request: Land
 async function landByAlias(git: Git, repo: string, remotes: string[], main: string, base: string): Promise<LandOutcome> {
   const synced = await git(repo, ['sync'])
   if (synced.code === 0) return landed(git, repo, main)
-  const files = await unmerged(git, repo)
-  if (files.length > 0 || /^CONFLICT/m.test(synced.out)) {
+  const left = await unmerged(git, repo)
+  if (left.length > 0 || /^CONFLICT/m.test(synced.out)) {
     await git(repo, ['merge', '--abort'])
+    const files = left.length > 0 ? left : conflictedIn(synced.out)
     return returned(git, repo, base, main, { state: 'returned', remote: remotes[0]!, files })
   }
   return failed(readOnly(synced) ?? notice('sync.alias', { exit: synced.code }, { detail: synced.out }))
@@ -145,6 +147,12 @@ async function landed(git: Git, repo: string, main: string): Promise<LandOutcome
 async function unmerged(git: Git, repo: string): Promise<string[]> {
   const listed = await git(repo, ['diff', '--name-only', '--diff-filter=U'])
   return listed.code === 0 ? listed.out.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) : []
+}
+
+/** The files git's merge output names as conflicted: an alias that aborted the merge itself leaves only these lines. */
+function conflictedIn(out: string): string[] {
+  const files = [...out.matchAll(/^CONFLICT \([^)]*\): Merge conflict in (.+?)\s*$/gm)].map((match) => match[1]!)
+  return [...new Set(files)]
 }
 
 /** Main goes back to before the session's merge, keeping the checkout clean: the session merges again once it resolved. */

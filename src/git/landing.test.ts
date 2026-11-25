@@ -226,6 +226,25 @@ describe('landTask (BTN-1581)', { timeout: 60_000 }, () => {
     expect(await land()).toMatchObject({ state: 'landed' })
   })
 
+  it('takes the files of the conflict from the output of an alias that aborted the merge itself (BTN-1668)', async () => {
+    const script = `!git fetch origin && if ! git merge --no-edit origin/${MAIN}; then git merge --abort; exit 1; fi && git push origin ${MAIN}`
+    await git(first, 'config', '--local', 'alias.sync', script)
+    const before = await mergeTask('ours')
+    await pushElsewhere('shared.txt', 'theirs')
+
+    expect(await land()).toEqual({ state: 'returned', remote: 'origin', files: ['shared.txt'] })
+    expect(await git(first, 'rev-parse', MAIN)).toBe(before)
+    expect(await git(first, 'status', '--porcelain')).toBe('')
+  })
+
+  it('returns a conflict with no files when neither git nor the alias output names them (BTN-1668)', async () => {
+    await git(first, 'config', '--local', 'alias.sync', '!echo "CONFLICT: the merge was aborted"; exit 1')
+    const before = await mergeTask('ours')
+
+    expect(await land()).toEqual({ state: 'returned', remote: 'origin', files: [] })
+    expect(await git(first, 'rev-parse', MAIN)).toBe(before)
+  })
+
   it('lands the release commit of a carry, named by the caller', async () => {
     await git(first, 'checkout', '-q', '-b', 'release')
     await write(first, 'release.txt', 'fix')
