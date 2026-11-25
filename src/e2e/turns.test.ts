@@ -78,7 +78,8 @@ describe('a turn the chain cannot see the end of', { timeout: scaled(60_000) }, 
     run.agent.script('ABC-2', commitAndMerge())
     await run.start()
     await run.startChain(PROJECT_ID)
-    await run.until(() => run.agent.sessionsOf('ABC-1')[0]?.status === 'shell', 'the turn ended on a background command')
+    // The close may follow within the step that ends the turn: its shell is then seen only as stopped.
+    await run.until(() => run.agent.sessionsOf('ABC-1')[0]?.status === 'shell' || stops().length > 0, 'the turn ended on a background command')
     const [first] = launches()
 
     await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done')
