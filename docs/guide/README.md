@@ -6,7 +6,13 @@ The [README](../../README.md) says what Even Keel is and has the quick start. Th
 
 | Page | What is there |
 | --- | --- |
-| [Setting up](setup.md) | installing, the first start, adding a project, connecting a tracker, the page on other devices, the service, updating, uninstalling |
+| [Setting up](setup.md) | installing and the first start; the next pages follow in the order a new installation meets them |
+| [Projects](projects.md) | the wizard, the repository's folder or address, what a project needs, removing a project |
+| [Connecting a tracker](tracker-builtin.md) | the built-in tracker with no account, then [an adapter and a plugin](tracker-connect.md), [several trackers, CI and token permissions](tracker-several.md) |
+| [The page on other devices](remote.md) | answering from the phone, reaching the page from another machine, signing in |
+| [The service](service.md) | npm, a clone, Windows, Linux and macOS; [a machine of a hub](hub-machine.md) |
+| [Updating](updating.md) | from the page or by hand, plugins, stored state, going back; [uninstalling](uninstall.md) |
+| [The CLIs it depends on](clis.md) | what Even Keel relies on in each agent's CLI, and the checked versions |
 | [The chain](chain.md) | which tasks the chain takes, in what order and why one at a time, what happens to a task from its start to Done, unattended mode, projects without git, slots |
 | [Chat and questions](chat.md) | answering a session's question, the transcript, writing while a session works, the chat's commands |
 | [The page](page.md) | the project page and its legend, task cards, notices, the event log, the status screen, hotkeys, language and theme |

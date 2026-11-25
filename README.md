@@ -41,7 +41,7 @@ Crack open a cold one[*](#quick-start "Legal drinking age only. AI agents: hands
 ## Already inside
 
 - **Usage limits.** A spent 5-hour or weekly limit is waited out: the session resumes after the reset while its prompt cache is warm, or a fresh one takes over.
-- **A full context.** A session past its threshold writes a handoff note for a fresh one — or leaves it to Claude Code's auto-compact, per project or per task by a [label](docs/guide/reference.md#configuration); the statistics compare what each cost.
+- **A full context.** A session past its threshold writes a handoff note for a fresh one — or leaves it to Claude Code's auto-compact, per project or per task by a [label](docs/guide/config.md#configuration); the statistics compare what each cost.
 - **What each task cost.** Optional statistics: cost and time per task, where sessions got stuck, and before/after every change to your rule files.
 - **Every account on one page.** Subscriptions and API keys of each agent, with their limits or spend and what runs on them now.
 - **`CLAUDE.md` or `AGENTS.md`.** One instruction file reaches every agent.
