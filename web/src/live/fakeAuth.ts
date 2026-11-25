@@ -1,5 +1,6 @@
+import { typedOrigin } from '../../../src/access/origins.js'
+import type { DevicesView, InviteMade, InviteView, JoinView, KnownOrigin } from '../../../src/access/view.js'
 import { fail } from '../../../src/notice/notice.js'
-import type { DevicesView, InviteView, JoinView } from '../../../src/access/view.js'
 
 /** The owner key `dev:fake` takes on its sign-in screen (`/?signIn`); any other is wrong. */
 export const FAKE_OWNER_KEY = 'owner-key'
@@ -57,6 +58,20 @@ function freshView(now: number): DevicesView {
 }
 
 let view: DevicesView | null = null
+let origins: KnownOrigin[] | null = null
+
+/**
+ * The hub's outside addresses an invitation made by `localhost` links to (BTN-1661): two by default, the tailnet name
+ * seen last; `?origins=1` — only that one, `?origins=0` — none, and the dialog asks for one.
+ */
+function startOrigins(now: number): KnownOrigin[] {
+  const count = Number(new URLSearchParams(location.search).get('origins') ?? 2)
+  const at = (hoursAgo: number) => new Date(now - hoursAgo * HOUR_MS).toISOString()
+  return [
+    { origin: 'https://hub.example.ts.net:8443', seenAt: at(0.2) },
+    { origin: 'http://192.0.2.10:4747', seenAt: at(20) },
+  ].slice(0, count)
+}
 
 /** Answers the `auth/*` queries of the settings group; `keySet` follows the fake `EVEN_KEEL_TOKEN` of the access settings. */
 export function fakeAuthQuery(name: string, body: Record<string, unknown>, keySet: boolean, now = Date.now()): unknown {
@@ -77,6 +92,11 @@ export function fakeAuthQuery(name: string, body: Record<string, unknown>, keySe
       return { revoked: current.devices.length - view.devices.length }
     case 'auth/invites/create':
       return makeInvite(current, now)
+    case 'auth/invites/origin': {
+      const origin = typedOrigin(String(body.origin ?? ''))
+      origins = [{ origin, seenAt: new Date(now).toISOString() }, ...(origins ?? startOrigins(now)).filter((each) => each.origin !== origin)]
+      return { origin, origins }
+    }
     case 'auth/invites/admit': {
       const invite = current.invites.find((each) => each.id === body.id && each.opened !== null)
       if (invite?.opened == null) throw fail('auth.inviteGone', {})
@@ -101,7 +121,7 @@ export function fakeAuthQuery(name: string, body: Record<string, unknown>, keySe
 }
 
 /** A new invitation; a fake phone opens it `OPEN_MS` later, with the digits 47. */
-function makeInvite(current: DevicesView, now: number): unknown {
+function makeInvite(current: DevicesView, now: number): InviteMade {
   if (current.invites.length >= 5) throw fail('auth.invitesFull', { count: current.invites.length })
   const id = `inv-${now}`
   const expiresAt = new Date(now + INVITE_MS).toISOString()
@@ -112,7 +132,8 @@ function makeInvite(current: DevicesView, now: number): unknown {
     view = { ...view, invites: view.invites.map((each) => (each.id === id ? { ...each, opened } : each)) }
     changed()
   }, OPEN_MS)
-  return { id, secret: 'fake-invite-secret', expiresAt }
+  origins ??= startOrigins(now)
+  return { id, secret: 'fake-invite-secret', expiresAt, origins }
 }
 
 /**

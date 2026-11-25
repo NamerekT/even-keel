@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import type { InviteMade, InviteView } from '../../../src/access/view.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import { say } from '../i18n/index.js'
-import { InviteDialog } from './InviteDialog.js'
+import { InviteDialog, type TypedOrigin } from './InviteDialog.js'
 import type { AuthPost } from './passkey.js'
 
 export interface Invitation {
@@ -67,6 +67,7 @@ export function useInvitation(post: AuthPost, changed: () => void): Invitation {
           onDecline={() => void decide('decline')}
           onCancel={() => void decide('cancel')}
           onAgain={() => void again()}
+          onOrigin={(typed) => post<TypedOrigin>('auth/invites/origin', { origin: typed })}
           onClose={close}
         />
       ),

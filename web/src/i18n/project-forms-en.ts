@@ -702,9 +702,6 @@ export const setupEN: Messages['setup'] = {
       invite: 'Invite the phone',
       inviteMore: 'Invite another device',
       done: 'A device is in: from now the proxy name asks every browser to sign in.',
-      local:
-        'The page is open by localhost, and the phone cannot open that address. Open the page by the proxy name the phone will use, such as a Tailscale Service, and come back to this step, or skip it.',
-      guide: 'How to reach the page',
       summary: 'Sign-in on',
     },
     updatesHints: {
