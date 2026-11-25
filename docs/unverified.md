@@ -359,6 +359,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 336 | [A person's choice of a configuration conflict](unverified/machines.md#a-persons-choice-of-a-configuration-conflict-btn-1692) | hubs with machines elsewhere where a hook or `settings.json` changed on two of them | the banner does not come or stays after a choice, or a machine keeps its own version; save the file again on any machine to end the conflict | — |
 | 337 | [The phone's chat draft folding as the feed scrolls](unverified/page.md#the-phones-chat-draft-folding-as-the-feed-scrolls-btn-1700) | anyone leaving a draft in a chat on a phone | the field jumps between two and five lines while the feed scrolls, or growing it pulls the feed off its end; tap the field, and it stays at five lines while focused | — |
 | 338 | [A sent video in the chat on Safari and from a machine](unverified/sessions.md#a-sent-video-in-the-chat-on-safari-and-from-a-machine-btn-1704) | anyone sending a video in a chat and watching it on an iPhone or from a task on a machine | the bubble's thumbnail is empty or the video does not play on Safari; a machine's video stalls | — |
+| 339 | [A project chat's own packages](unverified/packages.md#a-project-chats-own-packages-btn-1696) | anyone setting a chat's packages in "More" of "New session" | the chat gets the project's set as if nothing were chosen, or misses a package it was given; change the project's packages instead | — |
 
 ### Waiting for the event / not checked by choice
 

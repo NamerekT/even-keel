@@ -26,12 +26,28 @@ interface ChatRow {
   successor: string | null
   previous: string | null
   pending: string | null
+  packages: string | null
 }
 
-const COLUMNS = 'id, project_id, agent, account, model, effort, title, first, said, last, session_id, machine_id, created_at, last_at, read_at, archived_at, successor, previous, pending'
+const COLUMNS = 'id, project_id, agent, account, model, effort, title, first, said, last, session_id, machine_id, created_at, last_at, read_at, archived_at, successor, previous, pending, packages'
 
 const iso = (ms: string | null): string | null => (ms === null ? null : new Date(Number(ms)).toISOString())
 const ms = (at: string | null): number | null => (at === null ? null : Date.parse(at))
+
+/** A chat's own choice of packages as kept (BTN-1696): `null` — none, and a value that does not parse is none too. */
+function packagesOf(text: string | null): Record<string, boolean> {
+  if (text === null) return {}
+  try {
+    const value: unknown = JSON.parse(text)
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
+    return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, boolean] => typeof entry[1] === 'boolean'))
+  } catch {
+    return {}
+  }
+}
+
+const packagesColumn = (packages: Record<string, boolean> | undefined): string | null =>
+  packages === undefined || Object.keys(packages).length === 0 ? null : JSON.stringify(packages)
 
 function recordOf(row: ChatRow): ChatRecord {
   return {
@@ -54,6 +70,7 @@ function recordOf(row: ChatRow): ChatRecord {
     successor: row.successor,
     previous: row.previous,
     pending: row.pending,
+    packages: packagesOf(row.packages),
   }
 }
 
@@ -75,10 +92,13 @@ export class ChatStore {
 
   static async open(deps: ChatStoreDeps): Promise<ChatStore> {
     const { rows } = await deps.db.query<ChatRow>(`select ${COLUMNS} from chats where archived_at is null order by created_at, id`)
-    const choices = await deps.db.query<{ project_id: string; account: string; model: string | null; effort: string | null }>(
-      'select project_id, account, model, effort from chat_choices',
+    const choices = await deps.db.query<{ project_id: string; account: string; model: string | null; effort: string | null; packages: string | null }>(
+      'select project_id, account, model, effort, packages from chat_choices',
     )
-    return new ChatStore(deps, rows.map(recordOf), choices.rows.map((row) => [row.project_id, { account: row.account, model: row.model, effort: row.effort }]))
+    return new ChatStore(deps, rows.map(recordOf), choices.rows.map((row) => {
+      const packages = packagesOf(row.packages)
+      return [row.project_id, { account: row.account, model: row.model, effort: row.effort, ...(Object.keys(packages).length > 0 && { packages }) }]
+    }))
   }
 
   /** The active chats, of one project or of all. */
@@ -104,14 +124,14 @@ export class ChatStore {
     if (chat.archivedAt === null) this.chats.set(chat.id, chat)
     else this.chats.delete(chat.id)
     this.deps.writes.add(`the chat ${chat.id}`, this.deps.db.query(
-      `insert into chats (${COLUMNS}) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      `insert into chats (${COLUMNS}) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
        on conflict (id) do update set title = excluded.title, first = excluded.first, said = excluded.said, last = excluded.last,
          session_id = excluded.session_id, machine_id = excluded.machine_id, last_at = excluded.last_at, read_at = excluded.read_at, archived_at = excluded.archived_at,
          successor = excluded.successor, previous = excluded.previous, pending = excluded.pending`,
       [
         chat.id, chat.project, chat.agent, chat.account, chat.model, chat.effort, chat.title, chat.first, chat.said,
         chat.last === null ? null : JSON.stringify(chat.last), chat.sessionId, chat.machine, ms(chat.createdAt), ms(chat.lastAt), ms(chat.readAt),
-        ms(chat.archivedAt), chat.successor, chat.previous, chat.pending,
+        ms(chat.archivedAt), chat.successor, chat.previous, chat.pending, packagesColumn(chat.packages),
       ],
     ))
   }
@@ -123,9 +143,9 @@ export class ChatStore {
   setChoice(project: string, choice: ChatChoice): void {
     this.choices.set(project, choice)
     this.deps.writes.add(`the chat choice of ${project}`, this.deps.db.query(
-      `insert into chat_choices (project_id, account, model, effort) values ($1, $2, $3, $4)
-       on conflict (project_id) do update set account = excluded.account, model = excluded.model, effort = excluded.effort`,
-      [project, choice.account, choice.model, choice.effort],
+      `insert into chat_choices (project_id, account, model, effort, packages) values ($1, $2, $3, $4, $5)
+       on conflict (project_id) do update set account = excluded.account, model = excluded.model, effort = excluded.effort, packages = excluded.packages`,
+      [project, choice.account, choice.model, choice.effort, packagesColumn(choice.packages)],
     ))
   }
 

@@ -52,7 +52,15 @@ const optionalText = (raw: unknown, field: string): string | null => (raw === nu
 function choiceOf(body: Record<string, unknown>): ChatChoice {
   const account = textOf(body.account, 'account')
   if (account === '') throw fail('request.required', { field: 'account' })
-  return { account, model: optionalText(body.model, 'model'), effort: optionalText(body.effort, 'effort') }
+  const packages = packagesOf(body.packages)
+  return { account, model: optionalText(body.model, 'model'), effort: optionalText(body.effort, 'effort'), ...(packages !== undefined && { packages }) }
+}
+
+/** The chat's own choice of packages (BTN-1696): an object of name and on or off; absent — none sent. */
+function packagesOf(raw: unknown): Record<string, boolean> | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (typeof raw !== 'object' || Array.isArray(raw) || !Object.values(raw).every((value) => typeof value === 'boolean')) throw fail('request.required', { field: 'packages' })
+  return raw as Record<string, boolean>
 }
 
 function messageOf(body: Record<string, unknown>): ChatMessageIn {

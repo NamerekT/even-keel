@@ -154,18 +154,25 @@ export function current(record: PackageRecord): PackageInstall | undefined {
   return record.installs.at(-1)
 }
 
-/** Whether the project's sessions get the package: its own choice, else the package's default. */
-export function enabledIn(file: PackagesFile, project: string, name: string): boolean {
+/**
+ * A project chat's own choice by package (BTN-1696), the third level over Even Keel's and the project's: `true` on,
+ * `false` off, absent — as the project has it.
+ */
+export type OwnPackages = Record<string, boolean>
+
+/** Whether the project's sessions get the package: a chat's own choice, else the project's, else the package's default. */
+export function enabledIn(file: PackagesFile, project: string, name: string, own: OwnPackages = {}): boolean {
   const record = file.packages[name]
   if (record === undefined || record.removed === true) return false
+  if (own[name] !== undefined) return own[name]
   const set = file.projects[project]
   if (set?.on.includes(name)) return true
   if (set?.off.includes(name)) return false
   return record.default
 }
 
-export function enabledPackages(file: PackagesFile, project: string): string[] {
-  return Object.keys(file.packages).filter((name) => enabledIn(file, project, name))
+export function enabledPackages(file: PackagesFile, project: string, own: OwnPackages = {}): string[] {
+  return Object.keys(file.packages).filter((name) => enabledIn(file, project, name, own))
 }
 
 export function defaultsOf(record: PackageRecord): Record<string, string> {
@@ -187,15 +194,17 @@ export function settingsOf(file: PackagesFile, project: string, name: string): R
 /**
  * What a session of the task runs on: every package the project has on now (BTN-706), each on the install the task is
  * pinned to while that install is there, else on the current one. A pin holds versions, not the set. `task` null — a
- * project chat (BTN-1694): no pin, the current installs.
+ * project chat (BTN-1694): no pin, the current installs, and its `own` choice over the project's set (BTN-1696), which
+ * never turns the built-in package off.
  */
-export function installsFor(file: PackagesFile, project: string, task: string | null, builtIn?: string): Record<string, string> {
+export function installsFor(file: PackagesFile, project: string, task: string | null, builtIn?: string, own: OwnPackages = {}): Record<string, string> {
   const pinned = (task === null ? undefined : file.pins[project]?.[task]) ?? {}
   const installs: Record<string, string> = {}
   const old = checkpointPackage(builtIn)
   const held = old === undefined ? undefined : file.packages[old]?.installs.find((each) => each.id === pinned[old])
   if (old !== undefined && held !== undefined) installs[old] = held.id
-  for (const name of enabledPackages(file, project)) {
+  const chosen = builtIn === undefined ? own : Object.fromEntries(Object.entries(own).filter(([name]) => name !== builtIn))
+  for (const name of enabledPackages(file, project, chosen)) {
     if (held !== undefined && name === builtIn) continue
     const record = file.packages[name]!
     const install = record.installs.find((each) => each.id === pinned[name]) ?? current(record)

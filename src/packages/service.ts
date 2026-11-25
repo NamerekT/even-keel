@@ -13,7 +13,7 @@ import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './k
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { catalogFor, followCatalog, type CatalogBrief } from './follow.js'
 import { Installs } from './installs.js'
-import { current, defaultsOf, installsFor, keepBuiltIn, OWN_SKILLS_PACKAGE, packageSettings, pluginKey, retireCheckpoint, retireOwnSkills, unpinned, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
+import { current, defaultsOf, installsFor, keepBuiltIn, OWN_SKILLS_PACKAGE, packageSettings, pluginKey, retireCheckpoint, retireOwnSkills, unpinned, type OwnPackages, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { repoImports, seedCatalog, SERVER_NAME } from './repo-reads.js'
 import { pageSettings } from './settings.js'
 import { availablePlugins, builtInPackage, FETCHED, knowsMarketplace, locatePlugin, ownMarketplace, ownPackage, pluginOffer, readJson, serversIn, TASKS_PLUGIN } from './plugins.js'
@@ -388,10 +388,11 @@ export class Packages {
   /**
    * What a project chat's session gets (BTN-1694): the project's set as a chain session's, on the current installs and
    * pinned to nothing — a chat has no end a pin would wait for, so its next start takes the installs current then.
+   * `own` — the chat's own choice over the set (BTN-1696); a package not in the catalog any more is simply not there.
    */
-  chatStartOf(project: string, agent: string): Pick<SessionStart, 'mcp' | 'plugins'> {
+  chatStartOf(project: string, agent: string, own: OwnPackages = {}): Pick<SessionStart, 'mcp' | 'plugins'> {
     const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: project, builtIn: this.builtIn }
-    const found = sessionPackages(this.file, project, null, places, readsFileMemory(agent))
+    const found = sessionPackages(this.file, project, null, places, readsFileMemory(agent), own)
     this.ready(project, found.installs)
     return { mcp: found.mcp, plugins: found.plugins }
   }
@@ -428,10 +429,10 @@ export class Packages {
 
   /**
    * `enabledPlugins: false` for every plugin the settings files enable and the task's set does not bring; `task` null —
-   * a project chat's (`chatStartOf`).
+   * a project chat's (`chatStartOf`), with its `own` choice.
    */
-  otherPlugins(project: string, task: string | null, settings: (Record<string, unknown> | undefined)[]): Record<string, false> {
-    const set = Object.keys(installsFor(this.file, project, task, this.builtIn)).flatMap((name) => {
+  otherPlugins(project: string, task: string | null, settings: (Record<string, unknown> | undefined)[], own: OwnPackages = {}): Record<string, false> {
+    const set = Object.keys(installsFor(this.file, project, task, this.builtIn, own)).flatMap((name) => {
       const plugin = this.file.packages[name]?.plugin
       return plugin === undefined ? [] : [pluginKey(plugin.name, plugin.marketplace)]
     })

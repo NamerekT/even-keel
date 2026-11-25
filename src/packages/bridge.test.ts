@@ -110,6 +110,20 @@ describe('the built-in bridge transition', () => {
     expect(readFileSync(file, 'utf8')).toBe(before)
   })
 
+  it("gives a project chat its own choice over the project's set, never without the built-in one (BTN-1696)", () => {
+    const saved = emptyPackages()
+    saved.packages[BRIDGE] = record('agent-bridge', 'new')
+    saved.packages['notes@example'] = record('notes', 'n1')
+    saved.packages['lint@example'] = { ...record('lint', 'l1'), default: false }
+    saved.packages['old@example'] = { ...record('old', 'o1'), removed: true }
+    const { packages } = fixture(saved)
+    const own = { 'notes@example': false, 'lint@example': true, 'old@example': true, 'gone@example': true, [BRIDGE]: false }
+    expect(packages.chatStartOf('project', 'claude', own).plugins.map((each) => each.package)).toEqual([BRIDGE, 'lint@example'])
+    expect(packages.chatStartOf('project', 'claude').plugins.map((each) => each.package)).toEqual([BRIDGE, 'notes@example'])
+    const settings = [{ enabledPlugins: { 'notes@example': true, 'lint@example': true } }]
+    expect(packages.otherPlugins('project', null, settings, own)).toEqual({ 'notes@example': false })
+  })
+
   it('refuses to start a project chat on an install whose files are gone, as a chain session (BTN-1694)', () => {
     const saved = emptyPackages()
     saved.packages[BRIDGE] = record('agent-bridge', 'new')

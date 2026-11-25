@@ -73,6 +73,8 @@ export interface ChatStart {
   model: string | null
   effort: string | null
   prompt: string
+  /** The chat's own choice of packages over the project's set (BTN-1696); absent — none, or an older hub. */
+  packages?: Record<string, boolean>
 }
 
 /**

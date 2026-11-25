@@ -19,7 +19,9 @@ import { MachineMark } from '../ui/MachineIcon.js'
 import { Select } from '../ui/Select.js'
 import { TipFacts } from '../ui/TipFacts.js'
 import { Tipped } from '../ui/Tipped.js'
+import { ChatExtrasDialog } from './ChatExtrasDialog.js'
 import { accountAfter, chatOptions, machineChoices, machinePanel } from './chatMachines.js'
+import { ownCount, type OwnPackages } from './chatPackages.js'
 import { HelpTip } from './settingsParts.js'
 import { modelsReading, offersOf, useModelCatalog } from './useModels.js'
 import { CloseIcon } from '../ui/icons.js'
@@ -70,6 +72,8 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<Notice | null>(null)
   const shownEffort = efforts.includes(effort) ? effort : (efforts.find((each) => each === 'medium') ?? efforts[0] ?? '')
+  const [packages, setPackages] = useState<OwnPackages>(choice?.packages ?? {})
+  const [extras, setExtras] = useState(false)
 
   useEffect(() => {
     if (dialog.current?.open === false) dialog.current.showModal()
@@ -99,6 +103,7 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
         model: shownModel === '' ? null : shownModel,
         effort: shownEffort === '' ? null : shownEffort,
         ...(shownMachine !== null && { machine: shownMachine }),
+        ...(ownCount(packages) > 0 && { packages }),
       })
       onStarted(chat)
     } catch (reason) {
@@ -194,6 +199,15 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
         </div>
         {failure !== null && <p role="alert" className="notice notice--error add-package__failure">{say(failure)}</p>}
         <footer className="add-package__foot">
+          <button type="button" className="button" aria-haspopup="dialog" onClick={() => setExtras(true)}>
+            {t.chats.dialog.more}
+            {ownCount(packages) > 0 && (
+              <span className="new-chat__more-count" title={t.chats.dialog.moreOwn(ownCount(packages))}>
+                {ownCount(packages)}
+              </span>
+            )}
+          </button>
+          <span className="add-package__spacer" />
           <button type="button" className="button" onClick={onClose}>
             {t.chats.dialog.cancel}
           </button>
@@ -202,6 +216,7 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
           </button>
         </footer>
       </form>
+      {extras && <ChatExtrasDialog project={project} own={packages} onChange={setPackages} onClose={() => setExtras(false)} />}
     </dialog>
   )
 }

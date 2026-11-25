@@ -37,6 +37,23 @@ describe('ProjectChats', { timeout: 120_000 }, () => {
     }
   })
 
+  it('keeps its own choice of packages, sends it with every call and keeps it on going on in a new session (BTN-1696)', async () => {
+    const { chats, calls, store, close } = await setup()
+    try {
+      const packages = { 'lint@example': true, 'huly@even-keel': false }
+      const { id } = await chats.create(ABC, { account: 'global', model: 'opus', effort: null, packages })
+      expect(chats.choice(ABC)).toEqual({ account: 'global', model: 'opus', effort: null, packages })
+      await chats.send(id, { text: 'Hello', files: [] })
+      await chats.send(id, { text: 'And then?', files: [] })
+      expect(calls.map((call) => (call.at(-1) as { packages?: unknown }).packages)).toEqual([packages, packages])
+      const next = await chats.renew(id, { text: 'Go on', files: [] }, { account: 'global', model: 'opus', effort: null })
+      expect(store.get(next.id)?.packages).toEqual(packages)
+      expect(chats.choice(ABC)?.packages).toEqual(packages)
+    } finally {
+      await close()
+    }
+  })
+
   it('starts a chat on the machine of the pool the window named, in its folder there, and keeps it there (BTN-1614)', async () => {
     const { chats, store, calls, close } = await setup()
     try {

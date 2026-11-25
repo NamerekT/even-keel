@@ -41,12 +41,13 @@ export function createSessionSettings(deps: SessionSettingsDeps) {
  * A Claude project chat's `--settings` (BTN-1694): the chain's without the trimming, so the chat has every skill, and
  * without the chain's window. The cache is the hour-long one whatever `cacheTtl` says (BTN-1401): nothing keeps a chat
  * warm while its person is away. The chat runs in the folder itself, so its settings files are read from the disk.
+ * `own` — the chat's own choice of packages (BTN-1696): a plugin it turns off is turned off in the files' too.
  */
 export function createChatSettings(deps: Pick<SessionSettingsDeps, 'config' | 'packages' | 'globalDir'>) {
-  return (project: string, folder: string): string => {
+  return (project: string, folder: string, own: Record<string, boolean> = {}): string => {
     const config = deps.config()
     const files = { project: readJson(join(folder, '.claude', 'settings.json')), local: readJson(join(folder, '.claude', 'settings.local.json')) }
-    const plugins = deps.packages.otherPlugins(project, null, [readJson(join(deps.globalDir, 'settings.json')), files.project, files.local])
+    const plugins = deps.packages.otherPlugins(project, null, [readJson(join(deps.globalDir, 'settings.json')), files.project, files.local], own)
     const protection = config.settings[project]?.protection ?? config.protection
     return chainSettings(folder, plugins, false, [], deps.globalDir, '1h', sessionSecrets(deps.packages.keyNames()), protection, null, isPlain(config, project), files)
   }

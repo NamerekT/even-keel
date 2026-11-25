@@ -31,8 +31,8 @@ function setup(status: 'idle' | 'busy', question?: string, hung = false, agent =
   const stopIn = vi.fn()
   const resumeIn = vi.fn().mockResolvedValue(session.sessionId)
   const launchIn = vi.fn().mockResolvedValue(session.sessionId)
-  const chatStartOf = vi.fn((_project: string, _agent: string) => set)
-  const chatSettingsFor = vi.fn((_project: string, _folder: string) => CHAT_SETTINGS)
+  const chatStartOf = vi.fn((_project: string, _agent: string, _own: Record<string, boolean>) => set)
+  const chatSettingsFor = vi.fn((_project: string, _folder: string, _own: Record<string, boolean>) => CHAT_SETTINGS)
   const chats = wireMachineChats({
     monitor, liveView, agentStatus, stopIn, resumeIn, launchIn, toldInbox, mailbox,
     homeOf: () => ({ ...home, agent }), agentOf: () => ({ reply }), daemons: { prepare: vi.fn() },
@@ -42,7 +42,7 @@ function setup(status: 'idle' | 'busy', question?: string, hung = false, agent =
   return {
     send: (prompt = start.prompt) => chats.send('project', chat, { ...start, prompt }),
     launch: () => chats.launch('project', '/project', chat, { ...start, account: session.account }),
-    holds, reply, toldInbox, mailbox, stopIn, resumeIn, launchIn, chatStartOf, chatSettingsFor,
+    chats, holds, reply, toldInbox, mailbox, stopIn, resumeIn, launchIn, chatStartOf, chatSettingsFor,
   }
 }
 
@@ -126,8 +126,17 @@ describe('a message to an existing project chat', () => {
     expect(launchIn).toHaveBeenCalledWith(expect.anything(), packages, 'project')
     expect(resumeIn).toHaveBeenCalledWith(expect.anything(), session, packages)
     expect(chatStartOf).toHaveBeenCalledTimes(2)
-    expect(chatStartOf).toHaveBeenCalledWith('project', agent)
+    expect(chatStartOf).toHaveBeenCalledWith('project', agent, {})
     expect(launchIn.mock.calls[0]![1]).not.toHaveProperty('ownPlugins')
+  })
+
+  it("starts and resumes a chat with its own choice of packages over the project's (BTN-1696)", async () => {
+    const own = { 'huly@even-keel': false, 'lint@example': true }
+    const { chats, chatStartOf, chatSettingsFor } = setup('idle')
+    await chats.launch('project', '/project', chat, { ...start, account: session.account, packages: own })
+    await chats.send('project', chat, { ...start, packages: own })
+    expect(chatStartOf.mock.calls).toEqual([['project', CLAUDE, own], ['project', CLAUDE, own]])
+    expect(chatSettingsFor.mock.calls).toEqual([['project', '/project', own], ['project', '/project', own]])
   })
 
   it("starts and resumes a Claude chat with the chat's settings of its folder (BTN-1401, BTN-1694)", async () => {
@@ -137,7 +146,7 @@ describe('a message to an existing project chat', () => {
     const settings = expect.objectContaining({ settings: CHAT_SETTINGS })
     expect(launchIn).toHaveBeenCalledWith(expect.anything(), settings, 'project')
     expect(resumeIn).toHaveBeenCalledWith(expect.anything(), session, settings)
-    expect(chatSettingsFor).toHaveBeenCalledWith('project', '/project')
+    expect(chatSettingsFor).toHaveBeenCalledWith('project', '/project', {})
   })
 
   it.each(['codex', 'copilot', 'opencode'])('gives a %s chat no Claude settings', async (agent) => {

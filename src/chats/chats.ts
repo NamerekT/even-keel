@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import type { Language } from '../language.js'
-import type { MachineServices } from '../machine/services.js'
+import type { ChatStart, MachineServices } from '../machine/services.js'
 import { englishOf, fail, noticeOf } from '../notice/notice.js'
 import { replyPrompt, type AskAnswers } from '../sessions/ask.js'
 import type { InboxFile } from '../sessions/inbox.js'
@@ -60,6 +60,14 @@ export interface ChatMessageIn {
 }
 
 const newChatId = (): string => CHAT_PREFIX + randomBytes(6).toString('hex')
+
+/** The whole choice a call to the machine carries: it keeps nothing of a chat. */
+const startOf = (chat: ChatRecord, prompt: string): Omit<ChatStart, 'account'> => ({
+  model: chat.model,
+  effort: chat.effort,
+  prompt,
+  ...(Object.keys(chat.packages).length > 0 && { packages: chat.packages }),
+})
 /** How long a session stopped as idle counts as stopped while the machine's view of it may still say it lives. */
 const STOP_SEEN_MS = 2 * 60 * 1000
 
@@ -138,13 +146,13 @@ export class ProjectChats {
       this.starting.add(id)
       this.deps.changed()
       try {
-        sessionId = await services.chats.launch(chat.project, folder, id, { account: chat.account, model: chat.model, effort: chat.effort, prompt })
+        sessionId = await services.chats.launch(chat.project, folder, id, { account: chat.account, ...startOf(chat, prompt) })
       } finally {
         this.starting.delete(id)
       }
       this.deps.log(`chats: ${id} of ${chat.project} started the session ${sessionId}`)
     } else {
-      sessionId = await services.chats.send(chat.project, id, { model: chat.model, effort: chat.effort, prompt })
+      sessionId = await services.chats.send(chat.project, id, startOf(chat, prompt))
       this.deps.log(`chats: ${id}: the user's message went to the session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
     }
     const at = this.deps.now().toISOString()
@@ -174,7 +182,7 @@ export class ProjectChats {
     if (chat === undefined || chat.sessionId !== sessionId || chat.machine === null) return false
     const services = this.deps.services(chat.machine)
     if (services === undefined) return false
-    await services.chats.send(chat.project, id, { model: chat.model, effort: chat.effort, prompt })
+    await services.chats.send(chat.project, id, startOf(chat, prompt))
     this.deps.log(`chats: ${id}: the session ${sessionId} went on with the message its hooks missed at the end of its turn`)
     return true
   }
@@ -210,8 +218,10 @@ export class ProjectChats {
    * it and nothing changes. Then the new chat, its prompt pending, and the old one archived with it as the successor are
    * kept at once, and the new session launched; a restart in between launches it at the next sweep.
    */
-  async renew(id: string, message: ChatMessageIn, choice: ChatChoice): Promise<ChatCard> {
+  async renew(id: string, message: ChatMessageIn, asked: ChatChoice): Promise<ChatCard> {
     const old = await this.active(id)
+    // The renewal window picks no packages: the new chat keeps the old one's own choice (BTN-1696).
+    const choice: ChatChoice = asked.packages !== undefined || Object.keys(old.packages).length === 0 ? asked : { ...asked, packages: old.packages }
     if (this.starting.has(id) || this.moving.has(id)) throw fail('chats.starting', {})
     this.moving.add(id)
     try {
@@ -295,6 +305,7 @@ export class ProjectChats {
       successor: null,
       previous: null,
       pending: null,
+      packages: choice.packages ?? {},
     }
   }
 
@@ -384,7 +395,7 @@ export class ProjectChats {
     this.deps.changed()
     let sessionId: string
     try {
-      sessionId = await services.chats.launch(chat.project, folder, chat.id, { account: chat.account, model: chat.model, effort: chat.effort, prompt })
+      sessionId = await services.chats.launch(chat.project, folder, chat.id, { account: chat.account, ...startOf(chat, prompt) })
     } catch (error) {
       this.deps.store.put({ ...(this.deps.store.get(chat.id) ?? chat), pending: null })
       throw error

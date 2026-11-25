@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { gatewayName, type SessionMcp, type SessionPlugin } from '../agent/contract.js'
 import { isTasksUrl } from '../taskmcp/server.js'
 import { isMemoryUrl } from '../memory/mcp.js'
-import { current, enabledPackages, installsFor, pluginKey, type PackageInstall, type PackagesFile, type SessionReach } from './model.js'
+import { current, enabledPackages, installsFor, pluginKey, type OwnPackages, type PackageInstall, type PackagesFile, type SessionReach } from './model.js'
 
 const ROUTE = /^\/mcp\/([^/]+)\/([^/]+)@([^/@]+)\/([^/]+)$/
 
@@ -72,13 +72,14 @@ export function ensureMarketplace(cache: string, name: string, install: string, 
 
 /**
  * `fileMemory` — the agent reads the memory folder itself (`readsFileMemory`): the memory server is left out, its plugin
- * stays. `task` null — a project chat (BTN-1694): the current installs, and no task in the servers' addresses.
+ * stays. `task` null — a project chat (BTN-1694): the current installs, its `own` choice over the set (BTN-1696), and
+ * no task in the servers' addresses.
  */
-export function sessionPackages(file: PackagesFile, project: string, task: string | null, places: LaunchPlaces, fileMemory = false): SessionPackages {
+export function sessionPackages(file: PackagesFile, project: string, task: string | null, places: LaunchPlaces, fileMemory = false, own: OwnPackages = {}): SessionPackages {
   const mcp: SessionMcp[] = []
   const plugins: SessionPlugin[] = []
   const installs: Record<string, string> = {}
-  for (const [name, id] of Object.entries(installsFor(file, project, task, places.builtIn))) {
+  for (const [name, id] of Object.entries(installsFor(file, project, task, places.builtIn, own))) {
     const record = file.packages[name]
     const install = record?.installs.find((each) => each.id === id)
     if (record === undefined || install === undefined) continue
