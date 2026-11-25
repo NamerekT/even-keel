@@ -14,7 +14,7 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountColors, nearAccountColor } from '../machineColor.js'
 import { hubGapsOn, machineAccountsChecking, machineAccountsEmpty, machineAgents, machineChecks, osLabel } from '../machineAdd.js'
-import { machineLogin } from '../machineSignIn.js'
+import { gapCommand, machineLogin } from '../machineSignIn.js'
 import { SignIn } from '../layout/MachineAccounts.js'
 import { projectPath } from '../state.js'
 import { packagesPath } from '../tools/packageGroups.js'
@@ -614,10 +614,14 @@ function AccountsCard({ state, page, now }: { state: EvenKeelState; page: Machin
               <span className="machine-page__main">
                 <span className="machine-page__name">
                   <AccountTag account={entry.key} agent={entry.agent} />
-                  <span className="machine-page__muted">{view.hubOnly}</span>
+                  <span className="machine-page__muted">{gap.global !== undefined ? view.notAdded : view.hubOnly}</span>
                 </span>
               </span>
-              {signIn(entry.agent, gap.account)}
+              {gap.global !== undefined ? (
+                <SignIn name={page.name} online={page.online} busy={busy} noCli={null} global onClick={() => void send(...gapCommand(entry.agent, gap))} />
+              ) : (
+                signIn(entry.agent, gap.account)
+              )}
             </li>
           ))}
         </ul>

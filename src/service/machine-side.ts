@@ -61,6 +61,8 @@ export interface MachineSide {
   throughHub(): void
 }
 
+/** How often a machine elsewhere reads its CLI folders not added for a sign-in its hub has an account of (BTN-1568). */
+const GLOBALS_OFFER_MS = 10 * 60_000
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 /** The projects of a brief's chains that run, not paused. */
 const running = (active: { project: string; paused: boolean }[]): string[] => active.filter((chain) => !chain.paused).map((chain) => chain.project)
@@ -72,6 +74,7 @@ const running = (active: { project: string; paused: boolean }[]): string[] => ac
  */
 export function wireMachineSide(machine: MachineContext, options: MachineSideOptions): MachineSide {
   const { log } = options
+  if (options.alone === true) machine.account.offerGlobals(GLOBALS_OFFER_MS)
   const local = wireMachine(machine, async (snapshot) => void (await end.emit(HANDOFF_EVENT, snapshot)))
   /** Kept for one computation of the facts, which asks per project: `projectOf` scans every project's tasks. */
   let pass: Map<string, string[]> | undefined

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry } from '../../src/account/model.js'
 import type { MachineSignIn } from '../../src/state.js'
-import { fullSignIn, hubSessionsOnly, machineGaps, machineLogin, machineMarks, machineSend, machineTokens } from './machineSignIn.js'
+import { fullSignIn, gapCommand, hubSessionsOnly, machineGaps, machineLogin, machineMarks, machineSend, machineTokens } from './machineSignIn.js'
 
 const hub = (patch: Partial<AccountEntry> = {}): AccountEntry => ({
   key: 'john.doe@example.com', name: null, global: false, agent: 'claude',
@@ -30,6 +30,18 @@ describe('a hub account on the machines elsewhere', () => {
       { machine: 'machine-4', name: 'Example laptop', online: true, account: 'john.doe@example.com', noCli: true },
       { machine: 'machine-5', name: 'Example laptop', online: true, noCli: false },
     ])
+  })
+
+  it("offers the machine's CLI folder not added when it is signed in as the same account, and adds it with no sign-in (BTN-1568)", () => {
+    const globals = [{ key: 'global', agent: 'claude', email: 'john.doe@example.com' }, { key: 'codex', agent: 'codex', email: 'john.doe@example.com' }]
+    const [gap] = machineGaps(hub(), [machine({ globals })])
+    expect(gap).toEqual({ machine: 'machine-1', name: 'Example laptop', online: true, global: 'global', noCli: false })
+    expect(gapCommand('claude', gap!)).toEqual(['machines/useGlobal', { machine: 'machine-1', agent: 'claude' }])
+    const other = [{ key: 'global', agent: 'claude', email: 'jane.roe@example.com' }]
+    const [plain] = machineGaps(hub(), [machine({ globals: other })])
+    expect(plain).toEqual({ machine: 'machine-1', name: 'Example laptop', online: true, noCli: false })
+    expect(gapCommand('claude', plain!)).toEqual(['machines/login', { machine: 'machine-1', agent: 'claude' }])
+    expect(gapCommand('claude', { ...plain!, account: 'work' })).toEqual(['machines/login', { machine: 'machine-1', agent: 'claude', account: 'work' }])
   })
 
   it('offers nothing for an account signed out on the hub, a key, a cloud, a long token, or with no machines', () => {

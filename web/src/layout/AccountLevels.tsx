@@ -60,7 +60,7 @@ export function AccountLevels({ account, levels, now, spend, tokens, machine }: 
           {stale && index === 0 && <span className="account-level__stale">{formatAgo(entry.limits!.updatedAt, now)}</span>}
           {index > 0 && away === undefined && (tightest ? <span className="account-level__number">{windowValue(tightest.window, 100 - tightest.free)}</span> : <AccountSummary entry={entry} spend={spend} tokens={tokens} />)}
         </div>
-        {away !== undefined && <div className="account-level__away"><InfoIcon /><span className="account-level__away-text">{t.machinePanel.view.notHere}</span>{machine!.signIn(away)}</div>}
+        {away !== undefined && <div className="account-level__away"><InfoIcon /><span className="account-level__away-text">{away.global !== undefined ? t.machinePanel.view.notAdded : t.machinePanel.view.notHere}</span>{machine!.signIn(away)}</div>}
         {index === 0 && away === undefined && <div className="account-level__body"><LevelWindows entry={entry} now={now} spend={spend} tokens={tokens} /></div>}
       </div>
     })}

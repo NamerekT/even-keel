@@ -5,7 +5,7 @@ import type { EvenKeelState, MachineView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { joinRequests, machineAccounts, machineChecks, osLabel, signInOf, type MachineCheck } from '../machineAdd.js'
-import { machineLogin } from '../machineSignIn.js'
+import { gapCommand, machineLogin } from '../machineSignIn.js'
 import { JobWindow } from '../pages/JobWindow.js'
 import { MachineFolderField, useFolderAnswers } from '../pages/MachineFolderField.js'
 import { folderBlocked, lastFolder, machineFolder, NEW_FOLDER, type FolderPick } from '../pages/machinePicks.js'
@@ -15,6 +15,7 @@ import { BangIcon, CheckIcon } from '../ui/icons.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { Tipped } from '../ui/Tipped.js'
 import { MachineTokenDialog, type MachineTokenTarget } from './MachineTokenDialog.js'
+import { SignIn } from './MachineAccounts.js'
 
 const agentName = (agent: string): string => t.account.agents[agent as keyof typeof t.account.agents] ?? agent
 
@@ -204,6 +205,11 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
                     </span>
                   ) : gap.noCli ? (
                     <span className="add-machine__effect">{t.machines.noCli(agentName(entry.agent))}</span>
+                  ) : gap.global !== undefined ? (
+                    <span className="add-machine__actions">
+                      <span className="add-machine__muted">{t.machinePanel.view.notAdded}</span>
+                      <SignIn name={machine.name} online={signIn.online} busy={busy} noCli={null} global onClick={() => void send(...gapCommand(entry.agent, gap))} />
+                    </span>
                   ) : signIn.online ? (
                     <span className="add-machine__actions">
                       {entry.agent === CLAUDE && (

@@ -126,7 +126,7 @@ function MachineRow({ entry, machine, now, page }: { entry: AccountEntry; machin
   const uses = machine.uses.get(entry.key) ?? []
   const plan = planText(entry)
   const chips = <div className="account-role-chips">
-    {away !== undefined && <span className="account-role account-role--away"><InfoIcon />{away.why === 'hub' ? t.machinePanel.view.hubOnly : t.machinePanel.view.signedOut}</span>}
+    {away !== undefined && <span className="account-role account-role--away"><InfoIcon />{away.global !== undefined ? t.machinePanel.view.notAdded : away.why === 'hub' ? t.machinePanel.view.hubOnly : t.machinePanel.view.signedOut}</span>}
     {(away === undefined || !page) && <MachineUses uses={uses} none={away === undefined} />}
   </div>
   const className = `account-row--machine${away === undefined ? '' : ' account-row--away'}`

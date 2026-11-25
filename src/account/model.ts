@@ -154,11 +154,20 @@ export interface AccountLogin {
   codeSent: boolean
 }
 
+/** A global CLI folder signed in but not added as an account: its key (`global`, `codex`), its agent and its e-mail. */
+export interface GlobalSignIn {
+  key: string
+  agent: string
+  email: string
+}
+
 export interface AccountView {
   /** Launch choices by project for the header; other pages show only `active`, the Even Keel account. */
   headerLevels?: Record<string, AccountLevel[]>
   /** Result of an explicit Add account check; hidden folders are never polled as accounts. */
   globalCheck?: { agent: string; account: { key: string; status: AccountStatus } | null }
+  /** A machine elsewhere's CLI folders not added, signed in (`AccountWatcher.offerGlobals`, BTN-1568). */
+  globals?: GlobalSignIn[]
   /** The AWS profiles the service's user has, read when the cloud form asks (`account/aws`). */
   aws?: AwsProfiles
   /** The Google Cloud credentials the service's user has, read when the Vertex form asks (`account/gcloud`). */

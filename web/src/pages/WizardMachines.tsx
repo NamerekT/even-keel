@@ -8,7 +8,7 @@ import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { machineAccounts, osLabel } from '../machineAdd.js'
-import { machineLogin } from '../machineSignIn.js'
+import { gapCommand, machineLogin } from '../machineSignIn.js'
 import { Band } from '../ui/blocks.js'
 import { MachineMark } from '../ui/MachineIcon.js'
 import { AddOnButton } from './FixButtons.js'
@@ -156,8 +156,8 @@ function SignInBand({ state, machine }: { state: EvenKeelState; machine: WizardM
   const signIn = state.machineSignIns?.find((each) => each.machine === machine.id)
   const rows = signIn === undefined ? [] : machineAccounts(state.account.accounts, signIn).flatMap((row) => (row.gap === null || row.gap.noCli ? [] : [{ ...row, gap: row.gap }]))
   const busy = sending || machineLogin(state.machineSignIns) !== undefined
-  const login = (row: (typeof rows)[number]) =>
-    void send('machines/login', { machine: machine.id, agent: row.entry.agent, ...(row.gap.account !== undefined && { account: row.gap.account }) })
+  // A CLI folder already signed in as the account is added as it is (BTN-1568), else the sign-in runs there.
+  const login = (row: (typeof rows)[number]) => void send(...gapCommand(row.entry.agent, row.gap))
   const label = words.signIn(machine.name)
   const action =
     rows.length === 0 ? (

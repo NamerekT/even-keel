@@ -296,6 +296,8 @@ export interface ServerDeps {
     takeOver(machine: string | undefined, project: string, owner: string): Promise<void>
     /** A sign-in on a machine elsewhere (BTN-1245): again in its folder `account` when it has one, else a new account. */
     login(machine: string, agent: string, account?: string, method?: string): Promise<void>
+    /** Its CLI folder of `agent`, signed in but not added, made its account without a new sign-in (BTN-1568). */
+    useGlobal(machine: string, agent: string): Promise<void>
     code(machine: string, code: string): Promise<void>
     cancel(machine: string): Promise<void>
     /** The agent's official installer on a machine elsewhere, run as its service's user (BTN-1502). */

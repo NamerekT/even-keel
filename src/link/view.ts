@@ -241,6 +241,8 @@ export interface MachineSignIn {
   login: MachineLogin | null
   /** The agents whose CLI the machine does not find: no sign-in of theirs is offered there. */
   missing: string[]
+  /** Its CLI folders signed in but not added (BTN-1568): "Use it" adds one for the hub's account of the same e-mail. */
+  globals?: import('../account/model.js').GlobalSignIn[]
   /** By agent, the official installer's command the machine runs for its "Install" (BTN-1502); none — none there. */
   installs?: Record<string, string>
   /** The install started there, under way or the last one ended. */

@@ -12,8 +12,16 @@ export interface MachineGap {
   online: boolean
   /** The machine's own folder of the account, signed out: signed in again there; absent — a new account there. */
   account?: string
+  /** The machine's CLI folder that is signed in as the account but not added (BTN-1568): "Use it" adds it, with no sign-in. */
+  global?: string
   /** The machine has no CLI of the account's agent: nothing to sign in with. */
   noCli: boolean
+}
+
+/** What a gap's button sends: the CLI folder not added is added as it is, else a sign-in on the machine. */
+export function gapCommand(agent: string, gap: MachineGap): [string, Record<string, unknown>] {
+  if (gap.global !== undefined) return ['machines/useGlobal', { machine: gap.machine, agent }]
+  return ['machines/login', { machine: gap.machine, agent, ...(gap.account !== undefined && { account: gap.account }) }]
 }
 
 export const sameEmail = (a: string | null, b: string | null): boolean => a !== null && b !== null && a.toLowerCase() === b.toLowerCase()
@@ -29,11 +37,13 @@ export function machineGaps(entry: AccountEntry, machines: MachineSignIn[] | und
     const own = machine.accounts.filter((each) => each.agent === entry.agent && sameEmail(each.email, email))
     if (own.some((each) => each.signedIn)) return []
     const folder = own[0]?.key ?? machine.accounts.find((each) => each.agent === entry.agent && each.key === entry.key)?.key
+    const global = machine.globals?.find((each) => each.agent === entry.agent && sameEmail(each.email, email))?.key
     return [{
       machine: machine.machine,
       name: machine.name,
       online: machine.online,
       ...(folder !== undefined && { account: folder }),
+      ...(global !== undefined && { global }),
       noCli: machine.missing.includes(entry.agent),
     }]
   })

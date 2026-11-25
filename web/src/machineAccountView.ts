@@ -10,6 +10,8 @@ export interface MachineAway {
   /** The machine's folder its "Sign in" signs in again; absent — a new account there. */
   account?: string
   why: 'hub' | 'out'
+  /** The machine's CLI folder signed in as the account, not added: "Use it" adds it instead of a sign-in (BTN-1568). */
+  global?: string
   /** The machine has no CLI of the agent: nothing to sign in with. */
   noCli: boolean
 }
@@ -83,7 +85,7 @@ export function machineAccountView(hub: AccountView, card: MachineCard, signIn: 
   const gaps = signIn === undefined ? [] : hubGapsOn(hub.accounts, signIn).map(({ entry, gap }): AccountEntry => {
     const key = `hub:${entry.key}`
     if (!here.has(entry.key)) here.set(entry.key, key)
-    away.set(key, { agent: entry.agent, ...(gap.account !== undefined && { account: gap.account }), why: 'hub', noCli: gap.noCli })
+    away.set(key, { agent: entry.agent, ...(gap.account !== undefined && { account: gap.account }), ...(gap.global !== undefined && { global: gap.global }), why: 'hub', noCli: gap.noCli })
     return { ...BLANK, key, name: entry.name, agent: entry.agent, status: entry.status }
   })
   const active = card.accounts.find((each) => each.key === card.active)

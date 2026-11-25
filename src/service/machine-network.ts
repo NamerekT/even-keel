@@ -292,6 +292,7 @@ export class MachineNetwork {
           codeSent: login.codeSent,
         },
         missing: panel.missing,
+        ...(panel.globals !== undefined && panel.globals.length > 0 && { globals: panel.globals }),
         ...(panel.installs !== undefined && { installs: panel.installs }),
         ...(panel.install !== undefined && { install: panel.install }),
       }]
@@ -309,6 +310,19 @@ export class MachineNetwork {
     this.options.log(`machines: a sign-in of ${agent} is started on machine ${machine}${has ? ` in its folder ${account}` : ''}`)
     if (has) await control.renew(account)
     else await control.add(agent, method)
+  }
+
+  /**
+   * The machine's CLI folder of `agent` that is signed in but not added becomes its account (BTN-1568). It uses that
+   * folder's own sign-in, so there is no new one. The machine checks the sign-in again and applies its own rules, as
+   * `account/global` on the hub does.
+   */
+  async useGlobal(machine: string, agent: string): Promise<void> {
+    const offered = this.peers.get(machine)?.remote.page.panel()?.globals?.some((each) => each.agent === agent) === true
+    const control = await this.accountsOf(machine)
+    if (!offered) throw fail('account.unknown', { key: agent })
+    this.options.log(`machines: the CLI folder of ${agent} is added on machine ${machine}`)
+    await control.useGlobal(agent)
   }
 
   /**
