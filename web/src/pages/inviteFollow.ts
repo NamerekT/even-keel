@@ -16,6 +16,8 @@ export type FollowStep = { at: 'view'; view: JoinView } | { at: 'trouble' } | { 
 export interface FollowDeps {
   link: string
   post: AuthPost
+  /** This browser's own sign-in by the state route (`AuthState.device`); `null` — none. */
+  device: () => Promise<string | null>
   /** Waits `ms`, or less once the tab comes back into view or the network comes back. */
   pause: (ms: number) => Promise<void>
   visible: () => boolean
@@ -27,12 +29,15 @@ export interface FollowDeps {
  * Opens the invitation or goes on waiting for it (BTN-1663) until the hub says how it ended: the final view, or null when
  * the asking stopped on a refusal of the hub or a link lost for `GIVE_UP_MS`. A lost link is no end: the claim cookie
  * keeps the place and the hub gives the outcome at the next ask, so the same ask goes again after a pause. A page out
- * of view (a phone's screen off) does not count towards giving up.
+ * of view (a phone's screen off) does not count towards giving up. The answer a lost link swallowed may have been
+ * `admitted` with the token in its cookie, and the next ask then presents it and gets `gone` (BTN-1666): after a lost
+ * link, or on "Try again" (a first `wait`), `gone` or `used` asks whether this browser is in and is the sign-in if so.
  */
 export async function followInvite(first: Ask, deps: FollowDeps): Promise<JoinView | null> {
   let ask = first
   let pauseMs = FIRST_PAUSE_MS
   let lostSince: number | null = null
+  let lostOnce = first === 'auth/invite/wait'
   for (;;) {
     let view: JoinView
     try {
@@ -43,6 +48,7 @@ export async function followInvite(first: Ask, deps: FollowDeps): Promise<JoinVi
         deps.show({ at: 'failed', notice: noticeOf(error) })
         return null
       }
+      lostOnce = true
       if (!deps.visible()) lostSince = null
       else if (lostSince === null) lostSince = deps.now()
       else if (deps.now() - lostSince >= GIVE_UP_MS) {
@@ -56,6 +62,10 @@ export async function followInvite(first: Ask, deps: FollowDeps): Promise<JoinVi
     }
     pauseMs = FIRST_PAUSE_MS
     lostSince = null
+    if (lostOnce && (view.state === 'gone' || view.state === 'used')) {
+      const device = await deps.device().catch(() => null)
+      if (device !== null) view = { state: 'admitted', device }
+    }
     deps.show({ at: 'view', view })
     if (view.state !== 'waiting') return view
     ask = 'auth/invite/wait'

@@ -27,7 +27,20 @@ const ENDS: Record<Exclude<JoinView['state'], 'waiting' | 'admitted'>, () => str
  * digits and waits for "Let in" on the device that made it; then it is signed in and offered a passkey, as after the key.
  * A browser signed in already does not take the link: another device may be the one it was made for.
  */
-export function InviteJoin({ signedIn, link, post, entered }: { signedIn: boolean; link: string; post: AuthPost; entered: () => void }) {
+export function InviteJoin({
+  signedIn,
+  link,
+  post,
+  device,
+  entered,
+}: {
+  signedIn: boolean
+  link: string
+  post: AuthPost
+  /** This browser's own sign-in (`AuthState.device`): a lost answer may have let it in already (BTN-1666). */
+  device: () => Promise<string | null>
+  entered: () => void
+}) {
   const [stage, setStage] = useState<Stage>({ at: 'opening' })
   const [busy, setBusy] = useState(false)
   const [refusal, setRefusal] = useState<string | null>(null)
@@ -43,6 +56,7 @@ export function InviteJoin({ signedIn, link, post, entered }: { signedIn: boolea
       const view = await followInvite(opened.current ? 'auth/invite/wait' : 'auth/invite/open', {
         link,
         post,
+        device,
         pause: (ms) => pauseOrWake(ms),
         visible: () => document.visibilityState === 'visible',
         now: () => Date.now(),

@@ -20,7 +20,7 @@ afterEach(async () => {
 })
 
 /** The new device's screen over scripted answers: each ask takes the next one, an Error is thrown. */
-async function join(answers: (JoinView | Error)[], entered = () => {}) {
+async function join(answers: (JoinView | Error)[], entered = () => {}, signedInAs: string | null = null) {
   const asked: string[] = []
   const post = async <T,>(name: string) => {
     asked.push(name)
@@ -32,7 +32,7 @@ async function join(answers: (JoinView | Error)[], entered = () => {}) {
   host = document.createElement('div')
   document.body.append(host)
   root = createRoot(host)
-  await act(async () => root.render(createElement(InviteJoin, { signedIn: false, link: 'secret', post, entered })))
+  await act(async () => root.render(createElement(InviteJoin, { signedIn: false, link: 'secret', post, device: async () => signedInAs, entered })))
   return asked
 }
 
@@ -55,6 +55,14 @@ describe('InviteJoin', () => {
     await settle(1000)
     // No passkeys in happy-dom: let in, the page is opened at once.
     expect(entered).toHaveBeenCalledOnce()
+  })
+
+  it('enters the page, not "link not valid", when the lost answer had let this browser in', async () => {
+    const entered = vi.fn()
+    await join([WAITING, new TypeError('Failed to fetch'), { state: 'gone' }], entered, 'Chrome on Android')
+    await settle(1000)
+    expect(entered).toHaveBeenCalledOnce()
+    expect(host.textContent).not.toContain(t.signIn.joinGone)
   })
 
   it('asks again at once when the tab comes back into view', async () => {

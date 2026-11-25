@@ -178,7 +178,11 @@ async function realJoin(): Promise<JoinProps | null> {
   if (response === null || !response.ok) return null
   const state = (await response.json()) as AuthState
   const post: AuthPost = async <T,>(name: string, body: object) => (await sendQuery(name, body)) as T
-  return { signedIn: !state.takesInvite, link: location.hash.slice(1), post, entered: () => location.replace('/') }
+  const device = async () => {
+    const answer = await fetch('/api/auth/state', { cache: 'no-store' })
+    return answer.ok ? ((await answer.json()) as AuthState).device : null
+  }
+  return { signedIn: !state.takesInvite, link: location.hash.slice(1), post, device, entered: () => location.replace('/') }
 }
 
 /** `dev:fake`'s `/invite`: signed in already, or with `?signIn` a new device (`?invite=` picks the outcome, `fakeAuth.ts`). */
@@ -189,7 +193,7 @@ async function fakeJoin(): Promise<JoinProps> {
     return (await fakeSignInPost(name, body as Record<string, unknown>)) as T
   }
   const search = new URLSearchParams(location.search)
-  return { signedIn: !search.has('signIn'), link: location.hash.slice(1), post, entered: () => location.replace('/') }
+  return { signedIn: !search.has('signIn'), link: location.hash.slice(1), post, device: async () => null, entered: () => location.replace('/') }
 }
 
 async function realSignIn(): Promise<SignInProps | null> {
