@@ -385,6 +385,8 @@ export interface ServerDeps {
     task(task: string): unknown
     archive?(project: string, after: string | null, focus?: string): Promise<unknown>
     outside?(project: string): Promise<unknown>
+    /** The closed ones an excluding label or a left-out milestone kept out, past `after` (BTN-1673). */
+    outsideArchive?(project: string, after: string | null): Promise<unknown>
   }
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on, and its last turn. */

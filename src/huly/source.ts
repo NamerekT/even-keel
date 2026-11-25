@@ -338,13 +338,17 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         total: true,
       })
       const planned = [...new Set(issues.flatMap((issue) => (issue.milestone ? [issue.milestone] : [])))]
-      const milestones =
-        planned.length === 0 ? [] : await client.findAll<HulyMilestoneDoc>(tracker.class.Milestone, { _id: { $in: planned } }, { projection: MILESTONE_FIELDS })
+      const tagged = labeled([...issues])
+      // The labels too: the "Outside the chain" archive keeps the tasks an excluding label kept out (BTN-1673).
+      const [milestones, labels] = await Promise.all([
+        planned.length === 0 ? [] : client.findAll<HulyMilestoneDoc>(tracker.class.Milestone, { _id: { $in: planned } }, { projection: MILESTONE_FIELDS }),
+        tagged.length === 0 ? [] : client.findAll<HulyLabelDoc>(TAG_REFERENCE, { attachedTo: { $in: tagged } }, { projection: LABEL_FIELDS }),
+      ])
       const total = issues.total ?? issues.length
       const last = issues.at(-1)
       return {
         total,
-        tasks: toTasks([...issues], statuses, new Map(), milestones).map((task) => ({ ...task, blockedBy: [], labels: [] })),
+        tasks: toTasks([...issues], statuses, new Map(), milestones, labels).map((task) => ({ ...task, blockedBy: [] })),
         next: last !== undefined && issues.length < total ? String(last.modifiedOn) : null,
       }
     },

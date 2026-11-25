@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Task, TaskStatus } from '../tracker/model.js'
-import type { ChainTasks, Tracker } from '../tracker/source.js'
-import { outsideTasks, type OutsideDeps } from './outside.js'
+import type { ChainTasks, ClosedPage, PageRequest, Tracker } from '../tracker/source.js'
+import { outsideArchivePage, outsideTasks, type OutsideDeps } from './outside.js'
 import { DEFAULT_RULES, outsideReason, type ChainRules } from './rules.js'
 
 const TODO: TaskStatus = { name: 'Todo', category: 'ToDo' }
@@ -98,5 +98,54 @@ describe('outsideTasks', () => {
   it('skips a reader without a link', async () => {
     const deps: OutsideDeps = { readers: () => ['A'], linkOf: () => undefined, rulesOf: () => DEFAULT_RULES, milestoneOrder: () => [] }
     expect(await outsideTasks(deps, 'A')).toEqual([])
+  })
+})
+
+describe('outsideArchivePage', () => {
+  /** A tracker paging `tasks` by offset, `size` at most a page, the rules and requests it was asked with recorded. */
+  const paged = (tasks: Task[], asked: { rules: ChainRules; page: PageRequest }[], size = Infinity) => ({
+    run: async <T>(call: (tracker: Tracker) => Promise<T>) =>
+      call({
+        closedPage: async (_project: string, rules: ChainRules, page: PageRequest): Promise<ClosedPage<Task>> => {
+          asked.push({ rules, page })
+          const from = page.after === null ? 0 : Number(page.after)
+          const to = from + Math.min(page.limit, size)
+          return { total: tasks.length - from, tasks: tasks.slice(from, to), next: to < tasks.length ? String(to) : null }
+        },
+      } as unknown as Tracker),
+  })
+  const rules: ChainRules = { ...DEFAULT_RULES, terminal: ['Done'], excludedLabels: ['Manual'], excludedMilestones: ['old'] }
+
+  it('keeps the closed tasks an excluding label or a left-out milestone kept out, last closed first, by status categories (BTN-1673)', async () => {
+    const asked: { rules: ChainRules; page: PageRequest }[] = []
+    const tasks = [
+      task('A-9', { status: DONE, labels: ['manual'] }),
+      task('A-8', { status: DONE }),
+      task('A-7', { status: CANCELED, ...inMilestone('old') }),
+      task('A-6', { status: DONE, labels: ['Manual'], subtasks: 2 }),
+      task('A-5', { status: CANCELED, labels: ['Manual'], ...inMilestone('v1') }),
+    ]
+    const page = await outsideArchivePage({ readers: () => ['A'], linkOf: () => paged(tasks, asked), rulesOf: () => rules }, 'A', null)
+    expect(page.tasks.map((each) => each.id)).toEqual(['A-9', 'A-7', 'A-5'])
+    expect(page.next).toBeNull()
+    expect(asked[0]!.rules).toMatchObject({ active: null, terminal: null, excludedLabels: ['Manual'] })
+  })
+
+  it('asks again while a page has none of them and gives the cursor on, then the next reader', async () => {
+    const asked: { rules: ChainRules; page: PageRequest }[] = []
+    const own = [...Array.from({ length: 6 }, (_, index) => task(`A-${20 - index}`, { status: DONE })), task('A-1', { status: DONE, labels: ['Manual'] })]
+    const links: Record<string, ReturnType<typeof paged>> = { A: paged(own, asked, 1), F: paged([task('F-1', { status: DONE, labels: ['Manual'] })], asked) }
+    const deps = { readers: () => ['A', 'F'], linkOf: (reader: string) => links[reader], rulesOf: () => rules }
+    const first = await outsideArchivePage(deps, 'A', null)
+    expect(first.tasks).toEqual([])
+    expect(first.next).not.toBeNull()
+    let next = first.next
+    const found: string[] = []
+    while (next !== null) {
+      const page = await outsideArchivePage(deps, 'A', next)
+      found.push(...page.tasks.map((each) => each.id))
+      next = page.next
+    }
+    expect(found).toEqual(['A-1', 'F-1'])
   })
 })

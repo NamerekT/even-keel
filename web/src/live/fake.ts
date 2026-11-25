@@ -56,7 +56,7 @@ import { fakeCheckpoint, fakeHandedTranscript, fakeRecord, fakeTranscript } from
 import { withTrustPause } from './fakeTrust.js'
 import { fakeTaskHistory, withHistoryLeft } from './fakeHistory.js'
 import { fakeArchiveCount, fakeArchivePage, withFakeArchive } from './fakeArchive.js'
-import { fakeOutside } from './fakeOutside.js'
+import { fakeOutside, fakeOutsideArchive } from './fakeOutside.js'
 import { withFeeds, withLongNames, withMixedNames } from './fakeLong.js'
 import { withFakeLanding } from './fakeLandings.js'
 import { fakeLaunches, fakeState, withFakeSpent, KEY_LIMIT_AGENTS } from './fakeState.js'
@@ -865,6 +865,7 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'history/task') return fakeTaskHistory(current.state, String(body.task)) as T
       if (name === 'archive/page') return (await fakeArchivePage(current.state, body, fakeArchiveCount(params.get('archive')))) as T
       if (name === 'outside/tasks') return (await fakeOutside(current.state, body, params.get('outside'))) as T
+      if (name === 'outside/archive') return (await fakeOutsideArchive(current.state, body, params.get('outside'))) as T
       if (name === 'machines/cards') return network.cards(current.state) as T
       if (name === 'machines/view') {
         const page = network.page(String(body.machine), current.state)

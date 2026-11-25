@@ -53,7 +53,7 @@ import { cleanRules, projectRules, rulesWith } from '../profiles/rules.js'
 import { checkMoves } from '../chain/moves.js'
 import { profilesControl } from '../profiles/control.js'
 import { disabledNotice } from '../profiles/service.js'
-import { archiveOf, outsideOf, taskHistory } from './hosting-state.js'
+import { archiveOf, outsideArchiveOf, outsideOf, taskHistory } from './hosting-state.js'
 import { Dictation } from '../dictation/transcribe.js'
 import { withinWindow } from '../stats/checkpoint.js'
 import { taskCheckpoint } from '../stats/task-checkpoint.js'
@@ -597,6 +597,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       task: (task) => taskHistory(ctx, task),
       archive: (project, after, focus) => archiveOf(ctx, project, after, focus),
       outside: (project) => outsideOf(ctx, project),
+      outsideArchive: (project, after) => outsideArchiveOf(ctx, project, after),
     },
     sessionRecord: (sessionId) => transcripts.record(sessionId),
     transcript: (sessionId, after) => transcripts.feed(sessionId, after),

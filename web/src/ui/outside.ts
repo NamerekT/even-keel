@@ -1,6 +1,6 @@
 import { milestoneComparator } from '../../../src/chain/order.js'
 import type { OutsideReason, OutsideTask } from '../../../src/state.js'
-import type { TaskMilestone } from '../../../src/tracker/model.js'
+import type { StatusCategory, Task, TaskMilestone, TaskStatus } from '../../../src/tracker/model.js'
 import { milestonePage } from './chainPage.js'
 
 /** The groups of the "Outside the chain" view in their order (BTN-1428), the order a task with several reasons is filed by. */
@@ -9,28 +9,47 @@ export const OUTSIDE_REASONS: readonly OutsideReason[] = ['label', 'milestone', 
 /** Open by default: a milestone the rules leave out is mostly old milestones' leftovers, maybe hundreds of them. */
 const OPEN_BY_DEFAULT: readonly OutsideReason[] = ['label', 'status']
 
+/** The tasks of one status under a milestone (BTN-1673). */
+export interface OutsideStatus {
+  status: TaskStatus
+  /** The tasks the page shows, in the view's order. */
+  tasks: OutsideTask[]
+}
+
 export interface OutsideSection {
   milestone: TaskMilestone | null
-  /** The section's tasks the page shows, by number. */
-  tasks: OutsideTask[]
+  /** The milestone's statuses, the furthest along first. */
+  statuses: OutsideStatus[]
 }
 
 export interface OutsideGroup {
   reason: OutsideReason
   count: number
-  /** The rows name their excluding label: the group has more than one, so its heading does not say which. */
-  labels: boolean
   /** The milestones in the chain's order, no milestone last. */
   milestones: OutsideSection[]
 }
 
-const byNumber = (a: OutsideTask, b: OutsideTask) => a.task.id.localeCompare(b.task.id, 'en', { numeric: true })
+/** The statuses of the usual workflow in the view's order; others go by their category after these of it. */
+const KNOWN_STATUSES = ['in review', 'in progress', 'todo', 'backlog']
+const CATEGORY_RANK: Record<StatusCategory, number> = { Active: 0, ToDo: 1, UnStarted: 2, Won: 3, Lost: 4 }
 
-/** The groups of the view, the tasks the chain or the backlog already shows (`shown`) left out; an empty group is none. */
-export function outsideGroups(tasks: readonly OutsideTask[], shown: ReadonlySet<string>): OutsideGroup[] {
+/** The furthest along first: In Review, In Progress, Todo, Backlog; an unknown status by its category, then by name. */
+export function compareStatuses(a: TaskStatus, b: TaskStatus): number {
+  const known = (status: TaskStatus) => {
+    const index = KNOWN_STATUSES.indexOf(status.name.trim().toLocaleLowerCase())
+    return index === -1 ? KNOWN_STATUSES.length : index
+  }
+  return CATEGORY_RANK[a.category] - CATEGORY_RANK[b.category] || known(a) - known(b) || a.name.localeCompare(b.name, 'en')
+}
+
+/**
+ * The groups of the view, the tasks the chain or the backlog already shows (`shown`) left out; an empty group is none.
+ * Under each milestone the tasks go by status (`compareStatuses`), each status's tasks by `compare`, the view's order (BTN-1673).
+ */
+export function outsideGroups(tasks: readonly OutsideTask[], shown: ReadonlySet<string>, compare: (a: Task, b: Task) => number): OutsideGroup[] {
   const left = tasks.filter((each) => !shown.has(each.task.id))
   return OUTSIDE_REASONS.flatMap((reason) => {
-    const own = left.filter((each) => each.reason === reason).sort(byNumber)
+    const own = left.filter((each) => each.reason === reason)
     if (own.length === 0) return []
     const named = new Map<string, TaskMilestone>()
     for (const each of own) if (each.task.milestone !== null && !named.has(each.task.milestone.label)) named.set(each.task.milestone.label, each.task.milestone)
@@ -38,30 +57,46 @@ export function outsideGroups(tasks: readonly OutsideTask[], shown: ReadonlySet<
     ranked.sort(milestoneComparator(ranked))
     const milestones: OutsideSection[] = [...ranked, null].flatMap((milestone) => {
       const under = own.filter((each) => (each.task.milestone?.label ?? null) === (milestone?.label ?? null))
-      return under.length === 0 ? [] : [{ milestone, tasks: under }]
+      return under.length === 0 ? [] : [{ milestone, statuses: byStatus(under, compare) }]
     })
-    const labels = new Set(own.flatMap((each) => (each.label === undefined ? [] : [each.label.trim().toLocaleLowerCase()])))
-    return [{ reason, count: own.length, labels: labels.size > 1, milestones }]
+    return [{ reason, count: own.length, milestones }]
   })
 }
 
+function byStatus(tasks: readonly OutsideTask[], compare: (a: Task, b: Task) => number): OutsideStatus[] {
+  const statuses = new Map<string, OutsideStatus>()
+  for (const each of tasks) {
+    const name = each.task.status.name.trim().toLocaleLowerCase()
+    const section = statuses.get(name) ?? { status: each.task.status, tasks: [] }
+    section.tasks.push(each)
+    statuses.set(name, section)
+  }
+  const list = [...statuses.values()].sort((a, b) => compareStatuses(a.status, b.status))
+  for (const section of list) section.tasks.sort((a, b) => compare(a.task, b.task))
+  return list
+}
+
 export interface OutsidePage {
-  /** The milestones with rows on the page; `count` — all of the milestone's tasks. */
-  sections: (OutsideSection & { count: number })[]
+  /** The milestones with rows on the page; `count` — all of the milestone's tasks, and of each status. */
+  sections: { milestone: TaskMilestone | null; count: number; statuses: (OutsideStatus & { count: number })[] }[]
   /** How many rows are behind the button. */
   hidden: number
   /** How many rows the next press adds. */
   next: number
 }
 
-/** A group cut as a long milestone of the chain is (`milestonePage`), across its milestones: the rest goes on under the same heading. */
+/** A group cut as a long milestone of the chain is (`milestonePage`), across its milestones and statuses: the rest goes on under the same headings. */
 export function outsidePage(group: OutsideGroup, more: number): OutsidePage {
-  const rows = group.milestones.flatMap((section) => section.tasks.map((each) => ({ id: each.task.id, each })))
+  const rows = group.milestones.flatMap((section) => section.statuses.flatMap((status) => status.tasks.map((each) => ({ id: each.task.id, each }))))
   const page = milestonePage(rows, more, { keeps: () => false })
   const kept = new Set(page.head.map((row) => row.id))
   const sections = group.milestones.flatMap((section) => {
-    const tasks = section.tasks.filter((each) => kept.has(each.task.id))
-    return tasks.length === 0 ? [] : [{ milestone: section.milestone, tasks, count: section.tasks.length }]
+    const statuses = section.statuses.flatMap((status) => {
+      const tasks = status.tasks.filter((each) => kept.has(each.task.id))
+      return tasks.length === 0 ? [] : [{ status: status.status, tasks, count: status.tasks.length }]
+    })
+    const count = section.statuses.reduce((sum, status) => sum + status.tasks.length, 0)
+    return statuses.length === 0 ? [] : [{ milestone: section.milestone, count, statuses }]
   })
   return { sections, hidden: page.hidden, next: page.next }
 }

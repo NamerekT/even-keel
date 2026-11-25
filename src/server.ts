@@ -265,6 +265,8 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
   'archive/page': async ({ history }, body) =>
     (await history?.archive?.(projectOf(body), body.after === null || body.after === undefined ? null : textOf(body.after, 'after'), body.focus === undefined ? undefined : textOf(body.focus, 'focus'))) ?? { tasks: [], next: null },
   'outside/tasks': async ({ history }, body) => (await history?.outside?.(projectOf(body))) ?? [],
+  'outside/archive': async ({ history }, body) =>
+    (await history?.outsideArchive?.(projectOf(body), body.after === null || body.after === undefined ? null : textOf(body.after, 'after'))) ?? { tasks: [], next: null },
   'dictation/transcribe': async ({ dictation }, body) => {
     if (dictation === undefined) throw fail('dictation.off', {})
     return { text: await dictation.transcribe(textOf(body.audio, 'audio'), textOf(body.type, 'type')) }

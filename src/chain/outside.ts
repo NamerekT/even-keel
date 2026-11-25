@@ -1,6 +1,7 @@
-import type { OutsideTask } from '../state.js'
+import type { ArchivePage, OutsideTask } from '../state.js'
 import type { TrackerLink } from '../tracker/link.js'
-import { isOpen } from '../tracker/model.js'
+import { isLeaf, isOpen } from '../tracker/model.js'
+import { closedPages, REQUEST_LIMIT } from './archive-pages.js'
 import { withMilestoneOrder } from './milestone-sequence.js'
 import { outsideReason, type ChainRules } from './rules.js'
 
@@ -37,4 +38,20 @@ export async function outsideTasks(deps: OutsideDeps, project: string): Promise<
     deps.milestoneOrder(project),
   )
   return found.map((each, index) => ({ ...each, task: ranked[index]! }))
+}
+
+/**
+ * `outside/archive` (BTN-1673): a page of the project's closed tasks without subtasks that an excluding label or a
+ * milestone the rules leave out kept out of the chain, the last closed first. Closed is the tracker's category, as in
+ * `outsideTasks`; the chain's archive may show some of them too, a label-excluded task of a milestone it takes.
+ */
+export function outsideArchivePage(deps: Pick<OutsideDeps, 'readers' | 'linkOf' | 'rulesOf'>, project: string, after: string | null): Promise<ArchivePage> {
+  return closedPages(deps, project, after, {
+    rulesOf: (reader) => ({ ...deps.rulesOf(reader), active: null, terminal: null }),
+    keeps: (rules, task) => {
+      const why = outsideReason(rules, task)?.reason
+      return isLeaf(task) && (why === 'label' || why === 'milestone')
+    },
+    limit: REQUEST_LIMIT,
+  })
 }

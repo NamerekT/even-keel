@@ -50,6 +50,49 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A status inside a milestone (BTN-1673): its dot, name and count, indented under the milestone's flag. */
+.outside__status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.outside__status-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin: 0;
+  padding-left: calc(var(--space-24) * 2 + var(--space-12));
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  font-weight: 400;
+}
+
+.outside__status-count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The status's dot stands where a chain row has its lamp. */
+.outside__lamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+}
+
+.outside__tools {
+  gap: var(--space-12);
+  margin-left: auto;
+}
+
+.outside__archive .archived__key {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: inherit;
+  cursor: pointer;
+}
+
 .outside__failed {
   display: flex;
   align-items: center;

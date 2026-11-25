@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import type { TaskRun } from '../../../src/sessions/runs.js'
 import type { EvenKeelState } from '../../../src/state.js'
@@ -155,6 +155,8 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const ownTasks = projectTasks(state, key)
   const milestones = useProjectMilestones(key, builtin, ownTasks.map((task) => task.milestone?.label ?? '').join('\u0000'))
   const chats = useProjectChats(key)
+  // The card's edits, counted for the "Outside the chain" view: it is read apart from the state (BTN-1673).
+  const [edits, setEdits] = useState(0)
   if (!state.projects.includes(key)) return <NotFound what={t.notFound.project(key)} />
   const adding: Adding | null = !builtin
     ? null
@@ -265,7 +267,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         <TermsRefused state={state} project={key} />
         {view === 'outside' ? (
           <Suspense fallback={null}>
-            <OutsideView key={`outside-${key}`} project={key} switcher={feedSwitcher} onCard={openCard} />
+            <OutsideView key={`outside-${key}`} project={key} switcher={feedSwitcher} edits={edits} onCard={openCard} />
           </Suspense>
         ) : showParents ? (
           // The parents are out of the chain's order: no ghosts, no moves, no buttons that put a task in or out of the chain.
@@ -410,6 +412,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             live={hasLiveSession(state, opened)}
             onOpen={openCard}
             onClose={closeCard}
+            onChanged={() => setEdits((count) => count + 1)}
           />
         </Suspense>
       )}

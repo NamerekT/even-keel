@@ -131,7 +131,7 @@ export function builtinSource(db: Db, places: Readonly<Record<string, TrackerPla
         subtasks: row.subtasks,
         milestone: row.milestone === null ? null : { label: row.milestone.name, targetDate: row.milestone.date },
         priority: row.priority,
-        labels: [],
+        labels: row.labels,
         estimate: null,
       }))
       return { total: Math.max(0, total - offset), tasks, next: offset + rows.length < total && rows.length > 0 ? String(offset + rows.length) : null }
