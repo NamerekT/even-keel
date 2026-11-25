@@ -1,4 +1,4 @@
-import { inTransaction, type Db, type Writes } from '../storage/database.js'
+import { inTransaction, type Db, type Queryable, type Writes } from '../storage/database.js'
 import type { Mail, MailEvent, MailFate, MailReason } from './mail.js'
 import { saveMailboxChange, type MailboxChange } from './mailbox-store.js'
 
@@ -30,6 +30,25 @@ interface Row {
 }
 
 /**
+ * How a machine numbers its messages (BTN-1699): the number goes into the session's prompt, and a transcript shows each
+ * number once, so it never comes again — not after a restart that brought nothing back, not after the old messages are
+ * cut. `last` is the highest number the machine gave, `keep` stores a new one where a restart finds it. `parity` keeps
+ * apart the two machines whose messages one session gets: the hub's own machine (0, even), whose mailbox a session
+ * elsewhere's hooks ask, and that session's machine (1, odd), which writes into its inbox. Absent — 1, 2, 3, …
+ */
+export interface MailNumbers {
+  last: number
+  parity?: 0 | 1
+  keep: (id: number) => void
+}
+
+/** The smallest number past `after` of the parity. */
+function nextNumber(after: number, parity: 0 | 1 | undefined): number {
+  const next = after + 1
+  return parity === undefined || next % 2 === parity ? next : next + 1
+}
+
+/**
  * The chat's messages to sessions in the middle of a turn, in the `mailbox` table: a hook of the `agent-bridge` plugin
  * takes them on the session's next tool call or stop (BTN-181). Which sessions' hooks ask is known from the hooks, the
  * service's own starts and, after a restart, `expectWith`. The rows are kept in memory as well, read at the start: a message is settled once, by whoever comes first, without
@@ -46,6 +65,7 @@ export class Mailbox {
     private mails: Mail[],
     private readonly now: () => Date,
     persist: (change: MailboxChange) => Promise<void>,
+    private readonly numbers: MailNumbers = { last: 0, keep: () => {} },
   ) {
     this.persist = persist
   }
@@ -63,13 +83,18 @@ export class Mailbox {
    * A machine's mailbox, which never opens the hub's database: its messages come with `restore` (`records.restore`,
    * `docs/machines.md`), its changes go out through `persistWith`.
    */
-  static detached(writes: Writes, now: () => Date): Mailbox {
-    return new Mailbox(writes, [], now, () => Promise.reject(new Error('the mailbox has no store yet')))
+  static detached(writes: Writes, now: () => Date, numbers?: MailNumbers): Mailbox {
+    return new Mailbox(writes, [], now, () => Promise.reject(new Error('the mailbox has no store yet')), numbers)
   }
 
-  /** At startup, before hooks or chat run: the messages the hub keeps, records replayed from the outbox included. */
+  /**
+   * The messages the hub keeps, records replayed from the outbox included: at the start of the hub's own machine, at
+   * each connection of a machine elsewhere (BTN-1699). A message this mailbox already has stays as it is here: one
+   * posted or settled since may not have reached the hub yet.
+   */
   restore(mails: Mail[]): void {
-    this.mails = mails.map((mail) => ({ ...mail }))
+    const here = new Set(this.mails.map((mail) => mail.id))
+    this.mails = [...mails.filter((mail) => !here.has(mail.id)).map((mail) => ({ ...mail })), ...this.mails]
   }
 
   /**
@@ -112,7 +137,9 @@ export class Mailbox {
     const at = this.now()
     const before = new Date(at.getTime() - KEEP_MS).toISOString()
     this.mails = this.mails.filter((mail) => mail.fate === 'waiting' || mail.settledAt === null || mail.settledAt >= before)
-    const id = Math.max(0, ...this.mails.map((each) => each.id)) + 1
+    const id = nextNumber(Math.max(this.numbers.last, ...this.mails.map((each) => each.id)), this.numbers.parity)
+    this.numbers.last = id
+    this.numbers.keep(id)
     const postedAt = at.toISOString()
     const mail: Mail = returned === null
       ? { id, task, sessionId, text, files, postedAt, fate: 'waiting', event: null, reason: null, settledAt: null }
@@ -185,7 +212,7 @@ export class Mailbox {
 }
 
 /** The messages the `mailbox` table keeps, oldest first: those of `machine`, or all of them. */
-export async function loadMail(db: Db, machine?: string): Promise<Mail[]> {
+export async function loadMail(db: Queryable, machine?: string): Promise<Mail[]> {
   const { rows } = machine === undefined
     ? await db.query<Row>('select * from mailbox order by id')
     : await db.query<Row>('select * from mailbox where machine_id = $1 order by id', [machine])

@@ -225,9 +225,9 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     services: wireMachineServices(machine, {
       steer: (task, session, prompt) => steer(machine, task, session, prompt),
       restore: async ({ launches, windows, mail, warm }) => {
-        records.restore(launches)
+        if (launches !== undefined) records.restore(launches)
         machine.mailbox.restore(mail)
-        machine.monitor.restoreWindows(windows)
+        if (windows !== undefined) machine.monitor.restoreWindows(windows)
         machine.keepWarm.restore(warm ?? [])
       },
       cloneProgress: cloneTold((payload) => void end.emit(CLONE_PROGRESS_EVENT, payload).catch(() => {})),

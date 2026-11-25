@@ -14,6 +14,8 @@ import { BRIEF_COMMAND, type HubBrief } from '../machine/brief.js'
 import { SELECTION_EVENT } from '../machine/config.js'
 import { CLONE_PROGRESS_EVENT } from '../machine/services.js'
 import { DONE_EVENT, type FactsSnapshot } from '../machine/runner.js'
+import type { Mail } from '../sessions/mail.js'
+import { saveMailboxChange } from '../sessions/mailbox-store.js'
 import { ABC, fixture } from '../storage/database.fixture.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { folderUnder, MachineNetwork, type MachineNetworkOptions, type NetworkPeers } from './machine-network.js'
@@ -43,7 +45,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
 
   const started = async (peers?: NetworkPeers, log: (line: string) => void = () => {}, takeOverOwn?: (project: string, owner: string) => Promise<void>, inContainer = false, extra: Partial<MachineNetworkOptions> = {}) => {
     const db = await PGlite.create()
-    await db.exec(fixture(60))
+    await db.exec(fixture(85))
     const settings = { address: null as string | null }
     const changes: number[] = []
     const counted: number[] = []
@@ -385,6 +387,46 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     expect(writes).toEqual([[joined.machine, write]])
   })
 
+  // BTN-1699: a machine elsewhere restarted with an empty mailbox, and its next letter took a number the session had seen.
+  it('hands a machine elsewhere the messages the hub keeps for it at each connection, never those of another machine', async () => {
+    const peers: NetworkPeers = {
+      remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} }),
+      brief: () => ({ config: { projects: {} } }) as unknown as HubBrief,
+      changed: () => {},
+      connected: () => {},
+      mcp: () => Promise.resolve({ status: 200, headers: {}, body: '' }),
+      hook: () => Promise.resolve({ status: 200, body: '' }),
+      write: async () => {},
+    }
+    const { db, network, settings } = await started(peers)
+    settings.address = '127.0.0.1'
+    await network.apply()
+    const joined = await joinHub(parseToken((await network.invite('Example laptop')).line)!, ABOUT, 5_000)
+    if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
+    const mail = (id: number, text: string): Mail => ({
+      id, task: 'chat-1', sessionId: 's-1', text, files: [], postedAt: '2026-11-25T15:26:01.000Z', fate: 'delivered', event: 'inbox', reason: null, settledAt: '2026-11-25T15:26:01.000Z',
+    })
+    await saveMailboxChange(db, { mails: [mail(1, 'Why the loader?'), mail(3, 'And the chat?')] }, joined.machine)
+    await saveMailboxChange(db, { mails: [mail(2, "The own machine's")] }, OWN)
+
+    const ran: NumberedCommand[] = []
+    const end: MachineEnd = new MachineEnd({
+      transport: httpsTransport(joined, { log: () => {}, timeoutMs: 5_000 }),
+      store: new MemoryMachineStore(),
+      snapshot: () => ({ boot: 'boot-1', rev: 1, facts: { sessionsRead: true, accountsRead: true, tasks: {}, projects: {}, ledger: {}, resets: {}, limits: {} } as unknown as FactsSnapshot['facts'] }),
+      command: async (command) => {
+        ran.push(command)
+        await end.emit(DONE_EVENT, { seq: command.seq, value: null })
+      },
+      log: () => {},
+    })
+    closing.push(async () => end.stop())
+    await end.start()
+
+    await until(() => ran.some((command) => command.type === 'records.restore'), 'the mail handed back')
+    expect(ran.find((command) => command.type === 'records.restore')?.payload).toEqual({ args: [{ mail: [mail(1, 'Why the loader?'), mail(3, 'And the chat?')] }] })
+  })
+
   it("puts a machine into a project's pool turned off in a folder of its own, checks it there and turns it on", async () => {
     const briefed: Record<string, string>[] = []
     const briefedSettings: Record<string, MachineProjectSettings>[] = []
@@ -545,7 +587,8 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     expect(network.stateTooLarge(laptop)!.bytes).toBeGreaterThan(MAX_BODY_BYTES)
     expect(changes.length).toBeGreaterThan(counted)
     expect(() => network.folders(target)).toThrow(/cannot send its state to the hub/)
-    expect(logged.filter((line) => line.includes('cannot send its state'))).toEqual([
+    // The calls let go say it too: the messages handed back at the connection (BTN-1699) among them.
+    expect(logged.filter((line) => line.includes(') cannot send its state'))).toEqual([
       expect.stringMatching(new RegExp(`^machines: machine ${laptop} \\(Example laptop\\) cannot send its state to the hub: 8\\.0 MB is over the link's limit; its largest parts: body`)),
     ])
 
