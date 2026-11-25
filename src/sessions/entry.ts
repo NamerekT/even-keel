@@ -43,6 +43,10 @@ export interface Entry {
   entrypoint?: string
   isSidechain?: boolean
   isMeta?: boolean
+  /** The summary a compaction writes as the user's line, the history the session resumes from. */
+  isCompactSummary?: boolean
+  /** Of a `compact_boundary`: the context's tokens before and after the compaction. */
+  compactMetadata?: { trigger?: string; preTokens?: unknown; postTokens?: unknown }
   isApiErrorMessage?: boolean
   error?: string
   usageLimitNote?: string

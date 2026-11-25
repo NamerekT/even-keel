@@ -255,6 +255,26 @@
   content: '';
 }
 
+/* The context was compacted here (BTN-1703): a wave at each side of a quiet caption, no box. */
+.transcript__compact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  white-space: nowrap;
+}
+
+.transcript__compact::before,
+.transcript__compact::after {
+  flex: 1;
+  height: 6px;
+  background: currentColor;
+  content: '';
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath d='M0 3q3-3 6 0t6 0' fill='none' stroke='black'/%3E%3C/svg%3E") left center / 12px 6px repeat-x;
+  opacity: 0.6;
+}
+
 .transcript__lines .markdown {
   font-size: inherit;
 }

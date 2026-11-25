@@ -274,6 +274,10 @@
   color: var(--error-fg);
 }
 
+.feed__line--compact .feed__text {
+  color: var(--fg-muted);
+}
+
 .feed__line--prompt .feed__text {
   padding-left: 8px;
   border-left: 2px solid var(--accent);

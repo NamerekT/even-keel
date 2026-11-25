@@ -102,11 +102,12 @@ export class RolloutFold {
       return
     }
     // A compaction writes its summary as a line of its own, the history to resume from; the event that announces it may follow.
+    const at = line.timestamp ?? ''
     if (line.type === 'compacted') {
       this.compactions++
+      this.addFeed({ at, kind: 'compact', text: '' })
       return
     }
-    const at = line.timestamp ?? ''
     // A hook's `additionalContext` reaches the rollout only as a developer message, with no event of its own.
     if (line.type === 'response_item' && payload.type === 'message' && payload.role === 'developer') {
       this.pushMail(at, textOf(payload.content))

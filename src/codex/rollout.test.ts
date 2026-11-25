@@ -71,6 +71,15 @@ describe('RolloutFold', () => {
     expect(fold([meta(), started(), compacted(), announced(), agent('Going on.'), compacted(), announced()]).summary().compactions).toBe(2)
   })
 
+  it('shows a compaction as a divider without numbers, never its summary (BTN-1703)', () => {
+    const compacted = () => line('compacted', { message: 'Summary of the work so far' })
+    const feed = fold([meta(), started(), compacted(), event({ type: 'context_compacted' }), agent('Going on.')]).summary().feed
+    expect(feed.map(({ kind, text }) => ({ kind, text }))).toEqual([
+      { kind: 'compact', text: '' },
+      { kind: 'text', text: 'Going on.' },
+    ])
+  })
+
   it('names the model of the last turn', () => {
     const context = (model: string) => line('turn_context', { cwd: CWD, model, effort: 'medium' })
     expect(fold([meta(), context('gpt-6-luna'), started(), context('gpt-6.1-sol')]).summary().model).toBe('gpt-6.1-sol')

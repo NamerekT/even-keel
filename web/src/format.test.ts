@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { formatAgo, formatClock, formatElapsed, formatFullTime, formatLineTime, formatMoment, formatSpan, formatStamp, formatTokens, minuteMarks } from './format.js'
+import { formatAgo, formatClock, formatElapsed, formatFullTime, formatLineTime, formatMoment, formatSpan, formatSavedTokens, formatStamp, formatTokens, minuteMarks } from './format.js'
 import { setLanguage } from './i18n/index.js'
 
 setLanguage('ru')
@@ -77,6 +77,19 @@ describe('formatTokens', () => {
     expect(formatTokens(599_600)).toBe('600k')
     expect(formatTokens(1_240_000)).toBe('1.2M')
     expect(formatTokens(2_000_000)).toBe('2M')
+  })
+})
+
+describe('formatSavedTokens', () => {
+  afterEach(() => setLanguage('ru'))
+
+  it('keeps a tenth of a thousand with the language decimal mark, as the compaction divider says it (BTN-1703)', () => {
+    expect(formatSavedTokens(199_318)).toBe('199,3k')
+    expect(formatSavedTokens(850)).toBe('850')
+    expect(formatSavedTokens(12_000)).toBe('12k')
+    expect(formatSavedTokens(1_250_000)).toBe('1,3M')
+    setLanguage('en')
+    expect(formatSavedTokens(199_318)).toBe('199.3k')
   })
 })
 

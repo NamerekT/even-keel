@@ -41,8 +41,13 @@ export interface FeedLine {
   at: string
   /** A service diagnostic translated by the page. */
   notice?: Notice
-  /** `image` and `failed` only in a whole transcript: the result of call `tool` holds pictures, or is an error. */
-  kind: 'text' | 'tool' | 'error' | 'prompt' | 'answer' | 'image' | 'failed'
+  /**
+   * `image` and `failed` only in a whole transcript: the result of call `tool` holds pictures, or is an error.
+   * `compact` — the context was compacted here, drawn as a divider; its summary stays out of the feed (BTN-1703).
+   */
+  kind: 'text' | 'tool' | 'error' | 'prompt' | 'answer' | 'image' | 'failed' | 'compact'
+  /** A compact line: the tokens the compaction took off the context, when the transcript tells them. */
+  saved?: number
   /**
    * For a prompt or an answer, only the user's own words: Even Keel's lines around a reply, its answers and files are
    * left out. For an image line, the name of the file the call read, empty for other tools. For a failed line, the error.
@@ -263,6 +268,8 @@ export class TranscriptFold {
     }
     if (entry.type === 'system' && entry.subtype === 'compact_boundary') {
       this.compactions++
+      const saved = savedOf(entry.compactMetadata)
+      this.addFeed({ at: entry.timestamp ?? '', kind: 'compact', text: '', ...(saved !== undefined && { saved }) })
       return
     }
     if (entry.type === 'system' && entry.subtype === 'turn_duration') {
@@ -470,6 +477,8 @@ export class TranscriptFold {
     } else if (entry.isMeta !== true && isPrompt(entry.message?.content)) {
       this.startTurn(entry.timestamp ?? '')
       if (entry.origin?.kind !== undefined && entry.origin.kind !== 'human') return
+      // The summary a compaction resumes from is written as the user's line; the divider of its boundary stands for it.
+      if (entry.isCompactSummary === true) return
       const answered = this.openAsk ?? this.strayAsk
       this.openAsk = null
       this.strayAsk = null
@@ -584,6 +593,14 @@ export class TranscriptFold {
       this.stage = next
     }
   }
+}
+
+/** The tokens a `compact_boundary` took off the context: `preTokens − postTokens`; unknown without both. */
+function savedOf(metadata: Entry['compactMetadata']): number | undefined {
+  const pre = metadata?.preTokens
+  const post = metadata?.postTokens
+  if (typeof pre !== 'number' || typeof post !== 'number' || pre <= post) return undefined
+  return pre - post
 }
 
 /**

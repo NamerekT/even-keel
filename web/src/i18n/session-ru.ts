@@ -176,6 +176,7 @@ export const sessionRu = {
     `После сброса лимита в ${at} диспетчер запустит новую сессию в той же рабочей папке.`,
   list: 'Сессии по задаче',
   compacted: (count: number) => `Контекст сжат${count > 1 ? ` ×${count}` : ''}`,
+  compactLine: (saved: string | null) => (saved === null ? 'Контекст сжат' : `Контекст сжат, сэкономлено ${saved} токенов`),
   resumed: (count: number) => `Продолжена после лимита${count > 1 ? ` ×${count}` : ''}`,
   answered: (count: number) => `Получила ответ${count > 1 ? ` ×${count}` : ''}`,
   current: 'сейчас',

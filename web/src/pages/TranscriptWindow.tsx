@@ -6,7 +6,7 @@ import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
 import { isOwnName } from '../../../src/chain/fix.js'
 import type { ContextScale, SessionView } from '../../../src/state.js'
-import { formatElapsed, formatLineTime } from '../format.js'
+import { formatElapsed, formatLineTime, formatSavedTokens } from '../format.js'
 import { formatCombo } from '../hotkeys/combo.js'
 import { useDialogHotkey, useHotkeyLayout } from '../hotkeys/useHotkeys.js'
 import { localized, say, t } from '../i18n/index.js'
@@ -19,7 +19,7 @@ import { useLoader, type LoaderPhase } from '../ui/loaderPhase.js'
 import type { ChatHandover } from '../sessionStart.js'
 import { useHandover } from './useHandover.js'
 import { PullButton } from '../ui/PullChip.js'
-import { CloseIcon, OpenOutIcon, SidebarIcon } from '../ui/icons.js'
+import { CloseIcon, CompactIcon, OpenOutIcon, SidebarIcon } from '../ui/icons.js'
 import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
@@ -601,6 +601,14 @@ function Line({ line, chat, asks, media, onOpen, sharedUrl }: LineProps) {
   if (line.share !== undefined && line.tool !== undefined) {
     const tool = line.tool
     return <ShareCard tool={tool} share={line.share} url={(index) => sharedUrl(tool, index)} media={media} onOpen={onOpen} />
+  }
+  if (line.kind === 'compact') {
+    return (
+      <span className="transcript__compact" role="separator">
+        <CompactIcon />
+        {t.session.compactLine(line.saved === undefined ? null : formatSavedTokens(line.saved))}
+      </span>
+    )
   }
   if (line.kind === 'text') return <SessionMarkdown text={line.text} />
   if (line.kind === 'image') return <Thumbs places={media.byTool.get(line.tool ?? '') ?? []} items={media.items} onOpen={onOpen} />

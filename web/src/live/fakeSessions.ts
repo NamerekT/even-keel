@@ -92,9 +92,14 @@ export const FEED_STEPS: [FeedLine['kind'], string][] = [
   ['error', 'API Error: 529 overloaded, повтор через 4 с'],
 ]
 
+/** The feed's line where the context was compacted (BTN-1703), a few lines before the end so a shot of the chat's bottom holds it. */
+const COMPACT_AT = 26
+
 export function fakeFeed(): FeedLine[] {
-  return Array.from({ length: 30 }, (_, index) => {
+  return Array.from({ length: 30 }, (_, index): FeedLine => {
+    const at = new Date(Date.now() - (30 - index) * 25_000).toISOString()
+    if (index === COMPACT_AT) return { at, kind: 'compact', text: '', saved: 199_318 }
     const [kind, text] = FEED_STEPS[index % FEED_STEPS.length]!
-    return { at: new Date(Date.now() - (30 - index) * 25_000).toISOString(), kind, text }
+    return { at, kind, text }
   })
 }

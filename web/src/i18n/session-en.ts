@@ -175,6 +175,7 @@ export const sessionEn = {
     `After the limit resets at ${at} the dispatcher starts a new session in the same working folder.`,
   list: 'Sessions of the task',
   compacted: (count: number) => `Context compacted${count > 1 ? ` ×${count}` : ''}`,
+  compactLine: (saved: string | null) => (saved === null ? 'Context compacted' : `Context compacted, saved ${saved} tokens`),
   resumed: (count: number) => `Resumed after the limit${count > 1 ? ` ×${count}` : ''}`,
   answered: (count: number) => `Answered${count > 1 ? ` ×${count}` : ''}`,
   current: 'now',

@@ -41,6 +41,14 @@ export function formatTokens(tokens: number): string {
   return `${Number((tokens / 1_000_000).toFixed(1))}M`
 }
 
+const TENTHS = localized((language) => new Intl.NumberFormat(language, { maximumFractionDigits: 1, useGrouping: false }))
+
+/** Tokens to a tenth of a thousand or a million in the page's language: "199,3k" — what a compaction saved (BTN-1703). */
+export function formatSavedTokens(tokens: number): string {
+  if (tokens < 1_000) return String(tokens)
+  return tokens < 1_000_000 ? `${TENTHS().format(tokens / 1_000)}k` : `${TENTHS().format(tokens / 1_000_000)}M`
+}
+
 export function formatClock(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000))
   const days = Math.floor(seconds / 86_400)

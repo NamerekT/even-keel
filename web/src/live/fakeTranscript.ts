@@ -36,6 +36,7 @@ export function fakeTranscript(open: Ask | null, shots: string | null): FeedLine
     },
     ...fakeShots(at),
     ...(shots === 'many' || shots === 'gone' ? fakeManyShots(at, shots === 'gone') : []),
+    { at: at(22), kind: 'compact', text: '' },
     { at: at(20), kind: 'prompt', text: 'А почему цикл не ловится раньше?' },
     ...fakeCalls(at),
     ...fakeShare(at),
