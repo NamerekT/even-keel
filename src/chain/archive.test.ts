@@ -12,6 +12,9 @@ const closed = (task: string, closedAt: string, fields: Partial<ClosedTask> = {}
   closedAt,
   profile: null,
   status: 'closed',
+  milestone: null,
+  priority: null,
+  labels: null,
   ...fields,
 })
 
@@ -30,6 +33,19 @@ describe('archivedShown', () => {
     expect(shown.map((task) => [task.id, task.title, task.status])).toEqual([
       ['ABCGH-1', 'Title of ABCGH-1', { name: 'closed', category: 'Won' }],
       ['ABCGH-5', 'Title of ABCGH-5', { name: 'Done', category: 'Won' }],
+    ])
+  })
+
+  it('gives the milestone, priority and labels the archive kept; a row archived before them has none (BTN-1588)', () => {
+    const milestone = { label: 'v0.3', targetDate: Date.parse('2026-11-30T00:00:00.000Z') }
+    const archive = [
+      closed('ABC-1', '2026-10-20T00:00:00.000Z', { milestone, priority: 'medium', labels: ['Bug'] }),
+      closed('ABC-2', '2026-10-20T00:00:00.000Z'),
+    ]
+    const shown = archivedShown(archive, 'abc', [], since)
+    expect(shown.map((task) => [task.id, task.milestone, task.priority, task.labels])).toEqual([
+      ['ABC-1', milestone, 'medium', ['Bug']],
+      ['ABC-2', null, 'none', []],
     ])
   })
 })

@@ -42,6 +42,26 @@ describe('the built-in tracker end to end', { timeout: scaled(120_000) }, () => 
     expect(run.git('log', '--format=%s', 'main').split('\n')).toEqual(expect.arrayContaining(['[ABC-1] Work', '[ABC-2] Work']))
   })
 
+  it('the last task of a milestone, launched through a profile since removed, stays on the page under its milestone with its priority and labels (BTN-1588)', async () => {
+    run.project.tracker = 'builtin'
+    run.agent.script('ABC-1', commitAndMerge('ABC-1.txt'))
+    await run.start()
+    await run.post('builtin/milestone', { project: PROJECT_ID, name: 'v1', date: null })
+    await run.post('builtin/create', { project: PROJECT_ID, title: 'Last of v1', milestone: 'v1', priority: 'high', labels: ['Bug'] })
+    await run.startChain(PROJECT_ID)
+
+    const shown = () => run.service.getState().tasks.find((task) => task.id === 'ABC-1')
+    await run.until(() => run.service.archive.some((each) => each.task === 'ABC-1'), 'ABC-1 archived')
+    // As after a move off another tracker: the launch names a profile gone, so the read no longer asks for the task by
+    // its key, and the milestone has no open task left for the read to give its closed ones.
+    for (const entry of run.service.launches) if (entry.task === 'ABC-1') entry.profile = 'a-profile-removed'
+    await run.service.refreshProject(PROJECT_ID)
+    expect(run.service.tasksByProject.get(PROJECT_ID)?.map((task) => task.id)).toEqual([])
+    expect(await statusOf(1)).toBe('Done')
+    expect(shown()?.status.category).toBe('Won')
+    expect(shown()).toMatchObject({ milestone: { label: 'v1' }, priority: 'high', labels: ['Bug'] })
+  })
+
   it('a session splits its task through the tasks server: the chain runs the blocker, then the subtask, then closes the parent (BTN-768)', async () => {
     run.project.tracker = 'builtin'
     let created = ''

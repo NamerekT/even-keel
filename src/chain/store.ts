@@ -1,6 +1,7 @@
 import { asNotice, type Notice } from '../notice/notice.js'
 import { insertList, inTransaction, replaceRows, type Db, type Queryable } from '../storage/database.js'
 import { isRecord } from '../storage/projects.js'
+import { PRIORITIES, type TaskMilestone, type TaskPriority } from '../tracker/model.js'
 import type { PostedQuestion } from '../tracker/questions.js'
 import { emptyChainState, type ActiveChain, type ChainState, type CurrentTask, type LaunchEntry, type Leftover } from './dispatcher.js'
 
@@ -186,18 +187,30 @@ export interface ClosedTask {
   profile: string | null
   /** The name of the status the tracker last gave; `null` — archived before statuses were kept. */
   status: string | null
+  /**
+   * The milestone, priority and labels the tracker last gave (BTN-1588): the page groups the task by them once the read
+   * no longer gives it. `null` — archived before they were kept: no milestone, no priority, no labels.
+   */
+  milestone: TaskMilestone | null
+  priority: TaskPriority | null
+  labels: string[] | null
 }
 
 /** A task closed again after a reopen keeps the latest title and time. */
 export async function saveClosedTask(db: Db, closed: ClosedTask): Promise<void> {
   await db.query(
-    `insert into closed_tasks (project_id, task, tracker, title, url, closed_at, profile_id, status) values ($1, $2, $3, $4, $5, $6, $7, $8)
+    `insert into closed_tasks (project_id, task, tracker, title, url, closed_at, profile_id, status, milestone, priority, labels)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      on conflict (project_id, task) do update set tracker = excluded.tracker, title = excluded.title, url = excluded.url, closed_at = excluded.closed_at,
-       profile_id = excluded.profile_id, status = excluded.status`,
-    [closed.project, closed.task, closed.tracker, closed.title, closed.url, closed.closedAt, closed.profile, closed.status],
+       profile_id = excluded.profile_id, status = excluded.status, milestone = excluded.milestone, priority = excluded.priority, labels = excluded.labels`,
+    [
+      closed.project, closed.task, closed.tracker, closed.title, closed.url, closed.closedAt, closed.profile, closed.status,
+      closed.milestone === null ? null : JSON.stringify(closed.milestone), closed.priority, closed.labels === null ? null : JSON.stringify(closed.labels),
+    ],
   )
 }
 
+/** Every column by `*`: the frozen samples of versions before step 85 (BTN-1588) are read through it too, without its three. */
 export async function closedTasks(db: Queryable): Promise<ClosedTask[]> {
   const { rows } = await db.query<{
     project_id: string
@@ -208,7 +221,10 @@ export async function closedTasks(db: Queryable): Promise<ClosedTask[]> {
     closed_at: string
     profile_id: string | null
     status: string | null
-  }>('select project_id, task, tracker, title, url, closed_at, profile_id, status from closed_tasks order by closed_at, project_id, task')
+    milestone?: string | null
+    priority?: string | null
+    labels?: string | null
+  }>('select * from closed_tasks order by closed_at, project_id, task')
   return rows.map((row) => ({
     project: row.project_id,
     task: row.task,
@@ -218,5 +234,24 @@ export async function closedTasks(db: Queryable): Promise<ClosedTask[]> {
     closedAt: row.closed_at,
     profile: row.profile_id,
     status: row.status,
+    milestone: milestoneOf(row.milestone ?? null),
+    priority: PRIORITIES.find((each) => each === row.priority) ?? null,
+    labels: labelsOf(row.labels ?? null),
   }))
+}
+
+function milestoneOf(text: string | null): TaskMilestone | null {
+  const value: unknown = text === null ? null : JSON.parse(text)
+  if (!isRecord(value) || typeof value.label !== 'string') return null
+  const order = value.trackerOrder
+  return {
+    label: value.label,
+    targetDate: typeof value.targetDate === 'number' ? value.targetDate : null,
+    ...(isRecord(order) && typeof order.source === 'string' && typeof order.value === 'number' ? { trackerOrder: { source: order.source, value: order.value } } : {}),
+  }
+}
+
+function labelsOf(text: string | null): string[] | null {
+  const value: unknown = text === null ? null : JSON.parse(text)
+  return Array.isArray(value) ? value.filter((each): each is string => typeof each === 'string') : null
 }

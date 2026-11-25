@@ -3,7 +3,8 @@ import type { ClosedTask } from './store.js'
 
 /**
  * The project's tasks of the archive closed since `since` that its trackers no longer give (BTN-66): a feed or a profile
- * gone, a task deleted. The page shows them as closed by the status the tracker last gave.
+ * gone, a task deleted, the last open task of the milestone closed. The page shows them as closed by the status, and
+ * under the milestone with the priority and labels, the tracker last gave (BTN-1588).
  */
 export function archivedShown(archive: readonly ClosedTask[], project: string, listed: readonly Task[], since: Date): Task[] {
   const ids = new Set(listed.map((task) => task.id))
@@ -18,9 +19,9 @@ export function archivedShown(archive: readonly ClosedTask[], project: string, l
             blockedBy: [],
             parent: null,
             subtasks: 0,
-            milestone: null,
-            priority: 'none' as const,
-            labels: [],
+            milestone: closed.milestone,
+            priority: closed.priority ?? 'none',
+            labels: closed.labels ?? [],
             estimate: null,
             question: false,
           },

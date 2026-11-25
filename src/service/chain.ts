@@ -140,7 +140,10 @@ export type ChainContext = Pick<ServiceContext,
 export function archiveClosed(ctx: ChainContext, project: string, task: string): void {
   const { tracker, profile, url } = ctx.taskSource(project, task)
   const known = ctx.tasksByProject.get(project)?.find((each) => each.id === task)
-  const closed = { project, task, tracker, title: known?.title ?? '', url, closedAt: new Date().toISOString(), profile, status: known?.status.name ?? null }
+  const closed = {
+    project, task, tracker, title: known?.title ?? '', url, closedAt: new Date().toISOString(), profile, status: known?.status.name ?? null,
+    milestone: known?.milestone ?? null, priority: known?.priority ?? null, labels: known?.labels ?? null,
+  }
   ctx.writes.add(`the archive of ${task}`, saveClosedTask(ctx.db, closed))
   const at = ctx.archive.findIndex((each) => each.project === project && each.task === task)
   if (at >= 0) ctx.archive.splice(at, 1)

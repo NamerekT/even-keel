@@ -430,4 +430,12 @@ export const STEPS: readonly string[] = [
     seen_at text not null
   );
   `,
+  // What the page groups and marks an archived task by (BTN-1588, `docs/storage.md`): its milestone (`TaskMilestone`
+  // JSON), priority and labels (a JSON list) as the tracker last gave them. Rows archived before keep null: no
+  // milestone, no priority, no labels.
+  `
+  alter table closed_tasks add column milestone text;
+  alter table closed_tasks add column priority text;
+  alter table closed_tasks add column labels text;
+  `,
 ]

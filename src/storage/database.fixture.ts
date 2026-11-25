@@ -64,6 +64,9 @@ export async function readsWhole(db: Queryable, version = 3, schemaVersion = DAT
       closedAt: '2026-10-22T08:00:00.000Z',
       profile: '55555555-5555-4555-8555-555555555555',
       status: 'closed',
+      ...(version >= 85
+        ? { milestone: { label: 'v0.3', targetDate: Date.parse('2026-11-30T00:00:00.000Z') }, priority: 'medium', labels: ['Bug'] }
+        : { milestone: null, priority: null, labels: null }),
     }] : []),
   ])
 }

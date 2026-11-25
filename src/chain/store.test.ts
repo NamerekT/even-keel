@@ -10,6 +10,7 @@ import {
   saveChainState,
   saveClosedTask,
   saveQuestions,
+  type ClosedTask,
 } from './store.js'
 import { notice, textNotice } from '../notice/notice.js'
 import { mirrorDefinitions, putSettings } from '../settings/store.js'
@@ -177,10 +178,16 @@ describe('chain store', { timeout: 30_000 }, () => {
 
   it('keeps one closed task per project and number, with the latest title and time', async () => {
     const store = await db()
-    const closed = { project: 'id-abc', task: 'ABC-1', tracker: 'huly', title: 'First', url: null, closedAt: '2026-10-01T00:00:00.000Z', profile: null, status: 'Done' }
+    const closed: ClosedTask = {
+      project: 'id-abc', task: 'ABC-1', tracker: 'huly', title: 'First', url: null, closedAt: '2026-10-01T00:00:00.000Z', profile: null, status: 'Done',
+      milestone: null, priority: null, labels: null,
+    }
     await saveClosedTask(store, closed)
     await saveClosedTask(store, { ...closed, task: 'ABC-2', closedAt: '2026-10-02T00:00:00.000Z' })
-    const reopened = { title: 'Reopened', url: 'https://example.com/ABC-1', closedAt: '2026-10-03T00:00:00.000Z', profile: 'profile-1', status: 'Shipped' }
+    const reopened = {
+      title: 'Reopened', url: 'https://example.com/ABC-1', closedAt: '2026-10-03T00:00:00.000Z', profile: 'profile-1', status: 'Shipped',
+      milestone: { label: 'v0.2', targetDate: null }, priority: 'low' as const, labels: ['UI'],
+    }
     await saveClosedTask(store, { ...closed, ...reopened })
     expect(await closedTasks(store)).toEqual([
       { ...closed, task: 'ABC-2', closedAt: '2026-10-02T00:00:00.000Z' },
