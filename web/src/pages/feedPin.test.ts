@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterScroll } from './feedPin.js'
+import { afterScroll, feedRaised } from './feedPin.js'
 
 describe('afterScroll', () => {
   it('puts a pinned feed at its end again when content grew before the scroll event came', () => {
@@ -35,5 +35,28 @@ describe('afterScroll', () => {
   it('leaves a free feed free far from its end, input or not', () => {
     expect(afterScroll(false, true, 2000, 1500, 300)).toBe('free')
     expect(afterScroll(false, false, 2000, 1500, 300)).toBe('free')
+  })
+})
+
+describe('feedRaised', () => {
+  it('stays down while the feed is pinned, however far the gap', () => {
+    expect(feedRaised(false, true, 400)).toBe(false)
+  })
+
+  it('stays down when the reader left the end by less than the margin', () => {
+    // A field that shrank by three lines here would bring the end back into the slack and pin the feed again.
+    expect(feedRaised(false, false, 60)).toBe(false)
+  })
+
+  it('rises once the reader took the feed up past the margin', () => {
+    expect(feedRaised(false, false, 200)).toBe(true)
+  })
+
+  it('stays raised while the feed is free, even back inside the margin', () => {
+    expect(feedRaised(true, false, 40)).toBe(true)
+  })
+
+  it('comes down when the feed is pinned again', () => {
+    expect(feedRaised(true, true, 0)).toBe(false)
   })
 })

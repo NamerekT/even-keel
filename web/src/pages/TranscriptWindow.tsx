@@ -144,7 +144,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   const listRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const composerRef = useRef<ComposerHandle>(null)
-  const { pinned, pin, handlers: pinHandlers } = useFeedPin(listRef)
+  const { pinned, pin, handlers: pinHandlers, raised } = useFeedPin(listRef)
   /** How many lines of the session's transcript are read. */
   const count = useRef(0)
   const [recorded, setLines] = useState<FeedLine[] | null | undefined>(undefined)
@@ -365,7 +365,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
         {panelShown && chat !== undefined && cardTask !== null && (
           <ChatTaskPanel project={chat.project} task={cardTask} beat={chat.session.lamp} onCard={leaveForCard} slide={taskPanel.moved} leaving={!panel} onLeft={taskPanel.left} />
         )}
-        <div className="session-window__body" {...drop.handlers}>
+        <div className="session-window__body" data-feed-raised={raised || undefined} {...drop.handlers}>
           {drop.over && (
             <div className="chat__drop" aria-hidden="true">
               {t.session.chat.drop}

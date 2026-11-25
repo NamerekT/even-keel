@@ -138,7 +138,7 @@ Selecting an option never advances by itself. Enter that confirms IME input does
 
 On a phone or tablet, Enter starts a new line: use the buttons to send or go to the next question.
 
-When a reply cannot go yet, the empty box and the tip of the send button say why. The box grows to five lines and then scrolls. On a phone it stops at four, and while you type the line under the box steps aside to leave the feed more room; a draft you leave folds to its first line until you tap it.
+When a reply cannot go yet, the empty box and the tip of the send button say why. The box grows to five lines and then scrolls. On a phone, while you type, the line under the box steps aside to leave the feed more room; a draft you leave keeps its five lines while you are at the end of the chat and folds to two when you scroll up to read, coming back when you scroll down to the end.
 
 ## Project chats
 

@@ -787,14 +787,25 @@ button.tools__toggle:hover {
     font-size: var(--text-16);
   }
 
+  /* Five lines of a draft, focused or not; two while the reader is up the feed (BTN-1700, `feedRaised`). */
   .chat__text {
     min-height: calc(1lh + 2 * var(--space-4));
-    max-height: calc(4lh + 2 * var(--space-4));
+    max-height: calc(5lh + 2 * var(--space-4));
+    transition: max-height var(--motion-fold) ease-out;
   }
 
   .chat__text:not(:focus):not(:placeholder-shown) {
-    height: calc(1lh + 2 * var(--space-4));
     overflow: hidden;
+  }
+
+  [data-feed-raised] .chat__text:not(:focus):not(:placeholder-shown) {
+    max-height: calc(2lh + 2 * var(--space-4));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat__text {
+      transition: none;
+    }
   }
 
   /* The footer and the accept banner are for looking at the session, not for typing: they wait out the keyboard. */

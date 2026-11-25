@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 
 /** How far from its end, px, a feed still counts as at its end. */
 const PINNED_SLACK = 24
@@ -19,17 +19,34 @@ export function afterScroll(pinned: boolean, reader: boolean, top: number, place
   return gap < PINNED_SLACK ? 'pinned' : 'free'
 }
 
-const editable = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+/**
+ * How far above its end, px, the reader must take a feed before the phone's chat field shrinks to its short draft: more
+ * than the three lines the field gives back plus the slack, or the shrink itself would bring the end back and pin the feed.
+ */
+const RAISE_MARGIN = 120
+
+/**
+ * Whether the reader took the feed up from its end (BTN-1700): the phone's unfocused field with a draft then shows two
+ * lines, not five. It rises only past the margin and comes down only when the feed is pinned again, so the field's own
+ * change of height never flips it back.
+ */
+export function feedRaised(raised: boolean, pinned: boolean, gap: number): boolean {
+  if (pinned) return false
+  return raised || gap > RAISE_MARGIN
+}
+
+const editable =(target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
 
 /**
  * A feed that keeps to its end until the reader scrolls up: `pin` after a change, `handlers` on the scroll box. A press
- * on the box (its scrollbar too) counts as the reader's until it is let go.
+ * on the box (its scrollbar too) counts as the reader's until it is let go. `raised` — see `feedRaised`.
  */
 export function useFeedPin(ref: RefObject<HTMLElement | null>) {
   const pinned = useRef(true)
   const placed = useRef(0)
   const inputAt = useRef(Number.NEGATIVE_INFINITY)
   const pressed = useRef(false)
+  const [raised, setRaised] = useState(false)
   const touched = () => {
     inputAt.current = performance.now()
   }
@@ -43,9 +60,11 @@ export function useFeedPin(ref: RefObject<HTMLElement | null>) {
     const list = ref.current
     if (list === null) return
     const reader = pressed.current || performance.now() - inputAt.current < INPUT_MS
-    const now = afterScroll(pinned.current, reader, list.scrollTop, placed.current, list.scrollHeight - list.scrollTop - list.clientHeight)
+    const gap = list.scrollHeight - list.scrollTop - list.clientHeight
+    const now = afterScroll(pinned.current, reader, list.scrollTop, placed.current, gap)
     pinned.current = now !== 'free'
     placed.current = list.scrollTop
+    setRaised((was) => feedRaised(was, pinned.current, gap))
     if (now === 'end') pin()
   }
 
@@ -77,5 +96,5 @@ export function useFeedPin(ref: RefObject<HTMLElement | null>) {
       touched()
     },
   }
-  return { pinned, pin, handlers }
+  return { pinned, pin, handlers, raised }
 }
