@@ -529,7 +529,8 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       const own = ownSession(fixTaskOf(id))
       const session = own !== null && sessions.some((run) => run.sessionId === own.sessionId) ? own : null
       const row = isCarryName(id) ? fixRow(id, carryTitle(state, episode), 'done', null, session, sessions) : fixRow(id, fixTitle(episode), 'fixed', null, session, sessions)
-      return { ...row, fix: episode }
+      const machines = taskMachines(state, sessions, undefined)
+      return { ...row, fix: episode, ...(machines !== undefined && { machines }) }
     }
     const task = byId.get(id)
     const seen = taskSession(state.sessions, id) ?? null
@@ -609,8 +610,11 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     const named = ownSession(name)
     const seen = named !== null && (name === current || sessions.some((run) => run.sessionId === named.sessionId)) ? named : null
     const session = seen !== null && idleBeforePrompt(seen, now) ? { ...seen, lamp: 'working' as const } : seen
+    // With machines the fix runs in the lane `MainFix.fixer` chose, not always the head one (BTN-1572).
+    const machines = taskMachines(state, sessions, laneOfTask(lanes, name))
     return {
       ...fixRow(id, title, taskLamp(undefined, session), rows[at]?.milestone ?? null, session, sessions),
+      ...(machines !== undefined && { machines }),
       open: true,
       current: name === current,
       limit: name === current ? pending : null,
