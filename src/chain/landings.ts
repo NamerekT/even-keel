@@ -1,6 +1,6 @@
 import { englishOf, fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { LandOutcome } from '../git/landing.js'
-import type { ForwardOutcome } from '../git/sync.js'
+import type { ForwardOutcome, TransientFailure } from '../git/sync.js'
 import type { TaskMoves } from '../machine/tasks.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, Landing } from './model.js'
 import { isOwnName } from './fix.js'
@@ -12,6 +12,12 @@ const RETRY_MS = [30_000, 120_000]
 const REMOTE_WAIT_MS = 600_000
 /** How long a step waits for a landing: one that merges, checks or waits for a machine off the link goes on behind the chain. */
 export const LANDING_WAIT_MS = 2_000
+
+const LANDING_RETRY_WHY: Record<TransientFailure, string> = {
+  network: 'the remote is out of reach for its landing',
+  server: "the remote's server answered its landing with an error",
+  race: 'the fetch of its landing met a parallel update of the refs',
+}
 
 const FORWARD_LINES: Record<ForwardOutcome, string> = {
   forwarded: 'is at',
@@ -234,7 +240,7 @@ export class Landings {
         record.failures = failures
         record.retryAt = new Date(this.deps.now().getTime() + wait).toISOString()
         if (failures > RETRY_MS.length) record.waitingRemote = true
-        const why = outcome.transient === 'server' ? "the remote's server answered its landing with an error" : 'the remote is out of reach for its landing'
+        const why = LANDING_RETRY_WHY[outcome.transient]
         this.deps.log(`chain: ${task}: ${why}, tried again in ${wait / 1000} s: ${englishOf(outcome.failure)}`)
         this.deps.save(this.state)
         return true

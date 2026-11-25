@@ -22,14 +22,21 @@ const SERVER_ERROR =
 /** A server hook declined the push: whatever the hook printed, that is the remote's decision. */
 const HOOK_DECLINED = /\[remote rejected\][^\n]*hook declined/
 
-/** Why a sync failed for a while only: a remote out of reach, or its server answered with an error. */
-export type TransientFailure = 'network' | 'server'
+/**
+ * Git of this clone could not update a local ref, its remote-tracking one mostly, because another process of the same
+ * clone was updating it at that moment (BTN-1720): git's own `error:` line, never the remote's `[remote rejected]`.
+ */
+const REF_RACE = /^error: (?:fetching ref \S+ failed|cannot lock ref|failed to lock|update_ref failed|Unable to create '[^'\n]*\.lock')/m
+
+/** Why a sync failed for a while only: a remote out of reach, its server answered with an error, a parallel ref update. */
+export type TransientFailure = 'network' | 'server' | 'race'
 
 /** Whether a sync failed so that a later try may go through (BTN-267, BTN-1654); `null` — a failure a person deals with. */
 export function transientFailure(failure: Notice): TransientFailure | null {
   if (!(failure.code === 'sync.fetch' || failure.code === 'sync.push' || failure.code === 'sync.alias')) return null
   const detail = failure.detail ?? ''
   if (UNREACHABLE.test(detail)) return 'network'
+  if (REF_RACE.test(detail)) return 'race'
   return SERVER_ERROR.test(detail) && !HOOK_DECLINED.test(detail) ? 'server' : null
 }
 

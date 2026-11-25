@@ -3,6 +3,7 @@ import type { SessionStart } from '../agent/contract.js'
 import type { HandoffSession } from '../chain/relay.js'
 import { DEFAULT_BRANCH, idPrefixOf, isPlain, ownerOf, readersOf } from '../config.js'
 import { withCredentials, type GitCredential } from '../git/credentials.js'
+import { remoteCallsInTurn } from '../git/in-turn.js'
 import { runGit } from '../git/run.js'
 import type { Git } from '../git/types.js'
 import { projectOfFolder } from './git-credentials.js'
@@ -129,10 +130,13 @@ export function machineContext(host: MachineHost, brief: BriefCopy, tell: LaterT
     readers,
     tell,
     writes,
-    git: withCredentials(runGit, async (folder, urls) => {
-      const project = projectOfFolder(config().projects, folder)
-      return project === undefined ? [] : tell.credentials(project, urls)
-    }),
+    // A landing and a forward to another machine's push meet in the main checkout (BTN-1720): their fetches go in turn.
+    git: remoteCallsInTurn(
+      withCredentials(runGit, async (folder, urls) => {
+        const project = projectOfFolder(config().projects, folder)
+        return project === undefined ? [] : tell.credentials(project, urls)
+      }),
+    ),
     briefed: launchBriefs(),
     branchOf: (project) => config().settings[project]?.branch ?? DEFAULT_BRANCH,
     pullRequestsOn: (project) => config().settings[project]?.pullRequests ?? false,

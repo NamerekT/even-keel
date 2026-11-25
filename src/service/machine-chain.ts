@@ -322,7 +322,12 @@ function landingCheck(ctx: MachineContext, project: string, repo: string): Merge
   return { run: () => runCheck(commands, ctx.taskRun(project, repo, ctx.choiceFor(project).account)) }
 }
 
-const FAILED_LINE = { network: 'the remote is out of reach', server: "the remote's server answered with an error", refused: 'refused' } as const
+const FAILED_LINE = {
+  network: 'the remote is out of reach',
+  server: "the remote's server answered with an error",
+  race: 'the fetch met a parallel update of the refs',
+  refused: 'refused',
+} as const
 
 function landingLine(outcome: LandOutcome): string {
   if (outcome.state === 'landed') return 'pushed'
