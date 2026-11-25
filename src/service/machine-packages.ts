@@ -1,8 +1,6 @@
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { sessionBase } from '../agent/env.js'
 import { CLAUDE } from '../claude/name.js'
-import { CODEX } from '../codex/name.js'
 import { home as dataHome, root } from '../locations.js'
 import { Packages } from '../packages/service.js'
 import { trackerKeyRules } from '../tracker/adapters.js'
@@ -20,13 +18,6 @@ export function wireMachinePackages(ctx: MachineContext): Packages {
     globalDir: ctx.homes.global.dir,
     ownDir: root,
     skillsDir: join(ctx.stateDir, 'skills'),
-    skillRoots: () => [
-      { dir: join(ctx.homes.global.dir, 'skills'), from: CLAUDE },
-      { dir: join(process.env.CODEX_HOME ?? join(homedir(), '.codex'), 'skills'), from: CODEX },
-      { dir: join(homedir(), '.agents', 'skills'), from: CODEX },
-    ],
-    // A machine on the network (`planFirst`) has none of the hub's `state/skills/`: its skills package is the hub's (BTN-1565).
-    ...(ctx.planFirst === true && { skillsFromHub: (install: string) => ctx.tell.skills(install) }),
     claudeConfigs: ctx.claudeConfigs,
     rules: trackerKeyRules(),
     tracker: (project) => ctx.brief.tracker(project),

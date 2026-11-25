@@ -4,7 +4,7 @@ import type { HubStore, MachineRecord } from './hub-store.js'
 import {
   API_VERSION, HEARTBEAT_MS, INVITE_MS, MISSED_PULSES, credentialsOf, encodeToken,
   type Command, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type JoinAnswer, type JoinPost, type MachineAbout, type MachineEvent, type MachineHello, type McpAnswer, type McpPost,
-  type McpRequest, type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type CredentialsAnswer, type CredentialsPost, type SkillsAnswer, type SkillsPost, type GitAnswer, type GitPost, type GitRequest,
+  type McpRequest, type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type CredentialsAnswer, type CredentialsPost, type GitAnswer, type GitPost, type GitRequest,
 } from './protocol.js'
 
 /** A connection string just issued: the line is shown once, the hub keeps only the hash of its secret. */
@@ -36,8 +36,6 @@ export interface HubHandlers {
   tally?(machine: string, rows: unknown): Promise<TallyAnswer>
   /** The tokens of a project's remotes for one git call of the machine (BTN-1541); without a handler, none. */
   credentials?(machine: string, project: string, urls: string[]): Promise<CredentialsAnswer> | CredentialsAnswer
-  /** The files of the hub's install of the user's skills package (BTN-1565); without a handler, none. */
-  skills?(machine: string, install: string): Promise<SkillsAnswer> | SkillsAnswer
   /** One request of git to a project's memory repository (BTN-1648); without a handler, 404. */
   git?(machine: string, project: string, request: GitRequest): Promise<GitAnswer> | GitAnswer
 }
@@ -267,12 +265,6 @@ export class HubEnd {
   async credentials(authorization: string | undefined, post: CredentialsPost): Promise<CredentialsAnswer | Refusal> {
     const handler = this.options.handlers.credentials
     return this.asked(authorization, post.connection, (machine) => handler?.(machine, post.project, post.urls) ?? { credentials: [] })
-  }
-
-  /** The skills of the hub's install of the user's skills package (BTN-1565): as `credentials`. */
-  async skills(authorization: string | undefined, post: SkillsPost): Promise<SkillsAnswer | Refusal> {
-    const handler = this.options.handlers.skills
-    return this.asked(authorization, post.connection, (machine) => handler?.(machine, post.install) ?? { skills: null })
   }
 
   /** A request of the machine's git to a project's memory repository (BTN-1648): as `credentials`. */

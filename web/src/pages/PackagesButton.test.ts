@@ -35,7 +35,6 @@ const view = (cells: Record<string, PackageCell>): PackagesView => ({
   available: [],
   marketplace: { name: 'even-keel', dir: 'C:\\even-keel', known: true },
   imports: {},
-  skills: { package: 'my-skills@even-keel-skills', list: [] },
 })
 
 const render = (packages: PackagesView) =>

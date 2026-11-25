@@ -1,5 +1,6 @@
 import { readFileSync, watch as watchFolder } from 'node:fs'
 import { join } from 'node:path'
+import { linkAgentSkills } from '../../account/agent-skills.js'
 import { configStore, settleStores } from '../../account/share.js'
 import { notice } from '../../notice/notice.js'
 import type { ConfigConflictView } from '../../state.js'
@@ -33,7 +34,7 @@ export interface ConfigCopyDeps {
  * The user's global configuration kept as a working copy of the configuration repository on the hub and on every
  * machine (BTN-1690, `docs/sessions/memory.md`): `configStore` synced by a `MemorySync` of kind `config`, with
  * `CLAUDE.md` and `settings.json` of the global folder carried in and out of it by `ConfigFiles`. The stores of before
- * the config store are moved into it first (`settleStores`).
+ * the config store are moved into it first (`settleStores`), and its skills are linked into `~/.agents/skills`.
  */
 export class ConfigCopy {
   readonly folder: string
@@ -54,13 +55,17 @@ export class ConfigCopy {
       watch: deps.watch,
       pushed: deps.pushed,
       beforeCommit: () => files.takeIn(),
-      afterSync: () => files.giveOut(),
+      afterSync: () => {
+        files.giveOut()
+        this.linkSkills()
+      },
       conflictsSaved: deps.conflictsSaved,
     })
   }
 
   start(): Promise<SyncOutcome> {
     settleStores(this.deps.globalDir, (line) => this.deps.log(line))
+    this.linkSkills()
     try {
       this.unwatch = (this.deps.watch ?? watchGlobal)(this.deps.globalDir, () => this.sync.touched(), false)
     } catch (error) {
@@ -95,6 +100,15 @@ export class ConfigCopy {
   /** A person's choice for a conflict of `conflicts` (`MemorySync.settle`); `false` — it is settled or changed already. */
   settle(file: string, hash: string, take: 'kept' | 'other'): Promise<boolean> {
     return this.sync.settle(file, hash, take)
+  }
+
+  /** The store's skills for Codex, Copilot and OpenCode, at the start and after every sync (`linkAgentSkills`). */
+  private linkSkills(): void {
+    try {
+      linkAgentSkills(this.deps.globalDir, this.deps.log)
+    } catch (error) {
+      this.deps.log(`skills: ~/.agents/skills not linked: ${(error as Error).message}`)
+    }
   }
 
   stop(): void {

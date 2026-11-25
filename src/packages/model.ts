@@ -92,6 +92,34 @@ export function retireCheckpoint(file: PackagesFile, bridge: string): string | u
 }
 
 /**
+ * The package the page once wrapped the user's own skills into (BTN-339), retired by BTN-1691: Claude reads the skills
+ * from its account folders, Codex, Copilot and OpenCode from `~/.agents/skills` (`linkAgentSkills`).
+ */
+export const OWN_SKILLS_PACKAGE = pluginKey('my-skills', 'even-keel-skills')
+
+/**
+ * Drops the retired package of the user's own skills outright — the record, its place in every project's set and every
+ * pin — since its marketplace is gone too. Answers whether it was there; its files are the caller's to remove.
+ */
+export function retireOwnSkills(file: PackagesFile): boolean {
+  if (file.packages[OWN_SKILLS_PACKAGE] === undefined) return false
+  delete file.packages[OWN_SKILLS_PACKAGE]
+  for (const [project, set] of Object.entries(file.projects)) {
+    set.on = set.on.filter((each) => each !== OWN_SKILLS_PACKAGE)
+    set.off = set.off.filter((each) => each !== OWN_SKILLS_PACKAGE)
+    if (set.on.length === 0 && set.off.length === 0 && Object.keys(set.settings).length === 0) delete file.projects[project]
+  }
+  for (const [project, tasks] of Object.entries(file.pins)) {
+    for (const [task, installs] of Object.entries(tasks)) {
+      delete installs[OWN_SKILLS_PACKAGE]
+      if (Object.keys(installs).length === 0) delete tasks[task]
+    }
+    if (Object.keys(tasks).length === 0) delete file.pins[project]
+  }
+  return true
+}
+
+/**
  * Puts the built-in plugin package (BTN-986) back as every project gets it: in the catalog, not removed, on by default,
  * in no project's own set. Answers what it had to repair, empty when nothing.
  */

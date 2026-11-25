@@ -6,7 +6,6 @@ import { withCredentials, type GitCredential } from '../git/credentials.js'
 import { runGit } from '../git/run.js'
 import type { Git } from '../git/types.js'
 import { projectOfFolder } from './git-credentials.js'
-import type { SkillsCopy } from '../packages/skills.js'
 import type { SlotUse } from '../git/slot.js'
 import { AccountIdentities } from '../limits/identity.js'
 import { folderHere } from '../machine/account-here.js'
@@ -42,8 +41,6 @@ export interface MachineTell {
   changed(): void
   /** The tokens of a project's HTTPS remotes for one git call, asked of the hub (BTN-1541); `[]` — none or no link. */
   credentials(project: string, urls: readonly string[]): Promise<GitCredential[]>
-  /** The skills of the hub's install of the user's skills package (BTN-1565); `undefined` — no link, `null` — the hub has none. */
-  skills(install: string): Promise<SkillsCopy | null | undefined>
 }
 
 export type LaterTell = MachineTell & { connect(tell: MachineTell): void }
@@ -109,7 +106,6 @@ export function laterTell(): LaterTell {
     transcript: (sessionId) => to?.transcript(sessionId),
     changed: () => to?.changed(),
     credentials: async (project, urls) => (to === undefined ? [] : to.credentials(project, urls)),
-    skills: async (install) => to?.skills(install),
   }
 }
 

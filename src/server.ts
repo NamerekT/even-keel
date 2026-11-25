@@ -17,7 +17,7 @@ import { englishOf, fail, type Notice } from './notice/notice.js'
 import { oauthCallback, PROFILE_QUERIES } from './profiles/routes.js'
 import { guardedServer } from './server-guard.js'
 import { cleanMachineSettings } from './service/machine-settings.js'
-import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, cloneOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, joinRequestsOf, labelList, memoryFoldersOf, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, skillsOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
+import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, cloneOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, joinRequestsOf, labelList, memoryFoldersOf, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
 import { eventWriter, readJsonBody, sendFailure, sendFile, sendJson, serveStatic } from './server-response.js'
 import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
@@ -209,7 +209,6 @@ const COMMANDS: Record<string, Command> = {
   'packages/marketplace': ({ packages }) => packages.addMarketplace(),
   'packages/plugin': ({ packages }, body) => packages.addPlugin(textOf(body.plugin, 'plugin'), textOf(body.marketplace, 'marketplace'), optionalProjectOf(body)),
   'packages/server': ({ packages }, body) => packages.addServer(nameOf(body), serverOf(body.server), optionalProjectOf(body)),
-  'packages/skills': ({ packages }, body) => packages.wrapSkills(skillsOf(body), optionalProjectOf(body)),
   'packages/import': ({ packages }, body) => packages.importRepo(projectOf(body)),
   'packages/project': ({ packages }, body) => packages.choose(projectOf(body), nameOf(body), choiceOf(body.choice)),
   'packages/default': ({ packages }, body) => packages.setDefault(nameOf(body), flagOf(body)),

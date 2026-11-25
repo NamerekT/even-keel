@@ -76,7 +76,6 @@ export function hubHandlers(host: NetworkHost): HubHandlers {
     tally: (machine, rows) => peers.tally?.(machine, rows) ?? Promise.resolve({ taken: false }),
     credentials: (machine, project, urls) =>
       peers.credentials?.(machine, project, urls, host.clones.has(`${machine}\0${project}`)) ?? Promise.resolve({ credentials: [] }),
-    skills: (machine, install) => peers.skills?.(machine, install) ?? { skills: null },
     git: (machine, project, request) => peers.git?.(machine, project, request) ?? { status: 404, contentType: 'text/plain', body: '' },
     online: (machine) => changed(machine, true),
     offline: (machine) => {

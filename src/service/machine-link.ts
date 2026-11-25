@@ -446,7 +446,6 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       hook: (machine, request) => hubHooks.relay(machine, request),
       tally: (machine, rows) => machineTally.take(machine, rows),
       credentials: gitCredentialsOf,
-      skills: (_machine, install) => ({ skills: ctx.packages.skillsOf(install) }),
       git: hubMemoryGit({
         placed: (project, machine) => placedIn(ctx.db, project, machine),
         bound: (machine, project) => memoryFolders.allows(machine, project),
