@@ -12,6 +12,7 @@ export type MachineChatsContext = Pick<MachineContext,
   | 'agentOf'
   | 'agentStatus'
   | 'branchOf'
+  | 'chatSettingsFor'
   | 'chatTitles'
   | 'configStore'
   | 'daemons'
@@ -27,16 +28,10 @@ export type MachineChatsContext = Pick<MachineContext,
 >
 
 /**
- * A Claude chat's only `--settings` (BTN-1401): the hour-long cache whatever `cacheTtl` says, since nothing keeps a
- * chat warm while its person is away; as a flag it outranks the account's and the project's settings files.
- */
-const CHAT_SETTINGS = JSON.stringify({ promptCacheTtl: '1h' })
-
-/**
- * The machine's side of the project chats (BTN-1230, `docs/sessions/project-chats.md`): a session started like a hand
- * one, in the project's folder with the account folder's own plugins and MCP servers, without the chain's packages,
- * `--settings` (but `CHAT_SETTINGS`) or trimmed tools. The hub sends the whole choice with every call; the machine
- * keeps nothing of a chat.
+ * The machine's side of the project chats (BTN-1230, `docs/sessions/project-chats.md`): a chain session without a task
+ * (BTN-1694) in the project's folder — the project's packages behind the gateway, not the account's or the folder's own
+ * plugins and servers, and a Claude chat's own `--settings` (`chatSettingsFor`). Every start takes the set current then.
+ * The hub sends the whole choice with every call; the machine keeps nothing of a chat.
  */
 export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
   const startOf = (project: string, chat: string, folder: string, start: Omit<ChatStart, 'account'>, agent: string): SessionStart => {
@@ -50,10 +45,8 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       protection: config.settings[project]?.protection ?? config.protection,
       mainBranch: ctx.branchOf(project),
       ...(agent !== CLAUDE && config.execution[agent] === 'bypass' ? { bypassSandbox: true } : {}),
-      ...(agent === CLAUDE ? { settings: CHAT_SETTINGS } : {}),
-      // The built-in plugin's hooks take the chat's mail mid-turn (BTN-1346) and report a Claude chat's inbox (BTN-1371).
-      plugins: ctx.packages.chatPlugins(agent === CLAUDE),
-      ownPlugins: true,
+      ...(agent === CLAUDE ? { settings: ctx.chatSettingsFor(project, folder) } : {}),
+      ...ctx.packages.chatStartOf(project, agent),
       ...(isPlain(config, project) ? { outsideRepo: true } : {}),
     }
   }

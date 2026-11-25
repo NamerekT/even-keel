@@ -1,6 +1,6 @@
 # Packages
 
-Plugins and MCP servers are a set per project, kept by Even Keel and given to chain sessions by flags at every launch: a pinned version installed with one button, updated with another, while a running task stays on the version it started with.
+Plugins and MCP servers are a set per project, kept by Even Keel and given to chain sessions and the page's [project chats](chat.md#project-chats) by flags at every launch: a pinned version installed with one button, updated with another, while a running task stays on the version it started with.
 
 A package you turn on or off for the project reaches the next session of every task, a postponed one too.
 

@@ -112,6 +112,24 @@ describe('a machine elsewhere end to end', { timeout: scaled(180_000) }, () => {
     expect(launches[0]!.cwd.startsWith(elsewhere.checkout + sep) || launches[0]!.cwd.startsWith(`${elsewhere.checkout}/`)).toBe(true)
   })
 
+  it("starts a page chat on the machine elsewhere with the project's packages: its tasks server answers through the gateway without a task (BTN-1694)", async () => {
+    const machine = await connected()
+    const card = await run.answer<{ id: string }>('chats/create', { project: PROJECT_ID, account: ACCOUNT, machine })
+    let listed = ''
+    run.agent.script(card.id, async (turn) => {
+      listed = await turn.tool('tasks', 'tasks_list', { status: ['all'] })
+      return { say: 'One task.' }
+    })
+    await run.answer('chats/send', { id: card.id, text: 'What is open?' })
+    await run.until(() => listed !== '', 'the chat called the tasks server')
+
+    const launches = run.agent.calls.filter((call) => call.kind === 'launch')
+    expect(launches.map((call) => call.task)).toEqual([card.id])
+    expect(launches[0]!.cwd === elsewhere.checkout || launches[0]!.cwd.startsWith(elsewhere.checkout + sep)).toBe(true)
+    await run.until(() => run.service.machineLink.network.holderOf(launches[0]!.sessionId) === elsewhere.machine, 'the machine holds the chat session')
+    expect(listed).toContain('Work elsewhere')
+  })
+
   it("reads the transcript and the checkpoint of a session elsewhere on that machine, not in the hub's own folders (BTN-1574)", async () => {
     const gate = new Gate()
     run.agent.script('ABC-1', async (turn) => {

@@ -11,7 +11,12 @@ const home = { key: session.account, agent: CLAUDE }
 const start = { prompt: 'Continue', model: null, effort: null }
 
 const bridge = { package: 'agent-bridge@even-keel', dir: '/cache/agent-bridge', name: 'agent-bridge', marketplace: 'ek-1', marketplaceFile: '/cache/m.json', servers: ['memory'] }
-const serverless = { ...bridge, dir: '/cache/agent-bridge-serverless', servers: [] }
+const huly = { ...bridge, package: 'huly@even-keel', dir: '/cache/huly', name: 'huly', servers: ['huly'] }
+const set = {
+  plugins: [bridge, huly],
+  mcp: [{ name: 'huly', plugin: 'huly', url: 'http://127.0.0.1:4748/mcp/project/huly@even-keel@b/huly' }],
+}
+const CHAT_SETTINGS = '{"promptCacheTtl":"1h","enabledPlugins":{"own@market":false}}'
 
 function setup(status: 'idle' | 'busy', question?: string, hung = false, agent = CLAUDE, config: Record<string, unknown> = {}) {
   const holds = new ResumeHolds()
@@ -26,17 +31,18 @@ function setup(status: 'idle' | 'busy', question?: string, hung = false, agent =
   const stopIn = vi.fn()
   const resumeIn = vi.fn().mockResolvedValue(session.sessionId)
   const launchIn = vi.fn().mockResolvedValue(session.sessionId)
-  const chatPlugins = vi.fn((withoutServers: boolean) => [withoutServers ? serverless : bridge])
+  const chatStartOf = vi.fn((_project: string, _agent: string) => set)
+  const chatSettingsFor = vi.fn((_project: string, _folder: string) => CHAT_SETTINGS)
   const chats = wireMachineChats({
     monitor, liveView, agentStatus, stopIn, resumeIn, launchIn, toldInbox, mailbox,
     homeOf: () => ({ ...home, agent }), agentOf: () => ({ reply }), daemons: { prepare: vi.fn() },
     configStore: { current: { settings: {}, execution: {}, projects: {}, ...config } }, branchOf: () => 'dev',
-    packages: { chatPlugins },
+    packages: { chatStartOf }, chatSettingsFor,
   } as unknown as MachineChatsContext)
   return {
     send: (prompt = start.prompt) => chats.send('project', chat, { ...start, prompt }),
     launch: () => chats.launch('project', '/project', chat, { ...start, account: session.account }),
-    holds, reply, toldInbox, mailbox, stopIn, resumeIn, launchIn, chatPlugins,
+    holds, reply, toldInbox, mailbox, stopIn, resumeIn, launchIn, chatStartOf, chatSettingsFor,
   }
 }
 
@@ -112,39 +118,33 @@ describe('a message to an existing project chat', () => {
     expect(resumeIn).not.toHaveBeenCalled()
   })
 
-  it.each(['codex', 'copilot', 'opencode'])('starts and resumes a %s session with the built-in plugin beside its own (BTN-1346)', async (agent) => {
-    const { launch, send, launchIn, resumeIn } = setup('idle', undefined, false, agent)
+  it.each([CLAUDE, 'codex', 'copilot', 'opencode'])("starts and resumes a %s chat with the project's packages behind the gateway, as a chain session (BTN-1694)", async (agent) => {
+    const { launch, send, launchIn, resumeIn, chatStartOf } = setup('idle', undefined, false, agent)
     await launch()
     await send()
-    const plugin = expect.objectContaining({ plugins: [bridge], ownPlugins: true })
-    expect(launchIn).toHaveBeenCalledWith(expect.anything(), plugin, 'project')
-    expect(resumeIn).toHaveBeenCalledWith(expect.anything(), session, plugin)
+    const packages = expect.objectContaining(set)
+    expect(launchIn).toHaveBeenCalledWith(expect.anything(), packages, 'project')
+    expect(resumeIn).toHaveBeenCalledWith(expect.anything(), session, packages)
+    expect(chatStartOf).toHaveBeenCalledTimes(2)
+    expect(chatStartOf).toHaveBeenCalledWith('project', agent)
+    expect(launchIn.mock.calls[0]![1]).not.toHaveProperty('ownPlugins')
   })
 
-  it('starts and resumes a Claude session with the built-in plugin copied without its servers (BTN-1371)', async () => {
-    const { launch, send, launchIn, resumeIn, chatPlugins } = setup('idle')
+  it("starts and resumes a Claude chat with the chat's settings of its folder (BTN-1401, BTN-1694)", async () => {
+    const { launch, send, launchIn, resumeIn, chatSettingsFor } = setup('idle')
     await launch()
     await send()
-    const plugin = expect.objectContaining({ plugins: [serverless], ownPlugins: true })
-    expect(launchIn).toHaveBeenCalledWith(expect.anything(), plugin, 'project')
-    expect(resumeIn).toHaveBeenCalledWith(expect.anything(), session, plugin)
-    expect(chatPlugins).toHaveBeenCalledWith(true)
-    expect(launchIn.mock.calls[0]![1]).not.toHaveProperty('mcp')
-  })
-
-  it('starts and resumes a Claude chat on the hour-long cache whatever the chain cache is (BTN-1401)', async () => {
-    const { launch, send, launchIn, resumeIn } = setup('idle', undefined, false, CLAUDE, { cacheTtl: '5m', settings: { project: { cacheTtl: '5m' } } })
-    await launch()
-    await send()
-    const hour = expect.objectContaining({ settings: JSON.stringify({ promptCacheTtl: '1h' }) })
-    expect(launchIn).toHaveBeenCalledWith(expect.anything(), hour, 'project')
-    expect(resumeIn).toHaveBeenCalledWith(expect.anything(), session, hour)
+    const settings = expect.objectContaining({ settings: CHAT_SETTINGS })
+    expect(launchIn).toHaveBeenCalledWith(expect.anything(), settings, 'project')
+    expect(resumeIn).toHaveBeenCalledWith(expect.anything(), session, settings)
+    expect(chatSettingsFor).toHaveBeenCalledWith('project', '/project')
   })
 
   it.each(['codex', 'copilot', 'opencode'])('gives a %s chat no Claude settings', async (agent) => {
-    const { launch, launchIn } = setup('idle', undefined, false, agent)
+    const { launch, launchIn, chatSettingsFor } = setup('idle', undefined, false, agent)
     await launch()
     expect(launchIn.mock.calls[0]![1]).not.toHaveProperty('settings')
+    expect(chatSettingsFor).not.toHaveBeenCalled()
   })
 
   it('tries neither the agent nor the inbox of a hung session', async () => {

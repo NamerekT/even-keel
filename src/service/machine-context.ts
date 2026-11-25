@@ -19,7 +19,7 @@ import type { Occupant } from '../sessions/occupants.js'
 import type { SetupRun } from '../sessions/setup.js'
 import { Writes } from '../storage/database.js'
 import { TASKS_SERVER } from '../taskmcp/server.js'
-import { createSessionSettings } from '../tools/sessionSettings.js'
+import { createChatSettings, createSessionSettings } from '../tools/sessionSettings.js'
 import { parseTaskId } from '../tracker/model.js'
 import { wireAgentExtras, wireChoiceFor, wireNoAccountFor, wirePlanFor } from './accounts.js'
 import { launchBriefs, wireWithProject } from './chain-prompts.js'
@@ -69,6 +69,7 @@ export interface MachineOwn {
   agentExtras: ReturnType<typeof wireAgentExtras>
   noAccountFor: ReturnType<typeof wireNoAccountFor>
   settingsFor: ReturnType<typeof createSessionSettings>
+  chatSettingsFor: ReturnType<typeof createChatSettings>
   withProject: ReturnType<typeof wireWithProject>
   taskNote: (task: string) => string
   slotsSeen: Map<string, number>
@@ -175,6 +176,7 @@ export function machineContext(host: MachineHost, brief: BriefCopy, tell: LaterT
   lazy(own, 'planFor', () => wirePlanFor({ ...choosing, homes: host.homes, hasAccount: host.hasAccount, unattended: () => brief.unattended, promptLanguage: own.promptLanguage }))
   lazy(own, 'agentExtras', () => wireAgentExtras({ configStore, runOfTask: own.runOfTask, branchOf: own.branchOf, packages: host.packages }))
   lazy(own, 'settingsFor', () => createSessionSettings({ config, packages: host.packages, globalDir: host.homes.global.dir, trim: () => brief.trimTools, projectOf: own.projectOf, git: runGit, branchOf: own.branchOf }))
+  lazy(own, 'chatSettingsFor', () => createChatSettings({ config, packages: host.packages, globalDir: host.homes.global.dir }))
   lazy(own, 'withProject', () => wireWithProject({ configStore, promptLanguage: own.promptLanguage }))
   const ctx = new Proxy(own, {
     get: (target, name: string) => (name in target ? target[name as keyof MachineOwn] : host[name as keyof MachineHost]),

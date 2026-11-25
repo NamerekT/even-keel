@@ -110,11 +110,6 @@ export interface SessionStart {
   /** Optional. The project's plugin packages, for an agent that reads Claude Code plugins. */
   plugins?: SessionPlugin[]
   /**
-   * Optional. The account's own plugins stay on beside `plugins`: a project chat's session, which gets only the
-   * built-in one (BTN-1346). Otherwise Codex turns off every plugin of its `config.toml` the set does not bring.
-   */
-  ownPlugins?: boolean
-  /**
    * Optional. The agent's own memory stays out of the session, neither read nor written: the CLI check, whose transcript
    * is saved as a sample (BTN-724). Codex reads it; Claude's is off by the check's environment and `--settings`.
    */

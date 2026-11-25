@@ -144,7 +144,7 @@ When a reply cannot go yet, the empty box and the tip of the send button say why
 
 ## Project chats
 
-Besides the sessions of tasks, a project has chats of its own: a session without a task, to talk about the project, ask a question about its code or plan the next tasks. A chat runs in the project's main folder on the machine that has it, with everything a session you start there by hand has: the folder's settings and MCP servers and the account's plugins. Nothing of the chain's set applies to it.
+Besides the sessions of tasks, a project has chats of its own: a session without a task, to talk about the project, ask a question about its code or plan the next tasks. A chat runs in the project's main folder on the machine that has it, with the project's [packages](packages.md), the same plugins and MCP servers a chain session gets, on any machine and with any agent: the account's own plugins and MCP servers and the folder's `.mcp.json` stay out, as in the chain. Its packages are always their current versions, and a chat already running takes a changed set the next time its session restarts, keeping its history. Unlike a task's session, a chat keeps all its skills ("Trim the tools" does not apply) and has no handoff note. Sessions you start yourself in a terminal or VS Code keep their own settings.
 
 The chats are the **Chats** tab of the project page, between Backlog and Settings (Settings is the gear icon there). Its badge is amber with the number of chats waiting for you — a question or a permission — and blue with the number of answers you have not opened yet. On a phone the tabs take the first row under the project's name, and the tab opens over the whole screen.
 

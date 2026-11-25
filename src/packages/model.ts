@@ -186,10 +186,11 @@ export function settingsOf(file: PackagesFile, project: string, name: string): R
 
 /**
  * What a session of the task runs on: every package the project has on now (BTN-706), each on the install the task is
- * pinned to while that install is there, else on the current one. A pin holds versions, not the set.
+ * pinned to while that install is there, else on the current one. A pin holds versions, not the set. `task` null — a
+ * project chat (BTN-1694): no pin, the current installs.
  */
-export function installsFor(file: PackagesFile, project: string, task: string, builtIn?: string): Record<string, string> {
-  const pinned = file.pins[project]?.[task] ?? {}
+export function installsFor(file: PackagesFile, project: string, task: string | null, builtIn?: string): Record<string, string> {
+  const pinned = (task === null ? undefined : file.pins[project]?.[task]) ?? {}
   const installs: Record<string, string> = {}
   const old = checkpointPackage(builtIn)
   const held = old === undefined ? undefined : file.packages[old]?.installs.find((each) => each.id === pinned[old])

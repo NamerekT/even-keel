@@ -327,13 +327,8 @@ export class CodexCli {
   private async pluginArgs(home: AccountHome, start: SessionStart, cwd: string): Promise<string[]> {
     if (start.plugins === undefined) return []
     try {
-      return await this.plugins.args(home, cwd, start.plugins, start.ownPlugins === true)
+      return await this.plugins.args(home, cwd, start.plugins)
     } catch (error) {
-      // A project chat's plugin brings only its mail mid-turn: without it the chat still runs, refused mid-turn.
-      if (start.ownPlugins === true) {
-        console.warn(`codex: ${start.name} goes without its plugins: ${(error as Error).message}`)
-        return []
-      }
       if (error instanceof UntrustedHooks) {
         const version = await this.version(this.envOf(home)).then((out) => out.trim(), () => 'codex of an unknown version')
         const hooks = error.hooks.map((hook) => `${hook.key} ${hook.status}`).join(', ')
