@@ -146,6 +146,17 @@ describe('Landing of a session merge', () => {
     expect(landingIn(context.dispatcher.state)).toEqual({ task: 'ABC-1', rounds: 0 })
   })
 
+  it('tries a fetch that met a parallel update of the refs again after 30 s, without a pause (BTN-1720)', async () => {
+    const detail = 'From https://github.com/john/repo\n   4c596cce..d225f911  dev        -> origin/dev\nerror: fetching ref refs/remotes/origin/dev failed: incorrect old value provided'
+    const race: LandOutcome = { state: 'failed', transient: 'race', failure: notice('sync.fetch', { remote: 'origin' }, { detail }) }
+    const { dispatcher, relays, log } = await running(lander(race).land)
+
+    expect(landingIn(dispatcher.state)).toEqual({ task: 'ABC-1', rounds: 0, failures: 1, retryAt: '2026-09-26T12:00:30.000Z' })
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, current: { task: 'ABC-1' } })
+    expect(relays).toEqual([])
+    expect(log.some((line) => line.includes('ABC-1: the fetch of its landing met a parallel update of the refs, tried again in 30 s'))).toBe(true)
+  })
+
   it('pauses on a refusal of the remote with its git text, without a round', async () => {
     const refusal: LandOutcome = { state: 'failed', transient: null, failure: notice('sync.push', { remote: 'origin', main: 'main' }, { detail: 'pre-receive hook declined' }) }
     const { dispatcher, relays } = await running(lander(refusal).land)

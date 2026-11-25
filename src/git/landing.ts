@@ -17,7 +17,7 @@ export interface LandRed {
  *   up to it (BTN-1583);
  * - `returned` — main of `remote` does not merge cleanly (`files`) or the check of the merge is red (`red`): the local
  *   main is rolled back to before the session's merge, for the session to resolve;
- * - `failed` — for a while (`transient`: a remote out of reach, its server failing) or a refusal only a person can
+ * - `failed` — for a while (`transient`: a remote out of reach, its server failing, a parallel update of the clone's refs) or a refusal only a person can
  *   deal with; main is left as it is.
  */
 export type LandOutcome =

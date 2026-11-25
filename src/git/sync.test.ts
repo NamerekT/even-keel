@@ -194,6 +194,17 @@ describe('transientFailure', () => {
     expect(transientFailure(push('error: RPC failed; HTTP 503 curl 22 The requested URL returned error: 503'))).toBe('server')
   })
 
+  it("takes a fetch that met another process's update of a local ref as a race (BTN-1720)", () => {
+    const fetch = (detail: string) => notice('sync.fetch', { remote: 'origin' }, { detail })
+    const race = 'From https://github.com/john/repo\n   4c596cce..d225f911  dev        -> origin/dev\nerror: fetching ref refs/remotes/origin/dev failed: incorrect old value provided'
+    expect(transientFailure(fetch(race))).toBe('race')
+    expect(transientFailure(fetch("error: cannot lock ref 'refs/remotes/origin/dev': is at d225f911 but expected 4c596cce"))).toBe('race')
+    expect(transientFailure(fetch("error: Unable to create '/repo/.git/refs/remotes/origin/dev.lock': File exists.\nerror: failed to lock ref 'refs/remotes/origin/dev'"))).toBe('race')
+    expect(transientFailure(notice('sync.alias', { exit: 1 }, { detail: race }))).toBe('race')
+    expect(transientFailure(push(' ! [remote rejected] dev -> dev (cannot lock ref)'))).toBeNull()
+    expect(transientFailure(push(' ! [remote rejected] dev -> dev (incorrect old value provided)'))).toBeNull()
+  })
+
   it('leaves a refusal of the remote and anything but a fetch or a push', () => {
     expect(transientFailure(push(rejected.out))).toBeNull()
     expect(transientFailure(push('remote: Permission denied\nfatal: unable to access: The requested URL returned error: 403'))).toBeNull()
