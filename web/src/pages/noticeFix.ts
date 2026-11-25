@@ -43,6 +43,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'storage.backupFailed': { to: 'shared', tab: 'backup' },
   'storage.backupCheckFailed': { to: 'shared', tab: 'backup' },
   'memory.mirrorPrivate': { to: 'shared', tab: 'backup' },
+  'memory.mirrorBehind': { to: 'shared', tab: 'backup' },
   'agent.copyMissing': { to: 'shared', tab: 'models' },
   'agent.copyFailed': { to: 'shared', tab: 'models' },
   'machines.copyMissing': { to: 'shared', tab: 'models' },

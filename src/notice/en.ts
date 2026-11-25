@@ -889,6 +889,8 @@ export const en = {
   'config.memoryMirror': (p: { value: string }) => `config: memoryMirror must be an address git can push to, with no spaces and no leading dash, or empty, got ${p.value}`,
   'config.memoryMirrorPassword': () => 'config: memoryMirror holds a password: give the address without it and let git sign in by an SSH key or its credential helper',
   'memory.mirrorPrivate': (p: { address: string }) => `The project memory is copied to ${p.address}. Even Keel cannot tell whether that repository is private: make sure nobody else can read it, since the memory may hold personal notes and details of your projects.`,
+  'memory.mirrorBehind': (p: { address: string; projects: string }) =>
+    `The memory mirror ${p.address} no longer gets the memory of ${p.projects}: its branch has commits this hub lacks. Merge or delete that branch there, or set another mirror.`,
   'config.backupDirFile': (p: { value: string }) => `config: backup.dir ${p.value} is a file, not a folder`,
   'config.backupKeep': (p: { value: string; max: string }) => `config: backup.keep must be a whole number of copies from 1 to ${p.max}, got ${p.value}`,
   'config.mergeInto': (p: { project: string; into: string }) =>

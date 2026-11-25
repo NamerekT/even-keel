@@ -51,7 +51,8 @@ export interface SyncOutcome {
  * A sync commits the folder's edits, fetches, rebases onto the remote (`MEMORY.md` merges by union and is tidied after
  * by `reindex`; a record changed on both sides by `settleConflicts`) and pushes. A folder that is missing, empty or not
  * a repository becomes one and takes the remote's history, so an empty folder never deletes a record: only a commit
- * of a deletion does. Without the remote the commits stay local until a sync reaches it. One sync runs at a time.
+ * of a deletion does. An empty folder with an empty remote commits nothing. Without the remote the commits stay local
+ * until a sync reaches it. One sync runs at a time.
  */
 export class MemorySync {
   private readonly git: Git
@@ -227,7 +228,8 @@ export class MemorySync {
   /** One round with the remote: fetch, take its history, tidy, push; `rejected` — someone pushed in between. */
   private async exchange(outcome: SyncOutcome): Promise<'pushed' | 'rejected' | 'failed'> {
     const { folder } = this.deps
-    const fetched = await this.run('fetch', '-q', 'origin')
+    // `--prune`: a remote made anew drops the old `origin/main`, else HEAD would look pushed already (BTN-1674).
+    const fetched = await this.run('fetch', '-q', '--prune', 'origin')
     if (fetched.code !== 0) {
       this.deps.log(`memory: ${folder} cannot reach its repository, the commits stay here: ${fetched.out.split('\n')[0]}`)
       return 'failed'
@@ -241,8 +243,10 @@ export class MemorySync {
         return 'failed'
       }
     } else if (remote && !(await this.rebase(upstream, outcome))) return 'failed'
-    await this.tidy(outcome.withheld)
+    // Nothing here and nothing there: no root commit of `.gitattributes` alone, or a copy with history would have to
+    // rebase all of it onto that (BTN-1674). The first copy with a file pushes its history as it is.
     if (!(await this.hasHead())) return 'pushed'
+    await this.tidy(outcome.withheld)
     if (remote && (await this.must('rev-list', '--count', `${upstream}..HEAD`)) === '0') return 'pushed'
     const pushed = await this.run('push', '-q', 'origin', `HEAD:refs/heads/${MEMORY_BRANCH}`)
     if (pushed.code === 0) {

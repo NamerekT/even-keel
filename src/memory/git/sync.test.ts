@@ -70,7 +70,7 @@ describe('MemorySync', { timeout: 120_000 }, () => {
   it('starts a missing folder, pushes its first commit and gives a second copy the same files', async () => {
     const a = copy('a')
     expect((await a.sync.start()).reached).toBe(true)
-    expect(await inBare()).toEqual(['.gitattributes'])
+    expect((await runGit(bare, ['rev-parse', '--verify', '-q', MEMORY_BRANCH])).code).not.toBe(0)
     write(a, 'tone.md', record('tone', 'Short answers'))
     expect(await a.sync.sync()).toMatchObject({ committed: ['tone.md'], reached: true })
     expect(await inBare()).toEqual(['.gitattributes', 'MEMORY.md', 'tone.md'])
@@ -80,6 +80,28 @@ describe('MemorySync', { timeout: 120_000 }, () => {
     await b.sync.start()
     expect(files(b)).toEqual(['.gitattributes', 'MEMORY.md', 'tone.md'])
     expect(read(b, '.gitattributes')).toBe('MEMORY.md merge=union\n')
+  })
+
+  it('leaves an empty repository to a copy with history, which pushes it as it is (BTN-1674)', async () => {
+    const a = copy('a')
+    await a.sync.start()
+    write(a, 'tone.md', record('tone', 'Short answers'))
+    await a.sync.sync()
+    write(a, 'style.md', record('style', 'Plain words'))
+    await a.sync.sync()
+    const history = await git(a.folder, 'log', '--format=%H %cn', MEMORY_BRANCH)
+    rmSync(bare, { recursive: true, force: true })
+    await git(root, 'init', '-q', '--bare', '-b', MEMORY_BRANCH, bare)
+
+    const hub = copy('hub')
+    expect(await hub.sync.start()).toMatchObject({ committed: [], reached: true })
+    expect((await runGit(bare, ['rev-parse', '--verify', '-q', MEMORY_BRANCH])).code).not.toBe(0)
+    expect((await a.sync.sync()).reached).toBe(true)
+    expect(await git(bare, 'log', '--format=%H %cn', MEMORY_BRANCH)).toBe(history)
+    expect(await git(a.folder, 'log', '--format=%H %cn', MEMORY_BRANCH)).toBe(history)
+    await hub.sync.sync()
+    expect(files(hub)).toEqual(['.gitattributes', 'MEMORY.md', 'style.md', 'tone.md'])
+    expect(await git(hub.folder, 'log', '--format=%H %cn', MEMORY_BRANCH)).toBe(history)
   })
 
   it('merges edits of two copies, MEMORY.md by union, and tidies its lines', async () => {

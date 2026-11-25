@@ -103,6 +103,29 @@ describe('MemoryHub (BTN-1646)', { timeout: 120_000 }, () => {
     expect(hub.mirrorView()).toEqual({ code: 'memory.mirrorPrivate', params: { address: mirror } })
   })
 
+  it("makes a lost repository from the mirror's branch of the project, its history as it was (BTN-1674)", async () => {
+    const mirror = join(root, 'mirror.git')
+    await runGit(root, ['init', '--bare', '-q', mirror])
+    const withMirror = () => new MemoryHub({ db, dir, folders: () => folders, author: 'hub', log: (line) => logs.push(line), mirror: () => mirror, schedule: () => () => {}, watch: () => () => {} })
+    hub.stop()
+    hub = withMirror()
+    await hub.apply()
+    await hub.within(ONE, (folder) => writeFileSync(join(folder!, 'tone.md'), memoryFile({ name: 'tone', description: 'short', type: 'user', body: 'x' })), true)
+    const mirrored = async () => (await runGit(root, ['ls-remote', mirror, `refs/heads/${ONE}`])).out.split('\t')[0]
+    await vi.waitFor(async () => expect(await mirrored()).toMatch(/^[0-9a-f]{40}$/), { timeout: 30_000, interval: 100 })
+    const history = (await runGit(join(dir, `${ONE}.git`), ['log', '--format=%H', MEMORY_BRANCH])).out
+    hub.stop()
+    rmSync(join(root, 'one'), { recursive: true, force: true })
+    rmSync(dir, { recursive: true, force: true })
+
+    hub = withMirror()
+    await hub.apply()
+    await hub.syncAll()
+    expect((await runGit(join(dir, `${ONE}.git`), ['log', '--format=%H', MEMORY_BRANCH])).out).toBe(history)
+    expect(existsSync(join(root, 'one', 'tone.md'))).toBe(true)
+    expect(logs).toContain(`memory: ${ONE} has a new repository ${join(dir, `${ONE}.git`)}, its history taken from the mirror`)
+  })
+
   it('gives a folder two projects name to the first, telling it once, and stops the copy of a project gone', async () => {
     mkdirSync(join(root, 'one'))
     symlinkSync(join(root, 'one'), join(root, 'alias'), 'junction')
