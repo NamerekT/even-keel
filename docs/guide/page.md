@@ -141,7 +141,7 @@ The button needs Even Keel running as a service from a clean clone; otherwise th
 
 Even Keel asks GitHub for releases only once you allow it: the first start's setup asks, and **Settings** → **Interface** changes it.
 
-In full — [Updating](setup.md#updating).
+In full — [Updating](updating.md#updating).
 
 ## Reporting a problem
 
@@ -162,7 +162,7 @@ On Windows `even-keel install` makes Even Keel start at your sign-in, with no ad
 
 It runs while you are signed in; for a machine nobody signs in to, a clone can still be a Windows service.
 
-In full — [As a service](setup.md#as-a-service).
+In full — [As a service](service.md#as-a-service).
 
 ## Hotkeys
 

@@ -114,4 +114,4 @@ label you put on yourself ([the chain](chain.md#which-tasks-enter-the-chain)).
   and environments, so a workflow a session changed cannot read them.
 - **Give the service its own OS account or machine.** A session then reaches only what that account has: a git
   credential that pushes only to the project's repositories, no other projects, no personal files. On Windows you
-  enter the service's account yourself ([as a service](setup.md#as-a-service)); Even Keel never takes its password.
+  enter the service's account yourself ([as a service](service.md#as-a-service)); Even Keel never takes its password.

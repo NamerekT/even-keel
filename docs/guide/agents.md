@@ -11,7 +11,7 @@ Even Keel runs sessions on four agent CLIs: Claude Code and, in preview, Codex, 
 
 ## CLI copies
 
-Each agent's sessions run either on the CLI you installed or on Even Keel's own copy of the version it was checked against. The choice is per provider; the list of what Even Keel relies on in each CLI is in [setup](setup.md#the-clis-it-depends-on).
+Each agent's sessions run either on the CLI you installed or on Even Keel's own copy of the version it was checked against. The choice is per provider; the list of what Even Keel relies on in each CLI is in [setup](clis.md#the-clis-it-depends-on).
 
 **CLI version → Yours**, the default, uses the CLI you manage; nothing is downloaded.
 
@@ -25,7 +25,7 @@ Blue progress bands under the header and on the agent card show downloaded bytes
 
 A failed download switches that provider to Yours and offers a retry; without a CLI, the agent shows a copyable installation command and **Check again**. Where installing is impossible, it offers **Switch to checked** and **Download the latest** instead.
 
-See [setup](setup.md#the-clis-it-depends-on).
+See [setup](clis.md#the-clis-it-depends-on).
 
 During first-run setup, CLI downloads and sign-in state appear on the agent cards. Usage limit warnings appear after setup; a CLI on a version Even Keel was not checked against is an entry of the event log (**Log** in the header), not a banner.
 

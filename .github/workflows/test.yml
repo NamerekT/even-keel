@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   # A push of a commit this workflow already passed — a release's push to main, a fast-forward of one branch to
-  # another's commit — runs no other job and comes out green (docs/ci.md, "A commit already green").
+  # another's commit — runs no other job and comes out green (docs/ci/workflows.md, "A commit already green").
   already-green:
     runs-on: ubuntu-latest
     permissions:

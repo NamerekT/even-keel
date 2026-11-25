@@ -78,7 +78,7 @@ The merge closes the task in the tracker; a close without a merge returns it ski
 
 A task that changed nothing in the repository (research, work already in `main`) is closed without a pull request.
 
-It takes the token the remote's CI takes — a GitHub, GitLab or Forgejo profile on `/settings` → **Trackers and CI** — which then needs to write pull requests ([Token permissions](setup.md#token-permissions)); for an HTTPS remote the branch itself is pushed with that token too, and for an SSH one on the service account's keys.
+It takes the token the remote's CI takes — a GitHub, GitLab or Forgejo profile on `/settings` → **Trackers and CI** — which then needs to write pull requests ([Token permissions](tracker-several.md#token-permissions)); for an HTTPS remote the branch itself is pushed with that token too, and for an SSH one on the service account's keys.
 
 Without a remote on GitHub, GitLab or Forgejo and a token for it the mode is not turned on: the switch in **Settings** → **Check and CI** stays off and says which is missing, and when it is the token, **Add profile** beside it opens **Trackers and CI** with a new profile of the remote's forge on the remote's address.
 

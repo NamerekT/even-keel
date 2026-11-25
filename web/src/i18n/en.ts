@@ -135,7 +135,7 @@ export const en: Messages = {
     revert: (version: string) => `Revert to ${version}`,
     revertHint: (version: string) => `Brings back ${version}, the version this one was updated from, the same way an update goes.`,
     revertStorage: (version: string) =>
-      `No button: this version moved the storage to a new format, which ${version} cannot read. Going back is only from the .bak copies, and everything written since the update is lost — the steps are in docs/guide/setup.md, "Going back". Better wait for a revert release.`,
+      `No button: this version moved the storage to a new format, which ${version} cannot read. Going back is only from the .bak copies, and everything written since the update is lost — the steps are in docs/guide/updating.md, "Going back". Better wait for a revert release.`,
     progressSettling: (mode: 'update' | 'revert', version: string, projects: string[]) =>
       `${mode === 'update' ? 'Updating to' : 'Reverting to'} ${version}: waiting for ${projects.join(', ')}`,
     progressRunning: (mode: 'update' | 'revert', version: string) => `${mode === 'update' ? 'Updating to' : 'Reverting to'} ${version}…`,

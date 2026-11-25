@@ -15,7 +15,7 @@ type Stage = 'form' | 'offer'
 /** The camera and the QR decoder load only on "Scan a QR". */
 const QrScanDialog = lazy(async () => ({ default: (await import('./QrScanDialog.js')).QrScanDialog }))
 
-const INVITE_GUIDE = 'https://github.com/NamerekT/even-keel/blob/main/docs/guide/setup.md#signing-in-on-a-new-device'
+const INVITE_GUIDE = 'https://github.com/NamerekT/even-keel/blob/main/docs/guide/remote.md#signing-in-on-a-new-device'
 
 /** A wrong key is the key field's strip; a passkey that failed is the band of the whole form. */
 interface Failure {

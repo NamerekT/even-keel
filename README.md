@@ -71,7 +71,7 @@ Parallel agents decide on their own what an unfinished task will look like, hand
 
 ## Before you run it
 
-- **Even Keel depends on undocumented behaviour of the agents' CLIs**, none of it a public API. Last checked against **Claude Code 2.1.330**, **codex-cli 0.171.0**, **OpenCode 1.19.6** and **Copilot CLI 1.0.114**; the page warns when yours is another version and can run sessions on the checked one instead. A CLI update may break a part of Even Keel until it is adapted — please report it when it does: **Report a problem** in the page's gear menu opens the issue form with your versions filled in. Details: [setup](docs/guide/setup.md#the-clis-it-depends-on).
+- **Even Keel depends on undocumented behaviour of the agents' CLIs**, none of it a public API. Last checked against **Claude Code 2.1.330**, **codex-cli 0.171.0**, **OpenCode 1.19.6** and **Copilot CLI 1.0.114**; the page warns when yours is another version and can run sessions on the checked one instead. A CLI update may break a part of Even Keel until it is adapted — please report it when it does: **Report a problem** in the page's gear menu opens the issue form with your versions filled in. Details: [setup](docs/guide/clis.md#the-clis-it-depends-on).
 - **Your subscription, the providers' terms.** A project runs on one account per provider, and a spent limit is waited out, never got round by switching accounts. Even Keel does not share, pool or resell access. Each agent's sessions fall under its provider's terms, listed below.
 - **Sessions don't ask you before each tool call** (Claude in auto mode, Codex with `--approve-for-me` or, if you choose, with no sandbox). Protection refuses destructive commands; set up any other permissions and hooks in your agents' settings before you start a chain. Whoever writes a task's text steers its session: read [whose text a session reads and what it may do](docs/guide/security.md) before a chain runs on a public repository.
 - **Your sign-in stays with the CLIs.** Even Keel reads only expiry dates, the e-mail and the plan; tokens are never copied or sent anywhere. An API key you add goes only to its own provider.
@@ -91,15 +91,15 @@ Parallel agents decide on their own what an unfinished task will look like, hand
 
 On a server or NAS, [install with Docker Compose](docs/guide/docker.md) and update by pulling the image.
 
-`npx even-keel` sets it up as your own user, no administrator needed: a start at sign-in with a tray icon on Windows, a systemd user unit on Linux, a launchd agent on macOS. It restarts Even Keel if it fails; stopping it leaves running sessions alone. `even-keel install` sets it up again (in PowerShell `even-keel.cmd`, [why](docs/guide/setup.md#windows-powershell)). Logs, the data folder, running it in a terminal or from a clone: [setup](docs/guide/setup.md#as-a-service).
+`npx even-keel` sets it up as your own user, no administrator needed: a start at sign-in with a tray icon on Windows, a systemd user unit on Linux, a launchd agent on macOS. It restarts Even Keel if it fails; stopping it leaves running sessions alone. `even-keel install` sets it up again (in PowerShell `even-keel.cmd`, [why](docs/guide/service.md#windows-powershell)). Logs, the data folder, running it in a terminal or from a clone: [setup](docs/guide/service.md#as-a-service).
 
 ## Updating
 
-The gear menu in the header tells you when a newer release is out: **Update** waits for the chains to settle, installs it and restarts the service, and brings back the version you had if anything fails. By hand: `even-keel update`; the next release candidate: `npx even-keel@next`. In full: [setup](docs/guide/setup.md#updating).
+The gear menu in the header tells you when a newer release is out: **Update** waits for the chains to settle, installs it and restarts the service, and brings back the version you had if anything fails. By hand: `even-keel update`; the next release candidate: `npx even-keel@next`. In full: [setup](docs/guide/updating.md#updating).
 
 ## Uninstall
 
-`even-keel uninstall` removes the service and nothing else, then `npm uninstall --global even-keel` the package; delete the data folder yourself. What stays in your repositories and agents' config: [setup](docs/guide/setup.md#uninstall).
+`even-keel uninstall` removes the service and nothing else, then `npm uninstall --global even-keel` the package; delete the data folder yourself. What stays in your repositories and agents' config: [setup](docs/guide/uninstall.md#uninstall).
 
 ## Configuration
 

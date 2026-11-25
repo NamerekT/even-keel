@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => ({
     maxWorkers: process.env.CI ? undefined : '50%',
     // Vitest empties every stylesheet by default, `?raw` too; the design test (`web/src/design.test.ts`) reads them raw.
     css: { include: [/\.css\?raw$/] },
-    // `E2E_SLOW_RUNNER` of the macOS e2e job: the default timeouts scaled, one retry of a test that timed out (docs/ci.md, "macOS").
+    // `E2E_SLOW_RUNNER` of the macOS e2e job: the default timeouts scaled, one retry of a test that timed out (docs/ci/workflows.md, "macOS").
     ...slowRunnerConfig(process.env),
   },
 }))

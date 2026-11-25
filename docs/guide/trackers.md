@@ -1,6 +1,6 @@
 # Trackers
 
-The chain takes its tasks from a tracker: Huly, GitHub, GitLab, Linear, Jira Cloud, Forgejo or Even Keel's built-in one. Connecting a tracker and what each profile asks for is in [setup](setup.md#trackers-and-plugins). This page says how a tracker's statuses, links and comments map onto the chain, and how one project takes tasks from more than one tracker.
+The chain takes its tasks from a tracker: Huly, GitHub, GitLab, Linear, Jira Cloud, Forgejo or Even Keel's built-in one. Connecting a tracker and what each profile asks for is in [setup](tracker-builtin.md#trackers-and-plugins). This page says how a tracker's statuses, links and comments map onto the chain, and how one project takes tasks from more than one tracker.
 
 - [GitLab](#gitlab)
 - [Jira Cloud](#jira-cloud)
@@ -17,7 +17,7 @@ On GitLab Free there is no blocking order; Premium and Ultimate provide native b
 
 Uploaded pictures and files from descriptions and comments appear on the task card, including in private projects; pictures appear in the text too. Files attached to a trusted answer in GitLab reach the session.
 
-The profile and optional `gitlab:task` plugin use the same personal token ([setup](setup.md#trackers-and-plugins)).
+The profile and optional `gitlab:task` plugin use the same personal token ([setup](tracker-builtin.md#trackers-and-plugins)).
 
 GitLab CI pipelines and, in PR mode, merge requests are supported.
 
@@ -37,7 +37,7 @@ A task closes through the first transition its workflow offers to a Done status;
 
 Jira has no CI of its own: the CI and PR mode come from the repository's remote.
 
-The optional `jira:task` plugin brings Atlassian's own MCP server on a separate MCP token or an OAuth connection ([setup](setup.md#trackers-and-plugins)).
+The optional `jira:task` plugin brings Atlassian's own MCP server on a separate MCP token or an OAuth connection ([setup](tracker-builtin.md#trackers-and-plugins)).
 
 Jira Data Center is not supported.
 
@@ -51,7 +51,7 @@ Its task cards show no dependencies in either direction until dependencies are t
 
 There are no subtasks. Only the comments of the repository's owner, its collaborators and the token's own account reach a session.
 
-The optional `forgejo:task` plugin brings the official Gitea MCP server, which you install yourself ([setup](setup.md#trackers-and-plugins)).
+The optional `forgejo:task` plugin brings the official Gitea MCP server, which you install yourself ([setup](tracker-builtin.md#trackers-and-plugins)).
 
 ## Several trackers for one project
 

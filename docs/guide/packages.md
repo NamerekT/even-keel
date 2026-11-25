@@ -6,7 +6,7 @@ A package you turn on or off for the project reaches the next session of every t
 
 MCP servers run behind a local gateway, so the keys stay in Even Keel's `.env`.
 
-Installing a tracker's package for the first time is in [setup](setup.md#with-the-plugin).
+Installing a tracker's package for the first time is in [setup](tracker-connect.md#with-the-plugin).
 
 - [Where packages are managed](#where-packages-are-managed)
 - [Pinned versions](#pinned-versions)
@@ -53,7 +53,7 @@ The chosen profile supplies its whole set of connection fields: an optional addr
 
 The GitHub, Linear and GitLab MCP servers use the profile's own token.
 
-A Jira profile can connect Atlassian's MCP server through OAuth with one button instead of a separate MCP token; Even Keel keeps and refreshes that access, and the sessions never see it ([setup](setup.md#trackers-and-plugins)).
+A Jira profile can connect Atlassian's MCP server through OAuth with one button instead of a separate MCP token; Even Keel keeps and refreshes that access, and the sessions never see it ([setup](tracker-builtin.md#trackers-and-plugins)).
 
 ## The `tasks` package
 

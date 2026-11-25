@@ -17,7 +17,7 @@ import './inviteDialog.css'
 export { loopbackName } from './inviteOrigin.js'
 
 /** The guide's section on a proxy and Tailscale: how the page opens from another device. */
-export const REACH_GUIDE = 'https://github.com/NamerekT/even-keel/blob/main/docs/guide/setup.md#reaching-the-page-from-another-machine'
+export const REACH_GUIDE = 'https://github.com/NamerekT/even-keel/blob/main/docs/guide/remote.md#reaching-the-page-from-another-machine'
 
 /** The answer of `invites/origin`: the address as the hub read it, and every address it knows now. */
 export interface TypedOrigin {

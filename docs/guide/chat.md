@@ -62,7 +62,7 @@ A question with options is also posted to the tracker as a numbered comment; rep
 
 The reply reaches the session 15–30 seconds later, once two checks of the tracker in a row see it unchanged, so files attached to it and a second comment written right after go along.
 
-Remote Control still works for Claude sessions: the page links each one's Remote Control ([setup](setup.md#answering-from-the-phone)).
+Remote Control still works for Claude sessions: the page links each one's Remote Control ([setup](remote.md#answering-from-the-phone)).
 
 ### A permission dialog
 

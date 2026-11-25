@@ -12,7 +12,7 @@ Only the latest release gets fixes.
 
 ## What counts
 
-- Reaching the page or its API past the boundary described in the guide ([Reaching the page from another machine](docs/guide/setup.md#reaching-the-page-from-another-machine)): around the `Host` and `Origin` checks, the sign-in (the owner key `EVEN_KEEL_TOKEN`, a passkey, a device token or its cookie, a revoked device), DNS rebinding, cross-site requests from another page in the browser.
+- Reaching the page or its API past the boundary described in the guide ([Reaching the page from another machine](docs/guide/remote.md#reaching-the-page-from-another-machine)): around the `Host` and `Origin` checks, the sign-in (the owner key `EVEN_KEEL_TOKEN`, a passkey, a device token or its cookie, a revoked device), DNS rebinding, cross-site requests from another page in the browser.
 - Starting, answering or stopping a session, or changing the config, by someone the page did not let in.
 - Leaking secrets: tracker and CI tokens from `.env`, `EVEN_KEEL_TOKEN`, API keys of accounts, the CLI's credentials — into the page, the service log, the statistics database, a tracker comment or the environment of a session.
 - Writing or reading files outside the places Even Keel means to: the chat's file upload, the routes that serve files, worktree and slot paths.

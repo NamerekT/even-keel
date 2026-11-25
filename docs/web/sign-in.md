@@ -77,6 +77,20 @@ A new device can sign in without the key: a device signed in invites it (BTN-165
 
 A stream the service ended after its 200 is reopened by the browser itself, and EventSource never says why a stream failed, so the page does not wait for a refused reconnect: on every failed stream, whether the browser retries or gave up, and each time the tab comes back into view (`visibilitychange`, where Safari may hold a dead stream with no error yet) `LiveConnection` asks `GET /api/auth/state` (BTN-1629). A 401 (a hub without sign-ins whose token changed) or `signedIn: false` stops the connection and reloads the page into the sign-in screen; a failed request or another status is a lost link, and the reconnecting banner stays. One question is in flight at a time.
 
+## The checks on every request
+
+Every request is checked whatever `EVEN_KEEL_HOST` is:
+
+- its `Host` must be `localhost`, `127.0.0.1`, `[::1]`, `EVEN_KEEL_HOST` or a name in `allowedHosts`, otherwise it gets 403. This stops DNS rebinding — a foreign site whose name was pointed at `127.0.0.1`;
+- an `Origin`, if the request has one, must be the page's own: the same name and port as its `Host` (`https://name` matches a `Host` of `name` without a port, as an HTTPS proxy sends it). So neither another site open in your browser nor another app on the same name — a dev server on `localhost:5173`, a service on another port of your tailnet name — can post to the page. Requests without `Origin` (the plugins' hooks, `curl`) pass;
+- a `POST` to `/api/` must be `Content-Type: application/json`, otherwise it gets 415: a browser cannot send that type to another site without asking it first. A script posting to the API sends the header, as `curl -H 'Content-Type: application/json'` does.
+
+The page and its sign-in screen cannot be embedded in a frame, even on the same site.
+
+Its content security policy permits scripts and connections only from its own origin, with inline styles and local/data/blob images and media. The page sends no referrer. A reverse proxy must preserve these response headers. An already open tab receives a new policy when reloaded.
+
+Each sign-in gives the browser a token of its own in an `HttpOnly`, `SameSite=Strict` cookie. Starting MCP OAuth also sets a separate ten-minute `HttpOnly`, `SameSite=Lax` cookie for the callback alone, so the browser can return from the provider. The page's access cookie stays `SameSite=Strict`; the callback cookie cannot open other pages or API routes.
+
 ## dev:fake
 
 `/?signIn` draws the screen (`?signIn=nokey` — no owner key on the hub, `?signIn=elsewhere` — passkeys made only on other names): the key is `owner-key`, a passkey always passes without the browser's dialog (`?signIn=nopasskeys` — refused at once, as by a browser without passkeys), and signing in drops the parameter. The settings group reads `web/src/live/fakeAuth.ts`: three passkeys on two names and four devices, two of them "Chrome on Windows", one by invitation, this browser one of them; its band follows the fake `EVEN_KEEL_TOKEN` (unset by default), `&signInOn` starts with the sign-in an invitation turned on (in the page state too, so the setup's Phone access step is checked: `/setup?step=phone&signInOn`), and a fake "Let in" turns it on in the settings group alone. `&invites` starts with two invitations waiting, one opened; an invitation made in the dialog is opened by a fake phone 3 s later, digits 47. dev:fake is open by localhost, so the dialog shows the loopback cases: two known origins by default (`https://hub.example.ts.net:8443` seen last, `http://192.0.2.10:4747`), `&origins=1` the first alone, `&origins=0` none and the address field; a typed address is checked as the hub's `typedOrigin` does. `/invite` is a browser signed in already, `/invite?signIn` the new device: let in 3 s after opening, or `&invite=declined|expired|cancelled|waiting|used|gone`, or `&invite=lost` — every wait fails as a dropped connection.

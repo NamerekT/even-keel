@@ -1,5 +1,5 @@
 /**
- * A slow CI runner (macOS, docs/ci.md "macOS"): `E2E_SLOW_RUNNER=<factor>` multiplies every e2e timeout by the factor
+ * A slow CI runner (macOS, docs/ci/workflows.md "macOS"): `E2E_SLOW_RUNNER=<factor>` multiplies every e2e timeout by the factor
  * and runs once more a test that failed on a timeout of its own or of a hook; any other failure is not retried. Unset,
  * the factor is 1 and nothing is retried: Linux, Windows and a workstation run as before.
  */

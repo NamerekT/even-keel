@@ -82,7 +82,7 @@ Its `tally:session-audit` skill answers "tasks got more expensive — why?" or "
 
 It only reads the database and changes no rule by itself.
 
-Install it in Claude Code with `claude plugin install tally@even-keel` once the marketplace is added ([setup](setup.md#with-the-plugin)); it finds Even Keel through the running service, or `EVEN_KEEL_HOME` set to the checkout ([plugins/tally](../../plugins/tally/README.md)).
+Install it in Claude Code with `claude plugin install tally@even-keel` once the marketplace is added ([setup](tracker-connect.md#with-the-plugin)); it finds Even Keel through the running service, or `EVEN_KEEL_HOME` set to the checkout ([plugins/tally](../../plugins/tally/README.md)).
 
 Estimates, statuses and components come from Huly: with another tracker the audit skips what needs them.
 

@@ -5,7 +5,7 @@ name: macOS
 # are scarce in the day (UTC 14–21 a quarter of the runs had a job no runner took), so `dev` gets a night at 02:10 UTC,
 # when one run in 369 had one (22–09 UTC). A schedule fires only on the default branch, so the night checks out `dev`; its run is listed
 # under `main`, which no project's watch reads, and a red night holds releases (scripts/nights-green.sh). Pushes of
-# `main` and `release/**` still run it, and the chain's verdict on them counts it like `test.yml` (docs/ci.md, "macOS").
+# `main` and `release/**` still run it, and the chain's verdict on them counts it like `test.yml` (docs/ci/workflows.md, "macOS").
 on:
   push:
     branches:
@@ -102,7 +102,7 @@ jobs:
 
       # A Mac runner is slow and its slow minutes come at random: every e2e timeout twice as long, and a test that timed
       # out (itself or a hook) runs once more; an assertion or an exception fails at once. A test that passed only on the
-      # retry is a `RETRIED` line at the end of the step's log (docs/ci.md, "macOS").
+      # retry is a `RETRIED` line at the end of the step's log (docs/ci/workflows.md, "macOS").
       - if: steps.changes.outputs.code == 'true'
         run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
         env:
