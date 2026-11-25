@@ -251,7 +251,7 @@ it('opens empty, keeps one bubble through the launch and missing transcript, the
   expect(host.querySelector('.bubble')?.textContent).toBe(message)
   expect(box.placeholder).toBe(t.chats.window.starting)
   expect(host.querySelector('.chat__send')?.closest('.tipped')?.textContent).toContain(t.chats.window.starting)
-  expect(host.querySelector('.chat__state')).toBeNull()
+  expect(host.querySelector('.chat__readonly')).toBeNull()
   await act(async () => delivery.resolve())
   expect(box.placeholder).toBe(t.chats.window.starting)
   transcript.mockResolvedValue(null)
@@ -463,4 +463,20 @@ it('opens a sent picture from its chip and retries both images after a temporary
     settings.fetch.interceptor = null
     vi.useRealTimers()
   }
+})
+
+it('shows an archived chat its note and the way on inside the field frame, with no field', async () => {
+  const host = document.body.appendChild(document.createElement('div'))
+  root = createRoot(host)
+  const onContinue = vi.fn()
+  const archived: ChatCard = { ...card, state: 'archived', archivedAt: new Date().toISOString() }
+  await act(async () => root.render(createElement(ProjectChatWindow, { chat: archived, choice: null, onClose: () => {}, onContinue, onChanged: () => {}, onOpen: () => {} })))
+  const frame = host.querySelector('.chat__box')!
+  expect(frame.querySelector('textarea')).toBeNull()
+  expect(host.querySelector('textarea')).toBeNull()
+  expect(frame.querySelector('.chat__readonly')?.textContent).toBe(t.chats.window.archived)
+  const button = frame.querySelector<HTMLButtonElement>('button')!
+  expect(button.textContent).toBe(t.chats.window.continue)
+  await act(async () => button.click())
+  expect(onContinue).toHaveBeenCalledOnce()
 })

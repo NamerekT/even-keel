@@ -313,17 +313,6 @@
   gap: var(--space-6);
 }
 
-/* An archived chat's window: read only, one way on. */
-.chat--archived {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-}
-
-.chat__continue {
-  align-self: flex-end;
-}
-
 /* "Continued from …" over a chat's feed (BTN-1232). */
 .chat-continued {
   margin: 0;

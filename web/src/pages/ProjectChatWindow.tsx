@@ -15,7 +15,7 @@ import { shownAsk } from './composerHold.js'
 import { useChatAccounts } from './useChatAccounts.js'
 import { useChatDraft } from './useChatDraft.js'
 import { ComposerBanner } from './ComposerBanner.js'
-import { ComposerBox } from './ComposerBox.js'
+import { ComposerBox, ReadOnlyComposer } from './ComposerBox.js'
 import type { CommandTextHandle } from './CommandText.js'
 import { TranscriptWindow, type WindowFoot } from './TranscriptWindow.js'
 
@@ -67,12 +67,13 @@ export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged
       onClose={onClose}
       foot={(parts) =>
         archived ? (
-          <div className="chat chat--archived">
+          <div className="chat">
+            <ReadOnlyComposer reason={t.chats.window.archived}>
+              <button type="button" className="button button--primary" onClick={onContinue}>
+                {t.chats.window.continue}
+              </button>
+            </ReadOnlyComposer>
             {parts.status}
-            <p className="chat__state">{t.chats.window.archived}</p>
-            <button type="button" className="button button--primary chat__continue" onClick={onContinue}>
-              {t.chats.window.continue}
-            </button>
           </div>
         ) : (
           <ChatField chat={chat} choice={choice} session={session} parts={parts} onChanged={onChanged} onRenewed={onOpen} />
