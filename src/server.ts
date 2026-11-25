@@ -17,7 +17,7 @@ import { englishOf, fail, type Notice } from './notice/notice.js'
 import { oauthCallback, PROFILE_QUERIES } from './profiles/routes.js'
 import { guardedServer } from './server-guard.js'
 import { cleanMachineSettings } from './service/machine-settings.js'
-import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, cloneOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, joinRequestsOf, labelList, memoryFoldersOf, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
+import { accountOf, answerOf, appOf, baseOf, browserOf, choiceOf, cloneOf, codeOf, commandTarget, draftOf, editChoiceOf, feedDraftOf, flagOf, hotkeysOf, joinRequestsOf, labelList, memoryFoldersOf, listOf, mapOf, nameOf, noticeKindOf, numberOf, optionalProjectOf, optionalText, profileRulesOf, projectFormOf, projectOf, secretValuesOf, serverOf, sharedFormOf, switchOf, tallyDraftOf, tallyModeOf, taskOf, textOf } from './server-request.js'
 import { eventWriter, readJsonBody, sendFailure, sendFile, sendJson, serveStatic } from './server-response.js'
 import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
@@ -284,7 +284,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
     return { text: await dictation.transcribe(textOf(body.audio, 'audio'), textOf(body.type, 'type')) }
   },
   'chat/menu': async ({ chatMenu }, body) =>
-    (await chatMenu?.(projectOf(body), body.task === null || body.task === undefined ? null : textOf(body.task, 'task'))) ?? [],
+    (await chatMenu?.(projectOf(body), optionalText(body.task, 'task'), optionalText(body.chat, 'chat'))) ?? [],
 }
 
 const MAX_BODY_BYTES = 64 * 1024

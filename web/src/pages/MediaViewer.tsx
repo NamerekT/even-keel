@@ -24,13 +24,14 @@ const SWIPE = 60
 
 /**
  * A picture or a video over the whole window, with the neighbours by the arrows, the keys and a swipe. The arrows are
- * in a pill under the file on a wide screen and at the window's sides on a narrow one (BTN-1706).
+ * in a pill on a wide screen and at the window's sides on a narrow one (BTN-1706). The name, the pill and Open are a
+ * dock held to the window's bottom, the file fitted into the stage above it, so they stand still for any file (BTN-1713).
  */
 export function MediaViewer({ items, index, onIndex, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
   const closer = useRef<HTMLButtonElement>(null)
   const swipe = useRef<number | null>(null)
-  const backdrop = useBackdropClose(dialog, onClose, (target) => target.classList.contains('viewer__stage'))
+  const backdrop = useBackdropClose(dialog, onClose, (target) => target.classList.contains('viewer__stage') || target.classList.contains('viewer__figure'))
   const [zoomed, setZoomed] = useState(false)
   const item = items[index]!
   const Picture = item.inbox ? InboxImage : 'img'
@@ -102,30 +103,32 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
           ‹
         </button>
       )}
-      <figure className="viewer__stage">
-        {item.kind === 'image' ? (
-          <>
-            {stale && <img {...pictureProps} src={held.url} />}
-            <Picture
-              key={item.url}
-              {...pictureProps}
-              src={item.url}
-              className={stale ? 'viewer__next' : pictureProps.className}
-              onLoad={() => setHeld({ name: item.name, url: item.url })}
-            />
-          </>
-        ) : (
-          <video key={item.url} src={item.url} className="viewer__media" controls autoPlay playsInline />
-        )}
-        <figcaption className="viewer__caption">
+      <figure className="viewer__figure">
+        <div className="viewer__stage">
+          {item.kind === 'image' ? (
+            <>
+              {stale && <img {...pictureProps} src={held.url} />}
+              <Picture
+                key={item.url}
+                {...pictureProps}
+                src={item.url}
+                className={stale ? 'viewer__next' : pictureProps.className}
+                onLoad={() => setHeld({ name: item.name, url: item.url })}
+              />
+            </>
+          ) : (
+            <video key={item.url} src={item.url} className="viewer__media" controls autoPlay playsInline />
+          )}
+        </div>
+        <figcaption className="viewer__dock">
           <FileName name={item.name} />
           {narrow ? (
-            <>
+            <div className="viewer__controls">
               {counter && <span className="viewer__counter viewer__counter--plaque">{counter}</span>}
-              <a className="viewer__open viewer__open--icon" href={item.url} target="_blank" rel="noreferrer" aria-label={t.card.viewer.original} title={t.card.viewer.original}>
+              <a className={counter ? 'viewer__open viewer__open--icon' : 'viewer__open viewer__open--icon viewer__open--alone'} href={item.url} target="_blank" rel="noreferrer" aria-label={t.card.viewer.original} title={t.card.viewer.original}>
                 <OpenOutIcon />
               </a>
-            </>
+            </div>
           ) : (
             <div className="viewer__controls">
               {counter && (

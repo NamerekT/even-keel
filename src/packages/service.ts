@@ -441,10 +441,10 @@ export class Packages {
 
   /**
    * The plugin folders a session of the task gets, on its pinned installs; `task` null — a project chat's, on the
-   * current ones. Only reads: the chat's `/` menu (BTN-1695).
+   * current ones and its `own` choice, as `chatStartOf` (BTN-1716). Only reads: the chat's `/` menu (BTN-1695).
    */
-  pluginFolders(project: string, task: string | null): { plugin: string; dir: string }[] {
-    return Object.entries(installsFor(this.file, project, task, this.builtIn)).flatMap(([name, id]) => {
+  pluginFolders(project: string, task: string | null, own: OwnPackages = {}): { plugin: string; dir: string }[] {
+    return Object.entries(installsFor(this.file, project, task, this.builtIn, own)).flatMap(([name, id]) => {
       const plugin = this.file.packages[name]?.plugin
       return plugin === undefined ? [] : [{ plugin: plugin.name, dir: pluginDir(this.deps.cache, name, id) }]
     })

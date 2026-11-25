@@ -318,6 +318,13 @@ describe('a task pins versions, not the set (BTN-706)', () => {
     expect(packages.pluginFolders('project', null).map((each) => each.dir)).toEqual([join(cache, 'tools@example', 'new', 'plugin'), join(cache, 'extra@example', 'e1', 'plugin')])
     expect(loadPackages(file)!.pins.project).toEqual({ 'ABC-1': { 'tools@example': 'old' } })
   })
+
+  it("gives a project chat's menu its own choice over the project's set (BTN-1716)", () => {
+    const { packages, cache } = pinned()
+    expect(packages.pluginFolders('project', null, { 'tools@example': false, 'extra@example': true }).map((each) => each.dir)).toEqual([
+      join(cache, 'extra@example', 'e1', 'plugin'),
+    ])
+  })
 })
 
 describe('servers before the gateway listens (BTN-1225)', () => {

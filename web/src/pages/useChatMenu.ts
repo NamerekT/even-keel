@@ -19,16 +19,17 @@ export function evenKeelMenu(): ChatMenu {
 /**
  * The `/` menu of a chat (BTN-1695): Even Keel's commands for a task's session (`task` set), and for a Claude session the
  * user's commands and skills and the project's package skills, as the hub reads them (`chat/menu`). Other agents call
- * skills their own way, so they get only Even Keel's; `null` — a chat with nothing to offer.
+ * skills their own way, so they get only Even Keel's; `null` — a chat with nothing to offer. `chat` — a project chat's
+ * id: the hub reads the packages of the chat's own choice (BTN-1716).
  */
-export function useChatMenu(project: string, task: string | null, agent: string | undefined): ChatMenu | null {
+export function useChatMenu(project: string, task: string | null, agent: string | undefined, chat: string | null = null): ChatMenu | null {
   const { read } = useLive()
   const reads = agent === CLAUDE
-  const key = `${project}\u0000${task ?? ''}\u0000${reads}`
+  const key = `${project}\u0000${task ?? ''}\u0000${chat ?? ''}\u0000${reads}`
   const [entries, setEntries] = useState<{ key: string; list: readonly MenuEntry[] }>({ key, list: [] })
   const refresh = () => {
     if (!reads) return
-    read<MenuEntry[]>('chat/menu', { project, task }).then(
+    read<MenuEntry[]>('chat/menu', { project, task, chat }).then(
       (list) => setEntries({ key, list }),
       () => {},
     )
