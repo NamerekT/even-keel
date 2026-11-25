@@ -98,6 +98,24 @@ describe('the viewer bar (BTN-1706)', () => {
   })
 })
 
+describe('the viewer dock (BTN-1713)', () => {
+  const items: Media[] = [
+    { kind: 'image', name: 'tall.png', url: '/tall.png' },
+    { kind: 'video', name: 'clip.mp4', url: '/clip.mp4' },
+  ]
+
+  it.each([0, 1])('keeps the name, the pill and Open in a dock beside the stage, never under the file (file %i)', async (index) => {
+    const host = document.body.appendChild(document.createElement('div'))
+    root = createRoot(host)
+    await view(host, items, index)
+    const dock = host.querySelector('.viewer__dock')!
+    expect(dock.closest('.viewer__stage')).toBeNull()
+    expect(host.querySelector('.viewer__stage')?.contains(host.querySelector('.viewer__media'))).toBe(true)
+    expect([...dock.children].map((child) => child.className)).toEqual(['viewer__name', 'viewer__controls'])
+    expect(dock.querySelector<HTMLAnchorElement>('a.viewer__open')?.getAttribute('href')).toBe(items[index]!.url)
+  })
+})
+
 describe('splitName', () => {
   it('splits the extension after the last folder only', () => {
     expect(splitName('a/b.c/readme')).toEqual(['a/b.c/readme', ''])
