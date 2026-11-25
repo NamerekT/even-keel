@@ -32,6 +32,11 @@ const run = promisify(execFile)
 
 /** The first event comes with the model's first chunk, which a thinking model may take a while to send. */
 const APPEAR_TIMEOUT_MS = 120_000
+/**
+ * A resume names its session, so it waits for no event: only this long for an early exit's diagnostic. OpenCode
+ * retries a limit that is still on in silence (BTN-1678).
+ */
+const RESUME_GRACE_MS = 5_000
 const POLL_MS = 500
 const STOP_TIMEOUT_MS = 30_000
 export { hungEntry, TURN_HANG_MS } from '../sessions/silence.js'
@@ -230,6 +235,21 @@ export function sessionOf(stdout: string): string | undefined {
   return undefined
 }
 
+/** The session a turn's arguments resume (`turnArgs`' `-s`), `undefined` for a new one. */
+function resumedId(args: string[]): string | undefined {
+  const at = args.indexOf('-s')
+  return at < 0 ? undefined : args[at + 1]
+}
+
+/**
+ * The reason of a turn that failed with nothing in its file: a spawn that never ran gives its error (BTN-1505), else
+ * whether the process exited or lived on silent.
+ */
+export function silentTurnDetail({ exited, spawnError, waitedMs }: { exited: boolean; spawnError: string; waitedMs: number }): string {
+  if (spawnError !== '') return spawnError
+  return exited ? 'the opencode process exited with no output' : `the opencode process was alive but wrote nothing for ${Math.round(waitedMs / 1000)} s`
+}
+
 /** The turn's last event says it is over: an error, or a step that finished for any reason but a tool call. */
 export function turnEnded(stdout: string): boolean {
   const event = lastEvent(stdout)
@@ -409,7 +429,8 @@ export class OpenCodeCli {
   /**
    * A turn is a detached process writing its JSON events into a file, as Codex's is. OpenCode takes its working folder
    * from `PWD` before the process's own, so `PWD` is set too. The session id is in its first event; a turn that sends
-   * none yet is found in the account's database by its title.
+   * none yet is found in the account's database by its title. A resume takes its own id once the process outlives
+   * `RESUME_GRACE_MS`.
    */
   private async turn(home: AccountHome, start: SessionStart, args: string[], cwd: string, failure: Notice, window: SessionWindow | undefined): Promise<{ session: string; pid: number; out: string; at: number }> {
     keepOwnInstructions(home.dir)
@@ -441,16 +462,18 @@ export class OpenCodeCli {
     } finally {
       closeSync(fd)
     }
-    const deadline = at + APPEAR_TIMEOUT_MS
-    const resuming = args.includes('-s')
+    const resumed = resumedId(args)
+    const deadline = at + (resumed === undefined ? APPEAR_TIMEOUT_MS : RESUME_GRACE_MS)
     for (;;) {
       const text = await readFile(out, 'utf8').catch(() => '')
-      const session = sessionOf(text) ?? (resuming ? undefined : await this.titled(home, start.name, cwd, at))
+      const session = sessionOf(text) ?? (resumed === undefined ? await this.titled(home, start.name, cwd, at) : undefined)
       if (session !== undefined && child.pid !== undefined) return { session, pid: child.pid, out, at }
+      // A resume knows its session: a live silent process is OpenCode retrying the API, and the hang check watches it.
+      if (resumed !== undefined && !exited && child.pid !== undefined && Date.now() > deadline) return { session: resumed, pid: child.pid, out, at }
       if (exited || Date.now() > deadline) {
         if (!exited && child.pid !== undefined) await killTree(child.pid)
-        // A spawn that never ran wrote nothing into the turn file: its error is the reason (BTN-1505).
-        throw new NoticeError({ ...failure, detail: text.trim().slice(-500) || spawnError })
+        const detail = text.trim().slice(-500) || silentTurnDetail({ exited, spawnError, waitedMs: Date.now() - at })
+        throw new NoticeError({ ...failure, detail })
       }
       await delay(POLL_MS)
     }
