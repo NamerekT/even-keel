@@ -164,7 +164,7 @@ it('opens a thumbnail in the viewer from its own object URL, pages through pictu
   const viewer = host.querySelector('dialog.viewer')!
   expect(viewer.querySelector('video')!.getAttribute('src')).toBe('blob:clip.mp4')
   expect(viewer.querySelector('.viewer__counter')!.textContent).toBe('2 / 2')
-  await act(async () => viewer.querySelector<HTMLButtonElement>('.viewer__nav--prev')!.click())
+  await act(async () => viewer.querySelector<HTMLButtonElement>('.viewer__step')!.click())
   expect(viewer.querySelector('img')!.getAttribute('src')).toBe('blob:shot.png')
   await act(async () => viewer.querySelector<HTMLButtonElement>('.viewer__close')!.click())
   expect(host.querySelector('dialog.viewer')).toBeNull()

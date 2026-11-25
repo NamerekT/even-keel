@@ -498,7 +498,8 @@ export const cardRU = {
       close: 'Закрыть',
       prev: 'Предыдущее',
       next: 'Следующее',
-      original: 'Открыть файл',
+      original: 'Открыть файл в новой вкладке',
+      open: 'Открыть',
     },
     run: {
       title: 'Запускается на',

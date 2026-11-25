@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import { t } from '../i18n/index.js'
 import { useBackdropClose } from '../ui/backdrop.js'
-import { CloseIcon } from '../ui/icons.js'
+import { useNarrow } from '../layout/useNarrow.js'
+import { CloseIcon, NextIcon, OpenOutIcon, PrevIcon } from '../ui/icons.js'
 import { InboxImage } from './InboxImage.js'
 
 export interface Media {
@@ -21,7 +22,10 @@ interface Props {
 
 const SWIPE = 60
 
-/** A picture or a video over the whole window, with the neighbours by the arrows, the keys and a swipe. */
+/**
+ * A picture or a video over the whole window, with the neighbours by the arrows, the keys and a swipe. The arrows are
+ * in a pill under the file on a wide screen and at the window's sides on a narrow one (BTN-1706).
+ */
 export function MediaViewer({ items, index, onIndex, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
   const closer = useRef<HTMLButtonElement>(null)
@@ -32,6 +36,8 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
   const Picture = item.inbox ? InboxImage : 'img'
   const prev = index > 0 ? index - 1 : null
   const next = index < items.length - 1 ? index + 1 : null
+  const counter = items.length > 1 ? `${index + 1} / ${items.length}` : null
+  const narrow = useNarrow()
 
   const [back] = useState(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null))
 
@@ -91,7 +97,7 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
       <button ref={closer} type="button" className="viewer__close" aria-label={t.card.viewer.close} title={t.card.viewer.close} onClick={onClose}>
         <CloseIcon />
       </button>
-      {prev !== null && (
+      {narrow && prev !== null && (
         <button type="button" className="viewer__nav viewer__nav--prev" aria-label={t.card.viewer.prev} title={t.card.viewer.prev} onClick={() => go(prev)}>
           ‹
         </button>
@@ -112,22 +118,58 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
           <video key={item.url} src={item.url} className="viewer__media" controls autoPlay playsInline />
         )}
         <figcaption className="viewer__caption">
-          <span className="viewer__name">{item.name}</span>
-          {items.length > 1 && (
-            <span className="viewer__counter">
-              {index + 1} / {items.length}
-            </span>
+          <FileName name={item.name} />
+          {narrow ? (
+            <>
+              {counter && <span className="viewer__counter viewer__counter--plaque">{counter}</span>}
+              <a className="viewer__open viewer__open--icon" href={item.url} target="_blank" rel="noreferrer" aria-label={t.card.viewer.original} title={t.card.viewer.original}>
+                <OpenOutIcon />
+              </a>
+            </>
+          ) : (
+            <div className="viewer__controls">
+              {counter && (
+                <div className="viewer__pill">
+                  <button type="button" className="viewer__step" aria-label={t.card.viewer.prev} title={t.card.viewer.prev} disabled={prev === null} onClick={() => go(prev)}>
+                    <PrevIcon />
+                  </button>
+                  <span className="viewer__counter">{counter}</span>
+                  <button type="button" className="viewer__step" aria-label={t.card.viewer.next} title={t.card.viewer.next} disabled={next === null} onClick={() => go(next)}>
+                    <NextIcon />
+                  </button>
+                </div>
+              )}
+              <a className={counter ? 'viewer__open' : 'viewer__open viewer__open--alone'} href={item.url} target="_blank" rel="noreferrer" title={t.card.viewer.original}>
+                <OpenOutIcon />
+                {t.card.viewer.open}
+              </a>
+            </div>
           )}
-          <a href={item.url} target="_blank" rel="noreferrer">
-            {t.card.viewer.original} <span aria-hidden="true">↗</span>
-          </a>
         </figcaption>
       </figure>
-      {next !== null && (
+      {narrow && next !== null && (
         <button type="button" className="viewer__nav viewer__nav--next" aria-label={t.card.viewer.next} title={t.card.viewer.next} onClick={() => go(next)}>
           ›
         </button>
       )}
     </dialog>
   )
+}
+
+/** A file name cut in its middle: the stem takes the ellipsis, the extension stays in sight. */
+function FileName({ name }: { name: string }) {
+  const [stem, ext] = splitName(name)
+  return (
+    <span className="viewer__name" title={name}>
+      <span className="viewer__name-stem">{stem}</span>
+      {ext && <span className="viewer__name-ext">{ext}</span>}
+    </span>
+  )
+}
+
+/** The stem and the extension of a name: a dot inside its last folder, not at its start. */
+export function splitName(name: string): [string, string] {
+  const dot = name.lastIndexOf('.')
+  const base = name.lastIndexOf('/') + 1
+  return dot > base ? [name.slice(0, dot), name.slice(dot)] : [name, '']
 }

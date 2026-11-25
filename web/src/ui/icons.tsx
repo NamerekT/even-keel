@@ -300,6 +300,24 @@ export function ChevronIcon() {
   )
 }
 
+/** The previous one: a chevron to the left. */
+export function PrevIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M10 3.5 5.5 8l4.5 4.5" />
+    </svg>
+  )
+}
+
+/** The next one: a chevron to the right. */
+export function NextIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M6 3.5 10.5 8 6 12.5" />
+    </svg>
+  )
+}
+
 /** Back as it was: an arrow turning back. */
 export function UndoIcon() {
   return (

@@ -498,7 +498,8 @@ export const cardEN: Messages['card'] = {
       close: 'Close',
       prev: 'Previous',
       next: 'Next',
-      original: 'Open the file',
+      original: 'Open the file in a new tab',
+      open: 'Open',
     },
     run: {
       title: 'Runs on',
