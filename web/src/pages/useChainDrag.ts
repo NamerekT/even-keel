@@ -67,6 +67,8 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
   const [landing, setLanding] = useState<Landing | null>(null)
   const [settling, setSettling] = useState(false)
   const [reflow, setReflow] = useState<Reflow | null>(null)
+  /** The card let go, while its drop glides; an object, so a second drop of the same card restarts the wait. */
+  const [dropped, setDropped] = useState<{ id: string } | null>(null)
   const press = useRef<Press | null>(null)
   const active = useRef<Active | null>(null)
   const swallowClick = useRef(false)
@@ -85,6 +87,12 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
     })
     return () => cancelAnimationFrame(frame)
   }, [landing])
+
+  useEffect(() => {
+    if (dropped === null) return
+    const timer = setTimeout(() => setDropped(null), SETTLE_MS)
+    return () => clearTimeout(timer)
+  }, [dropped])
 
   useEffect(() => {
     if (!settling) return
@@ -217,6 +225,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
       const { dx, dy, target } = measure(state)
       const to = commit ? target : state.from
       setDrag(null)
+      setDropped({ id: state.id })
       droppedUntil.current = performance.now() + 2 * SETTLE_MS
       if (to === state.from) setLanding({ id: state.id, offset: { x: dx, y: dy } })
       else setReflow({ id: state.id, from: positions(list) })
@@ -325,7 +334,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
     else setTimeout(run, Math.ceil(left))
   }
 
-  return { drag, landing, settling, movable, held, afterDrop }
+  return { drag, landing, settling, dropped: dropped?.id ?? null, movable, held, afterDrop }
 }
 
 /**

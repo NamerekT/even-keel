@@ -23,7 +23,7 @@ import { finishFakeCli, withCliCopies } from './fakeCliCopies.js'
 import { withFix } from './fakeFix.js'
 import { withLiveMilestones, withMilestonePreview, withSavedMilestoneOrder } from './fakeMilestones.js'
 import { withDragPreview } from './fakeDrag.js'
-import { withFamilies } from './fakeFamilies.js'
+import { isGroupFamilies, withFamilies, withGroupFamilies } from './fakeFamilies.js'
 import { withBacklogLinks, withChangedText, withLongBacklog, withLongChain } from './fakeBacklog.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -344,6 +344,8 @@ export function createFakeSource(search: string): LiveSource {
   const groupFrom = (params.get('chain') === 'group' || fixGroup) && active ? Math.min(Number(params.get('group') ?? 0), groupSteps.length) : null
   const groupBase = fixGroup ? withFixGroupBase : withGroupBase
   if (groupFrom !== null) current.state = groupSteps.slice(0, groupFrom).reduce((state, step) => step(state), groupBase(current.state!))
+  const groupFamilies = params.get('families')
+  if (groupFrom !== null && isGroupFamilies(groupFamilies)) current.state = withGroupFamilies(current.state!, groupFamilies)
   // A task on the home server whose new session has already ended its first turn (BTN-1314): the state carries the
   // session from that machine's mirror, so the row shows its lamp and the panel the session, not the start.
   if (params.get('chain') === 'elsewhere' && active) {
