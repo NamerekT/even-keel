@@ -681,6 +681,35 @@ describe('Even Keel HTTP server', () => {
     expect((await fetch(base + '/api/sessions/0a1b2c3d/files/other.png')).status).toBe(404)
   })
 
+  it('answers a Range of a sent video with 206 and the piece asked for, so Safari plays it and Chrome seeks it', async () => {
+    const whole = await fetch(base + '/api/sessions/0a1b2c3d/files/clip.mp4')
+    expect(whole.status).toBe(200)
+    expect(whole.headers.get('accept-ranges')).toBe('bytes')
+    expect(await whole.text()).toBe('0123456789')
+
+    const piece = (range: string) => fetch(base + '/api/sessions/0a1b2c3d/files/clip.mp4', { headers: { range } })
+    const first = await piece('bytes=0-1')
+    expect(first.status).toBe(206)
+    expect(first.headers.get('content-range')).toBe('bytes 0-1/10')
+    expect(first.headers.get('content-length')).toBe('2')
+    expect(first.headers.get('content-type')).toBe('video/mp4')
+    expect(await first.text()).toBe('01')
+    const across = await piece('bytes=3-6')
+    expect(across.headers.get('content-range')).toBe('bytes 3-6/10')
+    expect(await across.text()).toBe('3456')
+    expect(await (await piece('bytes=7-')).text()).toBe('789')
+    expect(await (await piece('bytes=-2')).text()).toBe('89')
+    expect((await piece('bytes=8-99')).headers.get('content-range')).toBe('bytes 8-9/10')
+
+    const beyond = await piece('bytes=10-')
+    expect(beyond.status).toBe(416)
+    expect(beyond.headers.get('content-range')).toBe('bytes */10')
+    await beyond.arrayBuffer()
+    const several = await piece('bytes=0-1,4-5')
+    expect(several.status).toBe(200)
+    expect(await several.text()).toBe('0123456789')
+  })
+
   it('serves a file the session sent the user, by its call', async () => {
     const shared = await fetch(base + '/api/sessions/0a1b2c3d/shared/toolu_2/0')
     expect(shared.status).toBe(200)

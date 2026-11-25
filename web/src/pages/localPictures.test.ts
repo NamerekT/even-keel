@@ -55,4 +55,11 @@ describe('the pictures a chat window sent', () => {
     expect(revoke).toHaveBeenCalledWith('blob:shot.png')
     root = createRoot(document.createElement('div'))
   })
+
+  it('hold a video too, and no other file (BTN-1704)', async () => {
+    await show('6bc306d9')
+    act(() => void pictures.add([new File(['x'], 'clip.mp4'), new File(['x'], 'notes.pdf')]))
+    expect(pictures.get('clip.mp4')).toBe('blob:clip.mp4')
+    expect(pictures.get('notes.pdf')).toBeUndefined()
+  })
 })

@@ -60,25 +60,6 @@
   object-fit: cover;
 }
 
-.chat__play {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--viewer-fg);
-  pointer-events: none;
-}
-
-.chat__play .icon {
-  width: 20px;
-  height: 20px;
-  padding: 4px;
-  border-radius: 50%;
-  background: var(--viewer-glass);
-  fill: currentColor;
-  box-sizing: content-box;
-}
-
 .chat__doc {
   display: flex;
   flex-direction: column;

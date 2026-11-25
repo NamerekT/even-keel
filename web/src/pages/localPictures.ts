@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { isSentPicture } from './transcriptMedia.js'
+import { isSentMedia } from './transcriptMedia.js'
 
-/** The pictures of messages sent from a chat window, as the browser holds them (BTN-1360). */
+/** The pictures and videos of messages sent from a chat window, as the browser holds them (BTN-1360, BTN-1704). */
 export interface LocalPictures {
   /** The object URL of a picture sent under `name`. */
   get: (name: string) => string | undefined
@@ -29,7 +29,7 @@ export function useLocalPictures(sessionId: string): LocalPictures {
     () => ({
       get: (name) => urls.current.get(name),
       add: (files) => {
-        const added = files.filter((file) => isSentPicture(file.name)).map((file) => {
+        const added = files.filter((file) => isSentMedia(file.name)).map((file) => {
           const url = URL.createObjectURL(file)
           const before = urls.current.get(file.name)
           if (before !== undefined) URL.revokeObjectURL(before)

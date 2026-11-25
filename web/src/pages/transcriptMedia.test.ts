@@ -164,6 +164,36 @@ describe('transcriptMedia', () => {
   })
 })
 
+describe('a video the user sent (BTN-1704)', () => {
+  const inbox = 'C:\\repos\\example\\.temp\\inbox'
+  const sent: FeedLine = { at, kind: 'prompt', text: 'Look', files: ['clip.mp4', 'notes.pdf'] }
+  const mailed: FeedLine = { at, kind: 'answer', text: 'Look', files: ['clip.mp4', 'notes.pdf'] }
+  const landed: FeedLine = { ...sent, files: [`${inbox}\\clip.mp4`, `${inbox}\\notes.pdf`] }
+
+  it('keeps the browser’s address from the send through the mailbox to the delivery, under one key', () => {
+    const local = { ...urls, local: (name: string) => (name === 'clip.mp4' ? 'blob:clip' : undefined) }
+
+    const stages = [[sent], [mailed], [landed]].map((lines) => transcriptMedia(lines, local, 'Picture'))
+
+    expect(stages.map((media) => media.items)).toEqual(Array(3).fill([{ kind: 'video', name: 'clip.mp4', url: 'blob:clip' }]))
+    expect(stages.map((media) => media.keys)).toEqual(Array(3).fill(['sent:clip.mp4']))
+    expect(stages[2]!.byFile.get(`${inbox}\\clip.mp4`)).toBe(0)
+    expect(stages[2]!.byFile.has(`${inbox}\\notes.pdf`)).toBe(false)
+  })
+
+  it('is given from the service’s copy without the browser’s, and pages with the message’s pictures', () => {
+    const lines: FeedLine[] = [{ ...landed, files: [`${inbox}\\order.png`, `${inbox}\\clip.MOV`] }]
+
+    const media = transcriptMedia(lines, urls, 'Picture')
+
+    expect(media.items).toEqual([
+      { kind: 'image', name: 'order.png', url: 'file:order.png', inbox: true },
+      { kind: 'video', name: 'clip.MOV', url: 'file:clip.MOV', inbox: true },
+    ])
+    expect(media.byFile.get(`${inbox}\\clip.MOV`)).toBe(1)
+  })
+})
+
 describe('sharedKind', () => {
   it('renders markdown, shows pictures and offers the rest for download', () => {
     expect(['a/b/audit.md', 'notes.MARKDOWN', 'shot.webp', 'C:\\x\\y.jpeg', 'dump.zip', 'README'].map(sharedKind)).toEqual([

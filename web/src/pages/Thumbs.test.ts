@@ -4,7 +4,8 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { t } from '../i18n/index.js'
 import type { Media } from './MediaViewer.js'
-import { InboxThumb, ThumbStack } from './Thumbs.js'
+import { InboxThumb, SentFiles, ThumbStack } from './Thumbs.js'
+import type { TranscriptMedia } from './transcriptMedia.js'
 
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
 
@@ -140,6 +141,79 @@ describe('a picture the user sent', () => {
     await fail(host, 'blob:order')
     expect(host.querySelector('img')).toBeNull()
     expect(host.textContent).toBe('📎 order.png')
+  })
+})
+
+describe('a video the user sent (BTN-1704)', () => {
+  const file = 'C:\\repos\\example\\.temp\\inbox\\clip.mp4'
+  async function sentFiles(item: Media, onOpen: (place: number) => void = () => {}) {
+    const host = document.createElement('div')
+    document.body.append(host)
+    root = createRoot(host)
+    const media = (shown: Media): TranscriptMedia => ({ items: [items[0]!, shown], keys: ['a', 'sent:clip.mp4'], byTool: new Map(), byFile: new Map([[file, 1]]), byShare: new Map() })
+    const render = (shown: Media) => act(async () => root.render(createElement(SentFiles, { files: [file, 'C:\\notes.pdf'], media: media(shown), onOpen })))
+    await render(item)
+    return { host, render }
+  }
+  const video = (host: HTMLElement) => host.querySelector<HTMLVideoElement>('.thumb video:not(.thumb__next)')
+  const metadata = (host: HTMLElement, src: string) => act(async () => host.querySelector(`video[src="${src}"]`)!.dispatchEvent(new Event('loadedmetadata')))
+  const broke = (host: HTMLElement, src: string) => act(async () => host.querySelector(`video[src="${src}"]`)!.dispatchEvent(new Event('error')))
+
+  it('is a preview with ▶ at once from the chosen file, which opens the viewer at its place', async () => {
+    const onOpen = vi.fn()
+    const { host } = await sentFiles({ kind: 'video', name: 'clip.mp4', url: 'blob:clip' }, onOpen)
+    expect(video(host)?.getAttribute('src')).toBe('blob:clip')
+    expect(video(host)?.muted).toBe(true)
+    expect(host.querySelector('.thumb .chat__play')).not.toBeNull()
+    expect(host.querySelector('.bubble__files li:first-child')!.textContent).not.toContain('📎')
+    expect(host.querySelector('.bubble__files li:last-child')!.textContent).toBe('📎 notes.pdf')
+    await act(async () => host.querySelector<HTMLButtonElement>('.thumb')!.click())
+    expect(onOpen).toHaveBeenCalledWith(1)
+  })
+
+  it('keeps the same element when its message is delivered, so the frame does not load again', async () => {
+    const chosen: Media = { kind: 'video', name: 'clip.mp4', url: 'blob:clip' }
+    const { host, render } = await sentFiles(chosen)
+    const before = video(host)
+    await render({ ...chosen })
+    expect(video(host)).toBe(before)
+  })
+
+  it('is a file chip until the service’s copy has loaded, then the preview', async () => {
+    const { host } = await sentFiles({ kind: 'video', name: 'clip.mp4', url: '/files/clip.mp4', inbox: true })
+    expect(host.querySelector('.bubble__files li:first-child')!.textContent).toBe('📎 clip.mp4')
+    expect(host.querySelector('.chat__play')).toBeNull()
+    await metadata(host, '/files/clip.mp4')
+    expect(video(host)?.getAttribute('src')).toBe('/files/clip.mp4')
+    expect(host.querySelector('.thumb .chat__play')).not.toBeNull()
+    expect(host.textContent).not.toContain('📎 clip.mp4')
+  })
+
+  it('asks the service again a while later: a new message may not be in the inbox yet', async () => {
+    vi.useFakeTimers()
+    try {
+      const { host } = await sentFiles({ kind: 'video', name: 'clip.mp4', url: '/files/clip.mp4', inbox: true })
+      await broke(host, '/files/clip.mp4')
+      await act(async () => vi.advanceTimersByTime(1000))
+      expect(host.querySelector('video')?.getAttribute('src')).toBe('/files/clip.mp4?retry=1')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('is a file chip with no player when the file is gone and nothing was on screen', async () => {
+    const { host } = await sentFiles({ kind: 'video', name: 'clip.mp4', url: 'blob:clip' })
+    await broke(host, 'blob:clip')
+    expect(host.querySelector('video')).toBeNull()
+    expect(host.querySelector('.bubble__files li:first-child')!.textContent).toBe('📎 clip.mp4')
+  })
+
+  it('keeps a preview already on screen when its file goes', async () => {
+    const { host } = await sentFiles({ kind: 'video', name: 'clip.mp4', url: '/files/clip.mp4', inbox: true })
+    await metadata(host, '/files/clip.mp4')
+    await broke(host, '/files/clip.mp4')
+    expect(video(host)?.getAttribute('src')).toBe('/files/clip.mp4')
+    expect(host.textContent).not.toContain('📎 clip.mp4')
   })
 })
 

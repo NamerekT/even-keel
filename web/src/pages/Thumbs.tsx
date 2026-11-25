@@ -1,7 +1,8 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { t } from '../i18n/index.js'
 import { fileName } from './feedLine.js'
-import { InboxImage } from './InboxImage.js'
+import { StartIcon } from '../ui/icons.js'
+import { InboxImage, InboxVideo } from './InboxImage.js'
 import type { Media } from './MediaViewer.js'
 import type { TranscriptMedia } from './transcriptMedia.js'
 import './media.css'
@@ -85,8 +86,41 @@ export function InboxThumb({ item, onOpen }: { item: Media; onOpen: () => void }
 }
 
 /**
- * The files of a message the user sent — in the feed or still in the mailbox (BTN-1431): pictures as thumbnails, the rest
- * as names. By place alone: the sent line names a file by its name, the transcript's by its path (BTN-1390).
+ * A video the user sent (BTN-1704): its first frame with ▶, as in the chat field. The agent never reads a video, so past
+ * the browser's copy its only address is the service's one of the inbox file, gone once the worktree is cleaned up: then
+ * it is a file chip with no player, unless a frame is on screen already. Like `InboxThumb`, the frame on screen stays
+ * while a next address loads.
+ */
+export function VideoThumb({ item, onOpen }: { item: Media; onOpen: () => void }) {
+  const [loaded, setLoaded] = useState<string | null>(null)
+  const [broken, setBroken] = useState<string | null>(null)
+  const ready = loaded === item.url
+  const stale = !ready && loaded !== null
+  const failed = broken === item.url && !ready
+  if (failed && !stale) return <span className="chat__file">📎 {item.name}</span>
+  const onScreen = ready || stale || item.inbox !== true
+  const frame = { muted: true, playsInline: true, preload: 'metadata', 'aria-hidden': true } as const
+  const next = stale ? 'thumb__next' : undefined
+  const shown = () => setLoaded(item.url)
+  return (
+    <button type="button" className={onScreen ? 'thumb' : 'chat__file'} title={item.name} aria-label={t.session.chat.openPicture(item.name)} onClick={onOpen}>
+      {!onScreen && `📎 ${item.name}`}
+      {stale && <video {...frame} src={loaded} />}
+      {!failed && (item.inbox === true
+        ? <InboxVideo key={item.url} {...frame} className={next} src={item.url} onLoadedMetadata={shown} />
+        : <video key={item.url} {...frame} className={next} src={item.url} onLoadedMetadata={shown} onError={() => setBroken(item.url)} />)}
+      {onScreen && (
+        <span className="chat__play" aria-hidden="true">
+          <StartIcon />
+        </span>
+      )}
+    </button>
+  )
+}
+
+/**
+ * The files of a message the user sent — in the feed or still in the mailbox (BTN-1431): pictures and videos as
+ * thumbnails, the rest as names. By place alone: the sent line names a file by its name, the transcript's by its path (BTN-1390).
  */
 export function SentFiles({ files, media, onOpen }: { files: string[]; media: TranscriptMedia; onOpen: (place: number) => void }) {
   if (files.length === 0) return null
@@ -94,11 +128,11 @@ export function SentFiles({ files, media, onOpen }: { files: string[]; media: Tr
     <ul className="bubble__files">
       {files.map((file, index) => {
         const place = media.byFile.get(file)
+        const item = place === undefined ? undefined : media.items[place]!
+        const Shown = item?.kind === 'video' ? VideoThumb : InboxThumb
         return (
           <li key={index}>
-            {place === undefined ? <span className="chat__file">📎 {fileName(file)}</span> : (
-              <InboxThumb item={media.items[place]!} onOpen={() => onOpen(place)} />
-            )}
+            {item === undefined ? <span className="chat__file">📎 {fileName(file)}</span> : <Shown item={item} onOpen={() => onOpen(place!)} />}
           </li>
         )
       })}

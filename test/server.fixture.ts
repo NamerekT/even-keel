@@ -123,8 +123,12 @@ export async function serverFixture(overrides: Partial<ServerDeps> = {}) {
       if (id === 'bad') throw new Error('sessions: bad is not a session id')
       return id === '0a1b2c3d' && tool === 'toolu_1' && index === 0 ? { type: 'image/png', size: 4, body: Readable.from([Buffer.from('PNG!')]) } : undefined
     },
-    inboxFile: async (id, name) =>
-      id === '0a1b2c3d' && name === 'order 1.png' ? { type: 'image/png', size: 4, body: Readable.from([Buffer.from('PNG!')]) } : undefined,
+    inboxFile: async (id, name) => {
+      if (id !== '0a1b2c3d') return undefined
+      if (name === 'order 1.png') return { type: 'image/png', size: 4, body: Readable.from([Buffer.from('PNG!')]) }
+      if (name === 'clip.mp4') return { type: 'video/mp4', size: 10, body: Readable.from([Buffer.from('0123'), Buffer.from('456789')]) }
+      return undefined
+    },
     sharedFile: async (id, tool, index) => {
       if (id === 'bad') throw new Error('sessions: bad is not a session id')
       return id === '0a1b2c3d' && tool === 'toolu_2' && index === 0

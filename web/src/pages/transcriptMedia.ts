@@ -2,19 +2,23 @@ import type { FeedLine } from '../../../src/sessions/transcript.js'
 import { fileName } from './feedLine.js'
 import type { Media } from './MediaViewer.js'
 
-/** The pictures the service gives for a sent file (`inboxImage`); any other file stays a name. */
+/** The pictures and videos the service gives for a sent file (`inboxImage`); any other file stays a name. */
 const SENT_IMAGE = /\.(png|jpe?g|gif|webp)$/i
+const SENT_VIDEO = /\.(mp4|m4v|mov|webm|ogv)$/i
 const SHARED_MARKDOWN = /\.(md|markdown)$/i
 
-/** Whether a file the user sends is a picture the chat shows. */
-export const isSentPicture = (name: string): boolean => SENT_IMAGE.test(name)
+/** What a file the user sends shows as in the chat: a picture or a video by its preview, anything else by its name. */
+export const sentKind = (name: string): Media['kind'] | null => (SENT_IMAGE.test(name) ? 'image' : SENT_VIDEO.test(name) ? 'video' : null)
+
+/** Whether a file the user sends is a picture or a video the chat shows. */
+export const isSentMedia = (name: string): boolean => sentKind(name) !== null
 
 export interface MediaUrls {
   image(tool: string, index: number): string
   file(name: string): string
   /** File `index` a session sent the user by call `tool`. */
   shared(tool: string, index: number): string
-  /** The browser's own address of a picture the user just sent, by its name (an object URL of the chosen file). */
+  /** The browser's own address of a picture or a video the user just sent, by its name (an object URL of the chosen file). */
   local?(name: string): string | undefined
 }
 
@@ -28,7 +32,7 @@ export interface TranscriptMedia {
   keys: string[]
   /** The places in `items` of each call's pictures, by the call's id. */
   byTool: Map<string, number[]>
-  /** The place in `items` of each picture the user sent, by its path. */
+  /** The place in `items` of each picture and video the user sent, by its path. */
   byFile: Map<string, number>
   /** The place in `items` of each picture a session sent the user, by `<call id>/<index of the file>`. */
   byShare: Map<string, number>
@@ -104,7 +108,8 @@ export function transcriptMedia(lines: FeedLine[], urls: MediaUrls, fallback: st
       }
     }
     for (const file of line.files ?? []) {
-      if (!SENT_IMAGE.test(file) || byFile.has(file)) continue
+      const kind = sentKind(file)
+      if (kind === null || byFile.has(file)) continue
       const frame = frames.find((each) => each.read && sameSent(each.path, file))
       if (frame !== undefined) {
         byFile.set(file, frame.place)
@@ -114,11 +119,12 @@ export function transcriptMedia(lines: FeedLine[], urls: MediaUrls, fallback: st
       const read = reads.find((each) => sameSent(each.path, file))
       const local = urls.local?.(name)
       // The browser's copy wins at every stage: the same bytes under a new address would load again and blink (BTN-1425).
+      // A video is never read, so the inbox file is its only copy past the browser's (BTN-1704).
       const item: Media = local !== undefined
-        ? { kind: 'image', name, url: local }
+        ? { kind, name, url: local }
         : read !== undefined
-          ? { kind: 'image', name, url: urls.image(read.tool, 0) }
-          : { kind: 'image', name, url: urls.file(name), inbox: true }
+          ? { kind, name, url: urls.image(read.tool, 0) }
+          : { kind, name, url: urls.file(name), inbox: true }
       const place = add(item, sentKey(name), file)
       frames.push({ place, path: file, read: false })
       byFile.set(file, place)

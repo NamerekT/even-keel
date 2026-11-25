@@ -199,15 +199,37 @@
   cursor: zoom-in;
 }
 
-.thumb img {
+.thumb img,
+.thumb video {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform var(--motion-fast) ease;
 }
 
-.thumb:hover img {
+.thumb:hover img,
+.thumb:hover video {
   transform: scale(1.08);
+}
+
+/* The ▶ over a video's first frame: in the chat field's strip and in a sent message's bubble */
+.chat__play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--viewer-fg);
+  pointer-events: none;
+}
+
+.chat__play .icon {
+  width: 20px;
+  height: 20px;
+  padding: 4px;
+  border-radius: 50%;
+  background: var(--viewer-glass);
+  fill: currentColor;
+  box-sizing: content-box;
 }
 
 .thumb:focus-visible {
@@ -228,9 +250,11 @@
   cursor: zoom-in;
 }
 
-/* The next address of a sent picture loads unseen under the one on screen */
+/* The next address of a sent picture or video loads unseen under the one on screen */
 .bubble__files .chat__file img,
-.bubble__files .thumb img.thumb__next {
+.bubble__files .chat__file video,
+.bubble__files .thumb img.thumb__next,
+.bubble__files .thumb video.thumb__next {
   position: absolute;
   width: 1px;
   height: 1px;

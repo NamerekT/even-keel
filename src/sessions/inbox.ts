@@ -9,12 +9,18 @@ const run = promisify(execFile)
 export const INBOX = join('.temp', 'inbox')
 const UNZIP_TIMEOUT_MS = 60_000
 const NAME_LIMIT = 120
-const IMAGE_TYPES: Record<string, string> = {
+/** The pictures and videos of a sent message the page shows in its bubble (`isSentMedia` in `web/src/pages/transcriptMedia.ts`). */
+const SHOWN_TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
   '.webp': 'image/webp',
+  '.mp4': 'video/mp4',
+  '.m4v': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.webm': 'video/webm',
+  '.ogv': 'video/ogg',
 }
 
 export interface InboxFile {
@@ -60,11 +66,12 @@ export async function saveInbox(workdir: string, files: InboxFile[], unzip = ext
 }
 
 /**
- * The picture `name` among the files a session was sent (paths from its transcript), with its type; only one that lies in
- * an inbox folder, so the page reaches no other file of the machine.
+ * The picture or video `name` among the files a session was sent (paths from its transcript), with its type; only one that
+ * lies in an inbox folder, so the page reaches no other file of the machine. A video is never read by the agent, so this
+ * inbox file is its only copy (BTN-1704).
  */
 export function inboxImage(sent: string[], name: string): { path: string; type: string } | undefined {
-  const type = IMAGE_TYPES[extname(name).toLowerCase()]
+  const type = SHOWN_TYPES[extname(name).toLowerCase()]
   if (type === undefined) return undefined
   const path = sent.find((file) => {
     const parts = file.split(/[\\/]/)
@@ -74,11 +81,11 @@ export function inboxImage(sent: string[], name: string): { path: string; type: 
 }
 
 /**
- * The picture `name` in the inbox of a session's folder, before its transcript names it: a reply is saved there while
- * the session is still starting up (BTN-1360). Only a bare name `saveInbox` could have given, so no other file is reached.
+ * The picture or video `name` in the inbox of a session's folder, before its transcript names it: a reply is saved there
+ * while the session is still starting up (BTN-1360). Only a bare name `saveInbox` could have given, so no other file is reached.
  */
 export function inboxImageIn(workdir: string | null, name: string): { path: string; type: string } | undefined {
-  const type = IMAGE_TYPES[extname(name).toLowerCase()]
+  const type = SHOWN_TYPES[extname(name).toLowerCase()]
   if (workdir === null || type === undefined || inboxName(name) !== name) return undefined
   return { path: join(workdir, INBOX, name), type }
 }

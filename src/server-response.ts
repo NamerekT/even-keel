@@ -87,22 +87,60 @@ export function eventWriter(response: ServerResponse): { write(frame: string): v
 /**
  * A file shown in place keeps the page's policy; an SVG gets one that runs no script even opened by its own address,
  * its inline styles and SMIL animation kept; anything else is a sandboxed download.
+ *
+ * A file of a known size answers a single `Range` with 206 and that piece (BTN-1704): Safari on iOS plays no `<video>`
+ * without it, and Chrome cannot seek one. Several ranges get the whole file; a range past the end, 416.
  */
 export async function sendFile(response: ServerResponse, file: TaskFile): Promise<void> {
   const drawing = SVG.test(file.type)
   const shown = drawing || SHOWN_IN_PLACE.test(file.type)
-  response.writeHead(200, {
+  const range = file.size === null ? null : rangeOf(response.req.headers.range, file.size)
+  const headers = {
     'content-type': file.type || 'application/octet-stream',
-    ...(file.size === null ? {} : { 'content-length': String(file.size) }),
     'content-disposition': `${shown ? 'inline' : 'attachment'}${file.name === undefined ? '' : `; filename*=UTF-8''${encodeURIComponent(file.name)}`}`,
     'x-content-type-options': 'nosniff',
     'cache-control': 'private, max-age=3600',
+    ...(file.size === null ? {} : { 'accept-ranges': 'bytes' }),
     ...(drawing ? { 'content-security-policy': SVG_POLICY } : shown ? {} : { 'content-security-policy': 'sandbox' }),
-  })
+  }
+  if (range === 'unsatisfiable') {
+    if (file.body instanceof Readable) file.body.destroy()
+    response.writeHead(416, { ...headers, 'content-range': `bytes */${file.size}`, 'content-length': '0' }).end()
+    return
+  }
+  if (range === null) response.writeHead(200, { ...headers, ...(file.size === null ? {} : { 'content-length': String(file.size) }) })
+  else response.writeHead(206, { ...headers, 'content-range': `bytes ${range.start}-${range.end}/${file.size}`, 'content-length': String(range.end - range.start + 1) })
   try {
-    await pipeline(Readable.from(file.body), response)
+    await pipeline(Readable.from(range === null ? file.body : slice(file.body, range.start, range.end)), response)
   } catch {
     response.destroy()
+  }
+}
+
+/** The one byte range a `Range` header asks of a file of `size` bytes, both ends included; `null` — the whole file. */
+export function rangeOf(header: string | undefined, size: number): { start: number; end: number } | 'unsatisfiable' | null {
+  const match = header === undefined ? null : /^bytes=(\d*)-(\d*)$/.exec(header.trim())
+  if (match === null) return null
+  const [, from, to] = match as unknown as [string, string, string]
+  if (from === '' && to === '') return null
+  if (from === '') {
+    const last = Number(to)
+    return last === 0 || size === 0 ? 'unsatisfiable' : { start: Math.max(0, size - last), end: size - 1 }
+  }
+  const start = Number(from)
+  if (start >= size) return 'unsatisfiable'
+  const end = to === '' ? size - 1 : Math.min(Number(to), size - 1)
+  return end < start ? null : { start, end }
+}
+
+async function* slice(body: AsyncIterable<Uint8Array>, start: number, end: number): AsyncGenerator<Uint8Array> {
+  let at = 0
+  for await (const chunk of body) {
+    const from = Math.max(0, start - at)
+    const to = Math.min(chunk.length, end + 1 - at)
+    if (to > from) yield chunk.subarray(from, to)
+    at += chunk.length
+    if (at > end) return
   }
 }
 

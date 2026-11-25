@@ -24,6 +24,8 @@ Pictures the session read and the ones you sent show as thumbnails that open ful
 
 A picture you send shows in your message at once, from the file you picked, even while the session is still starting. A picture sent earlier, from another window or device, shows its filename while it loads; you can click it to open the viewer, and the chat retries the picture automatically.
 
+A video you send shows the same way, as its first frame with ▶, and plays in the same viewer. The session never reads a video, so once its task is done and its folder is cleaned up, a video you sent from another device is only its filename.
+
 Files the session sends you (Claude Code's `SendUserFile`) stand in the chat as a block of their own: a markdown file rendered in place, a picture as a thumbnail, anything else to download — as long as the file is still in the session's folder or its project's folder.
 
 The button turns amber while the session waits for you. Even Keel stops the session and resumes it with your answer.

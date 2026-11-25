@@ -69,6 +69,8 @@ describe('inboxImage', () => {
     '/home/john/example/.temp/inbox/shot.JPG',
     'C:\\repos\\example\\notes.png',
     'C:\\repos\\example\\.temp\\inbox\\log.txt',
+    '/home/john/example/.temp/inbox/clip.MP4',
+    '/home/john/example/demo.webm',
   ]
 
   it('finds a picture the session was sent in an inbox folder, by its name', () => {
@@ -76,10 +78,15 @@ describe('inboxImage', () => {
     expect(inboxImage(sent, 'shot.JPG')).toEqual({ path: sent[1], type: 'image/jpeg' })
   })
 
-  it('refuses a file outside an inbox folder, one not sent and one that is not a picture', () => {
+  it('finds a video the session was sent in an inbox folder (BTN-1704)', () => {
+    expect(inboxImage(sent, 'clip.MP4')).toEqual({ path: sent[4], type: 'video/mp4' })
+  })
+
+  it('refuses a file outside an inbox folder, one not sent and one that is not a picture or a video', () => {
     expect(inboxImage(sent, 'notes.png')).toBeUndefined()
     expect(inboxImage(sent, 'other.png')).toBeUndefined()
     expect(inboxImage(sent, 'log.txt')).toBeUndefined()
+    expect(inboxImage(sent, 'demo.webm')).toBeUndefined()
   })
 })
 
@@ -87,6 +94,7 @@ describe('inboxImageIn', () => {
   it('finds a picture in the inbox of the session folder before the transcript names it', () => {
     const dir = workdir()
     expect(inboxImageIn(dir, 'order.png')).toEqual({ path: join(dir, '.temp', 'inbox', 'order.png'), type: 'image/png' })
+    expect(inboxImageIn(dir, 'clip.mov')).toEqual({ path: join(dir, '.temp', 'inbox', 'clip.mov'), type: 'video/quicktime' })
   })
 
   it('refuses a name with folders, a name inboxName would change, a file that is not a picture and no folder', () => {
