@@ -419,7 +419,7 @@ To check, on the benches: give a project of the bench hub two machines and width
 
 ## Landings across machines (BTN-1583)
 
->>>>>>> origin/dev
+`docs/machines/landings.md`, "Landings across machines". A project lands one task at a time on all its machines, a landing longer than 2 s goes on behind the chain and wakes it at its end, a landing whose machine is off the link gives up the turn, and a landing that went through has the other machines of the pool fast-forward their main to the pushed commit. Covered by `src/chain/landings-turn.test.ts` (one turn per project, the wake, a machine off the link, the forward to the others) with scripted machines and by `src/git/sync.test.ts` (`fastForwardTo` leaves a folder with changes or mid-merge). Seen on 2026-11-25 on the Docker hub with two machines, at width 2 (`docs/verified/machines.md`): one landing at a time across machines, landings behind the chain, the other machines' main forwarded to the pushed commit, a diverged main left alone and forwarded after its own landing, three conflicts each resolved in round 1. Not seen: a landing whose machine is off the link.
 
 Assumed: a machine that went off the link mid-landing answers its `land` call once it is back, so the task's step takes the outcome and the turn is not held meanwhile; and `forward` reaches each other machine of the pool over a real link within the push's minute. If not, two machines of a project land at once and one of them is sent back to its session for nothing, a task stays held after its machine returned (Skip it, or stop its session and start a new one), or a machine's main stays behind the remote's (`git pull --ff-only` there by hand); the log has `chain: <project>: machine <id> after the landing of <task>: main …`.
 
