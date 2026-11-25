@@ -133,6 +133,7 @@ const COMMANDS: Record<string, Command> = {
     body.account === undefined ? undefined : textOf(body.account, 'account'),
     body.method === undefined ? undefined : textOf(body.method, 'method'),
   ),
+  'machines/useGlobal': ({ machines }, body) => machines?.useGlobal(textOf(body.machine, 'machine'), textOf(body.agent, 'agent')),
   'machines/code': ({ machines }, body) => machines?.code(textOf(body.machine, 'machine'), codeOf(body)),
   'machines/token': ({ machines }, body) =>
     machines?.token(textOf(body.machine, 'machine'), textOf(body.account, 'account'), textOf(body.token, 'token'), typeof body.name === 'string' ? body.name : ''),

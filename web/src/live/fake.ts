@@ -738,7 +738,10 @@ export function createFakeSource(search: string): LiveSource {
         notify()
         return
       }
-      const next =fakeBranchCommand(state, name, body, params.get('branch')) ?? fakeMachineCommand(state, name, body) ?? fakeCommand(state, name, body, launches)
+      const machine = fakeMachineCommand(state, name, body)
+      // A machine's accounts changed: its cards are read again, as its next snapshot makes the hub tell the page.
+      if (machine !== null) setTimeout(() => network.changed(), 0)
+      const next = fakeBranchCommand(state, name, body, params.get('branch')) ?? machine ?? fakeCommand(state, name, body, launches)
       if (name === 'cli/download') setTimeout(() => {
         if (current.state === null) return
         current = { ...current, state: finishFakeCli(current.state, String(body.agent)) }

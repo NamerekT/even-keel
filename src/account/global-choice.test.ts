@@ -43,6 +43,39 @@ it('does not check hidden folders until Add account asks, and offers the signed-
   expect(accounts.view.accounts).toEqual([])
 })
 
+it('offers a signed-in CLI folder not added on a machine elsewhere, read again only after its interval', async () => {
+  const { accounts, authStatus, options } = setup()
+  let now = new Date('2026-11-23T10:00:00Z')
+  options.now = () => now
+  accounts.offerGlobals(600_000)
+  await accounts.refresh()
+  expect(accounts.view.globals).toEqual([{ key: 'codex', agent: 'codex', email: 'john@example.com' }])
+  expect(accounts.view.accounts).toEqual([])
+  await accounts.refresh()
+  expect(authStatus).toHaveBeenCalledOnce()
+  now = new Date('2026-11-23T10:10:00Z')
+  authStatus.mockResolvedValue({ loggedIn: false, email: null, authMethod: null, orgName: null, subscriptionType: null })
+  await accounts.refresh()
+  expect(accounts.view.globals).toBeUndefined()
+})
+
+it('offers nothing for a CLI folder whose agent this installation does not run', async () => {
+  const { accounts, options } = setup()
+  options.agentOf = (() => undefined) as unknown as AccountWatcherOptions['agentOf']
+  accounts.offerGlobals(600_000)
+  await accounts.refresh()
+  expect(accounts.view.globals).toBeUndefined()
+})
+
+it('drops the offer once the folder is added', async () => {
+  const { accounts } = setup()
+  accounts.offerGlobals(600_000)
+  await accounts.refresh()
+  await accounts.useGlobal('codex')
+  expect(accounts.view.accounts.map((entry) => entry.key)).toEqual(['codex'])
+  expect(accounts.view.globals).toBeUndefined()
+})
+
 it('adds the CLI folder explicitly and gives the first account its shared pool entry', async () => {
   const { accounts, makeShared } = setup()
   await accounts.useGlobal('codex')

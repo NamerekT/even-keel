@@ -32,6 +32,7 @@ import {
   type AccountLogin,
   type AccountStatus,
   type AccountView,
+  type GlobalSignIn,
   type ReadBalance,
   type TokenAccountOf,
 } from './model.js'
@@ -62,6 +63,11 @@ export class AccountWatcher {
   private clis = 'null'
   private current: AccountLogin | null = null
   private globalCheck: AccountView['globalCheck']
+  /** `offerGlobals`: how often the CLI folders not added are read, when they were and which ones there were. */
+  private globalsEvery: number | undefined
+  private globalsAt: number | undefined
+  private globalsSeen = ''
+  private globals: GlobalSignIn[] = []
   private running: Running | undefined
   private output = ''
   private timer: NodeJS.Timeout | undefined
@@ -185,6 +191,7 @@ export class AccountWatcher {
       accounts,
       login: this.current,
       ...(this.globalCheck !== undefined && { globalCheck: this.globalCheck }),
+      ...(this.globals.length > 0 && { globals: this.globals }),
       ...(this.aws !== undefined && { aws: this.aws }),
       ...(this.gcloud !== undefined && { gcloud: this.gcloud }),
       ...(this.azure !== undefined && { azure: this.azure }),
@@ -318,11 +325,12 @@ export class AccountWatcher {
     const known = await Promise.all(homes.map((home) => this.check(home)))
     const keysChanged = await this.checkKeys(known)
     await this.checkCredit(homes)
+    const globalsChanged = await this.checkGlobals()
     const absent = this.options.missing()
     const clis = JSON.stringify(this.options.clis?.() ?? null)
     const first = !this.read
     this.read = true
-    if (!first && !keysChanged && JSON.stringify(known) === JSON.stringify(this.known) && absent.join() === this.absent.join() && clis === this.clis) return
+    if (!first && !keysChanged && !globalsChanged && JSON.stringify(known) === JSON.stringify(this.known) && absent.join() === this.absent.join() && clis === this.clis) return
     this.known = known
     this.absent = absent
     this.clis = clis
@@ -345,6 +353,37 @@ export class AccountWatcher {
     }
     this.claimShared(this.options.homes.place(pending, agent))
     void this.refresh().catch((error: unknown) => this.options.onError(error))
+  }
+
+  /**
+   * A machine elsewhere (BTN-1568): its CLI folders not added (`availableGlobals`) are read for a sign-in every `everyMs`
+   * and at once when one is added or forgotten, and the signed-in ones go into `view.globals`, so the hub offers "Use it"
+   * for its account of the same e-mail instead of a new sign-in. The hub never reads its own hidden folders so.
+   */
+  offerGlobals(everyMs: number): void {
+    this.globalsEvery = everyMs
+    this.globalsAt = undefined
+  }
+
+  /** True when the signed-in folders not added changed. */
+  private async checkGlobals(): Promise<boolean> {
+    if (this.globalsEvery === undefined) return false
+    const homes = this.options.homes.availableGlobals()
+    const seen = homes.map((home) => home.key).join()
+    const now = this.options.now().getTime()
+    if (seen === this.globalsSeen && this.globalsAt !== undefined && now - this.globalsAt < this.globalsEvery) return false
+    this.globalsAt = now
+    this.globalsSeen = seen
+    const absent = this.options.missing()
+    const found = await Promise.all(homes.filter((home) => !absent.includes(home.agent)).map(async (home): Promise<GlobalSignIn[]> => {
+      // An agent this installation does not run (left out of `AGENTS`) has no adapter: its folder offers nothing.
+      const status = await this.options.agentOf(home)?.authStatus(home).catch(() => null)
+      return status?.loggedIn === true && status.email !== null ? [{ key: home.key, agent: home.agent, email: status.email }] : []
+    }))
+    const next = found.flat()
+    const changed = JSON.stringify(next) !== JSON.stringify(this.globals)
+    this.globals = next
+    return changed
   }
 
   async discoverGlobal(agent: string): Promise<void> {

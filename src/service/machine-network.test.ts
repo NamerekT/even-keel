@@ -523,7 +523,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       rev: 1,
       facts: {
         sessionsRead: true, accountsRead: true, tasks: {}, projects: {}, ledger: {}, resets: {}, limits: {},
-        panel: { active: 'codex', accounts: [signedOut, signedIn, onToken], login, loginBlock: null, apps: [], pool: [], missing: ['opencode'] },
+        panel: { active: 'codex', accounts: [signedOut, signedIn, onToken], login, loginBlock: null, apps: [], pool: [], missing: ['opencode'], globals: [{ key: 'global', agent: 'claude', email: 'john.doe@example.com' }] },
       } as unknown as FactsSnapshot['facts'],
     }
     const ran: NumberedCommand[] = []
@@ -552,6 +552,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       ],
       login,
       missing: ['opencode'],
+      globals: [{ key: 'global', agent: 'claude', email: 'john.doe@example.com' }],
     }])
     expect(republished).toBeGreaterThan(0)
 
@@ -565,6 +566,10 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     expect(sent('account.add')).toEqual([{ args: ['claude'] }, { args: ['codex', 'device'] }])
     expect(sent('account.code')).toEqual([{ args: ['one-time-code'] }])
     expect(sent('account.cancel')).toEqual([{ args: [] }])
+    // The machine's CLI folder signed in as the hub's account, added there with no new sign-in (BTN-1568).
+    await network.useGlobal(joined.machine, 'claude')
+    expect(sent('account.useGlobal')).toEqual([{ args: ['claude'] }])
+    await expect(network.useGlobal(joined.machine, 'codex')).rejects.toThrow(/codex/)
     await network.token(joined.machine, 'hub-folder', 'sk-ant-oat01-fake-fake-fake-fake-fake', 'Laptop')
     expect(sent('account.addLongToken')).toEqual([{ args: ['Laptop', 'sk-ant-oat01-fake-fake-fake-fake-fake', null, { account: 'uuid-1', email: 'john.doe@example.com' }] }])
     await expect(network.token(joined.machine, 'nowhere', 'sk-ant-oat01-fake-fake-fake-fake-fake')).rejects.toThrow(/nowhere/)

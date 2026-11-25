@@ -6,7 +6,7 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { machineAccountsEmpty } from '../machineAdd.js'
 import { machineAccountView, machineLevels, machineUses } from '../machineAccountView.js'
-import { machineLogin } from '../machineSignIn.js'
+import { gapCommand, machineLogin } from '../machineSignIn.js'
 import { MachineLabels } from '../ui/MachineLabel.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -131,26 +131,38 @@ export function useMachineRows(card: MachineCard, project?: string): MachineRows
     failure,
     send: machineSend(send, card.id, accounts.folders),
     switchOff: machineSwitchOff(accounts, card),
-    signIn: (away) => (
-      <SignIn name={card.name} online={online} busy={busy} noCli={away.noCli ? agentLabel(away.agent) : null}
-        onClick={() => void send('machines/login', { machine: card.id, agent: away.agent, ...(away.account !== undefined && { account: away.account }) })} />
-    ),
+    signIn: (away) => {
+      const [name, body] = gapCommand(away.agent, { machine: card.id, name: card.name, online, noCli: away.noCli, ...(away.account !== undefined && { account: away.account }), ...(away.global !== undefined && { global: away.global }) })
+      return <SignIn name={card.name} online={online} busy={busy} noCli={away.noCli ? agentLabel(away.agent) : null} global={away.global !== undefined} onClick={() => void send(name, body)} />
+    },
   }
 }
 
-/** "Sign in" on the machine: greyed with why while it is off the link; without the agent's CLI there, what to install instead. */
-export function SignIn({ name, online, busy, noCli, onClick }: { name: string; online: boolean; busy: boolean; noCli: string | null; onClick: () => void }) {
+/**
+ * "Sign in" on the machine: greyed with why while it is off the link; without the agent's CLI there, what to install
+ * instead. `global` — "Use it": the machine's CLI folder already signed in as the account is added (BTN-1568).
+ */
+export function SignIn({ name, online, busy, noCli, global = false, onClick }: { name: string; online: boolean; busy: boolean; noCli: string | null; global?: boolean; onClick: () => void }) {
   if (noCli !== null) return <span className="machine-accounts__end machine-accounts__muted">{t.machines.noCli(noCli)}</span>
+  const label = global ? t.machinePanel.view.useGlobal : t.account.login
   return (
     <span className="machine-accounts__end">
       {online ? (
-        <button type="button" className="button button--small" disabled={busy} onClick={onClick}>
-          {t.account.login}
-        </button>
+        global ? (
+          <Tipped tip={t.machinePanel.view.useGlobalTip(name)} align="end">
+            <button type="button" className="button button--small" disabled={busy} onClick={onClick}>
+              {label}
+            </button>
+          </Tipped>
+        ) : (
+          <button type="button" className="button button--small" disabled={busy} onClick={onClick}>
+            {label}
+          </button>
+        )
       ) : (
         <Tipped tip={t.machines.offlineTip(name)} align="end">
           <button type="button" className="button button--small" aria-disabled="true">
-            {t.account.login}
+            {label}
           </button>
         </Tipped>
       )}

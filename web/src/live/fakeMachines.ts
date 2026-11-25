@@ -120,7 +120,8 @@ export class FakeNetwork {
     return { machines: rows, others, servers: FAKE_SERVERS, commands: FAKE_COMMANDS }
   }
 
-  private changed(): void {
+  /** Tells the page's machine readers to read again, as a machine's new snapshot does. */
+  changed(): void {
     for (const listener of this.listeners) listener()
   }
 
@@ -530,7 +531,8 @@ function joinJob(state: EvenKeelState, body: Record<string, unknown>): StepJob {
  * in; `login` with its sign-in under way, `offline` gone from the link, `nocli` without the Claude CLI, `token` with the
  * other machine on long tokens (BTN-1002), `tokenAlone` on long tokens of the hub's Claude folders signed out, so no
  * machine polls them (BTN-1266; with `?accounts=tokenOnly`), `tokenDiffer` on long tokens whose windows differ from
- * the hub's poll (BTN-1267). Its commands go through `fakeMachineCommand`.
+ * the hub's poll (BTN-1267), `global` with the laptop's global Claude folder signed in as the active account but not
+ * added (BTN-1568). Its commands go through `fakeMachineCommand`.
  */
 export function fakeMachineSignIns(state: EvenKeelState, mode: string | null): MachineSignIn[] | undefined {
   if (mode === null) return undefined
@@ -547,9 +549,12 @@ export function fakeMachineSignIns(state: EvenKeelState, mode: string | null): M
         ...(differ && { limitsDiffer: true as const }),
       })),
   }
+  const active = state.account.accounts.find((entry) => entry.key === state.account.active)
+  const activeEmail = active?.status?.email ?? null
   const laptop: MachineSignIn = {
     machine: 'machine-1', name: 'Example laptop', online: mode !== 'offline', login: null, missing: mode === 'nocli' ? ['claude'] : [],
     ...(mode === 'nocli' && { installs: { claude: installCommand('claude', 'linux') } }),
+    ...(mode === 'global' && activeEmail !== null && { globals: [{ key: 'global', agent: active?.agent ?? 'claude', email: activeEmail }] }),
     accounts: mode === 'checking' ? desktop.accounts.slice(0, 1) : [],
   }
   if (mode === 'many') return [...manyMachines(state, laptop), desktop]
@@ -606,6 +611,18 @@ export function fakeMachineCommand(state: EvenKeelState, name: string, body: Rec
   const machine = String(body.machine)
   if (name === 'machines/login') return change(machine, (each) => ({ ...each, login: loginOf(String(body.agent ?? 'claude'), typeof body.account === 'string' ? body.account : null) }))
   if (name === 'machines/cancel') return change(machine, (each) => ({ ...each, login: null }))
+  if (name === 'machines/useGlobal') {
+    return change(machine, (each) => {
+      const global = each.globals?.find((entry) => entry.agent === body.agent)
+      if (global === undefined) throw new Error('Unknown account')
+      const { globals: all, ...rest } = each
+      const globals = all!.filter((entry) => entry !== global)
+      return {
+        ...rest, ...(globals.length > 0 && { globals }),
+        accounts: [...each.accounts, { key: global.key, agent: global.agent, email: global.email, signedIn: true }],
+      }
+    })
+  }
   if (name === 'machines/checkClis') return state
   if (name === 'machines/installCli') {
     const agent = String(body.agent)
