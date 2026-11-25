@@ -49,7 +49,9 @@ type Handler = (call: Call) => Promise<void>
 const OPEN: Record<string, Handler> = {
   'GET state': async ({ access, response, visitor, host }) => {
     const passkeyHere = (await access.passkeys.list()).some((passkey) => passkey.host === host)
-    const state: AuthState = { signedIn: visitor.signedIn, keySet: access.key() !== null, passkeyHere, device: visitor.device?.device ?? null }
+    const keySet = access.key() !== null
+    const unasked = visitor.signedIn && visitor.device === undefined && !keySet && !access.book.signInOn() && !isLoopbackHost(host)
+    const state: AuthState = { signedIn: visitor.signedIn, keySet, passkeyHere, device: visitor.device?.device ?? null, takesInvite: !visitor.signedIn || unasked }
     sendJson(response, 200, state)
   },
   'POST key': async (call) => {
