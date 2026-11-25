@@ -11,6 +11,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { PlusIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
+import { liveInvites } from './inviteStage.js'
 import { useInvitation } from './useInvitation.js'
 import { addPasskey, openedByIp, passkeysWork, type AuthPost } from './passkey.js'
 import { PageToken } from './SettingsSecrets.js'
@@ -37,6 +38,8 @@ export function SignInSettings({ state, addresses }: { state: EvenKeelState; add
   const [failure, setFailure] = useState<Notice | null>(null)
   const [turningOff, setTurningOff] = useState(false)
   const now = useNow(view?.invites.length ? 1000 : 30_000)
+  // The service sends no event when a link expires: the page drops its row by its own clock.
+  const invites = liveInvites(view?.invites ?? [], now.getTime())
 
   // A device signed in or out, an invitation opened or decided elsewhere: the service says so on the event stream.
   useEffect(() => onDevices(() => setAsked((count) => count + 1)), [onDevices])
@@ -60,7 +63,10 @@ export function SignInSettings({ state, addresses }: { state: EvenKeelState; add
       await step()
       after()
     } catch (error) {
-      setFailure(noticeOf(error))
+      const refusal = noticeOf(error)
+      setFailure(refusal)
+      // A row of an invitation that ended meanwhile: the new read drops it, the refusal says why.
+      if (refusal.code === 'auth.inviteGone') setAsked((count) => count + 1)
     } finally {
       setBusy(false)
     }
@@ -177,9 +183,9 @@ export function SignInSettings({ state, addresses }: { state: EvenKeelState; add
                   })}
                 </ul>
               )}
-              {view.invites.length > 0 && (
+              {invites.length > 0 && (
                 <ul className="sign-ins">
-                  {view.invites.map((each) => (
+                  {invites.map((each) => (
                     <li key={each.id} className="sign-ins__row">
                       <span className="sign-ins__main">
                         <span className="sign-ins__name">
@@ -231,7 +237,7 @@ export function SignInSettings({ state, addresses }: { state: EvenKeelState; add
         )}
       </Loading>
       <FieldNote error={failure} />
-      {invitation.dialog(view?.invites, busy)}
+      {invitation.dialog(view === null ? undefined : invites, busy)}
       <Section title={t.signIn.ownerKey}>
         {view !== null && !view.keySet && view.signInOn && (
           <>

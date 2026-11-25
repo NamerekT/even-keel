@@ -23,9 +23,11 @@ export interface Invitation {
 export function useInvitation(post: AuthPost, changed: () => void): Invitation {
   const [made, setMade] = useState<InviteMade | null>(null)
   const [failure, setFailure] = useState<Notice | null>(null)
+  const [gone, setGone] = useState(false)
 
   const create = async () => {
     setMade(await post<InviteMade>('auth/invites/create', {}))
+    setGone(false)
     changed()
   }
   const decide = async (name: 'admit' | 'decline' | 'cancel') => {
@@ -36,7 +38,12 @@ export function useInvitation(post: AuthPost, changed: () => void): Invitation {
       setMade(null)
       changed()
     } catch (error) {
-      setFailure(noticeOf(error))
+      const refusal = noticeOf(error)
+      // The invitation is dead: the dialog says how it ended instead of the refusal, the list drops it on a new read.
+      if (refusal.code === 'auth.inviteGone') {
+        setGone(true)
+        changed()
+      } else setFailure(refusal)
     }
   }
   const again = async () => {
@@ -50,6 +57,7 @@ export function useInvitation(post: AuthPost, changed: () => void): Invitation {
   const close = () => {
     setMade(null)
     setFailure(null)
+    setGone(false)
   }
 
   return {
@@ -61,6 +69,7 @@ export function useInvitation(post: AuthPost, changed: () => void): Invitation {
         <InviteDialog
           made={made}
           invite={invites?.find((each) => each.id === made.id)}
+          gone={gone}
           busy={busy}
           failure={failure === null ? null : say(failure)}
           onAdmit={() => void decide('admit')}
