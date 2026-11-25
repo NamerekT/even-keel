@@ -101,6 +101,12 @@ describe('forPackageOff', () => {
     expect(forPackageOff(local('permission', 'mcp__plugin_design_figma__export'), reach)).toBe(true)
   })
 
+  it('takes a plugin set on there that a package brings, keeps one set off', () => {
+    const plugin = (value: string): SettingRow => ({ kind: 'plugin', name: 'huly@even-keel', values: { local: value }, session: null })
+    expect(forPackageOff(plugin('on'), reach)).toBe(true)
+    expect(forPackageOff(plugin('off'), reach)).toBe(false)
+  })
+
   it('keeps one of a package the sessions get: by the plugin, by the server', () => {
     expect(forPackageOff(local('plugin', 'huly@even-keel'), reach)).toBe(false)
     expect(forPackageOff(local('permission', 'mcp__github__get_issue'), reach)).toBe(false)

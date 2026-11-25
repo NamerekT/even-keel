@@ -97,11 +97,12 @@ export function settingRows(sources: SettingSources): SettingRow[] {
 /**
  * A plugin or MCP permission only `settings.local.json` sets, for a package the project's sessions do not get: they
  * have plugins and MCP only as packages, so it is not theirs to miss. A plugin's server `plugin_<plugin>_<server>` goes
- * by its plugin.
+ * by its plugin. A plugin set on there that a package brings goes too: the sessions get it as the package (BTN-1709);
+ * set off, it stays, since the package turns it on all the same.
  */
 export function forPackageOff(row: SettingRow, reach: SessionReach): boolean {
   if (row.session !== null) return false
-  if (row.kind === 'plugin') return !reach.plugins.includes(row.name)
+  if (row.kind === 'plugin') return !reach.plugins.includes(row.name) || row.values.local === 'on'
   const server = row.kind === 'permission' ? MCP_RULE.exec(row.name)?.[1] : undefined
   if (server === undefined) return false
   const plugins = reach.plugins.map((key) => `plugin_${key.split('@')[0]}_`)
