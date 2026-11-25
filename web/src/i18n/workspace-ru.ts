@@ -408,6 +408,10 @@ export const chainRU = {
       empty: 'Все открытые задачи — в цепочке или в бэклоге.',
       failed: 'Не удалось прочитать открытые задачи.',
       retry: 'Прочитать снова',
+      order: 'Порядок задач в каждом статусе',
+      archiveCount: (count: number, more: boolean) => (more ? `${count}+ задач` : tasks(count)),
+      archiveOlder: 'старше',
+      archiveOlderTip: 'Прочитать более старые закрытые задачи',
     },
     subtasksClosed: (closed: number, total: number) => `Закрыто подзадач: ${closed} из ${total}`,
     shapes: {

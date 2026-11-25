@@ -1,0 +1,149 @@
+// @vitest-environment happy-dom
+import { act, createElement } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ArchivePage, OutsideTask } from '../../../src/state.js'
+import type { Task, TaskStatus } from '../../../src/tracker/model.js'
+import { OutsideView } from './OutsideView.js'
+
+vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+
+const live = vi.hoisted(() => ({
+  tasks: [] as OutsideTask[],
+  archive: { tasks: [], next: null } as ArchivePage,
+  /** The tracker's reads of the project, as the live state carries them. */
+  readAt: null as number | null,
+  /** `outside/tasks` fails after this many milliseconds; `null` — it answers at once. */
+  failAfter: null as number | null,
+}))
+vi.mock('../live/context.js', () => ({
+  useLive: () => ({
+    state: {
+      chain: { projects: { p1: { order: [], waiting: [], backlog: [] } } },
+      trackers: live.readAt === null ? [] : [{ projects: ['p1'], readAt: { p1: live.readAt } }],
+    },
+    read: async (name: string) => {
+      if (name !== 'outside/tasks') return live.archive
+      const after = live.failAfter
+      if (after === null) return live.tasks
+      return new Promise((_, reject) => setTimeout(() => reject(new Error('no answer')), after))
+    },
+  }),
+}))
+
+const status = (name: string, category: TaskStatus['category']): TaskStatus => ({ name, category })
+const TODO = status('Todo', 'ToDo')
+const REVIEW = status('In Review', 'Active')
+const DONE = status('Done', 'Won')
+const task = (id: string, at: TaskStatus): Task => ({
+  id,
+  title: `Title of ${id}`,
+  status: at,
+  blockedBy: [],
+  parent: null,
+  subtasks: 0,
+  milestone: { label: 'v0.4', targetDate: null },
+  priority: 'none',
+  labels: ['Manual'],
+  estimate: null,
+  question: false,
+})
+const out = (id: string, at: TaskStatus): OutsideTask => ({ task: task(id, at), reason: 'label', label: 'Manual' })
+
+let root: Root
+let host: HTMLElement
+const saved = new Map<string, string>()
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  saved.clear()
+  saved.set('even-keel.outside.open.p1', 'label')
+  saved.set('even-keel.outside.archive.p1', '1')
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => saved.get(key) ?? null,
+    setItem: (key: string, value: string) => saved.set(key, value),
+  })
+  vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} }))
+  host = document.createElement('div')
+  document.body.append(host)
+  root = createRoot(host)
+})
+afterEach(async () => {
+  await act(async () => root.unmount())
+  host.remove()
+  vi.useRealTimers()
+  live.tasks = []
+  live.archive = { tasks: [], next: null }
+  live.readAt = null
+  live.failAfter = null
+})
+
+const render = (edits: number) =>
+  act(async () => root.render(createElement(OutsideView, { project: 'p1', switcher: null, edits, onCard: () => {} })))
+/** The first read: the rows come once the loader has gone through its entrance and exit. */
+const open = async () => {
+  await render(0)
+  for (let step = 0; step < 5; step += 1) await act(async () => vi.advanceTimersByTimeAsync(200))
+}
+
+/** Each status section's name and its rows' keys, top to bottom. */
+const sections = () =>
+  [...host.querySelectorAll('.outside__status')].map((section) => [
+    section.querySelector('.outside__status-name')?.textContent,
+    [...section.querySelectorAll('.block')].map((row) => row.getAttribute('data-block')),
+  ])
+const archived = () => [...host.querySelectorAll('.archived')].map((row) => row.getAttribute('data-block'))
+
+describe('OutsideView', () => {
+  it('moves a row to its new status section after a card edit, without a reload', async () => {
+    live.tasks = [out('A-1', TODO), out('A-2', TODO)]
+    await open()
+    expect(sections()).toEqual([['Todo', ['A-2', 'A-1']]])
+
+    live.tasks = [out('A-1', REVIEW), out('A-2', TODO)]
+    await render(1)
+    expect(sections()).toEqual([
+      ['In Review', ['A-1']],
+      ['Todo', ['A-2']],
+    ])
+  })
+
+  it('moves a closed row out to the Archive after a card edit', async () => {
+    live.tasks = [out('A-1', TODO), out('A-2', TODO)]
+    await open()
+    expect(archived()).toEqual([])
+
+    live.tasks = [out('A-2', TODO)]
+    live.archive = { tasks: [task('A-1', DONE)], next: null }
+    await render(1)
+    expect(sections()).toEqual([['Todo', ['A-2']]])
+    expect(archived()).toEqual(['A-1'])
+  })
+
+  it('shows the failed read when a tracker read came while the first read was still out', async () => {
+    live.failAfter = 600
+    await render(0)
+    live.readAt = 1
+    await render(0)
+    for (let step = 0; step < 10; step += 1) await act(async () => vi.advanceTimersByTimeAsync(200))
+    expect(host.querySelector('.outside__failed')).not.toBeNull()
+  })
+
+  it('keeps the rows when a later read fails', async () => {
+    live.tasks = [out('A-1', TODO)]
+    await open()
+    live.failAfter = 0
+    await render(1)
+    await act(async () => vi.advanceTimersByTimeAsync(10))
+    expect(sections()).toEqual([['Todo', ['A-1']]])
+    expect(host.querySelector('.outside__failed')).toBeNull()
+  })
+
+  it('shows the order switch only over rows', async () => {
+    await open()
+    expect(host.querySelector('.order-switch')).toBeNull()
+    live.tasks = [out('A-1', TODO)]
+    await render(1)
+    expect(host.querySelector('.order-switch')).not.toBeNull()
+  })
+})

@@ -4,7 +4,7 @@ import { AGENTS } from '../agent/adapters.js'
 import { outdatedDaemonView } from '../agent/versions.js'
 import { archivedShown } from '../chain/archive.js'
 import { archivePage } from '../chain/archive-pages.js'
-import { outsideTasks } from '../chain/outside.js'
+import { outsideArchivePage, outsideTasks } from '../chain/outside.js'
 import { fallbacksSince, fixEpisodes, launchDays, taskSessions, type TaskSession } from '../chain/launches.js'
 import { spentLimit } from '../chain/limitNotice.js'
 import { ciViews } from '../ci/wiring.js'
@@ -230,6 +230,11 @@ export function outsideOf(ctx: HostingContext, project: string): Promise<Outside
     },
     project,
   )
+}
+
+/** `outside/archive`: a page of the project's closed tasks the rules kept out of the chain (BTN-1673). */
+export function outsideArchiveOf(ctx: HostingContext, project: string, after: string | null): Promise<ArchivePage> {
+  return outsideArchivePage({ readers: (id) => readerIds(ctx.configStore.current, id), linkOf: ctx.linkOf, rulesOf: ctx.readerRules }, project, after)
 }
 
 // A finished session's feed is read from its record, and the page shows no action of it (`showsAction`); the one the

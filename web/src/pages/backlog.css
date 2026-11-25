@@ -39,11 +39,6 @@
   white-space: nowrap;
 }
 
-.backlog__order {
-  flex: none;
-  align-self: center;
-}
-
 .backlog__found {
   color: var(--fg-muted);
   font-size: var(--text-13);
@@ -137,11 +132,6 @@
 
 .backlog__meta .run-label__model {
   max-width: 24ch;
-}
-
-.backlog__order .segmented__item {
-  display: inline-flex;
-  padding: 5px 8px;
 }
 
 .backlog__list {

@@ -174,6 +174,17 @@ describe('the built-in tracker as a task source', () => {
     expect(await source.closedPage!(XYZ, open, { after: null, limit: 2 })).toEqual({ total: 0, tasks: [], next: null })
   })
 
+  it('gives a closed task with its labels: the "Outside the chain" archive keeps the excluded ones (BTN-1673)', async () => {
+    await store.create({ project: ABC, title: 'Hand work', status: 'Done' })
+    await store.relabel({ project: ABC, number: 1 }, { add: ['Manual', 'Bug'], remove: [] })
+    await store.create({ project: ABC, title: 'Plain', status: 'Done' })
+    const page = await source.closedPage!(ABC, open, { after: null, limit: 5 })
+    expect(page.tasks.map((task) => [task.id, task.labels])).toEqual([
+      ['ABC-2', []],
+      ['ABC-1', ['Bug', 'Manual']],
+    ])
+  })
+
   it('gives the attachments on the card with their paths, in the brief while their files are there, and serves them', async () => {
     const dir = join(mkdtempSync(join(tmpdir(), 'ek-source-')), 'files')
     const withFiles = builtinSource(db, PLACES, dir)

@@ -219,7 +219,10 @@ async function withRelations(db: Db, rows: readonly HeadRow[]): Promise<BuiltinT
   })
 }
 
-/** A closed task of the archive's page (BTN-1445): only what its row shows, with no labels or links. */
+/**
+ * A closed task of the archive's page (BTN-1445): what its row shows and its labels, which the "Outside the chain"
+ * archive judges it by (BTN-1673); no links.
+ */
 export interface ClosedRow extends TaskKey {
   title: string
   status: TaskStatus
@@ -227,6 +230,7 @@ export interface ClosedRow extends TaskKey {
   milestone: BuiltinMilestone | null
   parent: number | null
   subtasks: number
+  labels: string[]
   /** The last change of its status; one never changed — its last change. */
   closedAt: string
 }
@@ -235,7 +239,7 @@ export interface ClosedRow extends TaskKey {
 export async function readClosed(db: Db, project: string, statuses: readonly string[], offset: number, limit: number): Promise<{ total: number; rows: ClosedRow[] }> {
   const { rows } = await db.query<{
     number: number; title: string; status: string; priority: string; milestone: string | null; milestone_date: number | null
-    parent: number | null; subtasks: number; closed_at: string; total: number
+    parent: number | null; subtasks: number; labels: string[] | null; closed_at: string; total: number
   }>(
     `with closed as (
        select t.id, t.number, t.title, t.status, t.priority, t.milestone_id, t.parent_id,
@@ -243,7 +247,9 @@ export async function readClosed(db: Db, project: string, statuses: readonly str
          from builtin_tasks t where t.project_id = $1 and t.status = any($2)
      )
      select n.total, c.number, c.title, c.status, c.priority, c.closed_at, m.name as milestone, m.date::float8 as milestone_date,
-            p.number as parent, (select count(*)::int from builtin_tasks s where s.parent_id = c.id) as subtasks
+            p.number as parent, (select count(*)::int from builtin_tasks s where s.parent_id = c.id) as subtasks,
+            (select array_agg(l.name order by lower(l.name)) from builtin_task_labels tl join builtin_labels l on l.id = tl.label_id
+              where tl.task_id = c.id) as labels
        from (select count(*)::int as total from closed) n
        left join lateral (select * from closed order by closed_at desc, number desc offset $3 limit $4) c on true
        left join builtin_milestones m on m.id = c.milestone_id
@@ -265,6 +271,7 @@ export async function readClosed(db: Db, project: string, statuses: readonly str
             milestone: row.milestone === null ? null : { name: row.milestone, date: row.milestone_date },
             parent: row.parent,
             subtasks: row.subtasks,
+            labels: row.labels ?? [],
             closedAt: row.closed_at,
           }],
     ),

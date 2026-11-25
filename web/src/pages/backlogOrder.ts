@@ -18,25 +18,29 @@ const COMPARE: Record<BacklogOrder, (a: Task, b: Task) => number> = {
   priority: (a, b) => rank(a) - rank(b) || newer(a, b),
 }
 
+export const compareTasks = (order: BacklogOrder): ((a: Task, b: Task) => number) => COMPARE[order]
+
 export const sortBacklog = (tasks: readonly Task[], order: BacklogOrder): Task[] => [...tasks].sort(COMPARE[order])
 
 const ORDER_KEY = 'even-keel.backlog.order'
+/** The "Outside the chain" view's own order (BTN-1673), apart from the backlog's. */
+export const OUTSIDE_ORDER_KEY = 'even-keel.outside.order'
 
-/** The backlog's order, remembered in the browser for every project; the newest first until chosen. */
-export function useBacklogOrder(): [BacklogOrder, (order: BacklogOrder) => void] {
-  const [order, setOrder] = useState(readOrder)
+/** The order kept under `key`, remembered in the browser for every project; the newest first until chosen. */
+export function useBacklogOrder(key = ORDER_KEY): [BacklogOrder, (order: BacklogOrder) => void] {
+  const [order, setOrder] = useState(() => readOrder(key))
   const choose = (next: BacklogOrder) => {
     setOrder(next)
     try {
-      localStorage.setItem(ORDER_KEY, next)
+      localStorage.setItem(key, next)
     } catch {}
   }
   return [order, choose]
 }
 
-function readOrder(): BacklogOrder {
+function readOrder(key: string): BacklogOrder {
   try {
-    return parseBacklogOrder(localStorage.getItem(ORDER_KEY))
+    return parseBacklogOrder(localStorage.getItem(key))
   } catch {
     return parseBacklogOrder(null)
   }

@@ -357,6 +357,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 329 | [The invitation's link from a page open by localhost](unverified/page.md#the-invitations-link-from-a-page-open-by-localhost-btn-1661) | hubs opened by `localhost` that invite a phone | the link goes to an address the phone cannot open; press "Another address" and type the one the phone uses | — |
 | 330 | [A machine's CLI folder signed in but not added](unverified/machines.md#a-machines-cli-folder-signed-in-but-not-added-btn-1568) | hubs with machines elsewhere signed in before they joined | the machine's account row asks for a new sign-in although its `~/.claude` holds that account; add the folder with "Add account" on the machine's accounts page | — |
 | 331 | [The hub's page on a machine whose state is over the link's limit](unverified/machines.md#the-hubs-page-on-a-machine-whose-state-is-over-the-links-limit-btn-1560) | a machine elsewhere whose snapshot does not fit 8 MB | the hub's page shows the machine online and silent, a step on it waits, or the band stays after its state goes again; send the hub's and the machine's `machines:` and `link` log lines with an issue | — |
+| 332 | [The "Outside the chain" archive from a live tracker](unverified/trackers.md#the-outside-the-chain-archive-from-a-live-tracker-btn-1673) | projects on Huly or GitHub with closed tasks labelled to stay out of the chain | a closed Manual task is missing from the view's archive, or the archive never shows | — |
 
 ### Waiting for the event / not checked by choice
 

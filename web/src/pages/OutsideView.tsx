@@ -1,5 +1,6 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
-import type { OutsideReason, OutsideTask } from '../../../src/state.js'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import type { ArchivePage, OutsideReason, OutsideTask } from '../../../src/state.js'
+import type { Task } from '../../../src/tracker/model.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { taskLamp } from '../taskLamp.js'
@@ -8,8 +9,11 @@ import { FoldBody } from '../ui/Fold.js'
 import { Lamp } from '../ui/Lamp.js'
 import { Loading } from '../ui/Loader.js'
 import { openText, outsideGroups, outsidePage, parseOpen, type OutsideGroup } from '../ui/outside.js'
+import { Tipped } from '../ui/Tipped.js'
+import { compareTasks, OUTSIDE_ORDER_KEY, useBacklogOrder } from './backlogOrder.js'
 import { Divider } from './ChainDivider.js'
-import { lampLabel } from './sessionStatus.js'
+import { OrderSwitch } from './OrderSwitch.js'
+import { StatusDot } from './StatusDot.js'
 import './chain.css'
 import './outside.css'
 
@@ -18,36 +22,91 @@ interface Read {
   failed: boolean
 }
 
+/** The closed tasks read so far, the last closed first; `next` — the cursor of older ones, `null` — none left. */
+interface Archive {
+  tasks: Task[]
+  next: string | null
+}
+
+interface Props {
+  project: string
+  switcher: ReactNode
+  /** Bumped by every edit of the task card: the view reads anew, so a changed status moves its row at once (BTN-1673). */
+  edits?: number
+  onCard: (task: string) => void
+}
+
 /**
  * The "Outside the chain" view of the project's feed (BTN-1428): the open tasks the rules keep out of both the chain and
- * the backlog, read once when the view opens (`outside/tasks`), in groups by the reason and under them by milestone. Only
- * the open groups draw their rows; a row only opens the task's card.
+ * the backlog, in groups by the reason, under them by milestone and by status (BTN-1673), and above them the folded
+ * archive of the closed ones an excluding label or a left-out milestone kept out. Read when the view opens, and anew
+ * without the loader after a card's edit and each read of the tracker; a row only opens the task's card.
  */
-export function OutsideView({ project, switcher, onCard }: { project: string; switcher: ReactNode; onCard: (task: string) => void }) {
+export function OutsideView({ project, switcher, edits = 0, onCard }: Props) {
   const { state, read } = useLive()
   const [loaded, setLoaded] = useState<Read>({ tasks: null, failed: false })
+  const [archive, setArchive] = useState<Archive | null>(null)
+  const [archiveBusy, setArchiveBusy] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const { open, setOpen } = useOpenGroups(project)
+  const [archiveOpen, setArchiveOpen] = useArchiveOpen(project)
+  const [order, setOrder] = useBacklogOrder(OUTSIDE_ORDER_KEY)
   const [more, setMore] = useState<Partial<Record<OutsideReason, number>>>({})
+  const readAt = state?.trackers.find((view) => view.projects.includes(project))?.readAt[project]
+  const reads = useRef(0)
 
-  useEffect(() => {
-    let live = true
+  const readAll = (silent: boolean) => {
+    const id = ++reads.current
+    const current = () => id === reads.current
     read<OutsideTask[]>('outside/tasks', { project })
-      .then((tasks) => live && setLoaded({ tasks, failed: false }))
+      .then((tasks) => current() && setLoaded({ tasks, failed: false }))
       .catch((error: unknown) => {
         console.warn(`outside/tasks ${project}: ${error instanceof Error ? error.message : String(error)}`)
-        if (live) setLoaded({ tasks: null, failed: true })
+        // A silent re-read that fails keeps the rows; with none read yet it is the failed read, not an endless loader.
+        if (current()) setLoaded((was) => (silent && was.tasks !== null ? was : { tasks: null, failed: true }))
       })
+    read<ArchivePage>('outside/archive', { project, after: null })
+      .then((page) => current() && setArchive(page))
+      .catch((error: unknown) => console.warn(`outside/archive ${project}: ${error instanceof Error ? error.message : String(error)}`))
+  }
+
+  useEffect(() => {
+    readAll(false)
     return () => {
-      live = false
+      reads.current += 1
     }
   }, [project, attempt])
 
-  const order = state?.chain.projects[project]
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) {
+      first.current = false
+      return
+    }
+    readAll(true)
+  }, [edits, readAt])
+
+  const older = () => {
+    if (archive === null || archive.next === null || archiveBusy) return
+    const id = reads.current
+    setArchiveBusy(true)
+    read<ArchivePage>('outside/archive', { project, after: archive.next })
+      .then((page) => {
+        if (id !== reads.current) return
+        setArchive((current) => {
+          const known = new Set((current?.tasks ?? []).map((task) => task.id))
+          return { tasks: [...(current?.tasks ?? []), ...page.tasks.filter((task) => !known.has(task.id))], next: page.next }
+        })
+      })
+      .catch((error: unknown) => console.warn(`outside/archive ${project}: ${error instanceof Error ? error.message : String(error)}`))
+      .finally(() => setArchiveBusy(false))
+  }
+
+  const chain = state?.chain.projects[project]
   // What the chain shows (its order and its locked blockers) and the backlog stay theirs, whatever the read said.
-  const shown = new Set([...(order?.order ?? []), ...(order?.waiting ?? []), ...(order?.backlog ?? [])])
-  const groups = loaded.tasks === null ? [] : outsideGroups(loaded.tasks, shown)
-  const keyChars = Math.max(0, ...(loaded.tasks ?? []).map((each) => each.task.id.length))
+  const shown = new Set([...(chain?.order ?? []), ...(chain?.waiting ?? []), ...(chain?.backlog ?? [])])
+  const groups = loaded.tasks === null ? [] : outsideGroups(loaded.tasks, shown, compareTasks(order))
+  const keyChars = Math.max(0, ...[...(loaded.tasks ?? []).map((each) => each.task), ...(archive?.tasks ?? [])].map((task) => task.id.length))
   const retry = () => {
     setLoaded({ tasks: null, failed: false })
     setAttempt((count) => count + 1)
@@ -55,7 +114,20 @@ export function OutsideView({ project, switcher, onCard }: { project: string; sw
 
   return (
     <div className="chain outside" style={{ '--key-chars': keyChars } as CSSProperties}>
-      {switcher !== undefined && <div className="chain__top">{switcher}</div>}
+      <OutsideArchive
+        archive={archive}
+        open={archiveOpen}
+        busy={archiveBusy}
+        onToggle={() => setArchiveOpen(!archiveOpen)}
+        onOlder={older}
+        onCard={onCard}
+        tools={
+          <span className="chain__switch outside__tools">
+            {groups.length > 0 && <OrderSwitch value={order} label={t.chain.outside.order} onChange={setOrder} />}
+            {switcher}
+          </span>
+        }
+      />
       {loaded.failed ? (
         <p className="notice notice--error outside__failed">
           <span>{t.chain.outside.failed}</span>
@@ -83,6 +155,74 @@ export function OutsideView({ project, switcher, onCard }: { project: string; sw
         </Loading>
       )}
     </div>
+  )
+}
+
+interface ArchiveProps {
+  archive: Archive | null
+  open: boolean
+  busy: boolean
+  /** The order switch and the view switch, at the right of the top row. */
+  tools: ReactNode
+  onToggle: () => void
+  onOlder: () => void
+  onCard: (task: string) => void
+}
+
+/** The top row: the archive's line while it has tasks, the switches at its right; unfolded, the closed rows under it. */
+function OutsideArchive({ archive, open, busy, tools, onToggle, onOlder, onCard }: ArchiveProps) {
+  const tasks = archive?.tasks ?? []
+  const left = archive?.next != null
+  const line =
+    tasks.length === 0 ? null : (
+      <Divider
+        name={t.chain.archive}
+        count={t.chain.outside.archiveCount(tasks.length, left)}
+        hidden={!open}
+        toggle={{ expanded: open, title: open ? t.chain.foldArchive : t.chain.openArchive, run: onToggle }}
+        action={
+          open &&
+          left && (
+            <button type="button" className="chain__more" title={t.chain.outside.archiveOlderTip} aria-busy={busy ? 'true' : undefined} onClick={onOlder}>
+              {t.chain.outside.archiveOlder}
+            </button>
+          )
+        }
+      />
+    )
+  return (
+    <section className="chain__archive outside__archive">
+      <div className="chain__top">
+        {line}
+        {tools}
+      </div>
+      {open && tasks.length > 0 && (
+        <ol className="chain__archived">
+          {tasks.map((task, index) => (
+            <ArchivedRow key={task.id} task={task} milestone={task.milestone?.label !== tasks[index - 1]?.milestone?.label ? (task.milestone?.label ?? null) : null} onCard={onCard} />
+          ))}
+        </ol>
+      )}
+    </section>
+  )
+}
+
+/** A closed row as the chain's archive draws one, its milestone named only where it changes; a press opens the card. */
+function ArchivedRow({ task, milestone, onCard }: { task: Task; milestone: string | null; onCard: (task: string) => void }) {
+  const lamp = taskLamp(task, null)
+  return (
+    <li className={`archived archived--${lamp}`} data-block={task.id}>
+      <span className="archived__head">
+        <Lamp lamp={lamp} />
+        <button type="button" className="archived__key" title={t.chain.openCard} onClick={() => onCard(task.id)}>
+          {task.id}
+        </button>
+      </span>
+      <span className="archived__title" title={task.title}>
+        {task.title}
+      </span>
+      <span className="archived__side">{milestone !== null && <span className="archived__milestone">{milestone}</span>}</span>
+    </li>
   )
 }
 
@@ -123,11 +263,20 @@ function GroupRows({ group, more, onMore, onCard }: Omit<GroupProps, 'open' | 'o
             <span className="chain__milestone-line" aria-hidden="true" />
             <span className="outside__milestone-count">{section.count}</span>
           </h3>
-          <ol className="chain__blocks">
-            {section.tasks.map((each) => (
-              <Row key={each.task.id} each={each} label={group.labels ? (each.label ?? null) : null} onCard={onCard} />
-            ))}
-          </ol>
+          {section.statuses.map((status) => (
+            <div key={status.status.name} className="outside__status">
+              <h4 className="outside__status-head">
+                <StatusDot status={status.status} />
+                <span className="outside__status-name">{status.status.name}</span>
+                <span className="outside__status-count">{status.count}</span>
+              </h4>
+              <ol className="chain__blocks">
+                {status.tasks.map((each) => (
+                  <Row key={each.task.id} task={each.task} onCard={onCard} />
+                ))}
+              </ol>
+            </div>
+          ))}
         </div>
       ))}
       {page.hidden > 0 && (
@@ -140,27 +289,32 @@ function GroupRows({ group, more, onMore, onCard }: Omit<GroupProps, 'open' | 'o
   )
 }
 
-/** A task's row as the chain draws a far one, without a number or a milestone: a press on its key opens the card. */
-function Row({ each, label, onCard }: { each: OutsideTask; label: string | null; onCard: (task: string) => void }) {
-  const { task } = each
+/**
+ * A task's row as the chain draws a far one, without a number or a milestone: its status's dot for the lamp, the name in
+ * its tip, the right side empty (BTN-1673); a press on its key opens the card.
+ */
+function Row({ task, onCard }: { task: Task; onCard: (task: string) => void }) {
   const lamp = taskLamp(task, null)
   return (
     <li className={`block block--${lamp} block--far block--priority-${task.priority}`} data-block={task.id} onDoubleClick={() => onCard(task.id)}>
       <span className="block__number" />
       <div className="block__head">
-        <Lamp lamp={lamp} label={lampLabel(lamp, null, new Date())} />
+        <Tipped tip={task.status.name} inline className="outside__lamp">
+          <StatusDot status={task.status} />
+        </Tipped>
         <button type="button" className="block__key" title={t.chain.openCard} onClick={() => onCard(task.id)}>
           {task.id}
         </button>
       </div>
       <span className="block__divider" aria-hidden="true" />
       <p className="block__title">{task.title}</p>
-      <div className="block__side">{label !== null && <span className="tag">{label}</span>}</div>
+      <div className="block__side" />
     </li>
   )
 }
 
 const OPEN_KEY = 'even-keel.outside.open.'
+const ARCHIVE_KEY = 'even-keel.outside.archive.'
 
 /** Which groups are open, kept for the project on this device. */
 function useOpenGroups(project: string): { open: OutsideReason[]; setOpen: (reason: OutsideReason, on: boolean) => void } {
@@ -181,4 +335,22 @@ function readOpen(project: string): OutsideReason[] {
   } catch {
     return parseOpen(null)
   }
+}
+
+/** Whether the archive is unfolded, kept for the project on this device; folded until opened. */
+function useArchiveOpen(project: string): [boolean, (open: boolean) => void] {
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(ARCHIVE_KEY + project) === '1'
+    } catch {
+      return false
+    }
+  })
+  const choose = (next: boolean) => {
+    setOpen(next)
+    try {
+      localStorage.setItem(ARCHIVE_KEY + project, next ? '1' : '0')
+    } catch {}
+  }
+  return [open, choose]
 }

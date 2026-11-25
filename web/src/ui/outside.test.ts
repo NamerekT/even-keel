@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { OutsideTask } from '../../../src/state.js'
-import type { Task, TaskMilestone } from '../../../src/tracker/model.js'
+import type { Task, TaskMilestone, TaskStatus } from '../../../src/tracker/model.js'
+import { compareTasks } from '../pages/backlogOrder.js'
 import { CHAIN_MORE, CHAIN_PAGE } from './chainPage.js'
-import { outsideGroups, outsidePage, parseOpen, openText } from './outside.js'
+import { outsideGroups, outsidePage, parseOpen, openText, type OutsideSection } from './outside.js'
 
 const milestone = (label: string, targetDate: number | null = null): TaskMilestone => ({ label, targetDate })
 const task = (id: string, at: TaskMilestone | null = null): Task => ({
@@ -24,8 +25,11 @@ const out = (id: string, reason: OutsideTask['reason'], at: TaskMilestone | null
   ...(label !== undefined && { label }),
 })
 
+const newest = compareTasks('new')
+const ids = (section: OutsideSection) => section.statuses.map((each) => [each.status.name, each.tasks.map((one) => one.task.id)])
+
 describe('outsideGroups', () => {
-  it('files the groups by reason in a fixed order, the milestones in the chain order, no milestone last, tasks by number', () => {
+  it('files the groups by reason in a fixed order, the milestones in the chain order, no milestone last', () => {
     const groups = outsideGroups(
       [
         out('A-10', 'status', milestone('v0.4')),
@@ -36,52 +40,82 @@ describe('outsideGroups', () => {
         out('A-5', 'milestone', milestone('v0.10')),
       ],
       new Set(),
+      newest,
     )
     expect(groups.map((group) => [group.reason, group.count])).toEqual([
       ['label', 4],
       ['milestone', 1],
       ['status', 1],
     ])
-    expect(groups[0]!.milestones.map((each) => [each.milestone?.label ?? null, each.tasks.map((one) => one.task.id)])).toEqual([
-      ['v0.3', ['A-1', 'A-12']],
-      ['v0.4', ['A-2']],
-      [null, ['A-9']],
+    expect(groups[0]!.milestones.map((each) => [each.milestone?.label ?? null, ...ids(each)])).toEqual([
+      ['v0.3', ['Todo', ['A-12', 'A-1']]],
+      ['v0.4', ['Todo', ['A-2']]],
+      [null, ['Todo', ['A-9']]],
     ])
   })
 
   it('leaves out what the chain or the backlog shows, and a group with nothing left', () => {
-    const groups = outsideGroups([out('A-1', 'label', null, 'Manual'), out('A-2', 'status')], new Set(['A-2']))
+    const groups = outsideGroups([out('A-1', 'label', null, 'Manual'), out('A-2', 'status')], new Set(['A-2']), newest)
     expect(groups.map((group) => group.reason)).toEqual(['label'])
   })
 
-  it('names the label on the rows only where the group has several labels', () => {
-    const one = outsideGroups([out('A-1', 'label', null, 'Manual'), out('A-2', 'label', null, 'manual')], new Set())
-    expect(one[0]!.labels).toBe(false)
-    const two = outsideGroups([out('A-1', 'label', null, 'Manual'), out('A-2', 'label', null, 'Вручную')], new Set())
-    expect(two[0]!.labels).toBe(true)
+  it('splits a milestone by status, In Review, In Progress, Todo, Backlog, an unknown one by its category (BTN-1673)', () => {
+    const at = (id: string, name: string, category: TaskStatus['category']) => ({ ...out(id, 'label', null, 'Manual'), task: { ...task(id), status: { name, category } } })
+    const [group] = outsideGroups(
+      [
+        at('A-1', 'Backlog', 'UnStarted'),
+        at('A-2', 'Todo', 'ToDo'),
+        at('A-3', 'In Progress', 'Active'),
+        at('A-4', 'Blocked', 'Active'),
+        at('A-5', 'In Review', 'Active'),
+        at('A-6', 'todo', 'ToDo'),
+        at('A-7', 'Icebox', 'UnStarted'),
+      ],
+      new Set(),
+      newest,
+    )
+    expect(ids(group!.milestones[0]!)).toEqual([
+      ['In Review', ['A-5']],
+      ['In Progress', ['A-3']],
+      ['Blocked', ['A-4']],
+      ['Todo', ['A-6', 'A-2']],
+      ['Backlog', ['A-1']],
+      ['Icebox', ['A-7']],
+    ])
+  })
+
+  it('orders each status\'s tasks the newest first, the oldest first or by priority', () => {
+    const at = (id: string, priority: Task['priority']) => ({ ...out(id, 'label', null, 'Manual'), task: { ...task(id), priority } })
+    const tasks = [at('A-2', 'low'), at('A-10', 'none'), at('A-1', 'urgent'), at('A-3', 'urgent')]
+    const order = (compare: Parameters<typeof outsideGroups>[2]) => outsideGroups(tasks, new Set(), compare)[0]!.milestones[0]!.statuses[0]!.tasks.map((each) => each.task.id)
+    expect(order(compareTasks('new'))).toEqual(['A-10', 'A-3', 'A-2', 'A-1'])
+    expect(order(compareTasks('old'))).toEqual(['A-1', 'A-2', 'A-3', 'A-10'])
+    expect(order(compareTasks('priority'))).toEqual(['A-3', 'A-1', 'A-2', 'A-10'])
   })
 })
 
 describe('outsidePage', () => {
   const many = (count: number, label: string) => Array.from({ length: count }, (_, index) => out(`A-${label}${index + 1}`, 'milestone', milestone(label)))
+  const shape = (page: ReturnType<typeof outsidePage>) => page.sections.map((section) => [section.milestone?.label, section.count, section.statuses[0]!.tasks.length])
 
   it('shows a group whole while it fits the page', () => {
-    const [group] = outsideGroups(many(3, 'v1'), new Set())
+    const [group] = outsideGroups(many(3, 'v1'), new Set(), newest)
     const page = outsidePage(group!, 0)
-    expect(page.sections.map((section) => [section.milestone?.label, section.count, section.tasks.length])).toEqual([['v1', 3, 3]])
+    expect(shape(page)).toEqual([['v1', 3, 3]])
     expect(page.hidden).toBe(0)
   })
 
   it('cuts the group at the page across its milestones, the rest under the same milestone heading after a press', () => {
-    const [group] = outsideGroups([...many(30, 'v1'), ...many(40, 'v2')], new Set())
+    const [group] = outsideGroups([...many(30, 'v1'), ...many(40, 'v2')], new Set(), newest)
     const first = outsidePage(group!, 0)
-    expect(first.sections.map((section) => [section.milestone?.label, section.count, section.tasks.length])).toEqual([
+    expect(shape(first)).toEqual([
       ['v1', 30, 30],
       ['v2', 40, CHAIN_PAGE - 30],
     ])
+    expect(first.sections[1]!.statuses[0]!.count).toBe(40)
     expect([first.hidden, first.next]).toEqual([70 - CHAIN_PAGE, CHAIN_MORE])
     const second = outsidePage(group!, 1)
-    expect(second.sections.map((section) => section.tasks.length)).toEqual([30, CHAIN_PAGE + CHAIN_MORE - 30])
+    expect(second.sections.map((section) => section.statuses[0]!.tasks.length)).toEqual([30, CHAIN_PAGE + CHAIN_MORE - 30])
     expect(second.hidden).toBe(70 - CHAIN_PAGE - CHAIN_MORE)
   })
 })

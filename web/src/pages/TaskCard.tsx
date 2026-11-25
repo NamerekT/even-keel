@@ -56,9 +56,11 @@ interface Props {
   live: boolean
   onOpen: (task: string) => void
   onClose: () => void
+  /** An edit of the card landed: a view read apart from the state reads anew (BTN-1673). */
+  onChanged?: () => void
 }
 
-export function TaskCard({ task, project, link, tracker, refused, work, live, onOpen, onClose }: Props) {
+export function TaskCard({ task, project, link, tracker, refused, work, live, onOpen, onClose, onChanged }: Props) {
   const { card: load, state } = useLive()
   const [card, setCard] = useState<Card | null | undefined>(() => recallCard(project, task))
   const [error, setError] = useState<Notice | null>(null)
@@ -69,7 +71,10 @@ export function TaskCard({ task, project, link, tracker, refused, work, live, on
   const dialog = useRef<HTMLDialogElement>(null)
   const frame = useRef<HTMLDivElement>(null)
   const backdrop = useBackdropClose(dialog, close)
-  const reread = () => setRound((n) => n + 1)
+  const reread = () => {
+    setRound((n) => n + 1)
+    onChanged?.()
+  }
   const editor = useCardEdit(project, task, reread)
   const editable = card?.edit != null ? (card as Card & { edit: NonNullable<Card['edit']> }) : null
   const current = state !== null && laneOfTask(lanesOf(state.chain, project), task) !== undefined

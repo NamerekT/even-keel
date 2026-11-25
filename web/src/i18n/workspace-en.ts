@@ -407,6 +407,11 @@ export const chainEN: Messages['chain'] = {
       empty: 'Every open task is in the chain or the backlog.',
       failed: 'The open tasks could not be read.',
       retry: 'Read again',
+      order: 'Order the tasks of each status',
+      /** The closed tasks read so far; `more` — the tracker has older ones not read yet. */
+      archiveCount: (count: number, more: boolean) => (more ? `${count}+ tasks` : tasks(count)),
+      archiveOlder: 'older',
+      archiveOlderTip: 'Read the older closed tasks',
     },
     subtasksClosed: (closed: number, total: number) => `Subtasks closed: ${closed} of ${total}`,
     shapes: {

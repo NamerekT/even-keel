@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
 import type { TaskRun } from '../../../src/sessions/runs.js'
 import type { TaskWork } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import type { ReadyButton, TaskLinks } from '../state.js'
-import { ByPriorityIcon, CloseIcon, FlagIcon, IntoChainIcon, NewestFirstIcon, OldestFirstIcon, SearchIcon, StackIcon } from '../ui/icons.js'
+import { CloseIcon, FlagIcon, IntoChainIcon, SearchIcon, StackIcon } from '../ui/icons.js'
 import { Links } from '../ui/Links.js'
 import { PriorityIcon } from '../ui/Priority.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
@@ -14,7 +14,8 @@ import { HelpTip } from './settingsParts.js'
 import { WorkChip } from '../ui/WorkChip.js'
 import { BACKLOG_PLACE } from '../ui/addGhost.js'
 import { AddGhost } from './AddGhost.js'
-import { BACKLOG_ORDERS, type BacklogOrder, sortBacklog, useBacklogOrder } from './backlogOrder.js'
+import { sortBacklog, useBacklogOrder } from './backlogOrder.js'
+import { OrderSwitch } from './OrderSwitch.js'
 import { BACKLOG_PAGE, nextLimit, searchBacklog } from './backlogSearch.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import '../stats/overview.css'
@@ -150,7 +151,7 @@ export function BacklogPanel({ tasks, runs, works, ready: buttonOf, links, onCar
           </span>
           {searching && <span className="backlog__found">{t.project.backlogFound(found.length, tasks.length)}</span>}
         </h2>
-        <OrderSwitch value={order} onChange={setOrder} />
+        <OrderSwitch value={order} label={t.project.backlogOrder} onChange={setOrder} />
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
           <CloseIcon />
         </button>
@@ -277,31 +278,6 @@ function SearchField({ value, onChange }: { value: string; onChange: (text: stri
           </button>
         </Tipped>
       )}
-    </div>
-  )
-}
-
-const ORDER_ICONS: Record<BacklogOrder, () => ReactNode> = { new: NewestFirstIcon, old: OldestFirstIcon, priority: ByPriorityIcon }
-
-function OrderSwitch({ value, onChange }: { value: BacklogOrder; onChange: (order: BacklogOrder) => void }) {
-  return (
-    <div className="segmented backlog__order" role="group" aria-label={t.project.backlogOrder}>
-      {BACKLOG_ORDERS.map((order) => {
-        const Icon = ORDER_ICONS[order]
-        return (
-          <Tipped key={order} tip={t.project.backlogOrders[order]} inline>
-            <button
-              type="button"
-              className={order === value ? 'segmented__item segmented__item--on' : 'segmented__item'}
-              aria-label={t.project.backlogOrders[order]}
-              aria-pressed={order === value}
-              onClick={() => onChange(order)}
-            >
-              <Icon />
-            </button>
-          </Tipped>
-        )
-      })}
     </div>
   )
 }

@@ -1,0 +1,9 @@
+.order-switch {
+  flex: none;
+  align-self: center;
+}
+
+.order-switch .segmented__item {
+  display: inline-flex;
+  padding: 5px 8px;
+}
