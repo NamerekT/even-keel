@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { USER_MESSAGE_HEAD } from '../../../src/chain/user-message.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
-import { sentFeed, type SentLine } from './sentLines.js'
+import { sentFeed, shownLines, type SentLine } from './sentLines.js'
 
 const text = (at: string, words: string): FeedLine => ({ kind: 'text', at, text: words })
 const prompt = (at: string, words: string): FeedLine => ({ kind: 'prompt', at, text: words })
@@ -57,5 +57,42 @@ describe('sentFeed', () => {
     const marked = feed.all.filter((line) => feed.marks.get(line)?.key === 'sent-1')
     expect(marked).toHaveLength(1)
     expect(marked[0]).toBe(feed.all.at(-1))
+  })
+})
+
+describe('shownLines (BTN-1698)', () => {
+  const mail = sent(0, prompt('09:00', 'From the inbox'), 0, { id: 'mail-3', midTurn: true, mailId: 3 })
+  const opening = sent(0, prompt('09:00', 'Opening'), 0, { first: true })
+  const read = [prompt('09:00', 'Opening'), text('09:01', 'Working on it')]
+
+  it("keeps the loader over a session's mail letters until the transcript is read", () => {
+    expect(shownLines('s1', undefined, [mail])).toEqual({ lines: undefined, awaitingFirstPrompt: false, starting: false })
+  })
+
+  it('keeps the loader over a reopened chat\'s first message, and the session does not look starting', () => {
+    expect(shownLines('s1', undefined, [opening])).toEqual({ lines: undefined, awaitingFirstPrompt: false, starting: false })
+  })
+
+  it('shows the transcript once read, the letters mixed in by sentFeed', () => {
+    expect(shownLines('s1', read, [mail, opening])).toEqual({ lines: read, awaitingFirstPrompt: false, starting: false })
+  })
+
+  it('waits for the first prompt only when the read transcript has none', () => {
+    expect(shownLines('s1', [], [opening])).toEqual({ lines: [], awaitingFirstPrompt: true, starting: true })
+    expect(shownLines('s1', null, [opening])).toEqual({ lines: [], awaitingFirstPrompt: true, starting: true })
+  })
+
+  it('shows a message at once while there is no session to read', () => {
+    const mine = sent(0, prompt('09:00', 'Hello'), 0, { first: true, afterMail: 0 })
+    expect(shownLines(null, undefined, [mine])).toEqual({ lines: [], awaitingFirstPrompt: true, starting: true })
+  })
+
+  it('keeps showing a message sent from this window while the session it started is read', () => {
+    const mine = sent(0, prompt('09:00', 'Hello'), 0, { first: true, afterMail: 0 })
+    expect(shownLines('s1', undefined, [mine])).toEqual({ lines: [], awaitingFirstPrompt: true, starting: true })
+  })
+
+  it('shows nothing found for a missing transcript with no sends', () => {
+    expect(shownLines('s1', null, [])).toEqual({ lines: null, awaitingFirstPrompt: false, starting: false })
   })
 })
