@@ -257,16 +257,6 @@ Assumed: the machine answers the probe over the link within the wizard's typing 
 
 To check, on the benches: with two machines joined, add a project by its address in the wizard, tick both, name a free folder on one and the folder of an existing clone on the other: the states say "free" and "a clone of this repository is there"; create and see each machine's steps under its name, both machines in the pool on. Then name on one a folder of another repository and see the error under it; and add a project with a repository the second machine cannot push to: its row fails at the push check with the fix, the first machine stays connected, Retry runs only the failed one.
 
-## The own machine's facts without long blocks (BTN-1317)
-
-`docs/machines.md`, "The mirror" ("Per project, not per listed task"). `src/service/choice-here.test.ts` covers one folder lookup per pass for many tasks, `src/service/folders-here.test.ts` the folders' e-mails read without the accounts' view, `src/packages/service.test.ts` one key pool per project for the hub's routes.
-
-Profiled live after the change (2026-11-18, [verified](../verified/machines.md)): the per-task choice and the accounts' view are gone from the profile; in 90…240 s of a start the thread was busy 46% instead of 91%, its longest stretch 0.55 s instead of 11 s, and the log's `event loop: blocked` lines fell from hundreds an hour to about 30; saves landed within a second.
-
-Not settled: the thread is still busy half the time, with 93 stretches over 200 ms in those 150 s, spread over the memoised packages pass (the accounts' watcher and the machine runner's reads, 12%) and `machine-chain` (8%); and the ~30 `event loop: blocked` lines an hour, of 1–3 s, come outside the start's window, which `EVEN_KEEL_CPU_PROFILE` does not reach, so their cause is not profiled. If they grow, the page's commands and saves wait seconds again. Taking the own machine's work off the hub's thread is BTN-1319.
-
-BTN-1465 checks the remaining stalls over 24–48 hours of normal chain work. Enable `EVEN_KEEL_STALL_PROFILE=1`, match the saved windows to their delay warnings and inspect the active stacks during each block. File one issue per confirmed cause with its capture time and stack.
-
 ## One folder field in "Connect a machine" and "Add a machine" (BTN-1298)
 
 `docs/machines.md`, "The pool on the page" and "Machines elsewhere". `src/service/machine-pool.test.ts` covers the probe of a made project's folder against its remotes, `src/server-pool.test.ts` the routes (`clone` absent is `auto`, `machines/folder` by project), `web/src/pages/machinePicks.test.ts` and `web/src/machineAdd.test.ts` the picks and what "Connect" sends; both windows were only seen on `dev:fake`.
