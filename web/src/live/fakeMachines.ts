@@ -47,10 +47,11 @@ export class FakeNetwork {
     // `version`: the laptop runs another version on the hub's protocol, it works and offers "Update" (BTN-1609);
     // `protocol`: another API, refused at the handshake; `follow`: refused too, and its update to the hub's commit failed
     // (BTN-1275); `container`: the laptop runs in a container, an older image the hub refused (BTN-1440); `pooled`: the
-    // laptop is in every project's pool, with a long commit author and folder (BTN-1564).
+    // laptop is in every project's pool, with a long commit author and folder (BTN-1564); `pooledOff`: the same, the
+    // laptop off in the first project's pool (BTN-1562).
     const laptop: Partial<MachineAbout> =
       mode === 'nocli' ? { agents: {} }
-      : mode === 'pooled' ? { gitName: LONG_GIT.name, gitEmail: LONG_GIT.email, root: LONG_ROOT }
+      : this.pooled ? { gitName: LONG_GIT.name, gitEmail: LONG_GIT.email, root: LONG_ROOT }
       : mode === 'version' ? { evenKeel: '0.3.9', api: FAKE_API }
       : mode === 'protocol' ? { evenKeel: '0.3.9', api: FAKE_API - 1 }
       : mode === 'container' ? { evenKeel: '0.3.9', api: FAKE_API - 1, container: true, root: '/home/node/.local/share/even-keel/projects', follow: { to: '0.4.0', stuck: 'manual' } }
@@ -110,9 +111,13 @@ export class FakeNetwork {
   private rows(project: string): PoolMachine[] {
     const own: PoolMachine = { id: OWN, name: OWN_NAME, own: true, online: true, folder: this.repoOf(project), enabled: true, settings: {}, afterGreen: [] }
     const laptop: PoolMachine = { id: 'machine-1', name: 'Example laptop', own: false, online: true, folder: `${LONG_ROOT}/${folderName(this.repoOf(project))}`, enabled: true, settings: {}, afterGreen: [] }
-    const rows = this.pools.get(project) ?? (this.mode === 'pooled' ? [own, laptop] : [own])
+    const rows = this.pools.get(project) ?? (this.pooled ? [own, laptop] : [own])
     this.pools.set(project, rows)
     return rows
+  }
+
+  private get pooled(): boolean {
+    return this.mode === 'pooled' || this.mode === 'pooledOff'
   }
 
   private poolOf(project: string): ProjectPool {
@@ -207,7 +212,7 @@ export class FakeNetwork {
   private cardGit(id: string): Pick<MachineCard, 'gitUser' | 'gitName' | 'gitEmail'> {
     const set = this.identities.get(id)
     if (set !== undefined) return { gitUser: true, gitName: set.name, gitEmail: set.email }
-    if (id === 'machine-1' && this.mode === 'pooled') return { gitUser: true, gitName: LONG_GIT.name, gitEmail: LONG_GIT.email }
+    if (id === 'machine-1' && this.pooled) return { gitUser: true, gitName: LONG_GIT.name, gitEmail: LONG_GIT.email }
     if (id === 'machine-1' && this.mode !== 'nocli') return { gitUser: false }
     return { gitUser: true, gitName: 'John Doe', gitEmail: 'john.doe@example.com' }
   }
@@ -253,13 +258,14 @@ export class FakeNetwork {
     const report = set === undefined ? told : { ...told, gitUser: true, gitName: set.name, gitEmail: set.email }
     // A machine elsewhere's accounts and missing CLIs are its panel's, as the hub's mirror has them.
     const panel = own ? undefined : state.machineSignIns?.find((each) => each.machine === id)
-    const pooled = state.projects.filter((project) => own || this.pools.get(project)?.some((row) => row.id === id) || view?.projects.includes(project) || project === state.projects[0])
+    const pools = (project: string) => (own || this.pooled ? this.rows(project) : this.pools.get(project))
+    const pooled = state.projects.filter((project) => own || pools(project)?.some((row) => row.id === id) || view?.projects.includes(project) || project === state.projects[0])
     const projects: MachineProject[] = pooled.map((project, index) => {
-      const row = (own ? this.rows(project) : this.pools.get(project))?.find((each) => each.id === id)
+      const row = pools(project)?.find((each) => each.id === id)
       return {
         project,
         folder: row?.folder ?? `${report.root ?? '/home/example/projects'}/${folderName(this.repoOf(project))}`,
-        enabled: row?.enabled ?? true,
+        enabled: (row?.enabled ?? true) && !(this.mode === 'pooledOff' && id === 'machine-1' && index === 0),
         packagesBlocked: id === 'machine-1' && index === 0,
         packagesPause: null,
       }

@@ -477,9 +477,9 @@ function ProjectsCard({ page }: { page: MachinePageView }) {
       {page.projects.length === 0 ? (
         <EmptyState action={<Link to="/" className="button button--small">{text.projectsOpen}</Link>}>{text.projectsNone}</EmptyState>
       ) : (
-        <ul className="machine-page__list">
+        <ul className="machine-page__list machine-page__list--projects">
           {page.projects.map((each) => (
-            <li key={each.project} className="machine-page__row">
+            <li key={each.project} className="machine-page__row machine-page__row--project">
               <span className="machine-page__main">
                 <Link to={projectPath(each.project)} className="machine-page__name">
                   <ProjectLabel project={each.project} />
@@ -490,11 +490,15 @@ function ProjectsCard({ page }: { page: MachinePageView }) {
                   </bdi>
                 </Tipped>
               </span>
-              {!each.enabled && <span className="tag machine-page__off">{text.disabled}</span>}
-              {each.packagesBlocked && (
-                <Tipped tip={each.packagesPause === null ? text.packagesBlocked : say(each.packagesPause)} inline align="end">
-                  <span className="chip chip--paused">{text.packagesNotReady}</span>
-                </Tipped>
+              {(!each.enabled || each.packagesBlocked) && (
+                <span className="machine-page__marks">
+                  {!each.enabled && <span className="tag machine-page__off">{text.disabled}</span>}
+                  {each.packagesBlocked && (
+                    <Tipped tip={each.packagesPause === null ? text.packagesBlocked : say(each.packagesPause)} inline align="end">
+                      <span className="chip chip--paused">{text.packagesNotReady}</span>
+                    </Tipped>
+                  )}
+                </span>
               )}
               {each.packagesBlocked && (
                 <Link to={packagesPath(each.project)} className="button button--small">

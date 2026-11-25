@@ -299,6 +299,32 @@ a.machine-page__name:hover {
   color: var(--fg-muted);
 }
 
+/* A project's row: the marks and the button never take the name's room (BTN-1562). */
+.machine-page__list--projects {
+  container-type: inline-size;
+}
+
+.machine-page__marks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+/* Too narrow for one line: the name and the folder on a line of their own, the marks under them, the button last. */
+@container (max-width: 520px) {
+  .machine-page__row--project {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-8);
+  }
+
+  .machine-page__row--project .machine-page__main {
+    flex: none;
+    align-self: stretch;
+  }
+}
+
 /* A machine in a container: the Compose steps under the band's text, a label over each command (BTN-1440). */
 .machine-page__steps {
   display: flex;
