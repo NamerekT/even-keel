@@ -28,9 +28,27 @@ describe('reindex', () => {
     expect(reindex(text, files(fact('a', 'new words'), fact('b', 'kept')))).toBe('- [Alpha](a.md) — new words\n- [b](b.md) — kept\n')
   })
 
-  it('keeps the first line of a file when none matches its frontmatter', () => {
+  it('keeps the first line of a file when none matches its frontmatter, described anew', () => {
     const text = '- [a](a.md) — one\n- [a](a.md) — two\n'
-    expect(reindex(text, files(fact('a', 'three')))).toBe('- [a](a.md) — one\n')
+    expect(reindex(text, files(fact('a', 'three')))).toBe('- [a](a.md) — three\n')
+  })
+
+  it('describes a line that only links to its record by the frontmatter, its link text kept', () => {
+    const text = '# Memory\n- [Colour](colour.md) — the word is "teal"\n* [b](b.md) - old\n- [c](c.md)\n'
+    expect(reindex(text, files(fact('colour', 'the word is "violet"'), fact('b', 'new'), fact('c', 'third')))).toBe(
+      '# Memory\n- [Colour](colour.md) — the word is "violet"\n* [b](b.md) — new\n- [c](c.md) — third\n',
+    )
+  })
+
+  it('drops the description of a linking line when the frontmatter has none', () => {
+    expect(reindex('- [a](a.md) — old\n', files(fact('a', '')))).toBe('- [a](a.md)\n')
+  })
+
+  it('leaves a person’s line about a record as it is', () => {
+    const text = 'Read [a](a.md) before b.\n- [a](a.md) and more words\n'
+    expect(reindex(text, files(fact('a', 'first'), fact('b', 'second')))).toBe(
+      'Read [a](a.md) before b.\n- [b](b.md) — second\n',
+    )
   })
 
   it('keeps blank lines between sections and builds an index from nothing', () => {
