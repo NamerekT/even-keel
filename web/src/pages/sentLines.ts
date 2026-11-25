@@ -145,6 +145,21 @@ function landedTogether(shown: FeedLine[], unread: SentLine[], marks: Map<FeedLi
   return { lines, taken }
 }
 
+/**
+ * The lines a chat window shows for `recorded`, its transcript as read: `undefined` while the first read is out, which
+ * keeps the loader over mail letters and a reopened chat's first message (BTN-1698). Sends show without a read only while
+ * there is no session to read, or when this window sent them: only its own sends carry `afterMail`.
+ */
+export function shownLines(session: string | null, recorded: FeedLine[] | null | undefined, sent: SentLine[]) {
+  if (recorded === undefined && session !== null && !sent.some(each => each.afterMail !== undefined)) {
+    return { lines: undefined, awaitingFirstPrompt: false, starting: false }
+  }
+  const awaitingFirstPrompt = sent[0]?.first === true && sent[0].failed !== true && !recorded?.some(isReply)
+  const starting = session === null || awaitingFirstPrompt
+  const lines = starting || (recorded == null && sent.length > 0) ? (recorded ?? []) : recorded
+  return { lines, awaitingFirstPrompt, starting }
+}
+
 export function isReply(line: FeedLine): boolean {
   return line.kind === 'answer' || line.kind === 'prompt'
 }

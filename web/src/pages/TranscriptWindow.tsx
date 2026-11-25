@@ -38,7 +38,7 @@ import { MessageMenu } from './MessageMenu.js'
 import { ShareCard } from './ShareCard.js'
 import { SentFiles, Thumbs } from './Thumbs.js'
 import { useLocalPictures } from './localPictures.js'
-import { isReply, observeMessages, sentFeed, type FeedMark, type SentLine } from './sentLines.js'
+import { isReply, observeMessages, sentFeed, shownLines, type FeedMark, type SentLine } from './sentLines.js'
 import { ToolGroup } from './ToolCalls.js'
 import { editTotals, feedEntries } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
@@ -157,9 +157,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
   // The picture on view by its key in `media.keys`, not its place: the list is built again as the message is delivered.
   const [viewing, setViewing] = useState<string | null>(null)
   const localPictures = useLocalPictures(sessionId)
-  const awaitingFirstPrompt = sent[0]?.first === true && sent[0].failed !== true && !recorded?.some(isReply)
-  const starting = session === null || awaitingFirstPrompt
-  const lines = starting || (recorded == null && sent.length > 0) ? (recorded ?? []) : recorded
+  const { lines, awaitingFirstPrompt, starting } = shownLines(session, recorded, sent)
   const handing = useHandover(chat?.handover ?? null, sessionId, readFor === sessionId ? lines : undefined)
   const feed = lines == null ? null : sentFeed(lines, sent)
   const all = feed?.all ?? null
