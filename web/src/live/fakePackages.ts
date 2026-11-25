@@ -20,12 +20,8 @@ interface Catalog {
   probing: boolean
   /** The forgejo server does not answer its probe. */
   silent: boolean
-  /** The user's own skills: name and the agent whose folder holds it; `wrapped` — those the skills package holds. */
-  skills: Record<string, string | null>
-  wrapped: string[]
 }
 
-const SKILLS_PACKAGE = 'my-skills@even-keel-skills'
 const TASKS_PACKAGE = 'tasks@even-keel'
 
 const base = { installed: true, latest: null, fetched: null, installing: false, error: null, note: null, removed: false, builtIn: false, unpinned: [] as string[], scripts: null as boolean | null }
@@ -37,7 +33,7 @@ const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
  * off and lacks the tracker's server, `noTracker` — the catalog has no Huly plugin, so every project gets the task in its
  * prompt and the add dialog offers it, `probing` — no server has answered since the service started, `silent` — the
  * forgejo server does not answer, `installing` — the playwright plugin is being installed, `both` — DEMO has the tasks
- * plugin on beside the Huly plugin, `manySkills` — a thousand skills for the skills step's search; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
+ * plugin on beside the Huly plugin; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
  */
 export function fakePackages(projects: string[], mode: string | null): PackagesView {
   const catalog: Catalog = {
@@ -63,10 +59,7 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
     missingClaude: mode === 'marketplace-missing-cli',
     probing: mode === 'probing',
     silent: mode === 'silent',
-    skills: { 'code-review': 'claude', 'release-notes': 'claude', 'test-first': 'claude', deploy: 'codex' },
-    wrapped: [],
   }
-  if (mode === 'manySkills') manySkills(catalog)
   if (mode === 'installing') Object.assign(catalog.packages[2]!, { installing: true, version: null })
   if (mode === 'empty') catalog.packages = []
   if (mode === 'noTracker') catalog.packages = catalog.packages.filter((each) => each.name !== 'huly@even-keel')
@@ -75,20 +68,6 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
     catalog.choices['DEMO'] = { ...catalog.choices['DEMO'], [TASKS_PACKAGE]: 'on' }
   }
   return viewOf(catalog, projects)
-}
-
-/** A thousand skills, three of them in the skills package and one of those with its folder gone: the list's search. */
-function manySkills(catalog: Catalog): void {
-  const areas = ['api', 'android', 'auth', 'billing', 'cache', 'ci', 'db', 'deploy', 'docs', 'e2e', 'i18n', 'infra', 'k8s', 'logs', 'mobile', 'perf', 'release', 'search', 'security', 'web']
-  const acts = ['audit', 'debug', 'design', 'migrate', 'review', 'setup', 'test', 'trace', 'tune', 'write']
-  const skills: Record<string, string> = {}
-  for (let index = 0; Object.keys(skills).length < 999; index++) {
-    const name = `${areas[index % areas.length]}-${acts[Math.floor(index / areas.length) % acts.length]}${index >= 200 ? `-${Math.floor(index / 200) + 1}` : ''}`
-    skills[name] = index % 7 === 0 ? 'codex' : 'claude'
-  }
-  catalog.skills = { ...skills, 'huly-tracker': null }
-  catalog.wrapped = ['web-review', 'release-write', 'huly-tracker']
-  catalog.packages.push({ ...base, name: SKILLS_PACKAGE, kind: 'plugin', version: '1.0.0+2880c6be', default: true, settings: {}, servers: [], extras: true, keys: [] })
 }
 
 function viewOf(catalog: Catalog, projects: string[]): PackagesView {
@@ -114,7 +93,6 @@ function viewOf(catalog: Catalog, projects: string[]): PackagesView {
     ].filter((each) => !catalog.packages.some((known) => known.name === `${each.plugin}@${each.marketplace}`)),
     marketplace: { name: 'even-keel', dir: 'C:\\even-keel', known: catalog.marketplace },
     imports: catalog.imports,
-    skills: { package: SKILLS_PACKAGE, list: Object.entries(catalog.skills).map(([name, from]) => ({ name, from, wrapped: catalog.wrapped.includes(name) })) },
   }
   return view
 }
@@ -174,19 +152,6 @@ export function fakePackagesCommand(state: EvenKeelState, name: string, body: Re
   } else if (name === 'packages/server') {
     catalog.packages.push({ ...base, name: String(body.name), kind: 'mcp', installed: false, version: null, installing: true, default: project === undefined, settings: {}, servers: [String(body.name)], extras: false, keys: [] })
     if (project !== undefined) (catalog.choices[project] ??= {})[String(body.name)] = 'on'
-  } else if (name === 'packages/skills') {
-    const skills = Array.isArray(body.skills) ? body.skills.map(String) : []
-    if (skills.length === 0) throw fail('packages.noSkills', {})
-    catalog.wrapped = skills
-    const version = `1.0.0+${skills.join('').length.toString(16).padStart(8, '0')}`
-    const known = catalog.packages.find((each) => each.name === SKILLS_PACKAGE)
-    if (known !== undefined) {
-      known.note = notice('packages.updated', { name: SKILLS_PACKAGE, version })
-      known.version = version
-    } else {
-      catalog.packages.push({ ...base, name: SKILLS_PACKAGE, kind: 'plugin', version, default: project === undefined, settings: {}, servers: [], extras: true, keys: [] })
-      if (project !== undefined) (catalog.choices[project] ??= {})[SKILLS_PACKAGE] = 'on'
-    }
   } else if (name === 'packages/import' && project !== undefined) {
     for (const server of catalog.imports[project] ?? []) {
       catalog.packages.push({ ...base, name: server, kind: 'mcp', version: null, default: false, settings: {}, servers: [server], extras: false, keys: [] })

@@ -250,7 +250,6 @@ export interface PackagesControl {
   addMarketplace(): Promise<void>
   addPlugin(plugin: string, marketplace: string, project?: string): void
   addServer(name: string, entry: Record<string, unknown>, project?: string): void
-  wrapSkills(names: string[], project?: string): Promise<void>
   importRepo(project: string): void
   choose(project: string, name: string, choice: 'on' | 'off' | null): void
   setDefault(name: string, on: boolean): void

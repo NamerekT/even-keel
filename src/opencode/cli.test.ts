@@ -37,7 +37,7 @@ describe('turnArgs', () => {
 })
 
 describe('skillDirs', () => {
-  it("passes the plugins' skills and the project's .claude/skills and .agents/skills that exist", () => {
+  it("passes the plugins' skills, the project's .claude/skills and .agents/skills and the home's .agents/skills that exist", () => {
     const root = mkdtempSync(join(tmpdir(), 'ek-opencode-skills-'))
     try {
       const plugin = join(root, 'plugin')
@@ -45,9 +45,12 @@ describe('skillDirs', () => {
       mkdirSync(join(plugin, 'skills'), { recursive: true })
       mkdirSync(join(cwd, '.claude', 'skills'), { recursive: true })
       const plugins = [{ dir: plugin, name: 'p', marketplace: 'ek-a', marketplaceFile: join(root, 'm.json'), servers: [] }]
-      expect(skillDirs({ plugins }, cwd)).toEqual([join(plugin, 'skills'), join(cwd, '.claude', 'skills')])
+      const home = join(root, 'home')
+      expect(skillDirs({ plugins }, cwd, home)).toEqual([join(plugin, 'skills'), join(cwd, '.claude', 'skills')])
       mkdirSync(join(cwd, '.agents', 'skills'), { recursive: true })
-      expect(skillDirs({}, cwd)).toEqual([join(cwd, '.claude', 'skills'), join(cwd, '.agents', 'skills')])
+      expect(skillDirs({}, cwd, home)).toEqual([join(cwd, '.claude', 'skills'), join(cwd, '.agents', 'skills')])
+      mkdirSync(join(home, '.agents', 'skills'), { recursive: true })
+      expect(skillDirs({}, cwd, home)).toEqual([join(cwd, '.claude', 'skills'), join(cwd, '.agents', 'skills'), join(home, '.agents', 'skills')])
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

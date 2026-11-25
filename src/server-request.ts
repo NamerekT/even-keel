@@ -446,12 +446,6 @@ export function codeOf(body: Record<string, unknown>): string {
   return code
 }
 
-export function skillsOf(body: Record<string, unknown>): string[] {
-  const { skills } = body
-  if (!Array.isArray(skills) || !skills.every((item) => typeof item === 'string')) throw fail('packages.noSkills', {})
-  return skills
-}
-
 export function listOf(body: Record<string, unknown>, code: Extract<NoticeCode, 'request.taskList' | 'request.projectList' | 'request.milestoneList'>): string[] {
   const { order } = body
   if (!Array.isArray(order) || !order.every((item) => typeof item === 'string')) throw fail(code, {})

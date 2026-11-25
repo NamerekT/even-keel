@@ -40,7 +40,7 @@ export function fixture() {
   const deps = {
     file, cache: join(home, 'state/packages'), envFile: join(home, '.env'), repos: { project: home },
     globalDir: join(home, 'global'), ownDir: join(home, 'own'), skillsDir: join(home, 'skills'),
-    skillRoots: () => [], claudeConfigs: () => [], rules: { aliases: {}, trackers: [] }, tracker: () => undefined,
+    claudeConfigs: () => [], rules: { aliases: {}, trackers: [] }, tracker: () => undefined,
     agentOf: () => 'claude', updateMarketplace: async () => {}, addMarketplace: async () => {},
     baseEnv: () => ({}), poolOf: () => ({}), port: 0, log: (line: string) => void lines.push(line), onChange: () => {},
   }

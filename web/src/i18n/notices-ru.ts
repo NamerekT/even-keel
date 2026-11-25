@@ -663,10 +663,6 @@ export const noticesRu: NoticeTexts = {
   'packages.lost': (p) => `файлов ${p.name} ${p.version} на этом хосте нет; нажмите «Установить» у пакета в каталоге`,
   'packages.lostMarketplace': (p) =>
     `файлов ${p.name} ${p.version} на этом хосте нет, а Claude Code здесь не знает его маркетплейса ${p.marketplace}; добавьте его и нажмите «Установить» у пакета в каталоге`,
-  'packages.skillsAway': (p) => `навыки ${p.name} ${p.version} эта машина берёт у своего хаба, а хаб сейчас недоступен; новая попытка через 10 минут`,
-  'packages.skillsNotOnHub': (p) => `у хаба нет файлов его установки ${p.version} пакета ${p.name}; нажмите «Установить» или «Обновить» у пакета в каталоге хаба`,
-  'packages.noSkills': () => 'выберите хотя бы один навык',
-  'packages.unknownSkill': (p) => `навыка ${p.name} нет ни в ~/.claude/skills, ни в папке навыков Codex`,
   'packages.npmFailed': (p) => `npm не смог установить ${p.spec}`,
   'huly.clientInstalling': () => 'клиент Huly устанавливается, минуту-две; проекты на Huly ждут его',
   'huly.clientFailed': () => 'npm не смог установить клиент Huly; проекты на Huly ждут, пока установку не повторят',

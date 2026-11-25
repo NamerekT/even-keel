@@ -6,7 +6,7 @@ import type { CloneProgress } from '../git/clone-progress.js'
 import type { HubStore, MachineRecord } from '../link/hub-store.js'
 import type { HubEnd } from '../link/hub.js'
 import type { JoinRequests } from '../link/join-requests.js'
-import type { CredentialsAnswer, GitAnswer, GitRequest, HookAnswer, HookRequest, McpAnswer, McpRequest, SkillsAnswer, TallyAnswer } from '../link/protocol.js'
+import type { CredentialsAnswer, GitAnswer, GitRequest, HookAnswer, HookRequest, McpAnswer, McpRequest, TallyAnswer } from '../link/protocol.js'
 import type { MachineAbout, MachineProjectSettings, PoolServer, StateTooLarge, TakenFolder } from '../link/view.js'
 import type { HubBrief } from '../machine/brief.js'
 import type { RemoteDeps, RemoteMachine } from '../machine/remote.js'
@@ -37,8 +37,6 @@ export interface NetworkPeers {
   tally?: (machine: string, rows: unknown) => Promise<TallyAnswer>
   /** The tokens of a project's remotes for one git call of the machine (BTN-1541); `cloning` — a clone of the hub's in flight. Absent — none. */
   credentials?: (machine: string, project: string, urls: string[], cloning: boolean) => Promise<CredentialsAnswer>
-  /** The files of the hub's install of the user's skills package (BTN-1565). Absent — none. */
-  skills?: (machine: string, install: string) => SkillsAnswer
   /** One git request of the machine to a project's memory repository (BTN-1648). Absent — 404. */
   git?: (machine: string, project: string, request: GitRequest) => Promise<GitAnswer>
   write: (machine: string, write: KeptWrite) => Promise<void>

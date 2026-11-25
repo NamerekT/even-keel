@@ -41,7 +41,6 @@ const packages: PackagesView = {
   available: [],
   marketplace: null,
   imports: {},
-  skills: { package: 'my-skills@even-keel-skills', list: [] },
 }
 
 const rules = { files: ['CLAUDE.md' as const], skills: [{ folder: '.claude/skills' as const, names: ['review'] }] }
