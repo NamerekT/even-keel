@@ -143,6 +143,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
       text: message.text, files: await Promise.all(message.files.map(encoded)),
     }), mailing))
     if (!ok) return
+    command.current?.sent()
     if (!midTurn && !renew) sent.begin()
   }
 

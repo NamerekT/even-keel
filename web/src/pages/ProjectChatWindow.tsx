@@ -148,8 +148,10 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
     const retract = parts.onSent(sentLine(ask?.id ?? null, answers, text, files), files, midTurn)
     if (ask !== null) setPending(ask.id)
     const ok = await send(async (message) => deliver('chats/send', { id: chat.id, text: message.text, answers, files: await Promise.all(message.files.map(encoded)) }), mailing)
-    if (ok) onChanged()
-    else {
+    if (ok) {
+      command.current?.sent()
+      onChanged()
+    } else {
       retract()
       setPending(null)
     }
@@ -162,7 +164,9 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
       onChanged()
       onRenewed(next)
     })
-    if (ok) setRenewal(null)
+    if (!ok) return
+    command.current?.sent()
+    setRenewal(null)
   }
 
   // The new session stays on the chat's machine, its history is there: that machine's accounts (BTN-1614).

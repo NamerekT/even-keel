@@ -1,6 +1,7 @@
 import { useId, useImperativeHandle, useLayoutEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type Ref } from 'react'
 import { commandIn, matchingCommands, type ChatCommand } from '../../../src/sessions/commands.js'
 import { language, t } from '../i18n/index.js'
+import { isNarrow } from '../layout/useNarrow.js'
 import { ghostOf, menuQuery, snappedSelection, tokenCut, withCommand } from './chatCommands.js'
 import './chatCommands.css'
 
@@ -18,9 +19,12 @@ interface Props {
   commands?: boolean
 }
 
-/** What the composer's slash button calls: an empty field gets a `/` and the commands menu opens. */
+/** What the composer calls on the field. */
 export interface CommandTextHandle {
+  /** The slash button: an empty field gets a `/` and the commands menu opens. */
   startCommand: () => void
+  /** A message went out: on a phone the field lets the focus go, so the keyboard folds and the feed shows whole (BTN-1701). */
+  sent: () => void
 }
 
 /** Where a popover over the field stands, in the field's own coordinates. */
@@ -72,7 +76,19 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
       change('/', 1)
       area.current?.focus()
     },
+    sent: () => {
+      if (isNarrow()) area.current?.blur()
+    },
   }))
+  // On a phone the tap that focuses a folded draft puts the caret at its end, not where the finger met the one visible
+  // line; later taps place it as usual (BTN-1701). The browser places the caret after `focus`, so this waits for the click.
+  const tapFocus = useRef(false)
+  const toEnd = () => {
+    const box = area.current
+    if (box === null || document.activeElement !== box) return
+    box.setSelectionRange(box.value.length, box.value.length)
+    box.scrollTop = box.scrollHeight
+  }
   const pick = (command: ChatCommand) => {
     const text = withCommand(value, command.name)
     change(text, text.length)
@@ -156,8 +172,17 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
         onPaste={onPaste}
         onKeyDown={keyDown}
         onFocus={() => setFocused(true)}
+        onPointerDown={(event) => {
+          tapFocus.current = isNarrow() && document.activeElement !== event.currentTarget
+        }}
+        onClick={() => {
+          if (!tapFocus.current) return
+          tapFocus.current = false
+          toEnd()
+          requestAnimationFrame(toEnd)
+        }}
         onBlur={(event) => {
-          if (window.matchMedia('(max-width: 760px)').matches) event.currentTarget.scrollTop = 0
+          if (isNarrow()) event.currentTarget.scrollTop = 0
           setFocused(false)
           setTokenSpot(null)
         }}
