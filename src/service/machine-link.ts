@@ -24,6 +24,7 @@ import { hubIdentity } from '../link/identity.js'
 import { JoinRequests } from '../link/join-requests.js'
 import { MachineNetwork } from './machine-network.js'
 import { sessionTranscripts } from './session-transcripts.js'
+import { historyReads } from './task-history.js'
 import { folderGitCredentials, hubGitCredentials } from './git-credentials.js'
 import { MemoryFolders } from '../memory/git/folders.js'
 import { hubMemoryGit } from '../memory/git/hub-git.js'
@@ -108,6 +109,11 @@ export interface LinkedMachine {
    * and the chat's, the mailbox of a session elsewhere with the hub's own laid over (`withHubMail`, BTN-1633).
    */
   sessions: SessionReads
+  /**
+   * `sessions` for a task's history window (BTN-1561): each machine elsewhere on the link gives the sessions of the task
+   * and of `sessionIds` (its runs) that its facts no longer tell (`historyReads`).
+   */
+  history(task: string, sessionIds: string[]): Promise<SessionReads>
   /**
    * The chat's commands for a session (BTN-1633): one elsewhere on the link steers, takes the inbox and the files on its
    * machine, its mailbox is the hub's (`elsewhereChat`); any other the own machine's.
@@ -594,6 +600,22 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     records,
     page: remote.page,
     sessions: { ...sessions, mailbox: () => withHubMail(sessions.mailbox(), elsewhereSessions(), ctx.mailRelay.mailbox) },
+    history: (task, sessionIds) =>
+      historyReads(
+        {
+          own: remote.page,
+          elsewhere: () =>
+            network.mirrors().map(([machine, mirror]) => ({
+              machine,
+              facts: () => mirror.facts(),
+              page: mirror.page,
+              history: network.connected(machine) ? mirror.services().history : undefined,
+            })),
+          log,
+        },
+        task,
+        sessionIds,
+      ),
     chatOf: (sessionId) => {
       const machine = sessionMachine(sessionId)
       const there = machine === undefined || machine === own || !network.connected(machine) ? undefined : network.remote(machine)?.services().chat

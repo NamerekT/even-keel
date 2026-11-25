@@ -6,7 +6,7 @@ import type { SessionView } from '../state.js'
 import type { FactsPatch } from './facts.js'
 import { machineOf, PROJECT } from './remote.fixture.js'
 import { MachineRunner, type RunnerDeps } from './runner.js'
-import { RECENT_MS, briefAsks, factsScope, scopedDeps, type FactsScope } from './scope.js'
+import { RECENT_MS, briefAsks, factsScope, scopedDeps, taskSessionsHere, type FactsScope } from './scope.js'
 
 const NOW = Date.parse('2026-11-23T18:00:00Z')
 const feed = Array.from({ length: 30 }, (_, index) => ({ kind: 'tool', text: `Read src/example/file-${index}.ts and a line of what it found there`, at: '2026-01-01T00:00:00Z' }))
@@ -147,5 +147,23 @@ describe('briefAsks', () => {
 
   it('a brief of a hub before BTN-1563, without closed, asks about every listed task', () => {
     expect(briefAsks({ tasks: { p1: ['ABC-1', 'ABC-2'] }, current: {}, warm: [] })('ABC-2')).toBe(true)
+  })
+})
+
+describe('taskSessionsHere (BTN-1561)', () => {
+  const old = new Date(NOW - 7 * RECENT_MS).toISOString()
+  const views = [view('ABC-9', 's1', 'finished', old), view('ABC-9', 's2', 'finished', old), view('fix-ABC-9', 's3', 'finished', old), view('ABC-8', 's4', 'finished', old)]
+  const owners: Record<string, string> = { s1: 'work', s3: 'home', s4: 'work', s9: 'home' }
+
+  it("gives the task's sessions and those of the hub's runs of it, with their account folders and compactions", () => {
+    const here = taskSessionsHere({ views, owners: (sessionId) => owners[sessionId], compactions: { s2: 3, s4: 1 } }, 'ABC-9', ['s3', 's9'])
+    expect(Object.keys(here.sessions).sort()).toEqual(['s1', 's2', 's3'])
+    expect(here.sessions.s1).toBe(views[0])
+    expect(here.owners).toEqual({ s1: 'work', s3: 'home', s9: 'home' })
+    expect(here.compactions).toEqual({ s2: 3 })
+  })
+
+  it('gives nothing of a task the machine never ran', () => {
+    expect(taskSessionsHere({ views, owners: () => undefined, compactions: {} }, 'ABC-7', [])).toEqual({ sessions: {}, owners: {}, compactions: {} })
   })
 })

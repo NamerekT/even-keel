@@ -11,6 +11,7 @@ import type { Git } from '../git/types.js'
 import { isPlain } from '../config.js'
 import { branchHere } from '../machine/branch-here.js'
 import { checkFolderStep, cloneTarget, probeFolder } from '../machine/folder-check.js'
+import { taskSessionsHere } from '../machine/scope.js'
 import { fail } from '../notice/notice.js'
 import { readJson } from '../packages/plugins.js'
 import { fromCarried, toCarried, type CarriedFile, type MachineServices } from '../machine/services.js'
@@ -32,9 +33,11 @@ export type MachineServicesContext = Pick<MachineContext,
   | 'inboxes'
   | 'mailbox'
   | 'monitor'
+  | 'owners'
   | 'packages'
   | 'promptLanguage'
   | 'sessionAccount'
+  | 'sessions'
   | 'taskNote'
   | 'tell'
   | 'transcriptWatch'
@@ -178,6 +181,10 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
       moved: () => deps.checkouts?.(),
     }),
     update: deps.update ?? noUpdate,
+    history: {
+      task: async (task, sessionIds) =>
+        taskSessionsHere({ views: ctx.sessions, owners: (sessionId) => ctx.owners.of(sessionId), compactions: ctx.monitor.compactionCounts() }, task, sessionIds),
+    },
   }
 }
 

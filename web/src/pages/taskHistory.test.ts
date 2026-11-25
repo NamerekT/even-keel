@@ -19,9 +19,17 @@ describe('withHistory', () => {
     expect(shown.session).toBe(newest)
   })
 
-  it('leaves a block the state gave runs as it is', () => {
-    const given = block({ sessions: [run('s3', '2026-11-16T00:00:00Z')] })
+  it('leaves a block the state gave runs and their session as it is', () => {
+    const given = block({ sessions: [run('s3', '2026-11-16T00:00:00Z')], session: { task: 'ABC-1', sessionId: 's3' } as SessionView })
     expect(withHistory(given, { runs: [run('s1', '2026-11-01T00:00:00Z')], sessions: [] })).toBe(given)
+  })
+
+  it('gives a block the state gave runs without their session the session of its newest run (BTN-1561)', () => {
+    const runs = [run('s3', '2026-11-16T00:00:00Z')]
+    const newest = { task: 'ABC-1', sessionId: 's3', lamp: 'finished' } as SessionView
+    const shown = withHistory(block({ sessions: runs }), { runs: [run('s3', '2026-11-16T00:00:00Z'), run('s1', '2026-11-01T00:00:00Z')], sessions: [newest] })
+    expect(shown.sessions).toBe(runs)
+    expect(shown.session).toBe(newest)
   })
 })
 

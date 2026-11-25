@@ -3,6 +3,7 @@ import { isChatName } from '../chats/model.js'
 import type { SessionView } from '../state.js'
 import type { HubBrief } from './brief.js'
 import type { RunnerDeps } from './runner.js'
+import type { TaskSessionsHere } from './services.js'
 
 /** How long a finished session's task stays in the facts after its last activity: the chain's cleanup after Done reads it. */
 export const RECENT_MS = 24 * 60 * 60_000
@@ -52,6 +53,29 @@ export function factsScope({ views, journal, asked, now }: ScopeInput): FactsSco
   for (const view of views) if (keeps(view.task)) sessions.add(view.sessionId)
   for (const entry of journal) if (keeps(entry.task)) sessions.add(entry.sessionId)
   return { task: keeps, session: (sessionId) => sessions.has(sessionId) }
+}
+
+export interface HereInput {
+  views: readonly SessionView[]
+  /** The account folder of a session: its agent's, else the one its transcript is in. */
+  owners: (sessionId: string) => string | undefined
+  compactions: Record<string, number>
+}
+
+/**
+ * A task's sessions whole for the hub's history window (BTN-1561): those of the task and those the hub's runs of it
+ * name (a fix's run goes under the fix's name), with the parts of the facts `factsScope` leaves out of an old task.
+ */
+export function taskSessionsHere({ views, owners, compactions }: HereInput, task: string, sessionIds: string[]): TaskSessionsHere {
+  const ids = new Set(sessionIds)
+  const sessions = Object.fromEntries(views.filter((view) => view.task === task || ids.has(view.sessionId)).map((view) => [view.sessionId, view]))
+  for (const sessionId of Object.keys(sessions)) ids.add(sessionId)
+  const owned: Record<string, string> = {}
+  for (const sessionId of ids) {
+    const key = owners(sessionId)
+    if (key !== undefined) owned[sessionId] = key
+  }
+  return { sessions, owners: owned, compactions: within(compactions, (sessionId) => ids.has(sessionId)) }
 }
 
 const within = <V>(record: Record<string, V>, keep: (key: string) => boolean): Record<string, V> =>

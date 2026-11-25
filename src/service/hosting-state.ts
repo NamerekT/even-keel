@@ -18,6 +18,7 @@ import type { ArchivePage, EvenKeelState, OutsideTask, SessionView, TaskHistory 
 import { isOpen, type Task } from '../tracker/model.js'
 import { RAN_SHOWN_MS } from '../tracker/start.js'
 import { runOf } from './demo.js'
+import type { SessionReads } from '../machine/page.js'
 import { pinnable, pinWaits } from '../machine/pins.js'
 import type { HostingContext } from './hosting.js'
 import { inContainer } from '../locations.js'
@@ -240,14 +241,13 @@ export function outsideArchiveOf(ctx: HostingContext, project: string, after: st
 // A finished session's feed is read from its record, and the page shows no action of it (`showsAction`); the one the
 // chain waits on keeps both: delivering an answer stops it for a while, and the page shows it working (BTN-695).
 // Every machine's sessions: a task a machine elsewhere runs leaves its start and shows its lamp as the hub's (BTN-1314).
-function pageSessions(ctx: HostingContext): SessionView[] {
-  return ctx.machineLink.sessions.sessions().map((view) =>
+function pageSessions(ctx: HostingContext, reads: SessionReads = ctx.machineLink.sessions): SessionView[] {
+  return reads.sessions().map((view) =>
     view.lamp === 'finished' && !ctx.dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [], action: null } : view,
   )
 }
 
-function allTaskSessions(ctx: HostingContext): Record<string, TaskSession[]> {
-  const machine = ctx.machineLink.sessions
+function allTaskSessions(ctx: HostingContext, machine: SessionReads = ctx.machineLink.sessions): Record<string, TaskSession[]> {
   return taskSessions(
     ctx.launches,
     machine.sessions(),
@@ -257,11 +257,16 @@ function allTaskSessions(ctx: HostingContext): Record<string, TaskSession[]> {
   )
 }
 
-/** `history/task`: every run of the task and every session of it or of its runs (BTN-1256). */
-export function taskHistory(ctx: HostingContext, task: string): TaskHistory {
-  const runs = allTaskSessions(ctx)[task] ?? []
+/**
+ * `history/task`: every run of the task and every session of it or of its runs (BTN-1256), those a machine elsewhere
+ * no longer tells in its facts asked of it (BTN-1561).
+ */
+export async function taskHistory(ctx: HostingContext, task: string): Promise<TaskHistory> {
+  const known = (allTaskSessions(ctx)[task] ?? []).map((run) => run.sessionId)
+  const reads = await ctx.machineLink.history(task, known)
+  const runs = allTaskSessions(ctx, reads)[task] ?? []
   const ids = new Set(runs.map((run) => run.sessionId))
-  return { runs, sessions: pageSessions(ctx).filter((view) => view.task === task || ids.has(view.sessionId)) }
+  return { runs, sessions: pageSessions(ctx, reads).filter((view) => view.task === task || ids.has(view.sessionId)) }
 }
 
 /** The accounts panel before the machine's first snapshot. */

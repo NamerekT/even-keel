@@ -8,6 +8,7 @@ import type { Notice } from '../notice/notice.js'
 import type { BranchShift } from '../projects/branch.js'
 import type { Mail, MailReason } from '../sessions/mail.js'
 import type { WarmPing } from '../sessions/warm-pings.js'
+import type { MachineFacts } from './facts.js'
 import type { FolderProbe, FolderSpec, FolderStep } from './folder-check.js'
 
 /** A file read on the machine or sent to it, carried through the link whole as base64. */
@@ -165,6 +166,15 @@ export interface MachineBranch {
   back(project: string, branch: string, shift: BranchShift): Promise<void>
 }
 
+/** The parts of the facts of a task's sessions that `factsScope` may leave out on a machine elsewhere (BTN-1561). */
+export type TaskSessionsHere = Required<Pick<MachineFacts, 'sessions' | 'owners' | 'compactions'>>
+
+/** What the hub's history window asks of a machine (BTN-1561): the facts no longer tell an old task's sessions. */
+export interface MachineHistory {
+  /** The views, account folders and compactions of the task's sessions and of `sessionIds`, the hub's runs of it. */
+  task(task: string, sessionIds: string[]): Promise<TaskSessionsHere>
+}
+
 /** The machine's own installation (BTN-1609): it comes to the hub's build through its update process. */
 export interface MachineUpdate {
   /**
@@ -188,6 +198,7 @@ export interface MachineServices {
   git: MachineGit
   branch: MachineBranch
   update: MachineUpdate
+  history: MachineHistory
 }
 
 export const SERVICE_COMMANDS = {
@@ -204,6 +215,7 @@ export const SERVICE_COMMANDS = {
   git: ['identity'],
   branch: ['move', 'back'],
   update: ['follow'],
+  history: ['task'],
 } as const satisfies { [G in keyof MachineServices]: ReadonlyArray<keyof MachineServices[G]> }
 
 type Group = keyof MachineServices
