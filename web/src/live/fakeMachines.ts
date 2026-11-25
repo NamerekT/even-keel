@@ -5,7 +5,7 @@ import { FAKE_INSTALL_OUTPUT } from './fakeCliCopies.js'
 import { FakeMachineAccounts } from './fakeMachineAccounts.js'
 import { MACHINE_PALETTE, machineColors } from '../../../src/link/colors.js'
 import { JOIN_KIND, type JoinRequest } from '../../../src/jobs/model.js'
-import type { FolderProbe } from '../../../src/link/view.js'
+import type { FolderProbe, StateTooLarge } from '../../../src/link/view.js'
 import type { EvenKeelState, JobStep, MachineAbout, MachineCard, MachineInvite, MachineKind, MachinePage, MachineProject, MachineRequest, MachineSignIn, MachineView, PoolMachine, ProjectPool, StepJob } from '../../../src/state.js'
 
 /** A string issued in `dev:fake` is joined with this much later (BTN-1056). */
@@ -48,7 +48,7 @@ export class FakeNetwork {
     // `protocol`: another API, refused at the handshake; `follow`: refused too, and its update to the hub's commit failed
     // (BTN-1275); `container`: the laptop runs in a container, an older image the hub refused (BTN-1440); `pooled`: the
     // laptop is in every project's pool, with a long commit author and folder (BTN-1564); `pooledOff`: the same, the
-    // laptop off in the first project's pool (BTN-1562).
+    // laptop off in the first project's pool (BTN-1562); `tooLarge`: the laptop's state is over the link's limit (BTN-1560).
     const laptop: Partial<MachineAbout> =
       mode === 'nocli' ? { agents: {} }
       : this.pooled ? { gitName: LONG_GIT.name, gitEmail: LONG_GIT.email, root: LONG_ROOT }
@@ -56,6 +56,7 @@ export class FakeNetwork {
       : mode === 'protocol' ? { evenKeel: '0.3.9', api: FAKE_API - 1 }
       : mode === 'container' ? { evenKeel: '0.3.9', api: FAKE_API - 1, container: true, root: '/home/node/.local/share/even-keel/projects', follow: { to: '0.4.0', stuck: 'manual' } }
       : mode === 'follow' ? { api: FAKE_API - 1, commit: '4b1d2c3e5f60718293a4b5c6d7e8f90123456789', follow: { to: FAKE_HUB_COMMIT, stuck: 'failed' } }
+      : mode === 'tooLarge' ? {}
       : { gitUser: false, gitName: undefined }
     this.machines = [
       joined('machine-1', 'Example laptop', about('example-laptop', laptop), !['offline', 'follow', 'container', 'protocol'].includes(mode)),
@@ -114,6 +115,11 @@ export class FakeNetwork {
     const rows = this.pools.get(project) ?? (this.pooled ? [own, laptop] : [own])
     this.pools.set(project, rows)
     return rows
+  }
+
+  /** `?machines=tooLarge` (BTN-1560): the laptop's snapshot of 9.4 MB does not reach the hub. */
+  private get tooLarge(): { stateTooLarge?: StateTooLarge } {
+    return this.mode === 'tooLarge' ? { stateTooLarge: { bytes: 9_856_000, since: Date.now() - 600_000 } } : {}
   }
 
   private get pooled(): boolean {
@@ -199,6 +205,7 @@ export class FakeNetwork {
         projects: pooled,
         ...this.editedAccounts(this.cardAccounts(state, id, id === own, until), id, id === own),
         ...(report !== undefined && report.api !== undefined && report.api !== FAKE_API && { otherBuild: report.evenKeel }),
+        ...(id === 'machine-1' && this.tooLarge),
       }
     })
   }
@@ -295,6 +302,7 @@ export class FakeNetwork {
         : (panel?.accounts ?? []).map((account) => ({ ...account, limits: account.signedIn ? state.limits : null })),
       missing: own ? [] : [...new Set([...(panel?.missing ?? []), ...Object.keys(report.agents).filter((agent) => report.agents[agent] === null)])],
       sessions: own ? state.sessions.filter((session) => session.lamp !== 'finished').map(({ task, sessionId, agent, model, lamp, cwd }) => ({ task, sessionId, agent, model, lamp, cwd })) : [],
+      ...(id === 'machine-1' && this.tooLarge),
       taken: id === 'machine-1' && this.held && pooled[0] !== undefined ? [{ project: pooled[0], machine: 'machine-0', name: 'Example old laptop' }] : [],
       ...(!own && this.buildOf(report, view?.online === true, id)),
       ...(!own && { memory: this.memory.get(id) ?? (id === 'machine-1' && state.projects.length > 0 ? [{ project: state.projects.at(-1)!, folder: '/home/example/hand/notes' }] : []) }),

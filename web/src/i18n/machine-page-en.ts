@@ -78,7 +78,7 @@ export const machinePageEn: Messages['machinePage'] = {
   folderTip: "The project's folder on the machine",
   taken: (name) => `Another machine holds the project's folder: ${name}`,
   stateTooLarge: (bytes) =>
-    `The machine cannot send its state to the hub: ${(bytes / 1048576).toFixed(1)} MB is over the link's limit of 8 MB. Till it goes, the hub sees none of its sessions and waits for no answer from it. The machine's log (logs/even-keel.log) names the largest parts.`,
+    `The machine cannot send its state to the hub: ${(bytes / 1048576).toFixed(1)} MB is over the link's limit of 8 MB. Till it goes, the hub sees none of its sessions and waits for no answer from it. The machine's log names the largest parts.`,
   memory: "Other projects' memory",
   memoryHint:
     "A project's folder on a machine outside that project's pool (a hand session, a clone of its own) gets the project's memory only when bound here: the machine clones its memory repository and syncs it over the link. Without a binding the folder is left alone. The projects of the machine's pool sync by themselves.",

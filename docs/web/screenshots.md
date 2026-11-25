@@ -36,6 +36,8 @@ Machine icons (BTN-1595): the fake machines cover every kind — the hub and the
 
 `?machines=pooled` (BTN-1564) puts "Example laptop" in every project's pool at once, with a long commit author and folder and the first project's packages not ready: `/p/ABC?machines=pooled&machine=machine-1#settings` opens its panel in the project with no clicks (`--wait '.pool__block'`), `machine=pc` the own machine's, ready. `/machines/machine-1?machines=pooled` lists every project on the laptop's page, `pooledOff` turns the laptop off in the first project's pool there (BTN-1562): at 390 px that row stacks the name and folder, then "off in the project" and "packages not ready", then "Packages".
 
+`?machines=tooLarge` (BTN-1560): "Example laptop"'s state is over the link's limit — its card in the machines panel is blocked with the reason, `/machines/machine-1?machines=tooLarge` has the band with the size (`--wait '.machine-page__body'`).
+
 ```sh
 npm run shot -- '/p/ABC?machines=signIn#settings' 'dialog[open]' --click '#settings-tab-machines' --wait '.pool' --click '.pool__actions button' --click 'dialog button[type=submit]' --wait 500
 ```
