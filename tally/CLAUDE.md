@@ -1,8 +1,8 @@
 # Tally
 
-The collector of session stats: it reads the transcripts of every account (Claude, plus the spend of Codex, OpenCode and Copilot) into Postgres — the embedded PGlite in `<state>/tally/pgdata` by default, or an external one by `TALLY_DB_*` — and `/stats`, the audit skill and `sql.mjs` only read it. The rules of the root `CLAUDE.md` apply; below are only the rules and traps of this folder. How things are built is in `docs/tally.md`; read the section you work in:
+The collector of session stats: it reads the transcripts of every account (Claude, plus the spend of Codex, OpenCode and Copilot) into Postgres — the embedded PGlite in `<state>/tally/pgdata` by default, or an external one by `TALLY_DB_*` — and `/stats`, the audit skill and `sql.mjs` only read it. The rules of the root `CLAUDE.md` apply; below are only the rules and traps of this folder. How things are built is in `docs/tally.md`, an index of the files in `docs/tally/`; read the section you work in:
 
-| Section of `docs/tally.md` | Area |
+| Section of `docs/tally/` | Area |
 | --- | --- |
 | Running, What is read | the service's runs, a run by hand, the sources of every agent, incremental loading |
 | Schema version and migrations, Schema | `schema_version`, the steps so far, every table and view, a response's task |

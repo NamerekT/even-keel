@@ -29,7 +29,7 @@ const INBOX_ROUTE = /^\/api\/sessions\/([^/]+)\/inbox$/
 const MAIL_ROUTE = /^\/api\/sessions\/([^/]+)\/mail$/
 
 /**
- * Where the hooks of a machine's sessions ask Even Keel on a machine with no page (BTN-1260, `docs/machines.md`,
+ * Where the hooks of a machine's sessions ask Even Keel on a machine with no page (BTN-1260, `docs/machines/link.md`,
  * "Hooks through the hub"): on loopback, at the page's port when it is free, it carries a route of the hooks to the
  * hub's page over the link and answers 503 at once while the hub is away. `/api/state` is answered here with the
  * machine's own accounts only.

@@ -9,7 +9,7 @@ import type { MachineFacts } from './facts.js'
 const WAITING: UsageHealth = { state: 'waiting', reason: null, since: null }
 
 /**
- * What the hub's page and chat read of a machine's sessions and accounts, all from its mirror (`docs/machines.md`,
+ * What the hub's page and chat read of a machine's sessions and accounts, all from its mirror (`docs/machines/pool.md`,
  * "The mirror"): never older than the machine's last post, and nothing before its first snapshot.
  */
 export interface PageReads {

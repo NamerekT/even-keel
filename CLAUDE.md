@@ -34,7 +34,7 @@ This file holds only the rules and traps every session needs. How things are bui
 
 Behaviour without a way to check it live gets an entry in `docs/unverified/<area>.md` and a row in the index's "What to check first" table. Every live check — of such an entry, a "Проверка" task, a live run inside a task — gets a row in `docs/verified/<area>.md`; a checked entry moves there, never just deleted (the indexes' heads say how).
 
-The public documentation is `README.md`, `docs/guide/` and `LICENSE` (MIT). A change of installation, a config key, an environment variable or behaviour described there edits the guide too; the README stays short and changes only when its short version stops being true. The guide has no task IDs and only links the internals.
+The public documentation is `README.md`, `docs/guide/` and `LICENSE` (MIT). A change of installation, a config key, an environment variable or behaviour described there edits the guide too; the README stays short and changes only when its short version stops being true. The guide says what a person does and sees, not how it is built, and has no task IDs: a detail goes into `docs/<area>.md`, linked. A page over 30 KB, a document over 40 KB (a test) is cut into subtopics, not squeezed.
 
 **Where to write new things.** Here goes only a rule or a trap without which a session will go wrong in any task, in a line or two. How a feature is built, its routes, parameters and measurements go into the area's document (none fits — a new one and a row above) or into JSDoc. The hook and a test hold this file to 13,000 bytes; only the user may raise the ceiling. Documentation in the repository is in English.
 

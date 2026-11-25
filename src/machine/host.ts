@@ -3,7 +3,7 @@ import type { DispatcherDeps } from '../chain/model.js'
 import type { Notice } from '../notice/notice.js'
 
 /**
- * What a move of a task's session (`Handovers`, `OverageStops`) is given besides the port (`docs/machines.md`,
+ * What a move of a task's session (`Handovers`, `OverageStops`) is given besides the port (`docs/machines/seam.md`,
  * "Moves"). On the machine every member is its own: `save` posts the task's state to the hub, the rest are the
  * values the hub sent with the command. In the hub's process (a port without `moves`) they are the hub's.
  */

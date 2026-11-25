@@ -209,7 +209,7 @@ To check, on the benches: a Huly project of width 2 with two machines (or `paral
 
 ## A machine catching up with its hub's commit (BTN-1275)
 
-`docs/machines.md`, "Catching up with the hub"; `docs/service.md`, "Updating from the page". `src/updates/follow.test.ts` covers the choice (a target failed before, a dirty checkout, no service manager, a local package, a hub without a commit), `src/updates/steps.test.ts` the steps of mode `follow`, `src/link/link.test.ts` the refusal's body and `versionRefused` on a fake hub.
+`docs/machines.md`, "Catching up with the hub"; `docs/guide/page.md`, "Updating from the page". `src/updates/follow.test.ts` covers the choice (a target failed before, a dirty checkout, no service manager, a local package, a hub without a commit), `src/updates/steps.test.ts` the steps of mode `follow`, `src/link/link.test.ts` the refusal's body and `versionRefused` on a fake hub.
 
 Assumed: the detached update process outlives the machine service's stop under each service manager as the page's update does; `git fetch --all --tags` reaches the hub's commit through the machine's remotes (the chain pushed it before the hub rebuilt); `npm run build:machine` is enough for the machine service to start; the machine's first contact after the start writes `contactAt` within the answer's 2 min; the global npm install runs as the page's does. If not, the machine stays refused with `stuck: failed` on its page, or is left on the old commit after a rollback.
 
@@ -243,7 +243,7 @@ To check, on the benches: a project with machine-1 in its pool; start a task the
 
 ## Why a machine elsewhere's packages are not ready (BTN-1300)
 
-`docs/machines.md`, "The page". `src/service/machine-cards.test.ts` covers the card's reasons read from a mirror's facts, and `dev:fake` `?machines=signIn&machine=machine-1#settings` (machine-1 connected to ABC) the lines and buttons; the reasons never came from a live machine.
+`docs/chain/demo.md`, "The page". `src/service/machine-cards.test.ts` covers the card's reasons read from a mirror's facts, and `dev:fake` `?machines=signIn&machine=machine-1#settings` (machine-1 connected to ABC) the lines and buttons; the reasons never came from a live machine.
 
 Assumed: the machine's facts carry `packagesPause` with the packages to finish and `trackerMissing` whenever they hold it, and the hub's state of the project's packages offers the same tracker package the machine lacks. If not, the settings tab says "not ready" with "it usually passes by itself" under it while only the user can fix it, or the tracker package's button turns on a package the machine already has; the machine's `packages:` log lines name the package.
 
