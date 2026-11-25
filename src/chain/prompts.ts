@@ -250,7 +250,9 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     landing: {
       conflict: ({ remote, main, files, round }) =>
         [
-          fill`Твой мерж в ${main} не сел в ${remote}: в ${remote}/${main} появились коммиты, которые конфликтуют с ним в файлах ${files.join(', ')}. Even Keel откатил ${main} основного чекаута на коммит до твоего мержа, задача не закрыта.`,
+          files.length > 0
+            ? fill`Твой мерж в ${main} не сел в ${remote}: в ${remote}/${main} появились коммиты, которые конфликтуют с ним в файлах ${files.join(', ')}. Even Keel откатил ${main} основного чекаута на коммит до твоего мержа, задача не закрыта.`
+            : fill`Твой мерж в ${main} не сел в ${remote}: он конфликтует с ${remote}/${main}, список файлов git не оставил. Even Keel откатил ${main} основного чекаута на коммит до твоего мержа, задача не закрыта.`,
           fill`- В своём worktree: \`git fetch ${remote}\`, влей \`${remote}/${main}\` в ветку задачи, разреши конфликты, прогони проверки и снова смержи ветку в ${main} основного чекаута. Сам не пушь — посадку повторит Even Keel.`,
           fill`- Это круг ${String(round)} из ${String(LANDING_ROUNDS)}: после последнего Even Keel поставит цепочку на паузу и спросит пользователя.`,
         ].join('\n'),
@@ -438,7 +440,9 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     landing: {
       conflict: ({ remote, main, files, round }) =>
         [
-          fill`Your merge into ${main} did not land on ${remote}: ${remote}/${main} got commits that conflict with it in ${files.join(', ')}. Even Keel rolled ${main} of the main checkout back to the commit before your merge; the task is not closed.`,
+          files.length > 0
+            ? fill`Your merge into ${main} did not land on ${remote}: ${remote}/${main} got commits that conflict with it in ${files.join(', ')}. Even Keel rolled ${main} of the main checkout back to the commit before your merge; the task is not closed.`
+            : fill`Your merge into ${main} did not land on ${remote}: it conflicts with ${remote}/${main}, and git left no list of the files. Even Keel rolled ${main} of the main checkout back to the commit before your merge; the task is not closed.`,
           fill`- In your worktree: \`git fetch ${remote}\`, merge \`${remote}/${main}\` into the task's branch, resolve the conflicts, run the checks and merge the branch into ${main} of the main checkout again. Do not push yourself: Even Keel lands it again.`,
           fill`- This is round ${String(round)} of ${String(LANDING_ROUNDS)}: after the last one Even Keel pauses the chain and asks the user.`,
         ].join('\n'),
