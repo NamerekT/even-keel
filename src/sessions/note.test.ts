@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { handoffNoteOf, noteAtEnd, noteFileOf, noteWritten } from './note.js'
-import type { FeedLine } from './transcript.js'
+import { mailMessage } from './mail.js'
+import { TranscriptFold, type FeedLine } from './transcript.js'
 import { RolloutFold } from '../codex/rollout.js'
 
 const at = '2026-10-18T10:00:00.000Z'
@@ -65,6 +66,30 @@ describe('noteAtEnd', () => {
     expect(noteAtEnd([prompt('x'), note(), prompt('go on')])).toBe(false)
     expect(noteAtEnd([prompt('x'), note(), { at, kind: 'answer', text: 'yes' }])).toBe(false)
     expect(noteAtEnd([])).toBe(false)
+  })
+
+  it('keeps the note of a turn that a message from the chat reached mid-turn (BTN-1718)', () => {
+    const mid: FeedLine = { at, kind: 'prompt', text: 'Reply with the word PONG.', midTurn: true }
+    expect(noteWritten([prompt('/handoff'), tool('mcp__tasks__handoff_write'), mid, text('Done.')])).toBe('handoff_write')
+    expect(noteAtEnd([prompt('x'), note(), { ...mid, kind: 'answer' }, text('Done.')])).toBe(true)
+  })
+
+  it('finds the note in a Claude transcript past a message the inbox socket gave the running turn', () => {
+    const stamp = (n: number) => `2026-11-25T22:37:${String(n).padStart(2, '0')}.000Z`
+    const mail = { id: 31, task: 'ABC-22', session: 's1', text: 'Reply with the word PONG.', files: [], sentAt: at, fate: 'delivered' as const, event: null, settledAt: null }
+    const peer = `<peer-message from="inbox">\n${mailMessage([mail], 'inbox', 'en')}\n</peer-message>`
+    const assistant = (n: number, content: unknown[]) => JSON.stringify({ type: 'assistant', timestamp: stamp(n), message: { id: `m${n}`, role: 'assistant', content } })
+    const fold = new TranscriptFold(Infinity, true)
+    for (const line of [
+      JSON.stringify({ type: 'user', timestamp: stamp(1), message: { role: 'user', content: '/handoff' } }),
+      assistant(2, [{ type: 'tool_use', id: 'toolu_1', name: 'mcp__plugin_tasks_tasks__handoff_write', input: { text: 'notes' } }]),
+      JSON.stringify({ type: 'attachment', timestamp: stamp(3), attachment: { type: 'queued_command', prompt: peer, commandMode: 'prompt', origin: { kind: 'peer' } } }),
+      JSON.stringify({ type: 'user', timestamp: stamp(4), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: 'saved' }] } }),
+      assistant(5, [{ type: 'text', text: 'PONG' }]),
+    ]) fold.push(line)
+    const feed = fold.summary().feed
+    expect(feed.filter((line) => line.kind === 'prompt').map((line) => line.text)).toEqual(['/handoff', 'Reply with the word PONG.'])
+    expect(noteWritten(feed)).toBe('handoff_write')
   })
 
   it('ignores other files named handoff and reads of the note', () => {
