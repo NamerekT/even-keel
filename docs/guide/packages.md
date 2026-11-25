@@ -69,7 +69,7 @@ A task found by its marker gets every field of the batch written again — label
 
 On Jira, removing a link that is absent in the requested direction and type is refused, including when the same removal is repeated; read the task's current links before retrying.
 
-Details and remaining limits are in the [adapter reference](../trackers.md#the-tasks-server-btn-768-srctaskmcp).
+Details and remaining limits are in the [adapter reference](../trackers/tasks-server.md#the-tasks-server-btn-768-srctaskmcp).
 
 ## What other agents get
 

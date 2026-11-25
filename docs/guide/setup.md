@@ -495,7 +495,7 @@ Files over **Attachment size limit, MB** are listed as `too large`, and failed d
 
 Linear does not provide a file size on the card, so repeated reads download its files again.
 
-Two different files of one name get separate path prefixes. [Adapter details](../trackers.md#the-tasks-server-btn-768-srctaskmcp).
+Two different files of one name get separate path prefixes. [Adapter details](../trackers/tasks-server.md#the-tasks-server-btn-768-srctaskmcp).
 
 #### The GitLab and Forgejo plugins
 
