@@ -22,13 +22,28 @@ function changed(): void {
   for (const listener of deviceListeners) listener()
 }
 
-/** `?invites` starts the settings with two invitations waiting: one unopened, one opened by a phone. */
+/** `?invites=soon`: links live seconds, not minutes, so their expiry can be watched (BTN-1665). */
+const SOON_MS = 6000
+
+function soon(): boolean {
+  return new URLSearchParams(location.search).get('invites') === 'soon'
+}
+
+function inviteMs(): number {
+  return soon() ? SOON_MS : INVITE_MS
+}
+
+/**
+ * `?invites` starts the settings with two invitations waiting: one unopened, one opened by a phone; `?invites=soon`
+ * makes them expire 3 and 5 s after the page opens.
+ */
 function startInvites(now: number): InviteView[] {
   if (!new URLSearchParams(location.search).has('invites')) return []
   const at = (minutesAgo: number) => new Date(now - minutesAgo * 60_000).toISOString()
+  const until = (left: number) => new Date(now + (soon() ? left * 1000 : INVITE_MS - left * 60_000)).toISOString()
   return [
-    { id: 'inv-unopened', createdAt: at(2), expiresAt: new Date(now + INVITE_MS - 2 * 60_000).toISOString(), opened: null },
-    { id: 'inv-opened', createdAt: at(4), expiresAt: new Date(now + INVITE_MS - 4 * 60_000).toISOString(), opened: { device: 'Safari on iPhone', from: '100.64.0.21', at: at(1), digits: '47' } },
+    { id: 'inv-unopened', createdAt: at(2), expiresAt: until(soon() ? 3 : 2), opened: null },
+    { id: 'inv-opened', createdAt: at(4), expiresAt: until(soon() ? 5 : 4), opened: { device: 'Safari on iPhone', from: '100.64.0.21', at: at(1), digits: '47' } },
   ]
 }
 
@@ -76,6 +91,8 @@ function startOrigins(now: number): KnownOrigin[] {
 /** Answers the `auth/*` queries of the settings group; `keySet` follows the fake `EVEN_KEEL_TOKEN` of the access settings. */
 export function fakeAuthQuery(name: string, body: Record<string, unknown>, keySet: boolean, now = Date.now()): unknown {
   view ??= freshView(now)
+  // As the hub: an expired invitation is neither listed nor decided.
+  view = { ...view, invites: view.invites.filter((each) => Date.parse(each.expiresAt) > now) }
   const current = view
   switch (name) {
     case 'auth/devices':
@@ -124,7 +141,7 @@ export function fakeAuthQuery(name: string, body: Record<string, unknown>, keySe
 function makeInvite(current: DevicesView, now: number): InviteMade {
   if (current.invites.length >= 5) throw fail('auth.invitesFull', { count: current.invites.length })
   const id = `inv-${now}`
-  const expiresAt = new Date(now + INVITE_MS).toISOString()
+  const expiresAt = new Date(now + inviteMs()).toISOString()
   view = { ...current, invites: [...current.invites, { id, createdAt: new Date(now).toISOString(), expiresAt, opened: null }] }
   setTimeout(() => {
     if (view === null || !view.invites.some((each) => each.id === id)) return

@@ -11,6 +11,7 @@ import { QrCode } from '../ui/Qr.js'
 import { Select } from '../ui/Select.js'
 import { Tipped } from '../ui/Tipped.js'
 import { linkPlaceOf, withTyped } from './inviteOrigin.js'
+import { inviteStage } from './inviteStage.js'
 import '../tools/addPackage.css'
 import './inviteDialog.css'
 
@@ -34,6 +35,8 @@ interface InviteDialogProps {
   made: InviteMade
   /** The invitation as the service lists it now; `undefined` — not listed (yet, or any more). */
   invite: InviteView | undefined
+  /** The hub refused a decision on it as `auth.inviteGone`: the list may still hold it until the next read. */
+  gone: boolean
   busy: boolean
   failure: string | null
   onAdmit: () => void
@@ -52,7 +55,7 @@ interface InviteDialogProps {
  * opened it, then who opened it and the two digits to compare before "Let in". On a page opened by `localhost` the link
  * goes to an outside address of the hub, picked when there are several, typed when there is none (BTN-1661).
  */
-export function InviteDialog({ made, invite, busy, failure, onAdmit, onDecline, onCancel, onAgain, onOrigin, onClose }: InviteDialogProps) {
+export function InviteDialog({ made, invite, gone, busy, failure, onAdmit, onDecline, onCancel, onAgain, onOrigin, onClose }: InviteDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
@@ -99,8 +102,7 @@ export function InviteDialog({ made, invite, busy, failure, onAdmit, onDecline, 
     if (invite !== undefined) setSeen(true)
   }, [invite])
 
-  // Until the list first holds it, the invitation just made is taken as unopened.
-  const stage = left <= 0 && invite?.opened == null ? 'expired' : invite === undefined ? (seen ? 'over' : 'waiting') : invite.opened === null ? 'waiting' : 'opened'
+  const stage = inviteStage({ left, invite, seen, gone })
   const opened = invite?.opened ?? null
 
   return (
