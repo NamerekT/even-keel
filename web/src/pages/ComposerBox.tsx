@@ -104,6 +104,21 @@ export function ComposerBox({ command, text, files, sending, rows, onText, onFil
   )
 }
 
+/**
+ * The field's frame with no field, for a chat that is only read: why, muted, where the text goes and its one way on
+ * where the send button stands (BTN-1679). On a phone the action goes under the reason, the whole width.
+ */
+export function ReadOnlyComposer({ reason, children }: { reason: string; children: ReactNode }) {
+  return (
+    <div className="chat__box chat__box--readonly">
+      <div className="chat__row chat__row--readonly">
+        <p className="chat__readonly">{reason}</p>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 interface ShutProps {
   mail?: SessionMail
   owner: DraftOwner

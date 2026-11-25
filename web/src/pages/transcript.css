@@ -530,10 +530,30 @@ button.tools__toggle:hover {
   border-color: var(--accent);
 }
 
+/* The frame of a chat that is only read (BTN-1679): nothing in it takes text, so it never lights up. */
+.chat__box--readonly:focus-within {
+  border-color: var(--border);
+}
+
 .chat__row {
   display: flex;
   align-items: flex-end;
   gap: 4px;
+}
+
+.chat__row--readonly {
+  align-items: center;
+  min-height: 34px;
+  gap: var(--space-12);
+  padding-inline: var(--space-8) 0;
+}
+
+.chat__readonly {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-14);
 }
 
 .chat__text {
@@ -714,13 +734,6 @@ button.tools__toggle:hover {
   font-size: var(--text-13);
 }
 
-.chat__state {
-  min-height: 1.3em;
-  margin: 0;
-  padding: 0 10px;
-  color: var(--fg-muted);
-  font-size: var(--text-12);
-}
 
 @media (max-width: 760px) {
   .session-window.transcript[open] {
@@ -752,6 +765,21 @@ button.tools__toggle:hover {
 
   .chat__box {
     --box-pad: var(--space-2);
+  }
+
+  .chat__box--readonly {
+    --box-pad: var(--space-8);
+  }
+
+  .chat__row--readonly {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-8);
+    padding-inline: 0;
+  }
+
+  .chat__readonly {
+    text-align: center;
   }
 
   .chat__text, .chat__mirror {
