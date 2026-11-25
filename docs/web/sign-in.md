@@ -75,6 +75,8 @@ A new device can sign in without the key: a device signed in invites it (BTN-165
 
 `AccessBook` keeps the live tokens in memory, so the guard stays synchronous, and writes every change through. A revoke — "Sign out" of a device, "Sign out everywhere but here", a new key, a sign-in over an old token — closes the open event streams of those devices (`EventHub.closeTagged`, each stream tagged by its device's token id), and the page loads the sign-in screen.
 
+Every token issued or revoked (`BookOptions.changed`) and every passkey made, used or removed (`PasskeyOptions.changed`) sends the same `devices` event as an invitation (BTN-1662), so "Sign-in and devices" open on another device reads its cards anew. A token seen does not: `seenAt` moves on every request.
+
 A stream the service ended after its 200 is reopened by the browser itself, and EventSource never says why a stream failed, so the page does not wait for a refused reconnect: on every failed stream, whether the browser retries or gave up, and each time the tab comes back into view (`visibilitychange`, where Safari may hold a dead stream with no error yet) `LiveConnection` asks `GET /api/auth/state` (BTN-1629). A 401 (a hub without sign-ins whose token changed) or `signedIn: false` stops the connection and reloads the page into the sign-in screen; a failed request or another status is a lost link, and the reconnecting banner stays. One question is in flight at a time.
 
 ## The checks on every request
