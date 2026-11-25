@@ -63,6 +63,8 @@ export function guardedServer(settings: () => GuardSettings, handle: GuardedHand
     }
     const device = verdict.kind === 'pass' ? verdict.device : undefined
     if (device !== undefined) current.book?.seen(device, address)
+    // `Origin` matched `Host` in the guard: an address the page opens by, and not a visit's that the sign-in stopped.
+    if (verdict.kind === 'pass') current.origins?.seen(request.headers.origin)
     const asks = current.token !== null || current.book?.signInOn() === true
     if (verdict.kind === 'pass' && asks && request.method === 'POST' && request.url?.split('?')[0] === '/api/profiles/oauth/start') {
       response.setHeader('set-cookie', oauthCallbackCookie(current.token))

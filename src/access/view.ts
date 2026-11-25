@@ -43,11 +43,20 @@ export interface InviteView {
   opened: { device: string; from: string; at: string; digits: string } | null
 }
 
+/** An outside address of the page (BTN-1661): a request came by it, or it was typed in the invitation dialog. */
+export interface KnownOrigin {
+  /** `https://name:port`, as the browser's address bar has it. */
+  origin: string
+  seenAt: string
+}
+
 /** `POST /api/auth/invites/create`: the secret of the link, shown only to the device that made it. */
 export interface InviteMade {
   id: string
   secret: string
   expiresAt: string
+  /** The page's outside addresses, the last one seen first: a page opened by `localhost` links to one of them. */
+  origins: KnownOrigin[]
 }
 
 /**

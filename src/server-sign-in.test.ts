@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { FakeAuthenticator } from './access/authenticator.fixture.js'
 import { AccessBook } from './access/book.js'
 import { InviteDesk } from './access/invites.js'
+import { PageOrigins } from './access/origins.js'
 import { PasskeyDesk } from './access/passkeys.js'
 import { RateLimit } from './access/rate.js'
 import { INVITE_CALLS, INVITE_COOKIE } from './access/routes.js'
@@ -16,6 +17,7 @@ import { memoryDatabase } from './storage/memory.js'
 const KEY = 'owner-key-0123456789abcdef'
 const HOST = 'hub.example.com'
 const ORIGIN = `https://${HOST}`
+const OTHER_HOST = 'hub.example.ts.net'
 const AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1'
 
 const servers: Server[] = []
@@ -35,11 +37,12 @@ async function hubOf(key: string | null = KEY) {
   const hub = new EventHub()
   const book = await AccessBook.load(db, { revoked: (ids) => hub.closeTagged(ids) })
   const invites = new InviteDesk(db, book, { log: () => {}, waitMs: 50, changed: () => hub.broadcast('devices', { changedAt: Date.now() }) })
-  const access = { book, passkeys: new PasskeyDesk(db, book.person), invites, inviteRate: new RateLimit(INVITE_CALLS, 60_000), key: () => key }
+  const origins = await PageOrigins.load(db)
+  const access = { book, passkeys: new PasskeyDesk(db, book.person), invites, inviteRate: new RateLimit(INVITE_CALLS, 60_000), origins, key: () => key }
   const deps = {
     hub,
     getState: () => ({ fake: true }),
-    guard: () => ({ hosts: guardHosts('127.0.0.1', [HOST]), token: key, book }),
+    guard: () => ({ hosts: guardHosts('127.0.0.1', [HOST, OTHER_HOST]), token: key, book, origins }),
     access,
   }
   const server = createEvenKeelServer(deps as unknown as ServerDeps)
@@ -57,7 +60,7 @@ async function hubOf(key: string | null = KEY) {
       })
       req.on('error', reject).end(options.body === undefined ? undefined : JSON.stringify(options.body))
     })
-  return { send, book, port }
+  return { send, book, origins, port }
 }
 
 function cookieOf(answer: Answer): string {
@@ -285,5 +288,34 @@ describe('a hub without the owner key: the first device let in turns the sign-in
     const off = await send('/api/auth/sign-in/off', { cookie: owner, body: {} })
     expect(off.status).toBe(400)
     expect(JSON.parse(off.body).notice.code).toBe('auth.signInKeepsKey')
+  })
+})
+
+describe('the outside addresses an invitation made by localhost links to (BTN-1661)', () => {
+  it('notes the Origin of a request let in by an outside name, never of a loopback name or a request the guard stopped', async () => {
+    const { send, origins } = await hubOf()
+    await send('/api/auth/key', { body: { key: 'not-the-key-0123456789' } })
+    await send('/api/auth/devices', { body: {} })
+    expect(origins.list()).toEqual([])
+    const cookie = cookieOf(await send('/api/auth/key', { host: OTHER_HOST, body: { key: KEY } }))
+    expect(origins.list()).toEqual([])
+    await send('/api/auth/devices', { host: OTHER_HOST, cookie, body: {} })
+    await send('/api/auth/devices', { host: 'localhost', body: {} })
+    await send('/api/auth/devices', { host: '127.0.0.1', body: {} })
+    expect(origins.list().map((each) => each.origin)).toEqual([`https://${OTHER_HOST}`])
+  })
+
+  it('gives the invitation the addresses, the last one first, and remembers a typed one', async () => {
+    const { send, origins } = await hubOf(null)
+    origins.seen(ORIGIN)
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    origins.seen(`https://${OTHER_HOST}`)
+    const made = JSON.parse((await send('/api/auth/invites/create', { host: 'localhost', body: {} })).body) as InviteMade
+    expect(made.origins.map((each) => each.origin)).toEqual([`https://${OTHER_HOST}`, ORIGIN])
+
+    const typed = await send('/api/auth/invites/origin', { host: 'localhost', body: { origin: 'phone-way.example.net:8443' } })
+    expect(JSON.parse(typed.body)).toMatchObject({ origin: 'https://phone-way.example.net:8443', origins: [{ origin: 'https://phone-way.example.net:8443' }, {}, {}] })
+    const local = await send('/api/auth/invites/origin', { host: 'localhost', body: { origin: 'http://localhost:4747' } })
+    expect([local.status, JSON.parse(local.body).notice.code]).toEqual([400, 'auth.inviteOriginLocal'])
   })
 })
