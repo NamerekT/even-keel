@@ -15,6 +15,14 @@ export const ceilingOf = (path: string): number | null => {
   return EXCEPTIONS[path] ?? (path.startsWith('docs/guide/') ? GUIDE_CEILING : AREA_CEILING)
 }
 
+/** A file's size as git stores it: a Windows checkout's CRLF counts as LF, so the ceiling is the same as on CI. */
+export const lfBytes = (path: string): number => {
+  const bytes = readFileSync(path)
+  let crlf = 0
+  for (let i = 0; i < bytes.length - 1; i++) if (bytes[i] === 0x0d && bytes[i + 1] === 0x0a) crlf++
+  return bytes.length - crlf
+}
+
 /** The pages and documents above their ceiling, as `path (bytes, ceiling)`. */
 export const oversized = (root: string, sizes?: ReadonlyMap<string, number>): string[] => {
   const found: string[] = []
@@ -22,7 +30,7 @@ export const oversized = (root: string, sizes?: ReadonlyMap<string, number>): st
   for (const path of paths) {
     const ceiling = ceilingOf(path)
     if (ceiling === null) continue
-    const bytes = sizes ? sizes.get(path)! : readFileSync(`${root}/${path}`).length
+    const bytes = sizes ? sizes.get(path)! : lfBytes(`${root}/${path}`)
     if (bytes > ceiling) found.push(`${path} (${bytes} bytes, ceiling ${ceiling})`)
   }
   return found

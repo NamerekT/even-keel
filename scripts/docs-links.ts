@@ -16,7 +16,7 @@ export const anchorsOf = (text: string): Set<string> => {
   const seen = new Map<string, number>()
   const found = new Set<string>()
   let fenced = false
-  for (const line of text.split('\n')) {
+  for (const line of text.split(/\r?\n/)) {
     if (line.startsWith('```')) fenced = !fenced
     const match = !fenced && /^#{1,6}\s+(.*)$/.exec(line)
     if (!match) continue
@@ -53,7 +53,7 @@ export const brokenLinks = (root: string, files: string[]): string[] => {
   const broken: string[] = []
   for (const file of files) {
     let fenced = false
-    readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
+    readFileSync(file, 'utf8').split(/\r?\n/).forEach((line, index) => {
       if (line.startsWith('```')) fenced = !fenced
       if (fenced) return
       const stripped = line.replace(/`[^`]*`/g, '')

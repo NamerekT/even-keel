@@ -1,7 +1,11 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { ceilingOf, oversized } from './docs-size.ts'
+import { ceilingOf, lfBytes, oversized } from './docs-size.ts'
 
-const root = new URL('..', import.meta.url).pathname.replace(/\/$/, '')
+const root = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '')
 
 describe('the size of a documentation page', () => {
   it('holds every guide page and every area document under its ceiling', () => {
@@ -14,6 +18,17 @@ describe('the size of a documentation page', () => {
   it('is red on a page above its ceiling', () => {
     const sizes = new Map([['docs/guide/setup.md', 30_001], ['docs/trackers.md', 40_001], ['docs/web/fake-states.md', 40_000]])
     expect(oversized(root, sizes)).toEqual(['docs/guide/setup.md (30001 bytes, ceiling 30000)', 'docs/trackers.md (40001 bytes, ceiling 40000)'])
+  })
+
+  it('counts a CRLF file as its LF blob in git', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'docs-size-'))
+    try {
+      const path = join(dir, 'a.md')
+      writeFileSync(path, 'é\r\nb\r\nc\r')
+      expect(lfBytes(path)).toBe(Buffer.byteLength('é\nb\nc\r'))
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('leaves the journals and posts out', () => {
