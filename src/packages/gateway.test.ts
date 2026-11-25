@@ -15,7 +15,7 @@ const lines = require('node:readline').createInterface({ input: process.stdin })
 lines.on('line', (line) => {
   const message = JSON.parse(line)
   if (message.id === undefined) return
-  process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: message.id, result: { method: message.method, key: process.env.KEY ?? null } }) + '\\n')
+  process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: message.id, result: { method: message.method, key: process.env.KEY ?? null, pid: process.pid } }) + '\\n')
 })
 `
 
@@ -252,16 +252,32 @@ describe('McpGateway', () => {
   })
 
   it('does not close a bridge idle while its session holds a GET stream open, and does once the stream is gone (BTN-1543)', async () => {
-    const url = await start({ entry: { command: 'node', args: ['-e', ECHO] }, npm: null, env: {} }, { pingMs: 60_000, idleMs: 150 })
-    const session = await openSession(url)
-    const { abort } = await openStream(url, session)
-    await wait(400)
+    // The idle runs from the initialize's arrival, through the server's start: a loaded machine may open the stream
+    // after it ran out (BTN-1592). The idle doubles until the stream opens in time; the waits below are its multiples.
+    const open = async (idleMs: number) => {
+      await gateway?.close()
+      const url = await start({ entry: { command: 'node', args: ['-e', ECHO] }, npm: null, env: {} }, { pingMs: 60_000, idleMs })
+      const first = await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })
+      if (first.status !== 200) return undefined
+      const { result } = (await first.json()) as { result: { pid: number } }
+      const session = first.headers.get('mcp-session-id')!
+      const abort = new AbortController()
+      const stream = await fetch(url, { headers: { accept: 'text/event-stream', 'mcp-session-id': session }, signal: abort.signal })
+      return stream.status === 200 ? { url, session, pid: result.pid, abort } : undefined
+    }
+    let idleMs = 150
+    let opened = await open(idleMs)
+    while (opened === undefined && idleMs < 5_000) opened = await open((idleMs *= 2))
+    expect(opened).toBeDefined()
+    const { url, session, pid, abort } = opened!
+    await wait(idleMs * 3)
     expect((await post(url, { jsonrpc: '2.0', id: 2, method: 'tools/list' }, session)).status).toBe(200)
-    await wait(400)
+    await wait(idleMs * 3)
+    expect((await post(url, { jsonrpc: '2.0', id: 3, method: 'tools/list' }, session)).status).toBe(200)
     abort.abort()
-    await wait(400)
-    expect((await post(url, { jsonrpc: '2.0', id: 3, method: 'tools/list' }, session)).status).toBe(404)
-  })
+    await vi.waitFor(() => expect(alive(pid)).toBe(false), { timeout: 10_000, interval: 50 })
+    expect((await post(url, { jsonrpc: '2.0', id: 4, method: 'tools/list' }, session)).status).toBe(404)
+  }, 60_000)
 
   it('wants an initialize to open a bridged session', async () => {
     const url = await start({ entry: { command: 'node', args: ['-e', ECHO] }, npm: null, env: {} })
