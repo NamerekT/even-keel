@@ -6,6 +6,7 @@ import type { ConfigView, EvenKeelState } from '../../../src/state.js'
 import { isTaskId } from '../../../src/stats/model.js'
 import type { TaskCard as Card } from '../../../src/tracker/card.js'
 import type { TaskStatus } from '../../../src/tracker/model.js'
+import { CodeBlock } from '../ui/CodeBlock.js'
 import { remarkTaskRefs, taskRefParts } from './cardTaskRefs.js'
 import '../ui/markdown.css'
 
@@ -44,6 +45,7 @@ export function cardMarkdown(state: PrefixSource | null, onOpen: (task: string) 
     img: ({ src, alt }) => typeof src === 'string' && localFiles.has(src)
       ? <img src={src} alt={alt ?? ''} loading="lazy" style={{ maxWidth: '100%', height: 'auto' }} />
       : (alt ? <span className="markdown__image">[{alt}]</span> : null),
+    pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
   }
   return {
     render: (text: string) => <div className="markdown task-card__markdown">

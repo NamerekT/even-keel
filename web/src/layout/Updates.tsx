@@ -9,6 +9,7 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { CommandBlock } from '../ui/blocks.js'
+import { CodeBlock } from '../ui/CodeBlock.js'
 import { CloseIcon } from '../ui/icons.js'
 import { ProjectLinks } from '../ui/ProjectLinks.js'
 import { Toast, ToastPresence } from '../ui/Toast.js'
@@ -333,6 +334,7 @@ function ResultPart({ result }: { result: UpdateResultView }) {
 
 const LINKS: Components = {
   a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+  pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
 }
 
 function Text({ children }: { children: string }) {

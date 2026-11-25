@@ -65,6 +65,7 @@ export const ru = {
     readingOptions: 'Читаю значения…',
     copyCommand: 'Скопировать команду',
     copyPath: 'Скопировать путь',
+    copyCode: 'Скопировать',
     commandCopied: 'Скопировано',
   },
   units: {

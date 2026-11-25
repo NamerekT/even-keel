@@ -179,6 +179,8 @@ async function main(): Promise<number> {
       reducedMotion: options.reducedMotion ? 'reduce' : 'no-preference',
       hasTouch: options.touch,
       deviceScaleFactor: options.scale,
+      // A copy button's press reaches its check only with the clipboard granted.
+      permissions: ['clipboard-read', 'clipboard-write'],
     })
     context.setDefaultTimeout(5000)
     await context.addInitScript({ path: join(ROOT, 'scripts/shot.page.js') })
