@@ -374,11 +374,6 @@ export interface TrackerAdapter {
    */
   mcpServer?: string
   /**
-   * Optional. `brief` stays on even when the project's set brings `mcpServer`: the session's own task is in its prompt and
-   * the server is for the other tasks (Even Keel's tasks server, BTN-768).
-   */
-  keepsBrief?: true
-  /**
    * Optional. Its source gives `editor`, so Even Keel's tasks server serves its projects besides `mcpServer`: a session
    * started by hand finds them by key (BTN-779). The tracker whose `mcpServer` is the tasks server needs no flag.
    */

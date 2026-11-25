@@ -45,7 +45,9 @@ describe('the built-in tracker end to end', { timeout: scaled(120_000) }, () => 
   it('a session splits its task through the tasks server: the chain runs the blocker, then the subtask, then closes the parent (BTN-768)', async () => {
     run.project.tracker = 'builtin'
     let created = ''
+    let read = ''
     run.agent.script('ABC-1', async ({ tool }) => {
+      read = await tool('tasks', 'task_read', { key: 'ABC-1', comments: true })
       created = await tool('tasks', 'tasks_create', {
         tasks: [
           { title: 'Subtask', parent: 'ABC-1', status: 'Todo' },
@@ -71,7 +73,11 @@ describe('the built-in tracker end to end', { timeout: scaled(120_000) }, () => 
     expect(created).toBe('ABC-2 Subtask\nABC-3 Blocker')
     const launches = run.agent.calls.filter((call) => call.kind === 'launch').map((call) => call.task)
     expect(launches).toEqual(['ABC-1', 'ABC-3', 'ABC-2'])
-    expect(run.agent.calls.find((call) => call.task === 'ABC-1')!.prompt).toContain('Feature')
+    // The set brings the tasks server, so with `brief` on auto only the key is in the prompt (BTN-1680).
+    const prompt = run.agent.calls.find((call) => call.task === 'ABC-1')!.prompt
+    expect(prompt).not.toContain('Feature')
+    expect(prompt).toContain('task_read("ABC-1", comments: true)')
+    expect(read).toContain('ABC-1 Feature')
     expect(await statusOf(3)).toBe('Done')
     await run.until(() => {
       void statusOf(1).then((status) => (last = status))

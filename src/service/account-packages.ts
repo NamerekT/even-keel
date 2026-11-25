@@ -102,8 +102,8 @@ export function briefOn(ctx: AccountsContext, project: string, reader = project)
   if (own === true || (own === false && reader === project)) return own
   const tracker = ctx.readers().trackers[reader]!
   const adapter = ADAPTERS[tracker]!
-  const { mcpServer: server, keepsBrief } = adapter
-  if (server === undefined || keepsBrief === true) return true
+  const server = adapter.mcpServer
+  if (server === undefined) return true
   // The tasks server stands in for the tracker's own (BTN-882), for a feed too: it reads the feed on the feed's profile (BTN-892).
   const tasks = servesTasks(adapter) && ctx.packages.bringsServer(project, TASKS_SERVER)
   if (!ctx.packages.bringsServer(project, server)) return !tasks

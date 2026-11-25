@@ -27,7 +27,19 @@ describe('briefOn', () => {
     expect(briefOn(context('huly', []), 'p1', 'f1')).toBe(true)
   })
 
-  it('keeps the brief of the built-in tracker whatever the set brings', () => {
-    expect(briefOn(context('builtin', ['tasks']), 'p1')).toBe(true)
+  it('leaves the brief of the built-in tracker out only when the set brings the tasks server (BTN-1680)', () => {
+    expect(briefOn(context('builtin', ['tasks']), 'p1')).toBe(false)
+    expect(briefOn(context('builtin', ['tasks']), 'p1', 'f1')).toBe(false)
+    expect(briefOn(context('builtin', []), 'p1')).toBe(true)
+    expect(briefOn(context('builtin', []), 'p1', 'f1')).toBe(true)
+  })
+
+  it('keeps an explicit brief of the built-in tracker', () => {
+    const on = context('builtin', ['tasks'])
+    ;(on as { configStore: { current: { briefs: Record<string, boolean> } } }).configStore.current.briefs.p1 = true
+    expect(briefOn(on, 'p1')).toBe(true)
+    const off = context('builtin', [])
+    ;(off as { configStore: { current: { briefs: Record<string, boolean> } } }).configStore.current.briefs.p1 = false
+    expect(briefOn(off, 'p1')).toBe(false)
   })
 })
