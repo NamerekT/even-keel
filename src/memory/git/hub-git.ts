@@ -1,5 +1,6 @@
 import type { GitAnswer, GitRequest } from '../../link/protocol.js'
 import { gitBackend, plainAnswer } from './backend.js'
+import { CONFIG_REPOSITORY } from './config-copy.js'
 
 export interface HubMemoryGitDeps {
   /** The machine has a folder of the project in its pool, turned on or not (`project_machines`). */
@@ -17,11 +18,13 @@ export interface HubMemoryGitDeps {
 /**
  * The hub's answer to a machine's `/link/git` (BTN-1648, `docs/sessions/memory.md`): `git http-backend` over the
  * project's memory repository, only for a machine with the project in its pool or a folder bound to it; else 403.
+ * The global configuration's repository `config` is open to every machine of the network (BTN-1690).
  */
 export function hubMemoryGit(deps: HubMemoryGitDeps): (machine: string, project: string, request: GitRequest) => Promise<GitAnswer> {
   const refused = new Set<string>()
   return async (machine, project, request) => {
-    if (!deps.bound(machine, project) && !(await deps.placed(project, machine))) {
+    const shared = project === CONFIG_REPOSITORY
+    if (!shared && !deps.bound(machine, project) && !(await deps.placed(project, machine))) {
       const key = `${machine}\0${project}`
       if (!refused.has(key)) {
         refused.add(key)

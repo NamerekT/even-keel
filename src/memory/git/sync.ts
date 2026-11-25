@@ -4,7 +4,8 @@ import { runGit } from '../../git/run.js'
 import type { Git, GitResult } from '../../git/types.js'
 import { fileHash, MEMORY_INDEX, MIRROR_MARK, parseMemoryFile, type MemoryFact } from '../record.js'
 import { conflictTrailer, openConflicts, saveConflicts } from './conflicts.js'
-import { settleTexts, type Sides } from './merge.js'
+import { flavorOf, MEMORY_FLAVOR, type SyncFlavor, type SyncKind } from './flavor.js'
+import { settleTexts, type Settled, type Sides } from './merge.js'
 import { reindex } from './reindex.js'
 import { findSecrets } from './secrets.js'
 
@@ -14,7 +15,7 @@ export const SETTLE_MS = 30_000
 export const RETRY_MS = 5 * 60_000
 /** The memory repository's own branch: it is Even Keel's repository, never a project's, so no `branch` key applies. */
 export const MEMORY_BRANCH = 'main'
-export const ATTRIBUTES = `${MEMORY_INDEX} merge=union\n`
+export const ATTRIBUTES = MEMORY_FLAVOR.attributes
 
 const PUSH_ROUNDS = 3
 const REBASE_STEPS = 200
@@ -26,19 +27,25 @@ const SCRATCH = '.git/even-keel-merge'
 type Met = Omit<Sides, 'own' | 'ownCommitted'>
 
 export interface MemorySyncDeps {
-  /** The working copy: a project's memory folder (`sharedMemory`). */
+  /** The working copy: a project's memory folder (`sharedMemory`), or the global configuration's (`configStore`). */
   folder: string
   /** The project's bare repository: a path or any address git takes. */
   remote: string
   /** Who the commits are by: the machine's name. */
   author: string
   log(line: string): void
+  /** `memory` when absent (BTN-1690, `SyncFlavor`). */
+  kind?: SyncKind
   git?: Git
   schedule?(run: () => void, ms: number): () => void
-  /** Calls `changed` on every edit in the folder; gives the way to stop. */
-  watch?(folder: string, changed: () => void): () => void
+  /** Calls `changed` on every edit in the folder, its subfolders too where `nested`; gives the way to stop. */
+  watch?(folder: string, changed: () => void, nested: boolean): () => void
   /** Called after a push brought the remote new commits; never waited for (the hub's mirror, BTN-1649). */
   pushed?(): void
+  /** Runs inside each sync before its commit of local edits: files laid into the folder from elsewhere (`ConfigFiles`). */
+  beforeCommit?(): void
+  /** Runs inside each sync once it is done with the remote, reached or not. */
+  afterSync?(): void
 }
 
 export interface SyncOutcome {
@@ -59,10 +66,14 @@ export interface SyncOutcome {
  * a repository becomes one and takes the remote's history, so an empty folder never deletes a record: only a commit
  * of a deletion does. An empty folder with an empty remote commits nothing. Without the remote the commits stay local
  * until a sync reaches it. One sync runs at a time. After each the conflicts the history leaves open go into
- * `CONFLICTS_FILE` for the hook and the memory tools (BTN-1686).
+ * `CONFLICTS_FILE` for the hook and the memory tools (BTN-1686). The global configuration is synced the same way, with
+ * the differences of its `SyncFlavor` (BTN-1690).
  */
 export class MemorySync {
   private readonly git: Git
+  private readonly flavor: SyncFlavor
+  /** The prefix of its log lines and commit titles. */
+  private readonly label: string
   private current: Promise<unknown> = Promise.resolve()
   private pending: Promise<SyncOutcome> | null = null
   private cancel: (() => void) | null = null
@@ -74,6 +85,8 @@ export class MemorySync {
 
   constructor(private readonly deps: MemorySyncDeps) {
     this.git = deps.git ?? runGit
+    this.flavor = flavorOf(deps.kind ?? 'memory')
+    this.label = this.flavor.kind
   }
 
   /** The first sync — it commits what was edited while Even Keel was not running — then a sync after every edit. */
@@ -135,15 +148,17 @@ export class MemorySync {
     }
     try {
       await this.ensureRepository()
+      this.deps.beforeCommit?.()
       await this.commitEdits(outcome)
       for (let round = 0; round < PUSH_ROUNDS && !outcome.reached; round++) {
         const step = await this.exchange(outcome)
         if (step === 'failed') break
         outcome.reached = step === 'pushed'
       }
-      saveConflicts(this.deps.folder, await openConflicts((...args) => this.run(...args), this.deps.folder))
+      this.deps.afterSync?.()
+      saveConflicts(this.deps.folder, await openConflicts((...args) => this.run(...args), this.deps.folder, this.flavor))
     } catch (error) {
-      this.deps.log(`memory: ${this.deps.folder} sync failed: ${(error as Error).message}`)
+      this.deps.log(`${this.label}: ${this.deps.folder} sync failed: ${(error as Error).message}`)
     }
     if (!this.stopped) {
       this.watchFolder()
@@ -183,18 +198,18 @@ export class MemorySync {
     mkdirSync(folder, { recursive: true })
     if (!existsSync(join(folder, '.git'))) {
       await this.must('init', '-q', '-b', MEMORY_BRANCH)
-      this.deps.log(`memory: ${folder} is a new working copy of ${remote}`)
+      this.deps.log(`${this.label}: ${folder} is a new working copy of ${remote}`)
     }
     const url = await this.run('remote', 'get-url', 'origin')
     if (url.code !== 0) await this.must('remote', 'add', 'origin', remote)
     else if (url.out !== remote) await this.must('remote', 'set-url', 'origin', remote)
     if (this.rebasing()) {
       await this.run('rebase', '--abort')
-      this.deps.log(`memory: ${folder} a rebase was left unfinished: aborted, the local commits are kept`)
+      this.deps.log(`${this.label}: ${folder} a rebase was left unfinished: aborted, the local commits are kept`)
     }
     const info = join(folder, '.git', 'info')
     mkdirSync(info, { recursive: true })
-    writeIfOther(join(info, 'attributes'), ATTRIBUTES)
+    writeIfOther(join(info, 'attributes'), this.flavor.attributes)
     writeIfOther(join(info, 'exclude'), `${MIRROR_MARK}\n`)
   }
 
@@ -224,13 +239,13 @@ export class MemorySync {
       if (!this.told.has(told)) {
         this.told.add(told)
         const where = hits.map((hit) => `${hit.kind} on line ${hit.line}`).join(', ')
-        this.deps.log(`memory: ${folder} ${path} is not committed: it looks like it holds a key (${where}); remove it from the file`)
+        this.deps.log(`${this.label}: ${folder} ${path} is not committed: it looks like it holds a key (${where}); remove it from the file`)
       }
     }
     outcome.committed = list(await this.must('diff', '--cached', '--name-only', '-z'))
     if (outcome.committed.length === 0) return
     const files = outcome.committed.length === 1 ? '1 file' : `${outcome.committed.length} files`
-    await this.must('commit', '-q', '--no-verify', '-m', `memory: ${files} from ${this.deps.author}`, '-m', outcome.committed.join('\n'))
+    await this.must('commit', '-q', '--no-verify', '-m', `${this.label}: ${files} from ${this.deps.author}`, '-m', outcome.committed.join('\n'))
   }
 
   /** One round with the remote: fetch, take its history, tidy, push; `rejected` — someone pushed in between. */
@@ -239,7 +254,7 @@ export class MemorySync {
     // `--prune`: a remote made anew drops the old `origin/main`, else HEAD would look pushed already (BTN-1674).
     const fetched = await this.run('fetch', '-q', '--prune', 'origin')
     if (fetched.code !== 0) {
-      this.deps.log(`memory: ${folder} cannot reach its repository, the commits stay here: ${fetched.out.split('\n')[0]}`)
+      this.deps.log(`${this.label}: ${folder} cannot reach its repository, the commits stay here: ${fetched.out.split('\n')[0]}`)
       return 'failed'
     }
     const upstream = `refs/remotes/origin/${MEMORY_BRANCH}`
@@ -247,7 +262,7 @@ export class MemorySync {
     if (remote && !(await this.hasHead())) {
       const taken = await this.run('checkout', '-q', '-B', MEMORY_BRANCH, upstream)
       if (taken.code !== 0) {
-        this.deps.log(`memory: ${folder} cannot take the repository's files: ${taken.out.split('\n')[0]}`)
+        this.deps.log(`${this.label}: ${folder} cannot take the repository's files: ${taken.out.split('\n')[0]}`)
         return 'failed'
       }
     } else if (remote && !(await this.rebase(upstream, outcome))) return 'failed'
@@ -262,7 +277,7 @@ export class MemorySync {
       return 'pushed'
     }
     if (/\[rejected\]|fetch first|non-fast-forward/.test(pushed.out)) return 'rejected'
-    this.deps.log(`memory: ${folder} cannot push to its repository, the commits stay here: ${pushed.out.split('\n')[0]}`)
+    this.deps.log(`${this.label}: ${folder} cannot push to its repository, the commits stay here: ${pushed.out.split('\n')[0]}`)
     return 'failed'
   }
 
@@ -278,7 +293,7 @@ export class MemorySync {
     for (let n = 0; step.code !== 0; n++) {
       if (!this.rebasing() || n >= REBASE_STEPS) {
         if (this.rebasing()) await this.run('rebase', '--abort')
-        this.deps.log(`memory: ${folder} cannot rebase onto its repository, the local commits are kept: ${step.out.split('\n')[0]}`)
+        this.deps.log(`${this.label}: ${folder} cannot rebase onto its repository, the local commits are kept: ${step.out.split('\n')[0]}`)
         return false
       }
       const unmerged = list((await this.must('diff', '--name-only', '--diff-filter=U', '-z')))
@@ -289,7 +304,7 @@ export class MemorySync {
       }
       if (!(await this.takeOwn(upstream, met))) {
         await this.run('rebase', '--abort')
-        this.deps.log(`memory: ${folder} cannot settle a conflict with its repository (${unmerged.join(', ')}): the local commits are kept`)
+        this.deps.log(`${this.label}: ${folder} cannot settle a conflict with its repository (${unmerged.join(', ')}): the local commits are kept`)
         return false
       }
       step = await this.run('rebase', '--continue')
@@ -358,27 +373,32 @@ export class MemorySync {
       if (!existsSync(at)) continue
       const own = readFileSync(at, 'utf8')
       const ownCommitted = await this.authored('HEAD', path)
-      const settled = await settleTexts({ ...sides, own, ownCommitted }, (base, mine, theirs) => this.mergeTexts(base, mine, theirs))
+      const human = this.flavor.human(path)
+      const merge = human ? async () => null : (base: string, mine: string, theirs: string) => this.mergeTexts(base, mine, theirs)
+      let settled: Settled = await settleTexts({ ...sides, own, ownCommitted }, merge)
+      if (settled.kind === 'newer' && this.flavor.firstMeetingConflicts) settled = { ...settled, kind: 'conflict' }
       if (settled.text !== own) finals.set(path, settled.text)
       if (settled.kind === 'conflict') {
         outcome.conflicts.push(path)
         finals.set(path, settled.text)
         if (settled.newer === 'own') others.set(path, sides.remote)
-        this.deps.log(`memory: ${folder} ${path} was changed on the same lines on two machines: the newer version is kept, sessions are asked to merge the other`)
+        const who = human ? 'a person settles the other, it is in the history' : 'sessions are asked to merge the other'
+        this.deps.log(`${this.label}: ${folder} ${path} was changed on two machines: the newer version is kept, ${who}`)
       } else if (settled.kind !== 'same') {
-        this.deps.log(`memory: ${folder} ${path} was changed on two machines: ${settled.kind === 'merged' ? 'merged' : 'the newer version is kept, they had no common one'}`)
+        this.deps.log(`${this.label}: ${folder} ${path} was changed on two machines: ${settled.kind === 'merged' ? 'merged' : 'the newer version is kept, they had no common one'}`)
       }
     }
     if (others.size > 0) {
       for (const [path, text] of others) writeFileSync(join(folder, path), text)
       await this.must('add', '--', ...others.keys())
-      await this.must('commit', '-q', '--no-verify', '-m', `memory: other versions of ${[...others.keys()].join(', ')} from ${author}`)
+      await this.must('commit', '-q', '--no-verify', '-m', `${this.label}: other versions of ${[...others.keys()].join(', ')} from ${author}`)
     }
     if (finals.size === 0) return
     for (const [path, text] of finals) writeFileSync(join(folder, path), text)
     await this.must('add', '--', ...finals.keys())
-    const title = outcome.conflicts.length > 0 ? `memory: conflict in ${outcome.conflicts.join(', ')} from ${author}` : `memory: ${finals.size === 1 ? '1 file' : `${finals.size} files`} merged from ${author}`
-    const trailers = outcome.conflicts.map(conflictTrailer)
+    const merged = `${finals.size === 1 ? '1 file' : `${finals.size} files`} merged`
+    const title = `${this.label}: ${outcome.conflicts.length > 0 ? `conflict in ${outcome.conflicts.join(', ')}` : merged} from ${author}`
+    const trailers = outcome.conflicts.map((path) => conflictTrailer(path, this.flavor.trailer))
     await this.must('commit', '-q', '--no-verify', '--allow-empty', '-m', title, ...(trailers.length > 0 ? ['-m', trailers.join('\n')] : []))
   }
 
@@ -407,11 +427,13 @@ export class MemorySync {
     const attributes = join(folder, '.gitattributes')
     const had = existsSync(attributes) ? readFileSync(attributes, 'utf8') : ''
     if (!withheld.includes('.gitattributes')) {
-      if (!had.split(/\r?\n/).includes(ATTRIBUTES.trim())) writeFileSync(attributes, `${had}${had === '' || had.endsWith('\n') ? '' : '\n'}${ATTRIBUTES}`)
+      const lines = had.split(/\r?\n/)
+      const missing = this.flavor.attributes.split('\n').filter((line) => line !== '' && !lines.includes(line))
+      if (missing.length > 0) writeFileSync(attributes, `${had}${had === '' || had.endsWith('\n') ? '' : '\n'}${missing.join('\n')}\n`)
       paths.push('.gitattributes')
     }
     const index = join(folder, MEMORY_INDEX)
-    if (!withheld.includes(MEMORY_INDEX)) {
+    if (this.flavor.index && !withheld.includes(MEMORY_INDEX)) {
       const unknown: string[] = []
       for (const path of withheld) if ((await this.run('cat-file', '-e', `HEAD:${path}`)).code !== 0) unknown.push(path)
       const files = recordFiles(folder)
@@ -424,16 +446,16 @@ export class MemorySync {
     if (paths.length === 0) return
     await this.must('add', '--', ...paths)
     if ((await this.run('diff', '--cached', '--quiet')).code === 0) return
-    await this.must('commit', '-q', '--no-verify', '-m', `memory: index from ${this.deps.author}`)
+    await this.must('commit', '-q', '--no-verify', '-m', `${this.label}: ${this.flavor.index ? 'index' : 'attributes'} from ${this.deps.author}`)
   }
 
   private watchFolder(): void {
     if (this.unwatch !== null) return
     const watch = this.deps.watch ?? defaultWatch
     try {
-      this.unwatch = watch(this.deps.folder, () => this.touched())
+      this.unwatch = watch(this.deps.folder, () => this.touched(), this.flavor.nested)
     } catch (error) {
-      this.deps.log(`memory: ${this.deps.folder} cannot be watched, it syncs on calls only: ${(error as Error).message}`)
+      this.deps.log(`${this.label}: ${this.deps.folder} cannot be watched, it syncs on calls only: ${(error as Error).message}`)
     }
   }
 }
@@ -444,9 +466,9 @@ function defaultSchedule(run: () => void, ms: number): () => void {
   return () => clearTimeout(timer)
 }
 
-function defaultWatch(folder: string, changed: () => void): () => void {
-  const watcher = watchFolder(folder, (_event, name) => {
-    if (name !== '.git') changed()
+function defaultWatch(folder: string, changed: () => void, nested: boolean): () => void {
+  const watcher = watchFolder(folder, { recursive: nested }, (_event, name) => {
+    if (name?.split(/[\\/]/)[0] !== '.git') changed()
   })
   watcher.on('error', () => watcher.close())
   return () => watcher.close()

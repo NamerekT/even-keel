@@ -165,7 +165,7 @@ describe('shareConfig skills', () => {
   let folder: string
   const warnings: string[] = []
   const skill = (dir: string, name = 'review') => join(dir, 'skills', name)
-  const stored = (name = 'review') => join(root, '.claude-skills', name)
+  const stored = (name = 'review') => join(root, '.claude-config', 'skills', name)
   const linksTo = (path: string, target: string) => lstatSync(path).isSymbolicLink() && samePath(realpathSync(path), realpathSync(target))
   const share = () => shareConfig(global, folder, (message) => warnings.push(message))
 
@@ -180,8 +180,8 @@ describe('shareConfig skills', () => {
 
   afterEach(() => rmSync(root, { recursive: true, force: true }))
 
-  it('is a folder next to the global one', () => {
-    expect(skillStore('C:/Users/john/.claude')).toBe(join('C:/Users/john', '.claude-skills'))
+  it('is a folder of the config store', () => {
+    expect(skillStore('C:/Users/john/.claude')).toBe(join('C:/Users/john', '.claude-config', 'skills'))
   })
 
   it('moves a global skill into the store and links both the global and the account folder to it', () => {
@@ -252,7 +252,7 @@ describe('shareConfig linked folders', () => {
   let global: { dir: string; config: string }
   let folder: string
   const warnings: string[] = []
-  const stored = (name = 'hooks') => join(root, `.claude-${name}`)
+  const stored = (name = 'hooks') => join(root, '.claude-config', name)
   const linksTo = (path: string, target: string) => lstatSync(path).isSymbolicLink() && samePath(realpathSync(path), realpathSync(target))
   const share = () => shareConfig(global, folder, (message) => warnings.push(message))
 
@@ -267,9 +267,9 @@ describe('shareConfig linked folders', () => {
 
   afterEach(() => rmSync(root, { recursive: true, force: true }))
 
-  it('is a folder next to the global one, one per linked folder', () => {
-    expect(linkedStore('C:/Users/john/.claude', 'hooks')).toBe(join('C:/Users/john', '.claude-hooks'))
-    expect(linkedStore('C:/Users/john/.claude', 'output-styles')).toBe(join('C:/Users/john', '.claude-output-styles'))
+  it('is a folder of the config store, one per linked folder', () => {
+    expect(linkedStore('C:/Users/john/.claude', 'hooks')).toBe(join('C:/Users/john', '.claude-config', 'hooks'))
+    expect(linkedStore('C:/Users/john/.claude', 'output-styles')).toBe(join('C:/Users/john', '.claude-config', 'output-styles'))
   })
 
   it.each(['agents', 'commands', 'hooks', 'output-styles'])('moves the global %s into its store and links both folders to it', (name) => {
@@ -328,6 +328,66 @@ describe('shareConfig linked folders', () => {
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toMatch(/^hooks: .*guard\.mjs/)
     expect(linksTo(join(folder, 'hooks'), join(global.dir, 'hooks'))).toBe(true)
+  })
+})
+
+describe('shareConfig stores of before the config store', () => {
+  let root: string
+  let global: { dir: string; config: string }
+  let folder: string
+  const warnings: string[] = []
+  const config = (...parts: string[]) => join(root, '.claude-config', ...parts)
+  const linksTo = (path: string, target: string) => lstatSync(path).isSymbolicLink() && samePath(realpathSync(path), realpathSync(target))
+  const share = () => shareConfig(global, folder, (message) => warnings.push(message))
+  const link = (target: string, path: string) => {
+    mkdirSync(join(path, '..'), { recursive: true })
+    symlinkSync(target, path, linkType(process.platform))
+  }
+
+  beforeEach(() => {
+    warnings.length = 0
+    root = mkdtempSync(join(tmpdir(), 'even-keel-share-'))
+    global = { dir: join(root, 'global'), config: join(root, '.claude.json') }
+    folder = join(root, 'account')
+    mkdirSync(join(root, '.claude-hooks'), { recursive: true })
+    writeFileSync(join(root, '.claude-hooks', 'guard.mjs'), '// guard')
+    link(join(root, '.claude-hooks'), join(global.dir, 'hooks'))
+    link(join(root, '.claude-hooks'), join(folder, 'hooks'))
+    mkdirSync(join(root, '.claude-skills', 'review'), { recursive: true })
+    writeFileSync(join(root, '.claude-skills', 'review', 'SKILL.md'), '# Review')
+    link(join(root, '.claude-skills', 'review'), join(global.dir, 'skills', 'review'))
+    link(join(root, '.claude-skills', 'review'), join(folder, 'skills', 'review'))
+  })
+
+  afterEach(() => rmSync(root, { recursive: true, force: true }))
+
+  it('moves them into the config store and leaves the old place as a link to the new one', () => {
+    expect(share()).toBe(true)
+    expect(readFileSync(config('hooks', 'guard.mjs'), 'utf8')).toBe('// guard')
+    expect(readFileSync(config('skills', 'review', 'SKILL.md'), 'utf8')).toBe('# Review')
+    expect(linksTo(join(root, '.claude-hooks'), config('hooks'))).toBe(true)
+    expect(linksTo(join(root, '.claude-skills'), config('skills'))).toBe(true)
+    expect(warnings).toEqual([])
+  })
+
+  it('points the links of the global and the account folder straight at the new place', () => {
+    share()
+    for (const home of [global.dir, folder]) {
+      expect(readlinkSync(join(home, 'hooks'))).toContain('.claude-config')
+      expect(readlinkSync(join(home, 'skills', 'review'))).toContain('.claude-config')
+    }
+    expect(share()).toBe(false)
+  })
+
+  it('merges an old store into a config store that already has the folder, leaving what differs in place', () => {
+    mkdirSync(config('hooks'), { recursive: true })
+    writeFileSync(config('hooks', 'guard.mjs'), '// guard, new')
+    writeFileSync(join(root, '.claude-hooks', 'notify.mjs'), '// notify')
+    share()
+    expect(readFileSync(config('hooks', 'notify.mjs'), 'utf8')).toBe('// notify')
+    expect(readFileSync(config('hooks', 'guard.mjs'), 'utf8')).toBe('// guard, new')
+    expect(lstatSync(join(root, '.claude-hooks')).isSymbolicLink()).toBe(false)
+    expect(warnings).toHaveLength(1)
   })
 })
 

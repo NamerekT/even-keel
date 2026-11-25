@@ -2,16 +2,17 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join } from 'node:path'
 import type { GitResult } from '../../git/types.js'
 import { fileHash } from '../record.js'
+import { MEMORY_FLAVOR, type SyncFlavor } from './flavor.js'
 
 export type RunGit = (...args: string[]) => Promise<GitResult>
 
 /**
  * The trailer of a sync's commit that kept the newer of two versions changed on the same lines (BTN-1686):
- * `Memory-Conflict: <file>`. Its parent holds the other version in the file, so no hash in the message goes stale when
- * a refused push rebases the commit again. The conflict stays open until a later commit changes the file: the record
- * saved after it, by a session of any machine.
+ * `Memory-Conflict: <file>`, `Config-Conflict: <file>` in the global configuration (`SyncFlavor.trailer`). Its parent
+ * holds the other version in the file, so no hash in the message goes stale when a refused push rebases the commit
+ * again. The conflict stays open until a later commit changes the file: the file saved after it, on any machine.
  */
-export const CONFLICT_TRAILER = 'Memory-Conflict'
+export const CONFLICT_TRAILER = MEMORY_FLAVOR.trailer
 
 /**
  * The open conflicts of a working copy as its last sync saw them, in its `.git` so that no file lies beside the records.
@@ -23,7 +24,7 @@ export const CONFLICTS_FILE = join('.git', 'even-keel-conflicts.json')
 const OTHER_LIMIT = 32 * 1024
 
 export interface MemoryConflict {
-  /** The record's file, relative to the folder. */
+  /** The file, relative to the folder, `/` between its parts. */
   file: string
   /** The commit that kept the newer version in the file. */
   commit: string
@@ -35,19 +36,22 @@ export interface MemoryConflict {
   hash: string
   /** The other version's text. */
   otherText: string
-  /** What a session with file memory is told (the hook). */
+  /** A person settles it, never a session (`SyncFlavor.human`): the hook leaves it out (BTN-1690). */
+  human?: true
+  /** What a session with file memory is told (the hook); for a `human` one, what the log and the page say. */
   note: string
 }
 
 /** The trailer line of a conflict whose other version is `file` of `other`. */
-export function conflictTrailer(file: string): string {
-  return `${CONFLICT_TRAILER}: ${file}`
+export function conflictTrailer(file: string, trailer = CONFLICT_TRAILER): string {
+  return `${trailer}: ${file}`
 }
 
 /** The conflicts the history leaves open, newest first, one a file. */
-export async function openConflicts(git: RunGit, folder: string): Promise<MemoryConflict[]> {
+export async function openConflicts(git: RunGit, folder: string, flavor: SyncFlavor = MEMORY_FLAVOR): Promise<MemoryConflict[]> {
   if ((await git('rev-parse', '--verify', '-q', 'HEAD')).code !== 0) return []
-  const log = await git('log', '--format=%H%x1f%aI%x1f%B%x1e', `--grep=^${CONFLICT_TRAILER}:`, 'HEAD')
+  const { trailer } = flavor
+  const log = await git('log', '--format=%H%x1f%aI%x1f%B%x1e', `--grep=^${trailer}:`, 'HEAD')
   if (log.code !== 0) return []
   const seen = new Set<string>()
   const open: MemoryConflict[] = []
@@ -55,7 +59,7 @@ export async function openConflicts(git: RunGit, folder: string): Promise<Memory
     const [commit, since, body] = entry.trim().split('\x1f')
     if (commit === undefined || since === undefined || body === undefined) continue
     for (const line of body.split('\n')) {
-      const file = line.startsWith(`${CONFLICT_TRAILER}: `) ? line.slice(CONFLICT_TRAILER.length + 2).trim() : ''
+      const file = line.startsWith(`${trailer}: `) ? line.slice(trailer.length + 2).trim() : ''
       if (file === '' || seen.has(file)) continue
       seen.add(file)
       const path = join(folder, file)
@@ -68,7 +72,8 @@ export async function openConflicts(git: RunGit, folder: string): Promise<Memory
       const shown = await git('show', `${other}:${file}`)
       const otherText = shown.code === 0 ? `${shown.out}\n` : ''
       const conflict = { file, commit, other, since, hash: fileHash(readFileSync(path, 'utf8')), otherText }
-      open.push({ ...conflict, note: conflictNote(conflict, folder, 'file') })
+      if (flavor.human(file)) open.push({ ...conflict, human: true, note: humanNote(conflict, folder) })
+      else open.push({ ...conflict, note: conflictNote(conflict, folder, 'file', flavor) })
     }
   }
   return open
@@ -103,12 +108,20 @@ export function pendingConflicts(folder: string): MemoryConflict[] {
 }
 
 /** What a session is told of a conflict: `file` — it edits the folder's files, `tool` — it has the memory tools. */
-export function conflictNote(conflict: Pick<MemoryConflict, 'file' | 'other' | 'otherText'>, folder: string, how: 'file' | 'tool'): string {
+export function conflictNote(conflict: Pick<MemoryConflict, 'file' | 'other' | 'otherText'>, folder: string, how: 'file' | 'tool', flavor: SyncFlavor = MEMORY_FLAVOR): string {
   const name = conflict.file.replace(/\.md$/, '')
   const other = conflict.otherText.length > OTHER_LIMIT ? `${conflict.otherText.slice(0, OTHER_LIMIT)}\n[… cut]\n` : conflict.otherText
+  const show = `\`git -C "${folder}" show ${conflict.other}:${conflict.file}\``
   const head =
-    how === 'file'
-      ? `The project memory record ${conflict.file} (in ${folder}) is in a sync conflict: two machines changed the same lines of it between their syncs. The file holds the newer version; the other one is below, and in the memory repository's history (\`git -C "${folder}" show ${conflict.other}:${conflict.file}\`). Read the file, merge into it what only the other version has, and save it: the conflict ends once any session saves the record.`
-      : `The project memory record ${name} is in a sync conflict: two machines changed the same lines of it between their syncs. memory_read gives the newer version; the other one is below. Merge into the record what only the other version has and write it with memory_write and the version memory_read gave: the conflict ends once any session saves the record.`
+    flavor.kind === 'config'
+      ? `The global configuration file ${conflict.file} (in ${folder}, the user's skills, agents, commands and CLAUDE.md shared by every machine) is in a sync conflict: two machines changed the same lines of it between their syncs, or each had its own version. The file holds the newer version; the other one is below, and in the configuration repository's history (${show}). Read the file, merge into it what only the other version has, and save it: the conflict ends once any session saves the file.`
+      : how === 'file'
+        ? `The project memory record ${conflict.file} (in ${folder}) is in a sync conflict: two machines changed the same lines of it between their syncs. The file holds the newer version; the other one is below, and in the memory repository's history (${show}). Read the file, merge into it what only the other version has, and save it: the conflict ends once any session saves the record.`
+        : `The project memory record ${name} is in a sync conflict: two machines changed the same lines of it between their syncs. memory_read gives the newer version; the other one is below. Merge into the record what only the other version has and write it with memory_write and the version memory_read gave: the conflict ends once any session saves the record.`
   return `${head}\n\n<other-version file="${conflict.file}">\n${other}</other-version>`
+}
+
+/** A conflict a person settles: where the other version is. */
+function humanNote(conflict: Pick<MemoryConflict, 'file' | 'other'>, folder: string): string {
+  return `${conflict.file} of the global configuration (${folder}) was changed on two machines: the newer version is kept, the other is \`git -C "${folder}" show ${conflict.other}:${conflict.file}\`. Settle it by hand: the conflict ends once the file is saved again.`
 }

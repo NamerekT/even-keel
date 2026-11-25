@@ -33,6 +33,7 @@ export function wireMemory(ctx: Pick<AccountsContext, 'db' | 'configStore' | 'ho
     author: hostname(),
     log: (line) => console.log(line),
     mirror: () => ctx.configStore.current.memoryMirror,
+    globalDir: ctx.homes.global.dir,
   })
 }
 

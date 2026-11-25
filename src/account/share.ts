@@ -77,14 +77,85 @@ export function memoryStore(globalDir: string): string {
   return join(dirname(globalDir), '.claude-memory')
 }
 
-/** Shared skills live next to the global folder for the same reason as memory: `~/.claude/skills/<name>` links to it. */
-export function skillStore(globalDir: string): string {
-  return join(dirname(globalDir), '.claude-skills')
+/**
+ * The user's global configuration next to the global folder, for the same reason as memory: skills, `agents`,
+ * `commands`, `hooks`, `output-styles`, and copies of `CLAUDE.md` and `settings.json`. It is one repository synced
+ * between the machines of the network (BTN-1690).
+ */
+export function configStore(globalDir: string): string {
+  return join(dirname(globalDir), '.claude-config')
 }
 
-/** `agents`, `commands`, `hooks` and `output-styles` each live in their own store next to the global folder, as skills do. */
+/** Shared skills: `~/.claude/skills/<name>` links to `<configStore>/skills/<name>`. */
+export function skillStore(globalDir: string): string {
+  return linkedStore(globalDir, 'skills')
+}
+
+/** `agents`, `commands`, `hooks` and `output-styles` each live in their folder of the config store, as skills do. */
 export function linkedStore(globalDir: string, name: string): string {
+  return join(configStore(globalDir), name)
+}
+
+/** Where a store lived before BTN-1690: `~/.claude-<name>`, `~/.claude-skills`; left as a link to the new place. */
+function legacyStore(globalDir: string, name: string): string {
   return join(dirname(globalDir), `.claude-${name}`)
+}
+
+/**
+ * Moves the stores of before BTN-1690 into the config store and leaves each old place as a link to the new one; the
+ * global folder's links to an old place are pointed at the new one, then its own folders and skills are absorbed into
+ * the store. Account folders are re-linked by `shareConfig`. Gives whether anything changed.
+ */
+export function settleStores(globalDir: string, warn: (message: string) => void = console.warn): boolean {
+  let changed = false
+  for (const name of [...LINKED_DIRS, 'skills']) {
+    const legacy = legacyStore(globalDir, name)
+    const stored = linkedStore(globalDir, name)
+    changed = moveStore(legacy, stored, warn, name) || changed
+    if (name !== 'skills') {
+      const own = join(globalDir, name)
+      if (linksTo(own, legacy)) changed = relink(stored, own) || changed
+      changed = absorbFolder(own, stored, warn, name) || changed
+      continue
+    }
+    for (const skill of entries(join(globalDir, 'skills'))) {
+      if (OWN_SKILLS.has(skill)) continue
+      const own = join(globalDir, 'skills', skill)
+      if (linksTo(own, join(legacy, skill))) changed = relink(join(stored, skill), own) || changed
+      changed = absorbFolder(own, join(stored, skill), warn, 'skills') || changed
+    }
+  }
+  return changed
+}
+
+/** A real folder at the old place goes into the new one (renamed, or merged file by file), then becomes a link to it. */
+function moveStore(legacy: string, stored: string, warn: (message: string) => void, what: string): boolean {
+  const stat = lstatOf(legacy)
+  if (stat === undefined) return false
+  if (stat.isSymbolicLink() || !stat.isDirectory()) return false
+  try {
+    mkdirSync(dirname(stored), { recursive: true })
+    let changed = false
+    if (!existsSync(stored)) renameSync(legacy, stored)
+    else {
+      changed = moveInto(legacy, stored, warn, what)
+      if (readdirSync(legacy).length > 0) return changed
+      rmdirSync(legacy)
+    }
+    symlinkSync(stored, legacy, linkType(process.platform))
+    return true
+  } catch (error) {
+    warn(`${what}: ${legacy} was not moved to ${stored} (${error instanceof Error ? error.message : String(error)}); left in place`)
+    return false
+  }
+}
+
+/** Points an existing link at `target`. */
+function relink(target: string, path: string): boolean {
+  if (!isDirectory(target)) return false
+  unlinkSync(path)
+  symlinkSync(target, path, linkType(process.platform))
+  return true
 }
 
 /** The repository's folder in the memory store; chain sessions also get it as `autoMemoryDirectory`. */
@@ -138,21 +209,21 @@ export function shareConfig(global: SharedSources, dir: string, warn: (message: 
   }
 
   for (const file of COPIED_FILES) changed = copyIfChanged(join(global.dir, file), join(dir, file)) || changed
+  changed = settleStores(global.dir, warn) || changed
   for (const name of LINKED_DIRS) {
     const own = join(global.dir, name)
     const stored = linkedStore(global.dir, name)
-    changed = absorbFolder(own, stored, warn, name) || changed
     changed = link(linksTo(own, stored) ? stored : own, join(dir, name)) || changed
   }
   const skills = skillStore(global.dir)
+  const legacySkills = legacyStore(global.dir, 'skills')
   for (const name of entries(join(global.dir, 'skills'))) {
     if (OWN_SKILLS.has(name)) continue
     const own = join(global.dir, 'skills', name)
     const stored = join(skills, name)
-    changed = absorbFolder(own, stored, warn, 'skills') || changed
     const path = join(dir, 'skills', name)
     const target = linksTo(own, stored) ? stored : own
-    if (!linksElsewhere(path, [own, stored])) changed = link(target, path) || changed
+    if (!linksElsewhere(path, [own, stored, join(legacySkills, name)])) changed = link(target, path) || changed
   }
   const store = memoryStore(global.dir)
   const projects = new Set([...entries(join(global.dir, 'projects')), ...entries(join(dir, 'projects'))])

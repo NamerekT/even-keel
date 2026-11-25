@@ -6,6 +6,7 @@ import type { Queryable } from '../../storage/database.js'
 import { folderRecords } from '../files.js'
 import { indexLine } from '../record.js'
 import { WorkingCopies } from './copies.js'
+import { CONFIG_REPOSITORY, ConfigCopy } from './config-copy.js'
 import { RemoteMirror } from './remote-mirror.js'
 import { MEMORY_BRANCH, type MemorySyncDeps } from './sync.js'
 import { transferRecords } from './transfer.js'
@@ -26,6 +27,8 @@ export interface MemoryHubDeps {
   git?: Git
   schedule?: MemorySyncDeps['schedule']
   watch?: MemorySyncDeps['watch']
+  /** The global folder whose configuration the hub keeps as its copy of the `config` repository (BTN-1690); absent — none. */
+  globalDir?: string
 }
 
 /**
@@ -33,11 +36,15 @@ export interface MemoryHubDeps {
  * `<id>.git` in the state database's folder, and the project's memory folders on the hub kept as its working copies by
  * a `MemorySync` each. Before a project's first sync its `memory_records` go into its folder once (`transferRecords`).
  * The copies themselves are `WorkingCopies`, as a machine's are. Every push into a project's repository, from a copy
- * of the hub's or a machine's, is followed by one into the memory mirror, when one is set (`RemoteMirror`).
+ * of the hub's or a machine's, is followed by one into the memory mirror, when one is set (`RemoteMirror`). The global
+ * configuration is one more repository among them, `config.git` (`CONFIG_REPOSITORY`, BTN-1690), with the hub's
+ * `ConfigCopy` as its working copy and the mirror's branch `config`.
  */
 export class MemoryHub {
   private readonly copies: WorkingCopies
   private readonly mirror: RemoteMirror
+  private config: ConfigCopy | null = null
+  private configStarting: Promise<void> | null = null
   private stopped = false
 
   constructor(private readonly deps: MemoryHubDeps) {
@@ -55,7 +62,7 @@ export class MemoryHub {
     this.mirror = new RemoteMirror({
       address: () => deps.mirror?.() ?? null,
       repositoryOf: (project) => this.repositoryOf(project),
-      projects: () => Object.keys(deps.folders()).filter((project) => existsSync(this.repositoryOf(project))),
+      projects: () => [...Object.keys(deps.folders()), CONFIG_REPOSITORY].filter((project) => existsSync(this.repositoryOf(project))),
       log: deps.log,
       git: deps.git,
     })
@@ -73,9 +80,37 @@ export class MemoryHub {
 
   /** The projects' folders as `folders` gives them now: new ones synced, gone ones left. One apply runs at a time. */
   apply(): Promise<void> {
-    const run = this.copies.apply()
+    const run = Promise.all([this.copies.apply(), this.startConfig()]).then(() => undefined)
     void run.catch(() => {}).then(() => (this.stopped ? undefined : this.mirror.apply()))
     return run
+  }
+
+  /** The hub's copy of the global configuration, once: its repository made, then the copy's first sync begun. */
+  private startConfig(): Promise<void> {
+    const globalDir = this.deps.globalDir
+    if (globalDir === undefined) return Promise.resolve()
+    this.configStarting ??= this.makeRepository(CONFIG_REPOSITORY).then(
+      () => {
+        if (this.stopped) return
+        const deps = this.deps
+        this.config = new ConfigCopy({
+          globalDir,
+          remote: this.repositoryOf(CONFIG_REPOSITORY),
+          author: deps.author,
+          log: deps.log,
+          pushed: () => this.pushed(CONFIG_REPOSITORY),
+          ...(deps.git !== undefined && { git: deps.git }),
+          ...(deps.schedule !== undefined && { schedule: deps.schedule }),
+          ...(deps.watch !== undefined && { watch: deps.watch }),
+        })
+        void this.config.start()
+      },
+      (error: unknown) => {
+        this.configStarting = null
+        this.deps.log(`config: no repository: ${(error as Error).message}`)
+      },
+    )
+    return this.configStarting
   }
 
   /** A push brought the project's repository new commits: from a working copy of the hub's or a machine's. */
@@ -91,6 +126,7 @@ export class MemoryHub {
   stop(): void {
     this.stopped = true
     this.copies.stop()
+    this.config?.stop()
   }
 
   /** The folder the memory tools work in; `null` — the hub has none for the project. */
@@ -117,12 +153,19 @@ export class MemoryHub {
 
   /** A sync of every working copy now, or of the project's only (a machine pushed into its repository, BTN-1648). */
   syncAll(project?: string): Promise<unknown> {
-    return this.copies.syncAll(project)
+    if (project === CONFIG_REPOSITORY) return this.config?.syncNow() ?? Promise.resolve()
+    if (project !== undefined) return this.copies.syncAll(project)
+    return Promise.allSettled([this.copies.syncAll(), this.config?.syncNow()])
   }
 
-  /** The project's records into its main folder once, then its bare repository, made whole or not at all. */
+  /** The project's records into its main folder once, then its bare repository. */
   private async prepare(project: string, folder: string): Promise<void> {
     await transferRecords(this.deps.db, project, folder, this.deps.log)
+    await this.makeRepository(project)
+  }
+
+  /** The repository, made whole or not at all. */
+  private async makeRepository(project: string): Promise<void> {
     const repository = this.repositoryOf(project)
     if (existsSync(repository)) return
     mkdirSync(this.deps.dir, { recursive: true })
