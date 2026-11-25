@@ -34,8 +34,8 @@ export interface ReportFacts {
 
 /**
  * The places "Report a problem" leads to (BTN-1494). The issue forms get their text fields by `id` from the address;
- * the dropdowns (OS, agent, how it runs, tracker) stay empty: GitHub's taking them from the address is unchecked
- * (`docs/unverified/page.md`, entry 294). Nothing is sent: the person sees the form and decides.
+ * the dropdowns (OS, agent, how it runs, tracker) stay empty: GitHub's form takes no dropdown from the address
+ * (checked 2026-11-25, `docs/verified/page.md`). Nothing is sent: the person sees the form and decides.
  */
 export function reportLinks({ repository, version, cli }: ReportFacts) {
   const form = (template: string, fields: Record<string, string>) => {
