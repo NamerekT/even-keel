@@ -192,7 +192,7 @@ export function ChainList(props: Props) {
   }
 
   const dropped = useRef<string | null>(null)
-  const { drag, landing, settling, movable, held, afterDrop } = useChainDrag({
+  const { drag, landing, settling, dropped: justDropped, movable, held, afterDrop } = useChainDrag({
     listRef,
     blocks,
     disabled: sending,
@@ -280,6 +280,7 @@ export function ChainList(props: Props) {
                     focused={block.id === focus}
                     movable={movable(block)}
                     relation={relationOf(block.id, drag, selected, pointed)}
+                    dropped={block.id === justDropped}
                     arrival={arrival?.id === block.id ? arrival : null}
                     offset={landing?.id === block.id ? landing.offset : drag?.offsets.get(block.id)}
                     onHover={(inside) => setHovered((current) => (inside ? block.id : current === block.id ? null : current))}

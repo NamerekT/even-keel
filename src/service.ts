@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { AccessBook } from './access/book.js'
 import { InviteDesk } from './access/invites.js'
+import { PageOrigins } from './access/origins.js'
 import { PasskeyDesk } from './access/passkeys.js'
 import { RateLimit } from './access/rate.js'
 import { INVITE_CALLS, type AccessControl } from './access/routes.js'
@@ -450,6 +451,8 @@ const access: AccessControl = {
     },
   }),
   inviteRate: new RateLimit(INVITE_CALLS, 60_000),
+  // The page's outside addresses, for an invitation made by `localhost` (BTN-1661).
+  origins: await PageOrigins.load(db),
   key: () => token,
 }
 // The event log looks at the state also while no page listens, at most every two seconds (BTN-350).

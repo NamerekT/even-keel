@@ -525,6 +525,21 @@
   outline: 2px solid var(--accent);
 }
 
+/* The first row of "Under way" stands the caption's room lower (`.block--group-first`): its piece reaches back over that
+   room to the row above, so the rail runs on through the frame's top edge (BTN-1651). */
+.chain .block--group-first > .block__rail:not(.block__rail--start),
+.chain .block--group-first > .block__rail-hit {
+  top: calc(-5px - var(--space-8));
+}
+
+/* The card a drag holds leaves its own piece behind, the other rows keep theirs; the piece comes back, in the order the
+   drop made, once the card stands in its place (BTN-1651). */
+.chain .block.block--dragged > :is(.block__rail, .block__rail-hit),
+.chain .block.block--dropped > :is(.block__rail, .block__rail-hit) {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* A parent's closed subtasks in the parents view, in its family's colour. */
 .chain .block__subtasks {
   border-color: color-mix(in srgb, var(--family) 55%, transparent);
@@ -1040,6 +1055,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .chain .block,
+  .chain .block__rail,
   .chain .block--enter,
   .chain .block--enter > *,
   .chain .block--fresh,

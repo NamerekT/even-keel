@@ -1,18 +1,28 @@
-import { useEffect, useId, useRef, useState } from 'react'
-import type { InviteMade, InviteView } from '../../../src/access/view.js'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import type { InviteMade, InviteView, KnownOrigin } from '../../../src/access/view.js'
+import { noticeOf } from '../../../src/notice/notice.js'
 import { formatClock, formatFullTime, formatStamp } from '../format.js'
-import { t } from '../i18n/index.js'
+import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
+import { Field } from '../tools/AddPackage.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { Band, CommandBlock } from '../ui/blocks.js'
 import { QrCode } from '../ui/Qr.js'
+import { Select } from '../ui/Select.js'
 import { Tipped } from '../ui/Tipped.js'
+import { linkPlaceOf, withTyped } from './inviteOrigin.js'
 import '../tools/addPackage.css'
 import './inviteDialog.css'
 
-/** A name that reaches only this machine: a link made on it opens nowhere else. */
-export function loopbackName(hostname: string): boolean {
-  return hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '[::1]' || hostname === '::1' || /^127\./.test(hostname)
+export { loopbackName } from './inviteOrigin.js'
+
+/** The guide's section on a proxy and Tailscale: how the page opens from another device. */
+export const REACH_GUIDE = 'https://github.com/NamerekT/even-keel/blob/main/docs/guide/setup.md#reaching-the-page-from-another-machine'
+
+/** The answer of `invites/origin`: the address as the hub read it, and every address it knows now. */
+export interface TypedOrigin {
+  origin: string
+  origins: KnownOrigin[]
 }
 
 /** The link of an invitation: the secret in the fragment, so loading the page never sends it to the server or a proxy. */
@@ -31,29 +41,57 @@ interface InviteDialogProps {
   onCancel: () => void
   /** A new link in place of an expired one. */
   onAgain: () => void
+  /** Keeps an address typed on a page opened by `localhost` (BTN-1661); a refusal is thrown. */
+  onOrigin: (typed: string) => Promise<TypedOrigin>
   /** Closing keeps the invitation: it stays a row in "Devices". */
   onClose: () => void
 }
 
 /**
  * The invitation of a new device (BTN-1655, `docs/web/sign-in.md`, "Invitations"): the QR and the link while nobody
- * opened it, then who opened it and the two digits to compare before "Let in".
+ * opened it, then who opened it and the two digits to compare before "Let in". On a page opened by `localhost` the link
+ * goes to an outside address of the hub, picked when there are several, typed when there is none (BTN-1661).
  */
-export function InviteDialog({ made, invite, busy, failure, onAdmit, onDecline, onCancel, onAgain, onClose }: InviteDialogProps) {
+export function InviteDialog({ made, invite, busy, failure, onAdmit, onDecline, onCancel, onAgain, onOrigin, onClose }: InviteDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialog, onClose)
   const heading = useId()
   const now = useNow(1000)
   const [seen, setSeen] = useState(false)
-  const link = inviteLink(location.origin, made.secret)
+  const [typedKnown, setTypedKnown] = useState<KnownOrigin[]>([])
+  const [chosen, setChosen] = useState<string | null>(null)
+  const [other, setOther] = useState(false)
+  const [typed, setTyped] = useState('')
+  const [typedError, setTypedError] = useState<string | null>(null)
+  const [keeping, setKeeping] = useState(false)
+  const place = linkPlaceOf(location, withTyped(made.origins, typedKnown))
+  const origin = place.kind === 'page' ? place.origin : place.kind === 'known' ? (chosen !== null && place.origins.includes(chosen) ? chosen : place.origins[0]!) : null
+  const link = origin === null ? null : inviteLink(origin, made.secret)
   const left = Date.parse(made.expiresAt) - now.getTime()
+
+  const keep = async (event: FormEvent) => {
+    event.preventDefault()
+    setTypedError(null)
+    setKeeping(true)
+    try {
+      const answer = await onOrigin(typed)
+      setTypedKnown(answer.origins)
+      setChosen(answer.origin)
+      setOther(false)
+      setTyped('')
+    } catch (error) {
+      setTypedError(say(noticeOf(error)))
+    } finally {
+      setKeeping(false)
+    }
+  }
 
   const close = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (dialog.current?.open !== false) return
-    // The dialog focuses Close, not the link's copy button that comes first: its tip would open over the loopback
-    // warning. React's `autoFocus` sets no attribute, and the dialog looks only at the attribute.
+    // The dialog focuses Close, not the link's copy button that comes first: its tip would open over what follows the
+    // link. React's `autoFocus` sets no attribute, and the dialog looks only at the attribute.
     close.current?.setAttribute('autofocus', '')
     dialog.current.showModal()
   }, [])
@@ -86,9 +124,60 @@ export function InviteDialog({ made, invite, busy, failure, onAdmit, onDecline, 
         <div className="add-package__body invite__body">
           {stage === 'waiting' && (
             <>
-              <QrCode className="invite__qr" text={link} label={t.signIn.inviteQr} />
-              <CommandBlock className="invite__link" command={link} copyLabel={t.signIn.inviteCopy} />
-              {loopbackName(location.hostname) && <Band tone="warn">{t.signIn.inviteLocal}</Band>}
+              {place.kind === 'ask' && (
+                <Band
+                  tone="note"
+                  action={
+                    <a className="button button--small" href={REACH_GUIDE} target="_blank" rel="noreferrer">
+                      {t.signIn.inviteAskGuide}
+                    </a>
+                  }
+                >
+                  {t.signIn.inviteAsk}
+                </Band>
+              )}
+              {place.kind === 'known' && origin !== null && place.origins.length > 1 && (
+                <Field label={t.signIn.inviteAddress} hint={t.signIn.inviteAddressTip}>
+                  {(id) => <Select id={id} className="add-package__input" value={origin} options={place.origins.map((each) => ({ value: each, label: each }))} onChange={setChosen} />}
+                </Field>
+              )}
+              {link !== null && (
+                <>
+                  <QrCode className="invite__qr" text={link} label={t.signIn.inviteQr} />
+                  <CommandBlock className="invite__link" command={link} copyLabel={t.signIn.inviteCopy} />
+                </>
+              )}
+              {place.kind === 'known' && !other && (
+                <button type="button" className="button button--small invite__other" onClick={() => setOther(true)}>
+                  {t.signIn.inviteOtherAddress}
+                </button>
+              )}
+              {(place.kind === 'ask' || other) && (
+                <form className="invite__ask" onSubmit={(event) => void keep(event)}>
+                  <Field label={t.signIn.inviteAskField} hint={t.signIn.inviteAskFieldTip} error={typedError ?? undefined}>
+                    {(id) => (
+                      <input
+                        id={id}
+                        className="add-package__input add-package__input--mono"
+                        type="text"
+                        inputMode="url"
+                        autoComplete="url"
+                        spellCheck={false}
+                        placeholder={t.signIn.inviteAskPlaceholder}
+                        value={typed}
+                        aria-invalid={typedError !== null}
+                        onChange={(event) => {
+                          setTyped(event.target.value)
+                          setTypedError(null)
+                        }}
+                      />
+                    )}
+                  </Field>
+                  <button type="submit" className={place.kind === 'ask' ? 'button button--primary' : 'button'} disabled={keeping || typed.trim() === ''}>
+                    {t.signIn.inviteAskShow}
+                  </button>
+                </form>
+              )}
               <p className="invite__state" role="status">
                 <span>{t.signIn.inviteWaiting}</span>
                 <span className="invite__left">{t.signIn.inviteLeft(formatClock(left))}</span>

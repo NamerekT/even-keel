@@ -732,7 +732,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     stats: ctx.stats,
     badge: (project, theme, still) => ctx.badges.svg(project, theme, still),
     access: ctx.access,
-    guard: () => ({ hosts: guardHosts(ctx.listen.host, ctx.configStore.current.allowedHosts), token: ctx.token, language: ctx.configStore.current.language ?? ctx.promptLanguage(), book: ctx.access.book }),
+    guard: () => ({ hosts: guardHosts(ctx.listen.host, ctx.configStore.current.allowedHosts), token: ctx.token, language: ctx.configStore.current.language ?? ctx.promptLanguage(), book: ctx.access.book, origins: ctx.access.origins }),
   })
 }
 

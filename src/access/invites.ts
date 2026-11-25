@@ -70,7 +70,7 @@ export class InviteDesk {
     private readonly options: InviteDeskOptions = {},
   ) {}
 
-  async create(by: string | null): Promise<InviteMade> {
+  async create(by: string | null): Promise<Omit<InviteMade, 'origins'>> {
     const now = this.now()
     await this.db.query('delete from device_invites where expires_at < $1', [new Date(now.getTime() - KEPT_MS).toISOString()])
     if ((await this.live()).length >= MAX_INVITES) throw fail('auth.invitesFull', { count: MAX_INVITES })

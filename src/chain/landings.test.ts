@@ -67,6 +67,16 @@ describe('Landing of a session merge', () => {
     expect(launched).toEqual([])
   })
 
+  it('tells the session of a conflict git left no files of, without failing the step (BTN-1668)', async () => {
+    const bare: LandOutcome = { state: 'returned', remote: 'origin', files: [] }
+    const { dispatcher, relays } = await running(lander(bare).land)
+
+    expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-1', sessionId: 'old-session' }])
+    expect(relays[0]?.prompt).toContain('origin/main')
+    expect(relays[0]?.prompt).toContain('список файлов git не оставил')
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null, current: { task: 'ABC-1' } })
+  })
+
   it('hands the task over to a new session with the red command and its output once the cache is cold', async () => {
     const context = setup({ state: runningState(), live: { 'ABC-1': 'old-session' }, land: lander(red).land })
     context.handoffs['ABC-1'] = handoff('old-session')

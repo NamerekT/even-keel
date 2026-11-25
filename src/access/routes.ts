@@ -7,10 +7,11 @@ import { readJsonBody, sendJson } from '../server-response.js'
 import type { AccessBook } from './book.js'
 import { deviceNameOf } from './device-name.js'
 import { INVITE_MS, type InviteDesk, type JoinAnswer } from './invites.js'
+import type { PageOrigins } from './origins.js'
 import type { PasskeyDesk } from './passkeys.js'
 import type { RateLimit } from './rate.js'
 import { keyMarkOf } from './store.js'
-import type { AuthState, DevicesView } from './view.js'
+import type { AuthState, DevicesView, InviteMade } from './view.js'
 
 const BODY_BYTES = 64 * 1024
 /** The cookie a new device keeps its claim on an invitation in: only the invitation's routes get it. */
@@ -27,6 +28,8 @@ export interface AccessControl {
   invites: InviteDesk
   /** The open invitation routes, by the caller's address. */
   inviteRate: RateLimit
+  /** The page's outside addresses an invitation links to (BTN-1661). */
+  origins: PageOrigins
   /** The owner key as it is now; `null` — none set. */
   key(): string | null
 }
@@ -107,7 +110,15 @@ const SIGNED_IN: Record<string, Handler> = {
     sendJson(response, 200, { revoked: count })
   },
   'POST invites/create': async ({ access, response, visitor }) => {
-    sendJson(response, 200, await access.invites.create(visitor.device?.id ?? null))
+    const made: InviteMade = { ...(await access.invites.create(visitor.device?.id ?? null)), origins: access.origins.list() }
+    sendJson(response, 200, made)
+  },
+  // An address typed in the dialog of a page opened by `localhost` (BTN-1661): never checked from the hub, which in
+  // Docker may not see its own proxy name; a wrong one shows at once, the phone does not open it.
+  'POST invites/origin': async ({ access, request, response }) => {
+    const typed = (await body(request)).origin
+    const origin = await access.origins.remember(typeof typed === 'string' ? typed : '')
+    sendJson(response, 200, { origin, origins: access.origins.list() })
   },
   'POST invites/admit': async ({ access, request, response, visitor, host }) => {
     const turned = await access.invites.admit(await idOf(request))

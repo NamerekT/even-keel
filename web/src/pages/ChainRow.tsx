@@ -54,6 +54,8 @@ interface BlockProps {
   focused: boolean
   movable: boolean
   relation: Relation | null
+  /** The card just let go, while its drop glides: its rail comes back once it stands in its place (BTN-1651). */
+  dropped: boolean
   arrival: Arrival | null
   offset: Point | undefined
   onHover: (inside: boolean) => void
@@ -71,7 +73,7 @@ interface BlockProps {
 
 /** A task's row of the chain. */
 export function Block(props: BlockProps) {
-  const { project, block, search, number, waits, links, scale, tier, rails, kin, marks, grouped, still, focused, movable, relation, arrival, offset, onHover, onDismiss, onReassign, ready, onReady, onAim, onUnready, onCard } =
+  const { project, block, search, number, waits, links, scale, tier, rails, kin, marks, grouped, still, focused, movable, relation, dropped, arrival, offset, onHover, onDismiss, onReassign, ready, onReady, onAim, onUnready, onCard } =
     props
   const { state } = useLive()
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
@@ -89,6 +91,7 @@ export function Block(props: BlockProps) {
   if (movable) classes.push('block--movable')
   if (waits.length > 0) classes.push('block--blocked')
   if (relation !== null) classes.push(`block--${relation}`)
+  if (dropped) classes.push('block--dropped')
   if (arrival !== null) classes.push(arrival.flying ? 'block--arriving' : 'block--landed')
   const metered = block.start === null && blockMetered(block) ? block.session : null
   const acting = metered !== null && showsAction(tier, metered.lamp)
