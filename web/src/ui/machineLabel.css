@@ -1,6 +1,6 @@
 /*
- * A machine as a label (BTN-1309): its name on its colour, as the machine's page heads it (`.machine-page__title`).
- * Square-cornered beside an account's round pill (`.account-tag`), as a machine's mark is a square and an account's a dot.
+ * A machine as a label (BTN-1309): its icon in its colour and its name in a quiet outline, no fill (BTN-1595), one
+ * height with the chain's machine tag (`.machine-tag`).
  */
 .machine-labels {
   display: inline-flex;
@@ -14,14 +14,15 @@
   --machine: var(--series-other);
   display: inline-flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-6);
+  box-sizing: border-box;
   max-width: 100%;
-  min-height: 20px;
-  padding: 0 var(--space-6);
+  height: 24px;
+  padding: 0 var(--space-8) 0 var(--space-2);
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--machine) 60%, transparent);
-  border-radius: var(--radius-small);
-  background: color-mix(in srgb, var(--machine) 22%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: none;
   color: var(--fg);
   font: inherit;
   font-size: var(--text-12);
@@ -33,7 +34,7 @@
 }
 
 .machine-label:hover {
-  background: color-mix(in srgb, var(--machine) 34%, transparent);
+  background: var(--surface-muted);
 }
 
 .machine-label:focus-visible {
@@ -83,10 +84,11 @@
 .machine-labels__more {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
+  box-sizing: border-box;
+  height: 24px;
   padding: 0 var(--space-6);
   border: 1px solid var(--border);
-  border-radius: var(--radius-small);
+  border-radius: var(--radius-control);
   color: var(--fg-muted);
   font-size: var(--text-12);
   font-variant-numeric: tabular-nums;

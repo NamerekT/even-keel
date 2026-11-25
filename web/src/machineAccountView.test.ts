@@ -55,6 +55,25 @@ describe('machineAccountView', () => {
     expect(view.view.active).toBe('')
   })
 
+  it("names an account the hub has by the hub's folder, one name everywhere; a key or one the hub lacks by the machine's (BTN-1584)", () => {
+    const accounts = [
+      account('folder', { email: 'John@example.com', name: 'Old name there' }),
+      account('key', { email: null, name: 'Key there' }),
+      account('solo', { name: 'Solo there' }),
+    ]
+    const view = machineAccountView(hub([entry('john', { name: 'Work' })]), card({ accounts }), signIn(accounts))
+    expect(view.view.accounts.slice(0, 3).map((each) => [each.key, each.name])).toEqual([['claude:folder', 'Work'], ['claude:key', 'Key there'], ['claude:solo', 'Solo there']])
+    expect([...view.hubFolders]).toEqual([['claude:folder', 'john']])
+  })
+
+  it("carries a folder being removed there and the machine's VS Code by the view's keys (BTN-1584)", () => {
+    const accounts = [account('folder', { removing: true }), account('other')]
+    const apps = [{ app: 'vscode' as const, account: 'other', dir: '/home/example/.claude-other', error: null, sessions: [{ name: 'Chat', session: 's9', account: 'other', status: null }] }]
+    const view = machineAccountView(hub([]), card({ accounts, apps }), signIn(accounts))
+    expect(view.view.accounts.map((each) => [each.key, each.removing])).toEqual([['claude:folder', true], ['claude:other', false]])
+    expect(view.view.apps).toEqual([{ ...apps[0], account: 'claude:other', sessions: [{ ...apps[0]!.sessions[0], account: 'claude:other' }] }])
+  })
+
   it('lists no hub account before the machine told its accounts', () => {
     const view = machineAccountView(hub([entry('john')]), card(), undefined)
     expect(view.view.accounts).toEqual([])

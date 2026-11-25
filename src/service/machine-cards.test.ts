@@ -132,6 +132,17 @@ describe('machineCards', () => {
     ])
   })
 
+  it("carries a folder being removed there and the machine's apps, for the row menu of its view (BTN-1584)", async () => {
+    const accounts = [{ ...entry('x', 'claude', half), removing: true } as AccountEntry, { ...entry('y', 'claude', null), removing: false } as AccountEntry]
+    const apps = [{ app: 'vscode', account: 'y', dir: '/home/example/.claude-y', error: null, sessions: [] }]
+    const page = mirror(accounts)
+    const panel = page.facts().panel as unknown as Record<string, unknown>
+    panel.apps = apps
+    const cards = await machineCards(deps({ mirror: (machine) => (machine === 'laptop' ? page : undefined) }))
+    expect(cards[1]!.accounts.map(({ key, removing }) => ({ key, removing }))).toEqual([{ key: 'x', removing: true }, { key: 'y', removing: undefined }])
+    expect(cards[1]!.apps).toEqual(apps)
+  })
+
   it('has no accounts on a machine elsewhere before its first snapshot', async () => {
     const cards = await machineCards(deps())
     expect(cards[1]).toMatchObject({ accounts: [], active: null })

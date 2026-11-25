@@ -45,15 +45,6 @@
   opacity: 0.55;
 }
 
-.wizard-machines__dot {
-  --machine: var(--series-other);
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--machine);
-}
-
 .wizard-machines__name {
   font-weight: 600;
 }

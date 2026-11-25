@@ -313,6 +313,12 @@ export type WindowsStart = { by: 'tray' } | { by: 'service'; name: string } | { 
 /** A chain's lane as the page gets it: `spent` — its current task's account has its limit spent, so "New session" is held (BTN-1359). */
 export type ActiveChainView = ActiveChain & { spent?: LimitSpent }
 
+/** What a machine's icon shows of it (BTN-1595): `process.platform` of its system, and Even Keel run in Docker there. */
+export interface MachineKind {
+  platform?: string
+  container?: true
+}
+
 export interface EvenKeelState {
   /** The checkout commit captured at hub startup; absent for an npm install. */
   hubCommit?: string
@@ -421,6 +427,11 @@ export interface EvenKeelState {
    * and key are set. Read live; absent or `false` — the browser's own recognition.
    */
   dictation?: boolean
+  /**
+   * A device was let in by an invitation (BTN-1656): the setup's "Phone access" step is done (BTN-1638). Absent — a
+   * state without it, such as a fake one.
+   */
+  signInOn?: boolean
   /** The Huly client's install into the data folder (BTN-666) while it runs or after it failed; `null` — none. */
   hulyClient?: Notice | null
   updates: UpdatesView
@@ -461,6 +472,11 @@ export interface EvenKeelState {
   liveMachines?: string[]
   /** The colour of each machine of `machineNames`, its own or the palette's (BTN-1272); absent — an older service. */
   machineColors?: Record<string, string>
+  /**
+   * What each machine's icon shows beside its colour (BTN-1595): its system and Docker, the own one's from the hub
+   * itself; a machine that never reported is not there. The hub is `ownMachine`. Absent — an older service.
+   */
+  machineKinds?: Record<string, MachineKind>
   /** The hub's own machine, whose page sets `parallel` as its capacity; absent — an older service. */
   ownMachine?: string
   /**

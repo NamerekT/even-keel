@@ -92,6 +92,9 @@ export const machinesRu = {
   requestRoot: 'Папка проектов',
   requestRootDefault: 'По умолчанию, в папке данных',
   requestDocker: 'Docker',
+  iconHub: 'Хаб',
+  iconMachine: 'Машина',
+  iconDocker: 'в Docker',
   requestCode: 'Код',
   requestCompare: 'Сверьте с терминалом',
   requestCompareHint: (time: string) =>

@@ -657,9 +657,10 @@ export const setupEN: Messages['setup'] = {
     lead: 'A few steps before the first task. Anything here can be changed later in Settings.',
     stepsLabel: 'Setup steps',
     promptsIn: (language: string) => `prompts in ${language}`,
-    steps: { language: 'Language', git: 'Git', agent: 'Agent', tracker: 'Tracker', updates: 'Updates', stats: 'Stats', project: 'First project' },
+    steps: { language: 'Language', phone: 'Phone', git: 'Git', agent: 'Agent', tracker: 'Tracker', updates: 'Updates', stats: 'Stats', project: 'First project' },
     titles: {
       language: 'Languages',
+      phone: 'Phone access',
       git: 'Git',
       agent: 'What runs the sessions',
       tracker: 'Where the tasks come from',
@@ -691,6 +692,21 @@ export const setupEN: Messages['setup'] = {
     addAnother: 'Add another',
     updatesLead: 'Even Keel can ask GitHub twice a day whether a new version is out: without a token, GitHub sees only the machine address and the Even Keel version.',
     updates: { on: 'Check', off: "Don't check" },
+    phone: {
+      lead: 'Answer sessions and watch the chain from the phone. Let it in with an invitation: no owner key is needed.',
+      how: [
+        'Scan the QR with the phone, or open the link on it.',
+        'Press Let in here if both screens show the same digits.',
+        'The phone signs in and offers a passkey, so next time it needs nothing.',
+      ],
+      invite: 'Invite the phone',
+      inviteMore: 'Invite another device',
+      done: 'A device is in: from now the proxy name asks every browser to sign in.',
+      local:
+        'The page is open by localhost, and the phone cannot open that address. Open the page by the proxy name the phone will use, such as a Tailscale Service, and come back to this step, or skip it.',
+      guide: 'How to reach the page',
+      summary: 'Sign-in on',
+    },
     updatesHints: {
       on: 'A notification on the page tells of a new version, and one button updates.',
       off: 'The service does not go to GitHub. Changed in Settings → Interface.',

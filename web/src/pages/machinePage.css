@@ -25,13 +25,11 @@
   gap: var(--space-8);
 }
 
-/* The name on the machine's colour, as an account's pill is on the account's (`.account-tag`). */
+/* The machine's icon at 32 px, then its name: the colour is in the icon, not behind the name (BTN-1595). */
 .machine-page__title {
-  display: inline-block;
-  padding: 0 var(--space-12);
-  border: 1px solid color-mix(in srgb, var(--machine) 60%, transparent);
-  border-radius: var(--radius-control);
-  background: color-mix(in srgb, var(--machine) 22%, transparent);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-12);
   color: var(--fg);
 }
 

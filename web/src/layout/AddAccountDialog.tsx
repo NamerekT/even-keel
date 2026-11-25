@@ -203,8 +203,8 @@ function AddDialog({ account, at }: { account: AccountView; at: AddAt }) {
     if (await send('machines/login', { machine, agent, ...(method !== undefined && { method }) })) close()
   }
   const places = (): Place[] => [
-    { id: HUB_PLACE, name: live?.machineNames?.[live.ownMachine ?? ''] ?? t.addAccount.place.hubName, color: live?.machineColors?.[live.ownMachine ?? ''], online: true },
-    ...machines.map((each) => ({ id: each.machine, name: each.name, color: live?.machineColors?.[each.machine], online: each.online })),
+    { id: HUB_PLACE, machine: live?.ownMachine ?? '', name: live?.machineNames?.[live.ownMachine ?? ''] ?? t.addAccount.place.hubName, color: live?.machineColors?.[live.ownMachine ?? ''], online: true },
+    ...machines.map((each) => ({ id: each.machine, machine: each.machine, name: each.name, color: live?.machineColors?.[each.machine], online: each.online })),
   ]
 
   const title = login === null && onMachine !== undefined

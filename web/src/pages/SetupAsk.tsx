@@ -22,6 +22,7 @@ export function setupFacts(state: EvenKeelState): SetupFacts {
     agentReady: agentReady(shared.provider, state.cliCopies?.[shared.provider], state.account, shared.accounts[shared.provider] ?? ''),
     profiles: trackerProfiles(state).length,
     tally: state.tally,
+    signInOn: state.signInOn === true,
     passed: shared.setupPassed,
   }
 }

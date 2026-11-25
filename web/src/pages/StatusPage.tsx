@@ -14,6 +14,7 @@ import { useNow } from '../layout/useNow.js'
 import { useCommand } from '../live/useCommand.js'
 import { Band, Card, CardHead, EmptyState, PageHead, TileGrid } from '../ui/blocks.js'
 import { TrackerIcon } from '../ui/icons.js'
+import { MachineMark } from '../ui/MachineIcon.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { FixButton, useFix } from './FixButtons.js'
 import { HelpTip } from './settingsParts.js'
@@ -86,7 +87,7 @@ function StatusMachines({ state, now }: { state: EvenKeelState; now: Date }) {
           const id = `${anchorOf(`machine-${card.id}`)}-title`
           return (
             <Card key={card.id} id={anchorOf(`machine-${card.id}`)} aria-labelledby={id} className="status-machine" style={{ '--machine': card.color } as CSSProperties}>
-              <CardHead title={<Link to={machinePath(card.id)} className="status-machine__name">{card.name}</Link>} id={id}>
+              <CardHead title={<Link to={machinePath(card.id)} className="status-machine__name"><MachineMark id={card.id} color={card.color} />{card.name}</Link>} id={id}>
                 {card.own && <span className="tag">{t.pool.own}</span>}
               </CardHead>
               <p className="status-check__state">

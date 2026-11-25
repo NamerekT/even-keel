@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { machinePath } from '../machineColor.js'
 import type { MachineMarkKind } from '../machineSignIn.js'
 import { KeyIcon } from './icons.js'
+import { MachineMark, useMachineWords } from './MachineIcon.js'
 import { Tipped } from './Tipped.js'
 import './machineLabel.css'
 
@@ -24,13 +25,16 @@ export interface MachineLabelItem {
 }
 
 /**
- * A machine as a label (BTN-1309): its name on its colour, as the machine's page heads it, opening that page. One
- * component for the header's accounts window and the accounts page's "Machines" column.
+ * A machine as a label (BTN-1309): its icon in its colour and its name in a quiet outline (BTN-1595), as the machine's
+ * page heads it, opening that page; its tip says the icon in words. One component for the header's accounts window,
+ * the accounts page's "Machines" column and the project's summary.
  */
 export function MachineLabel({ id, name, color, kind = 'in', tip, onPress, disabled = false }: MachineLabelItem) {
+  const words = useMachineWords()
   const style = color === undefined ? undefined : ({ '--machine': color } as CSSProperties)
   const className = `machine-label machine-label--${kind}`
-  const body = <>{kind === 'token' && <KeyIcon />}<span className="machine-label__name">{name}</span></>
+  const body = <><MachineMark id={id} color={color} />{kind === 'token' && <KeyIcon />}<span className="machine-label__name">{name}</span></>
+  const shown = tip === undefined ? words(id) : <><span>{words(id)}</span>{typeof tip === 'string' ? <span>{tip}</span> : tip}</>
   const label = onPress === undefined
     ? <Link to={machinePath(id)} className={className} style={style} onClick={(event) => event.stopPropagation()}>{body}</Link>
     : <button type="button" className={className} style={style} aria-disabled={disabled || undefined}
@@ -38,7 +42,7 @@ export function MachineLabel({ id, name, color, kind = 'in', tip, onPress, disab
         event.stopPropagation()
         if (!disabled) onPress()
       }}>{body}</button>
-  return tip === undefined ? label : <Tipped inline className="machine-label__tipped" tip={tip} align="start">{label}</Tipped>
+  return <Tipped inline className="machine-label__tipped" tip={shown} align="start">{label}</Tipped>
 }
 
 /** The machines an account is on: the first `MACHINE_LABELS_SHOWN`, then "+N" naming the rest in its tip. */

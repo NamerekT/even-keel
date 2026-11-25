@@ -5,6 +5,7 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { taskProject } from '../state.js'
 import { InheritIcon } from '../ui/icons.js'
+import { MachineMark } from '../ui/MachineIcon.js'
 import { Select } from '../ui/Select.js'
 import { SuggestField } from '../ui/SuggestField.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -51,7 +52,6 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
   const pool = state?.pools?.[project] ?? []
   const choices = [...pool, ...pinned.filter((id) => !pool.includes(id))]
   const names = state?.machineNames ?? {}
-  const colors = state?.machineColors ?? {}
 
   const shared = state?.config.shared
   const form = state?.config.projects[project]
@@ -138,7 +138,7 @@ export function TaskRunPick({ task, live, onChanged }: Props) {
                   checked={id === '' ? picked.length === 0 : picked.includes(id)}
                   onChange={() => setDraft({ ...draft, machines: id === '' ? [] : toggleMachine(picked, id) })}
                 />
-                {colors[id] !== undefined && <span className="machine-tag__mark" style={{ background: colors[id] }} aria-hidden="true" />}
+                {id !== '' && <MachineMark id={id} />}
                 <span className="task-card__machine-name">{id === '' ? t.card.run.anyMachine : (names[id] ?? id)}</span>
                 {id !== '' && !pool.includes(id) && (
                   <Tipped tip={t.card.run.offPoolTip} inline>

@@ -64,6 +64,7 @@ export const signInEn: typeof signInRu = {
   joinTitle: 'Sign-in by invitation',
   joinOpening: 'Opening the invitation…',
   joinWaiting: 'Waiting for approval where the link was made',
+  joinReconnecting: 'Connection lost, trying again…',
   joinDigits: 'The same digits should be shown there.',
   joinDeclined: 'The device that made the link declined the sign-in.',
   joinExpired: 'The link expired: ask for a new one.',

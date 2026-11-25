@@ -5,7 +5,8 @@ import type { MachineSignIn } from '../../../src/state.js'
 import { HUB_PLACE } from '../accountAdd.js'
 import { machineAddChoices, type MachineAddChoice } from '../machineAdd.js'
 import { t } from '../i18n/index.js'
-import { CheckIcon, EvenKeelIcon, ServerIcon } from '../ui/icons.js'
+import { CheckIcon } from '../ui/icons.js'
+import { MachineMark } from '../ui/MachineIcon.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AgentIcon } from './accountParts.js'
 import { MachineClaudeSign } from './MachineClaudeSign.js'
@@ -14,6 +15,8 @@ import './machineAccounts.css'
 
 export interface Place {
   id: string
+  /** The machine's id, the hub's own one for `HUB_PLACE`: its icon (BTN-1595). */
+  machine: string
   name: string
   color: string | undefined
   online: boolean
@@ -43,7 +46,7 @@ export function PlacePick({ places, initial, onNext }: { places: Place[]; initia
               const card = (
                 <label key={place.id} className="account-add__way account-add__place" style={{ '--machine': place.color } as CSSProperties} aria-disabled={place.online ? undefined : 'true'}>
                   <input type="radio" name={group} value={place.id} checked={place.id === picked} disabled={!place.online} onChange={() => setPicked(place.id)} />
-                  <span className="account-add__way-icon">{place.id === HUB_PLACE ? <EvenKeelIcon /> : <ServerIcon />}</span>
+                  <span className="account-add__way-icon"><MachineMark id={place.machine} color={place.color} /></span>
                   <span className="account-add__way-title">{place.name}</span>
                   <span className="account-add__way-check">
                     <CheckIcon />

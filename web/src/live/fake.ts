@@ -120,6 +120,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.has('fillMilestone') && current.state !== null) current.state = withMilestonePreview(current.state, params.get('fillMilestone')!)
   if (params.has('landing') && current.state !== null) current.state = withFakeLanding(current.state, params.get('landing')!)
   if (params.get('models') === 'many' && current.state !== null) current.state.config.shared.modelPrompts = MANY_MODEL_PROMPTS
+  if (params.has('signInOn') && current.state !== null) current.state.signInOn = true
   const builtinTracker = params.get('tracker') === 'builtin'
   if (builtinTracker && current.state !== null) current.state = withBuiltinTracker(current.state)
   if (params.get('long') === 'on' && current.state !== null) current.state = withLongNames(current.state)
@@ -693,6 +694,11 @@ export function createFakeSource(search: string): LiveSource {
       notify()
     }, TICK_MS)
   }
+  // `?hubOs=linux` (BTN-1595): the hub's own machine on another system, so the icons show every combination.
+  const hubOs = params.get('hubOs')
+  if (hubOs !== null && current.state?.machineKinds !== undefined) {
+    current.state.machineKinds = { ...current.state.machineKinds, [current.state.ownMachine ?? 'pc']: { platform: hubOs } }
+  }
 
   return {
     subscribe: (listener) => {
@@ -715,6 +721,12 @@ export function createFakeSource(search: string): LiveSource {
       }
       if (chats.command(name, body)) {
         chatMail()
+        return
+      }
+      const edited = network.accounts.command(state, network.cards(state), name, body, (hub, args) => fakeCommand(state, hub, args, launches))
+      if (edited !== undefined) {
+        current = { ...current, state: edited }
+        notify()
         return
       }
       if (network.command(name, body)) {

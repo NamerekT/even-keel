@@ -22,6 +22,7 @@ import { AccountTag } from '../ui/AccountTag.js'
 import { Band, Card, CommandBlock, EmptyState, Fact, FactList, PageHead } from '../ui/blocks.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Lamp } from '../ui/Lamp.js'
+import { MachineMark } from '../ui/MachineIcon.js'
 import { Loading } from '../ui/Loader.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
@@ -134,7 +135,7 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
     <div className="machine-page__body">
       <PageHead
         className="machine-page__head"
-        title={<span className="machine-page__title" style={{ '--machine': shown } as CSSProperties}>{page.name}</span>}
+        title={<span className="machine-page__title"><MachineMark id={page.id} color={shown} size={32} label />{page.name}</span>}
         actions={more.length > 0 ? <MoreMenu items={more} label={text.more} /> : undefined}
       >
         <span className={`chip machine-page__state${page.online ? ' machine-page__state--online' : ''}`}>{page.online ? text.online : text.offline}</span>

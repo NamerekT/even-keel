@@ -1,8 +1,8 @@
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
 import type { AccountLevel } from '../../src/account/header-levels.js'
 import type { MachineCard, MachineCardAccount, MachineSignIn } from '../../src/state.js'
+import { hubFolderOf } from '../../src/account/same-account.js'
 import { hubGapsOn } from './machineAdd.js'
-import { sameEmail } from './machineSignIn.js'
 
 /** A row of a machine's view it is not signed in to: a hub account not there, or its own folder signed out. */
 export interface MachineAway {
@@ -24,6 +24,8 @@ export interface MachineAccounts {
   here: Map<string, string>
   /** By key of `view`: the machine's folder of the account; a hub account not there has none. */
   folders: Map<string, string>
+  /** By key of `view`: the hub's folder of the same account, whose name it shows and whose Even Keel role it moves (BTN-1584). */
+  hubFolders: Map<string, string>
 }
 
 /** Where the machine takes an account, as "Used by" names it. */
@@ -40,32 +42,29 @@ const BLANK = {
 
 const keyOf = (account: MachineCardAccount): string => `${account.agent}:${account.key}`
 
-/** The hub's folder of the machine's account: the same agent and e-mail, a full sign-in before a long token. */
-function hubOf(hub: AccountView, account: MachineCardAccount): AccountEntry | undefined {
-  const same = hub.accounts.filter((entry) => entry.agent === account.agent && sameEmail(entry.status?.email ?? entry.lastEmail ?? null, account.email))
-  return same.find((entry) => entry.longToken === undefined) ?? same[0]
-}
-
 /**
  * The view a machine elsewhere's header and accounts page show in the hub's blocks: an account of the machine takes
- * the name and plan of the hub's folder of the same e-mail, the limits are the machine's own. Keys are the view's own,
- * so no control of the hub's rows can reach a folder of the hub from it.
+ * the name and plan of the hub's folder of the same e-mail (`hubFolderOf`), one name for the hub and every machine
+ * (BTN-1584); one the hub lacks, a key among them, its own name there. The limits are the machine's own. Keys are the
+ * view's own, so no control of the hub's rows can reach a folder of the hub from it.
  */
 export function machineAccountView(hub: AccountView, card: MachineCard, signIn: MachineSignIn | undefined): MachineAccounts {
   const away = new Map<string, MachineAway>()
   const here = new Map<string, string>()
   const folders = new Map<string, string>()
+  const hubFolders = new Map<string, string>()
   const ordered = [...card.accounts.filter((each) => each.signedIn), ...card.accounts.filter((each) => !each.signedIn)]
   const own = ordered.map((account): AccountEntry => {
-    const match = hubOf(hub, account)
+    const match = hubFolderOf(hub.accounts, account.agent, account.email)
     const key = keyOf(account)
     folders.set(key, account.key)
+    if (match !== undefined) hubFolders.set(key, match.key)
     if (match !== undefined && !here.has(match.key)) here.set(match.key, key)
     if (!account.signedIn) away.set(key, { agent: account.agent, account: account.key, why: 'out', noCli: signIn?.missing.includes(account.agent) === true })
     return {
       ...BLANK,
       key,
-      name: account.name ?? match?.name ?? null,
+      name: match === undefined ? account.name : match.name,
       agent: account.agent,
       status: {
         loggedIn: account.signedIn,
@@ -77,6 +76,8 @@ export function machineAccountView(hub: AccountView, card: MachineCard, signIn: 
       limits: account.signedIn ? account.limits : null,
       sessions: account.sessions ?? [],
       ...(account.transport !== undefined && { transport: account.transport }),
+      ...(account.removing === true && { removing: true }),
+      ...(account.apiKey === true && { apiKey: true }),
     }
   })
   const gaps = signIn === undefined ? [] : hubGapsOn(hub.accounts, signIn).map(({ entry, gap }): AccountEntry => {
@@ -86,19 +87,28 @@ export function machineAccountView(hub: AccountView, card: MachineCard, signIn: 
     return { ...BLANK, key, name: entry.name, agent: entry.agent, status: entry.status }
   })
   const active = card.accounts.find((each) => each.key === card.active)
+  const viewKeyOf = (folder: string | null) => {
+    const found = folder === null ? undefined : card.accounts.find((each) => each.key === folder)
+    return found === undefined ? null : keyOf(found)
+  }
   return {
     view: {
       active: active === undefined ? '' : keyOf(active),
       accounts: [...own, ...gaps],
       login: null,
       loginBlock: null,
-      apps: [],
+      apps: (card.apps ?? []).map((app) => ({
+        ...app,
+        account: viewKeyOf(app.account),
+        sessions: app.sessions.map((chat) => ({ ...chat, account: viewKeyOf(chat.account) ?? chat.account })),
+      })),
       pool: [],
       missing: signIn?.missing ?? [],
     },
     away,
     here,
     folders,
+    hubFolders,
   }
 }
 

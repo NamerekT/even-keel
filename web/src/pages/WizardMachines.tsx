@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { EvenKeelState, FolderProbe, MachineCard } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { AgentIcon } from '../layout/accountParts.js'
@@ -10,6 +10,7 @@ import { useCommand } from '../live/useCommand.js'
 import { machineAccounts, osLabel } from '../machineAdd.js'
 import { machineLogin } from '../machineSignIn.js'
 import { Band } from '../ui/blocks.js'
+import { MachineMark } from '../ui/MachineIcon.js'
 import { AddOnButton } from './FixButtons.js'
 import type { WizardFields } from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
@@ -89,7 +90,6 @@ export function MachinesBlock({ state, fields, set, machines, remote, hubName, p
           const pick = pickOf(machine.id)
           const on = machine.own ? hubOn(fields, remote) : pick.on && why === 'open'
           const locked = why !== 'open' || (machine.own && remote === null)
-          const style = { '--machine': machine.color } as CSSProperties
           return (
             <li key={machine.id} className={`wizard-machines__machine${why === 'open' ? '' : ' wizard-machines__machine--off'}`}>
               <label className="wizard-machines__head">
@@ -100,7 +100,7 @@ export function MachinesBlock({ state, fields, set, machines, remote, hubName, p
                   aria-label={words.tick(machine.name)}
                   onChange={(event) => (machine.own ? set({ hubOff: !event.target.checked }) : change(machine.id, { on: event.target.checked }))}
                 />
-                <span className="wizard-machines__dot" style={style} aria-hidden="true" />
+                <MachineMark id={machine.id} color={machine.color} />
                 <span className="wizard-machines__name">{machine.name}</span>
                 {machine.own && <span className="tag">{words.own}</span>}
                 {machine.os !== null && <span className="tag">{systemOf(machine.os)}</span>}

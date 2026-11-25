@@ -15,6 +15,7 @@ import { useLive } from '../live/context.js'
 import { Segmented } from '../stats/common.js'
 import '../tools/addPackage.css'
 import { useBackdropClose } from '../ui/backdrop.js'
+import { MachineMark } from '../ui/MachineIcon.js'
 import { Select } from '../ui/Select.js'
 import { TipFacts } from '../ui/TipFacts.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -216,12 +217,11 @@ function MachinePick({ machines, picked, onPick }: { machines: ChatMachine[]; pi
       <h3 className="new-chat__agent">{text.machine}</h3>
       {machines.map((each) => {
         const on = each.id === picked
-        const color = state?.machineColors?.[each.id]
         return (
           <label key={each.id} className={`new-chat__pick${on ? ' new-chat__pick--on' : ''}${each.block === null ? '' : ' new-chat__pick--off'}`}>
             <input type="radio" name="machine" value={each.id} checked={on} disabled={each.block !== null} onChange={() => onPick(each.id)} />
             <span className="new-chat__name">
-              {color !== undefined && <span className="new-chat__mark" style={{ background: color }} aria-hidden="true" />}
+              <MachineMark id={each.id} />
               <span className="new-chat__who">{each.name}</span>
             </span>
             {each.block !== null && (

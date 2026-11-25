@@ -46,11 +46,3 @@
 .settings__back:hover {
   border-color: var(--machine);
 }
-
-.settings__machine-mark {
-  flex: none;
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-small);
-  background: var(--machine);
-}

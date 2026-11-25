@@ -5,6 +5,7 @@ import { say, t } from '../i18n/index.js'
 import { Card } from '../ui/blocks.js'
 import { KeyIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
+import { followInvite, pauseOrWake } from './inviteFollow.js'
 import { addPasskey, passkeysWork, type AuthPost, type Refusal } from './passkey.js'
 import './settings.css'
 import './signIn.css'
@@ -30,31 +31,40 @@ export function InviteJoin({ signedIn, link, post, entered }: { signedIn: boolea
   const [stage, setStage] = useState<Stage>({ at: 'opening' })
   const [busy, setBusy] = useState(false)
   const [refusal, setRefusal] = useState<string | null>(null)
+  const [lost, setLost] = useState(false)
   const following = useRef(false)
+  // The hub took the link once: a claim cookie holds the place, so "Try again" waits on it instead of opening anew.
+  const opened = useRef(false)
 
-  const follow = async (first: 'auth/invite/open' | 'auth/invite/wait') => {
+  const follow = async () => {
     if (following.current) return
     following.current = true
     try {
-      let view = await post<JoinView>(first, first === 'auth/invite/open' ? { link } : {})
-      setStage({ at: 'view', view })
-      while (view.state === 'waiting') {
-        view = await post<JoinView>('auth/invite/wait', {})
-        setStage({ at: 'view', view })
-      }
-      if (view.state === 'admitted') {
+      const view = await followInvite(opened.current ? 'auth/invite/wait' : 'auth/invite/open', {
+        link,
+        post,
+        pause: (ms) => pauseOrWake(ms),
+        visible: () => document.visibilityState === 'visible',
+        now: () => Date.now(),
+        show: (step) => {
+          setLost(step.at === 'trouble')
+          if (step.at === 'view') {
+            opened.current = true
+            setStage({ at: 'view', view: step.view })
+          } else if (step.at === 'failed') setStage({ at: 'failed', text: say(step.notice) })
+        },
+      })
+      if (view?.state === 'admitted') {
         if (passkeysWork()) setStage({ at: 'offer' })
         else entered()
       }
-    } catch (error) {
-      setStage({ at: 'failed', text: say(noticeOf(error)) })
     } finally {
       following.current = false
     }
   }
 
   useEffect(() => {
-    if (!signedIn) void follow('auth/invite/open')
+    if (!signedIn) void follow()
   }, [])
 
   const add = async () => {
@@ -104,7 +114,8 @@ export function InviteJoin({ signedIn, link, post, entered }: { signedIn: boolea
         </Card>
       ) : (
         <Card className="sign-in__card" title={t.signIn.joinTitle}>
-          <JoinBody stage={stage} retry={() => void follow('auth/invite/wait')} />
+          <JoinBody stage={stage} retry={() => void follow()} />
+          {lost && <p className="sign-in__desc sign-in__center">{t.signIn.joinReconnecting}</p>}
         </Card>
       )}
     </main>

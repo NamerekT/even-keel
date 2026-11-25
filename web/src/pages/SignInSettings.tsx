@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { DevicesView, DeviceView, InviteMade } from '../../../src/access/view.js'
+import type { DevicesView, DeviceView } from '../../../src/access/view.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { formatAgo, formatClock, formatFullTime, formatStamp } from '../format.js'
@@ -11,7 +11,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { PlusIcon } from '../ui/icons.js'
 import { Loading } from '../ui/Loader.js'
 import { Tipped } from '../ui/Tipped.js'
-import { InviteDialog } from './InviteDialog.js'
+import { useInvitation } from './useInvitation.js'
 import { addPasskey, openedByIp, passkeysWork, type AuthPost } from './passkey.js'
 import { PageToken } from './SettingsSecrets.js'
 import { FieldNote, Section } from './settingsParts.js'
@@ -34,8 +34,6 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
   const [asked, setAsked] = useState(0)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<Notice | null>(null)
-  const [made, setMade] = useState<InviteMade | null>(null)
-  const [inviteFailure, setInviteFailure] = useState<Notice | null>(null)
   const [turningOff, setTurningOff] = useState(false)
   const now = useNow(view?.invites.length ? 1000 : 30_000)
 
@@ -70,37 +68,18 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
   const add = async () => {
     if ((await addPasskey(post)) === 'unsupported') throw new Error(t.signIn.unsupported)
   }
-  const invite = () => act(async () => setMade(await post<InviteMade>('auth/invites/create', {})))
+  const invitation = useInvitation(post, () => setAsked((count) => count + 1))
+  const made = invitation.made
+  const invite = () => act(invitation.start, () => {})
   /** A decision taken on a row; the dialog of the same invitation closes with it. */
   const decide = (name: 'admit' | 'decline' | 'cancel', id: string, close = false) =>
     act(
       () => post(`auth/invites/${name}`, { id }),
       () => {
-        if (close) setMade(null)
+        if (close) invitation.close()
         setAsked((count) => count + 1)
       },
     )
-  /** A decision taken in the dialog closes it; a refusal stays in it. */
-  const inDialog = async (name: 'admit' | 'decline' | 'cancel') => {
-    if (made === null) return
-    setInviteFailure(null)
-    try {
-      await post(`auth/invites/${name}`, { id: made.id })
-      setMade(null)
-      setAsked((count) => count + 1)
-    } catch (error) {
-      setInviteFailure(noticeOf(error))
-    }
-  }
-  const again = async () => {
-    setInviteFailure(null)
-    try {
-      setMade(await post<InviteMade>('auth/invites/create', {}))
-      setAsked((count) => count + 1)
-    } catch (error) {
-      setInviteFailure(noticeOf(error))
-    }
-  }
 
   return (
     <>
@@ -250,22 +229,7 @@ export function SignInSettings({ state }: { state: EvenKeelState }) {
         )}
       </Loading>
       <FieldNote error={failure} />
-      {made !== null && (
-        <InviteDialog
-          made={made}
-          invite={view?.invites.find((each) => each.id === made.id)}
-          busy={busy}
-          failure={inviteFailure === null ? null : say(inviteFailure)}
-          onAdmit={() => void inDialog('admit')}
-          onDecline={() => void inDialog('decline')}
-          onCancel={() => void inDialog('cancel')}
-          onAgain={() => void again()}
-          onClose={() => {
-            setMade(null)
-            setInviteFailure(null)
-          }}
-        />
-      )}
+      {invitation.dialog(view?.invites, busy)}
       <Section title={t.signIn.ownerKey}>
         {view !== null && !view.keySet && view.signInOn && (
           <>

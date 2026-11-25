@@ -62,6 +62,7 @@ npm run dev:fake
 The projects and the settings live in Even Keel's database and are edited on the page; there is no file to create. The first start walks a short setup, each choice saved as you make it and changed later in **Settings**:
 
 - the languages of the page and of the session prompts;
+- [phone access](#phone-access) (or later) — the phone comes in by an invitation, with no owner key;
 - git — whether it is installed (Even Keel never installs it and shows the command that does) and the name and e-mail commits are made as, written into git's global config of the user Even Keel runs as;
 - the agent all projects run on by default, its account (sign in, or add one in a dialog over the step) and, for each provider, whether sessions run on the CLI version Even Keel was checked on (downloaded with your consent, about 340 MB for Claude Code) or on the one installed;
 - a tracker profile (or later);
@@ -71,6 +72,12 @@ The projects and the settings live in Even Keel's database and are edited on the
 A step is checked on the line only once it has its answer, and a step you skip is not offered again.
 
 If you leave the setup unfinished, **Add project** (or **Connect your own** in the demo) first asks whether to finish it: **Set up** goes back to the step it stopped at, **Not now** leaves you where you are.
+
+### Phone access
+
+The second step lets your phone in without looking for the owner key in `.env`. Press **Invite the phone**: the window shows a QR and a link. Scan the QR with the phone, check that both screens show the same two digits and press **Let in**; the phone signs in and offers to add a passkey. The step is checked once the first device is in, and from then the page asks every browser that comes by the proxy's name to sign in ([Signing in on a new device](#signing-in-on-a-new-device)).
+
+The phone reaches the page by the name of a proxy on this machine, such as a Tailscale Service ([Reaching the page from another machine](#reaching-the-page-from-another-machine)), never by `localhost`. Opened by `localhost`, the step has no invite button and says so: open the page by the proxy's name and come back, or press **Skip for now** — the same invitation is under Settings → **Sign-in and devices**.
 
 ### The Git step
 
@@ -887,7 +894,7 @@ The service log records stop signals and fatal errors; it cannot record a forced
 The first installation is the hub: it has the page, the trackers and the chains, and runs sessions itself. Another computer can join it as a machine: an installation with no page and no projects of its own that the hub gives projects to. The hub gives the chain's tasks to the machines of each project's pool. **Preview:** joining, the pool and tasks on a machine are built but not yet checked live end to end.
 
 1. On the hub, press **+ Machine**: at the foot of the machines panel, which opens from the machines block in the header, or, while the hub is the only machine and there is no panel yet, in **Settings → Interface** under **Hub address for machines**.
-2. In the window, pick the **Hub address for machines** — the name or IP the other computer reaches the hub by: one of the page's allowed addresses, an address of a network adapter, or one you type — give the machine a name if you like (without one it is named by its host name) and a colour, its mark in the chain and the lists (the next free one is offered). **Issue the command** remembers the address for the next machines; the hub then listens for machines on port 4749 (`EVEN_KEEL_MACHINES_PORT`). The window shows the command with the hub's address first, and under **Or with the connection string** the same command with a string instead: good for 30 minutes and one machine; **Issue again** takes back the one not used yet.
+2. In the window, pick the **Hub address for machines** — the name or IP the other computer reaches the hub by: one of the page's allowed addresses, an address of a network adapter, or one you type — give the machine a name if you like (without one it is named by its host name) and a colour, which fills its icon in the chain and the lists (the next free one is offered). The icon's shape tells the hub (a circle) from a machine (a rounded square), the sign inside its system — Windows, Linux or macOS — and a thin frame around it says Even Keel runs there in Docker. **Issue the command** remembers the address for the next machines; the hub then listens for machines on port 4749 (`EVEN_KEEL_MACHINES_PORT`). The window shows the command with the hub's address first, and under **Or with the connection string** the same command with a string instead: good for 30 minutes and one machine; **Issue again** takes back the one not used yet.
 3. On the other computer, with Node.js 24 and git installed, run the command the window gave, the same on Windows, Linux and macOS:
 
    ```sh

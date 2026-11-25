@@ -8,7 +8,7 @@ import { formatAgo, formatSpan, formatTokens } from '../format.js'
 import { overageTexts, say, t } from '../i18n/index.js'
 import { tokenTag } from '../longToken.js'
 import { formatUsd } from '../stats/format.js'
-import { Card } from '../ui/blocks.js'
+import { Band, Card } from '../ui/blocks.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AccountRowMenu } from './AccountRowMenu.js'
@@ -17,7 +17,7 @@ import { OwnSettings } from './accountSettings.js'
 import { AccountMarketplace } from './AccountMarketplace.js'
 import { AccountWork, rolesOf } from './AccountRoles.js'
 import { useOpenAdd } from './AddAccountDialog.js'
-import { AccountMark, AccountName, AgentIcon, limitsNote, planText, sharedLimitText, spendsByKey, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
+import { AccountMark, AccountName, AgentIcon, KeepButton, limitsNote, planText, sharedLimitText, spendsByKey, staleText, TransportNote, type Send, type Spend, type Tokens } from './accountParts.js'
 import { accountAnchor, AccountProblem } from './accountProblems.js'
 import { FULL_PERCENT, spanNames, WARM_PERCENT, windowFact, windowValue } from './Limits.js'
 import { HelpTip } from '../pages/settingsParts.js'
@@ -117,8 +117,9 @@ function groupCount(rows: AccountEntry[], machine: MachineRows | undefined): str
 }
 
 /**
- * A row of a machine elsewhere's view (BTN-1570): the limits the machine read and the levels it takes the account at,
- * no menu of a hub folder. One the machine is not signed in to says so in a note's tone, with "Sign in" there.
+ * A row of a machine elsewhere's view (BTN-1570): the limits the machine read and the levels it takes the account at.
+ * Its own folder has the hub row's menu, each item done on the machine (BTN-1584); one the machine is not signed in
+ * to says so in a note's tone, with "Sign in" there.
  */
 function MachineRow({ entry, machine, now, page }: { entry: AccountEntry; machine: MachineRows; now: Date; page: boolean }) {
   const away = machine.away.get(entry.key)
@@ -128,8 +129,8 @@ function MachineRow({ entry, machine, now, page }: { entry: AccountEntry; machin
     {away !== undefined && <span className="account-role account-role--away"><InfoIcon />{away.why === 'hub' ? t.machinePanel.view.hubOnly : t.machinePanel.view.signedOut}</span>}
     {(away === undefined || !page) && <MachineUses uses={uses} none={away === undefined} />}
   </div>
-  return <div className={`account-row account-row--machine${away === undefined ? '' : ' account-row--away'}`}>
-    <div className="account-grid">
+  const className = `account-row--machine${away === undefined ? '' : ' account-row--away'}`
+  const grid = <div className="account-grid">
       <div className="account-who">
         <div className="account-who__name"><AccountMark entry={entry} now={now} dot folder={machine.folders.get(entry.key) ?? null} />
           <AccountName entry={entry} accounts={machine.view.accounts} whole={!page} />
@@ -151,7 +152,15 @@ function MachineRow({ entry, machine, now, page }: { entry: AccountEntry; machin
         <div className="account-compact"><CompactLimit entry={entry} now={now} bare /></div>
       </>}
     </div>
-  </div>
+  // A subscription of the hub with no folder there has nothing to change on the machine: only "Sign in".
+  if (away?.why === 'hub') return <div className={`account-row ${className}`}>{grid}</div>
+  return <AccountRowMenu entry={entry} view={machine.view} send={machine.send} sending={machine.busy} className={className}
+    off={machine.online ? undefined : t.machinePanel.view.accountsOffline(machine.card.name)} switchOff={machine.switchOff(entry.key)}>
+    {grid}
+    {entry.removing && <Band tone="warn" className="account-problem" action={<KeepButton entry={entry} sending={machine.busy} send={machine.send} />}>
+      {t.account.removing}{entry.sessions.length > 0 ? t.account.removingAlive(entry.sessions.join(', ')) : ''}
+    </Band>}
+  </AccountRowMenu>
 }
 
 /** "Used by" of a machine's row: Even Keel, a project, a task — where the machine takes the account. */

@@ -173,6 +173,9 @@ export const en = {
   'machines.folderTaken': (p: { name: string; owner: string }) => `The project's folder is already served by machine ${p.name}: if that machine is gone, take the folder over from it`,
   'machines.notTaken': () => 'No other machine holds this project\'s folder now: there is nothing to take over',
   'machines.offline': (p: { name: string }) => `Machine ${p.name} is not connected to the hub now: sign in there once it is back`,
+  'machines.accountsOffline': (p: { name: string }) => `Machine ${p.name} is not connected to the hub now: change its accounts once it is back`,
+  'machines.accountNotOnHub': (p: { name: string; account: string }) =>
+    `Even Keel's account is the hub's, and each machine takes its own folder of it: ${p.account} of machine ${p.name} is not on the hub. Add it on the hub first`,
   'machines.updateFailed': (p: { name: string; to: string }) =>
     `Machine ${p.name} did not update to the hub's ${p.to}: the update failed and the machine runs its build as before. Its log is logs/update.log on the machine; "Update" on its page tries again`,
   'machines.updateDirty': (p: { name: string; to: string }) =>
@@ -915,6 +918,7 @@ export const en = {
   'auth.inviteGone': () => 'sign-in: this invitation is no longer waiting: it expired, was cancelled or decided on another device',
   'auth.invitesFull': (p: { count: number }) => `sign-in: ${p.count} invitations wait already; cancel one or let it expire first`,
   'auth.inviteSlowDown': () => 'sign-in: too many tries from this address; wait a minute and open the link again',
+  'auth.inviteNoAnswer': () => 'sign-in: the hub does not answer; check the connection and try again, the invitation keeps waiting',
   'auth.signInKeepsKey': () => 'sign-in: it stays on while the owner key is set; remove the key first',
   'config.modelPromptPlaceholder': (p: { model: string; placeholder: string }) =>
     `config: modelPrompts.${p.model} has the substitution ${p.placeholder}, but a model prompt is passed on as it is`,

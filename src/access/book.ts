@@ -20,6 +20,11 @@ export class AccessBook implements DeviceBook {
   /** By the SHA-256 of the secret. */
   private readonly byHash = new Map<string, AccessToken>()
   private readonly written = new Map<string, number>()
+  /**
+   * Tokens issued by an invitation that no request has presented yet (BTN-1664): the answer that carried one may
+   * have been lost. Memory only — after a restart every token counts as presented, the safe side.
+   */
+  private readonly unpresented = new Set<string>()
   private pending: Promise<unknown> = Promise.resolve()
   /** An invitation turned the sign-in on (`sign_in_on`): a hub without the key asks by a proxy's name too. */
   private on = false
@@ -51,6 +56,7 @@ export class AccessBook implements DeviceBook {
     const now = this.now()
     const held = this.entryOf(token.id)
     if (held === undefined) return
+    this.unpresented.delete(token.id)
     held[1].seenAt = now.toISOString()
     held[1].seenFrom = address
     const last = this.written.get(token.id) ?? 0
@@ -66,7 +72,13 @@ export class AccessBook implements DeviceBook {
     const token = { ...issued.token, seenAt: now.toISOString(), seenFrom: entry.address }
     this.byHash.set(hashOf(issued.secret), token)
     this.written.set(token.id, now.getTime())
+    if (entry.inviteId != null) this.unpresented.add(token.id)
     return { token, secret: issued.secret }
+  }
+
+  /** A live token issued by an invitation that no request has presented yet. */
+  isUnpresented(id: string): boolean {
+    return this.unpresented.has(id) && this.entryOf(id) !== undefined
   }
 
   /** Whether the token was live. */
@@ -116,7 +128,10 @@ export class AccessBook implements DeviceBook {
     const gone = [...this.byHash].filter(([, token]) => match(token))
     if (gone.length === 0) return 0
     const at = this.now()
-    for (const [hash] of gone) this.byHash.delete(hash)
+    for (const [hash, token] of gone) {
+      this.byHash.delete(hash)
+      this.unpresented.delete(token.id)
+    }
     for (const [, token] of gone) await revokeToken(this.db, token.id, at)
     this.options.revoked?.(gone.map(([, token]) => token.id))
     return gone.length
