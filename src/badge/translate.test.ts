@@ -9,7 +9,8 @@ const response = (content = 'Fix `src/file.ts`') => new Response(JSON.stringify(
   usage: { prompt_tokens: 100, completion_tokens: 12, prompt_tokens_details: { cached_tokens: 20 } },
 }))
 
-describe('badge title translations', () => {
+// Each case opens its own PGlite database: ~0.5 s alone, past vitest's default 5 s under a loaded full run (BTN-1681).
+describe('badge title translations', { timeout: 30_000 }, () => {
   it('cleans markup, quotes, control characters and newlines and limits Unicode characters', () => {
     expect(cleanTitle('  "**Fix** `src/file.ts`\n[panel](https://example.com)\u0000\u202E" ')).toBe('Fix src/file.ts panel')
     expect(cleanTitle('😀'.repeat(100))).toBe('😀'.repeat(90))
