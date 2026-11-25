@@ -7,6 +7,8 @@ import { useCommand } from '../live/useCommand.js'
 import { machinePath } from '../machineColor.js'
 import { packagesOver } from '../tools/packageGroups.js'
 import { Loading } from '../ui/Loader.js'
+import { Tipped } from '../ui/Tipped.js'
+import { WholeText } from '../ui/WholeText.js'
 import { ConnectMachineDialog } from './ConnectMachine.js'
 import { IdentityButton } from './IdentityDialog.js'
 import { JobWindow } from './JobWindow.js'
@@ -62,48 +64,41 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
                 className={`${ROW} pool__wide`}
                 label={view.folder}
                 hint={view.folderHint}
-                control={
-                  <bdi className="pool__folder pool__folder--whole" dir="ltr">
-                    {row.folder}
-                  </bdi>
-                }
+                control={<WholeText text={row.folder} path className="pool__folder pool__folder--whole" />}
               />
               <Row className={ROW} label={view.pool} hint={view.poolHint} control={<Switch checked={row.enabled} disabled={sending} label={t.pool.enable(card.name)} onChange={(on) => void enable(on)} />} />
               {card.gitUser !== null && (
-                <Row
-                  className={ROW}
-                  label={view.git}
-                  hint={view.gitHint}
-                  control={
-                    <span className="pool__packages">
-                      <span className={card.gitUser ? 'pool__packages-state' : 'pool__packages-state pool__packages-state--blocked'}>
-                        {card.gitUser ? `${card.gitName ?? ''} <${card.gitEmail ?? ''}>` : view.gitUnset}
-                      </span>
-                      {card.online && (
-                        <IdentityButton
-                          className="button button--small"
-                          label={card.gitUser ? t.machinePage.gitChange : t.machinePage.gitSet}
-                          machine={{ id: card.id, name: card.name, gitName: card.gitName, gitEmail: card.gitEmail }}
-                        />
-                      )}
-                    </span>
-                  }
-                />
+                <Row className={`${ROW} pool__block`} label={view.git} hint={view.gitHint} control={card.gitUser ? null : <span className="chip pool__chip pool__chip--warn">{view.gitUnset}</span>}>
+                  {card.gitUser && (
+                    <div className="pool__author">
+                      {card.gitName && <span className="pool__author-name">{card.gitName}</span>}
+                      {card.gitEmail && <WholeText text={card.gitEmail} className="pool__author-email" />}
+                    </div>
+                  )}
+                  {card.online && (
+                    <div className="pool__block-actions">
+                      <IdentityButton
+                        className="button button--small"
+                        label={card.gitUser ? t.machinePage.gitChange : t.machinePage.gitSet}
+                        machine={{ id: card.id, name: card.name, gitName: card.gitName, gitEmail: card.gitEmail }}
+                      />
+                    </div>
+                  )}
+                </Row>
               )}
               <Row
-                className={ROW}
+                className={`${ROW} pool__block`}
                 label={view.packages}
                 hint={view.packagesHint}
-                control={
-                  <span className="pool__packages">
-                    <span className={blocked ? 'pool__packages-state pool__packages-state--blocked' : 'pool__packages-state'}>{blocked ? view.packagesBlocked : view.packagesReady}</span>
-                    <Link to={packagesOver(project, location)} className="button button--small">
-                      {view.packagesOpen}
-                    </Link>
-                  </span>
-                }
+                control={<span className={blocked ? 'chip pool__chip pool__chip--warn' : 'chip pool__chip pool__chip--ok'}>{blocked ? view.packagesBlocked : view.packagesReady}</span>}
               >
-                {held !== undefined && <PackagesWhy project={project} held={held} />}
+                {held !== undefined && <PackagesWhy held={held} />}
+                <div className="pool__block-actions">
+                  <Link to={packagesOver(project, location)} className="button button--small">
+                    {view.packagesOpen}
+                  </Link>
+                  {held?.trackerMissing != null && state !== null && <TrackerFix state={state} project={project} />}
+                </div>
               </Row>
             </>
           )}
@@ -149,20 +144,32 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
 }
 
 /**
- * Why the project's packages hold the machine (BTN-1300): the packages to finish — the button "The project's packages"
- * beside the state is their fix — and the tracker's server no package brings, with the buttons that turn one on or the
- * task description; neither — what passes by itself.
+ * Why the project's packages hold the machine (BTN-1300): the packages to finish and the tracker's server no package
+ * brings, a short line each with its names as tags and the whole sentence in a tip (BTN-1564); neither — what passes by
+ * itself. The fixes are the block's buttons under these lines.
  */
-function PackagesWhy({ project, held }: { project: string; held: MachineCard['projects'][number] }) {
+function PackagesWhy({ held }: { held: MachineCard['projects'][number] }) {
   const view = t.machinePanel.view
-  const { state } = useLive()
   const tracker = held.trackerMissing
+  const unready = held.packagesUnready
   return (
     <div className="pool__packages-why">
-      {held.packagesUnready.length > 0 && <p>{view.packagesUnready(held.packagesUnready)}</p>}
-      {tracker !== null && <p>{view.trackerMissing(tracker)}</p>}
-      {tracker !== null && state !== null && <TrackerFix state={state} project={project} />}
-      {held.packagesUnready.length === 0 && tracker === null && <p>{view.packagesPassing}</p>}
+      {unready.length > 0 && <WhyLine tip={view.packagesUnready(unready)} text={view.packagesUnreadyShort} names={unready} />}
+      {tracker !== null && <WhyLine tip={view.trackerMissing(tracker)} text={view.trackerMissingShort} names={[tracker]} />}
+      {unready.length === 0 && tracker === null && <WhyLine tip={view.packagesPassing} text={view.packagesPassingShort} names={[]} />}
     </div>
+  )
+}
+
+function WhyLine({ tip, text, names }: { tip: string; text: string; names: string[] }) {
+  return (
+    <Tipped tip={tip} focusable align="start" className="pool__packages-problem">
+      <span className="pool__packages-problem-text">{text}</span>
+      {names.map((name) => (
+        <span key={name} className="tag">
+          {name}
+        </span>
+      ))}
+    </Tipped>
   )
 }

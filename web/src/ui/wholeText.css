@@ -1,0 +1,18 @@
+/* A value read whole (BTN-1564): it wraps only between its pieces, a piece too wide for the box ends in an ellipsis. */
+.whole-text {
+  display: block;
+  max-width: 100%;
+}
+
+.whole-text__value {
+  display: block;
+}
+
+.whole-text__part {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  vertical-align: top;
+  white-space: nowrap;
+}

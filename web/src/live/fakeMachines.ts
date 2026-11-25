@@ -17,6 +17,9 @@ const FAKE_HUB_COMMIT = '9f8e7d6c5b4a39281706f5e4d3c2b1a098765432'
 /** The hub's address for machines in `dev:fake`, as `even-keel join` takes it (BTN-1620). */
 const FAKE_HUB_ADDRESS = 'even-keel.example.ts.net'
 const FAKE_UPDATE_MS = 4_000
+/** `?machines=pooled`: an author and a folder too long for one line of the machine's panel (BTN-1564). */
+const LONG_GIT = { name: 'Johnathan Alexander Doe-Example', email: 'johnathan.alexander.doe-example@long-subdomain.example.com' }
+const LONG_ROOT = '/home/example/projects/a-rather-long-folder-for-the-example-laptop'
 
 const about = (host: string, patch: Partial<MachineAbout> = {}): MachineAbout => ({
   host, os: 'linux 6.8.0', evenKeel: '0.4.0', node: '24.11.0', git: '2.47.0', agents: { claude: '2.1.322', codex: null, opencode: null, copilot: null }, gitUser: true,
@@ -43,9 +46,11 @@ export class FakeNetwork {
     })
     // `version`: the laptop runs another version on the hub's protocol, it works and offers "Update" (BTN-1609);
     // `protocol`: another API, refused at the handshake; `follow`: refused too, and its update to the hub's commit failed
-    // (BTN-1275); `container`: the laptop runs in a container, an older image the hub refused (BTN-1440).
+    // (BTN-1275); `container`: the laptop runs in a container, an older image the hub refused (BTN-1440); `pooled`: the
+    // laptop is in every project's pool, with a long commit author and folder (BTN-1564).
     const laptop: Partial<MachineAbout> =
       mode === 'nocli' ? { agents: {} }
+      : mode === 'pooled' ? { gitName: LONG_GIT.name, gitEmail: LONG_GIT.email, root: LONG_ROOT }
       : mode === 'version' ? { evenKeel: '0.3.9', api: FAKE_API }
       : mode === 'protocol' ? { evenKeel: '0.3.9', api: FAKE_API - 1 }
       : mode === 'container' ? { evenKeel: '0.3.9', api: FAKE_API - 1, container: true, root: '/home/node/.local/share/even-keel/projects', follow: { to: '0.4.0', stuck: 'manual' } }
@@ -103,7 +108,9 @@ export class FakeNetwork {
   }
 
   private rows(project: string): PoolMachine[] {
-    const rows = this.pools.get(project) ?? [{ id: OWN, name: OWN_NAME, own: true, online: true, folder: this.repoOf(project), enabled: true, settings: {}, afterGreen: [] }]
+    const own: PoolMachine = { id: OWN, name: OWN_NAME, own: true, online: true, folder: this.repoOf(project), enabled: true, settings: {}, afterGreen: [] }
+    const laptop: PoolMachine = { id: 'machine-1', name: 'Example laptop', own: false, online: true, folder: `${LONG_ROOT}/${folderName(this.repoOf(project))}`, enabled: true, settings: {}, afterGreen: [] }
+    const rows = this.pools.get(project) ?? (this.mode === 'pooled' ? [own, laptop] : [own])
     this.pools.set(project, rows)
     return rows
   }
@@ -196,10 +203,11 @@ export class FakeNetwork {
     return own ? held : { ...held, ...this.accounts.apply(id, held.accounts) }
   }
 
-  /** The laptop's git has no name (`?machines=nocli` — it has), until the page's window sets one (BTN-1503). */
+  /** The laptop's git has no name (`?machines=nocli` — it has, `pooled` — a long one), until the page's window sets one (BTN-1503). */
   private cardGit(id: string): Pick<MachineCard, 'gitUser' | 'gitName' | 'gitEmail'> {
     const set = this.identities.get(id)
     if (set !== undefined) return { gitUser: true, gitName: set.name, gitEmail: set.email }
+    if (id === 'machine-1' && this.mode === 'pooled') return { gitUser: true, gitName: LONG_GIT.name, gitEmail: LONG_GIT.email }
     if (id === 'machine-1' && this.mode !== 'nocli') return { gitUser: false }
     return { gitUser: true, gitName: 'John Doe', gitEmail: 'john.doe@example.com' }
   }

@@ -181,40 +181,75 @@
   min-width: 0;
 }
 
-.pool__packages {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-8);
-  font-size: var(--text-14);
-}
-
-.pool__packages-state--blocked {
+/* A state of a block's head (BTN-1564): a chip at the row's right, as a switch stands in a short row. Two classes, to
+   win over `.chip` of chain.css whichever loads last. */
+.chip.pool__chip--warn {
+  background: var(--warn-bg);
   color: var(--warn-fg);
 }
 
-/* Why the packages hold the machine (BTN-1300): a line per problem under the row, with its buttons. */
+.chip.pool__chip--ok {
+  background: color-mix(in srgb, var(--lamp-done) 16%, transparent);
+  color: var(--fg);
+}
+
+/* Lowercase words ("not ready"): the box is their x-height, so they sit in the pill's middle (docs/design.md, Plaques). */
+@supports (text-box: trim-both ex alphabetic) {
+  .chip.pool__chip {
+    padding-block: calc((18px - 1ex) / 2);
+    text-box: trim-both ex alphabetic;
+  }
+}
+
+/* A row whose value is long (BTN-1564): the name and its chip on one line, the value across the row under them, the
+   buttons at the block's bottom, at its start, in every such row alike. The chip is short: it keeps its line on a phone. */
+.pool__block .settings__line-main {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.pool__block-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+}
+
+.pool__block-actions .tracker-fix {
+  display: contents;
+}
+
+.pool__author {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-8);
+  font-size: var(--text-14);
+}
+
+.pool__author-email {
+  color: var(--fg-muted);
+}
+
+/* Why the packages hold the machine (BTN-1300): a short line per problem, its names as tags, the sentence in a tip. */
 .pool__packages-why {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-8);
+  gap: var(--space-6);
   margin-top: var(--space-8);
   color: var(--fg-muted);
   font-size: var(--text-13);
 }
 
-.pool__packages-why p {
-  margin: 0;
+.pool__packages-problem {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+  max-width: 100%;
 }
 
-/* The buttons stand under their line, at its start. */
-.pool__packages-why .tracker-fix {
-  justify-content: flex-start;
-}
-
-/* A value read whole, a folder's path (BTN-1300): under its name, across the row, wrapping where it must. */
+/* A value read whole, a folder's path (BTN-1300): under its name, across the row, wrapping only after a separator. */
 .pool__wide .settings__line-main {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -225,6 +260,5 @@
 
 .pool__folder--whole {
   overflow: visible;
-  overflow-wrap: anywhere;
   white-space: normal;
 }
