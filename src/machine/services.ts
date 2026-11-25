@@ -216,6 +216,9 @@ type Member = (...args: unknown[]) => unknown
 
 const groups = Object.entries(SERVICE_COMMANDS) as Array<[Group, readonly string[]]>
 
+/** The type of every service command, `<group>.<name>`. */
+export const SERVICE_TYPES: ReadonlySet<string> = new Set(groups.flatMap(([group, names]) => names.map((name) => `${group}.${name}`)))
+
 /** The machine's side: the handler of each command, by its type. */
 export function serviceHandlers(services: MachineServices): Map<string, Member> {
   const handlers = new Map<string, Member>()

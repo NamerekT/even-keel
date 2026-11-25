@@ -2,8 +2,8 @@ import { hostname } from 'node:os'
 import { isInside } from '../paths.js'
 import type { Consent, MachineStore } from './machine-store.js'
 import {
-  API_VERSION, ASSIGN_COMMAND, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, TAKEN_EVENT, TooLarge, isRefusal,
-  type AssignPayload, type Command, type FolderTaken, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type HubHello, type MachineAbout, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
+  API_VERSION, ASSIGN_COMMAND, EVENT_BATCH, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, MISSED_PULSES, RECONNECT_FIRST_MS, RECONNECT_MAX_MS, REFUSED_EVENT, SNAPSHOT_TOO_LARGE_EVENT, TAKEN_EVENT, TooLarge, isRefusal,
+  type AssignPayload, type SnapshotTooLarge, type Command, type FolderTaken, type EventsAnswer, type EventsPost, type Frame, type HookAnswer, type HookPost, type HookRequest, type HubHello, type MachineAbout, type MachineHello, type McpAnswer, type McpPost, type McpRequest, type NumberedCommand,
   type Refusal, type SnapshotPost, type TallyAnswer, type TallyPost, type VersionRefusal, type CredentialsAnswer, type CredentialsPost, type SkillsAnswer, type SkillsPost, type GitAnswer, type GitPost, type GitRequest,
 } from './protocol.js'
 import type { GitCredential } from '../git/credentials.js'
@@ -304,7 +304,13 @@ export class MachineEnd {
     this.watch(generation)
     void this.post(generation, async (live) => {
       const snapshot = await this.options.snapshot()
-      const answer = await transport.snapshot({ connection: hello.connection, snapshot, lastCommand: await store.lastCommand() })
+      let answer: EventsAnswer | Refusal
+      try {
+        answer = await transport.snapshot({ connection: hello.connection, snapshot, lastCommand: await store.lastCommand() })
+      } catch (error) {
+        if (error instanceof TooLarge && live()) await this.tellTooLarge(error, live)
+        throw error
+      }
       if (!live()) return
       if (isRefusal(answer)) return this.lost(answer)
       this.contactAt = this.now()
@@ -322,35 +328,50 @@ export class MachineEnd {
    * machine's pulse and names the last command taken.
    */
   private flush(pulse: boolean): Promise<void> {
-    const { transport, store } = this.options
     if (this.connection === undefined) return Promise.resolve()
-    return this.post(this.generation, async (live) => {
-      let batch = EVENT_BATCH
-      for (let first = true; this.connection !== undefined; first = false) {
-        const events = await store.eventsAfter(0, batch)
-        if (events.length === 0 && !(pulse && first)) return
-        let answer: EventsAnswer | Refusal
-        try {
-          answer = await transport.events({ connection: this.connection, events, lastCommand: await store.lastCommand() })
-        } catch (error) {
-          if (!(error instanceof TooLarge) || !live()) throw error
-          if (events.length > 1) {
-            batch = Math.ceil(events.length / 2)
-            continue
-          }
-          // One event the hub can never take would hold back every event after it; the next snapshot tells its state.
-          this.options.log(`link: event ${events[0]!.seq} (${events[0]!.type}) is not sent: ${error.message}; its largest parts: ${error.parts}`)
-          await store.dropEvents(events[0]!.seq)
+    return this.post(this.generation, (live) => this.sendEvents(live, pulse))
+  }
+
+  /**
+   * The hub hears that the snapshot does not reach it, and takes what the outbox holds — the results of the commands
+   * that ran — before the connection goes (BTN-1560). At every try: a hub started since knows nothing of the last one.
+   */
+  private async tellTooLarge(error: TooLarge, live: () => boolean): Promise<void> {
+    await this.options.store.appendEvent(SNAPSHOT_TOO_LARGE_EVENT, this.now(), { bytes: error.bytes, parts: error.parts } satisfies SnapshotTooLarge)
+    try {
+      await this.sendEvents(live, false)
+    } catch (sent) {
+      this.options.log(`link: the hub is not told that this machine's state is over its limit: ${messageOf(sent)}`)
+    }
+  }
+
+  private async sendEvents(live: () => boolean, pulse: boolean): Promise<void> {
+    const { transport, store } = this.options
+    let batch = EVENT_BATCH
+    for (let first = true; this.connection !== undefined; first = false) {
+      const events = await store.eventsAfter(0, batch)
+      if (events.length === 0 && !(pulse && first)) return
+      let answer: EventsAnswer | Refusal
+      try {
+        answer = await transport.events({ connection: this.connection, events, lastCommand: await store.lastCommand() })
+      } catch (error) {
+        if (!(error instanceof TooLarge) || !live()) throw error
+        if (events.length > 1) {
+          batch = Math.ceil(events.length / 2)
           continue
         }
-        if (!live()) return
-        if (isRefusal(answer)) return this.lost(answer)
-        this.contactAt = this.now()
-        await store.dropEvents(answer.lastEvent)
-        // The hub did not take them all: the next pulse brings the rest again.
-        if (!live() || events.length === 0 || answer.lastEvent < events.at(-1)!.seq) return
+        // One event the hub can never take would hold back every event after it; the next snapshot tells its state.
+        this.options.log(`link: event ${events[0]!.seq} (${events[0]!.type}) is not sent: ${error.message}; its largest parts: ${error.parts}`)
+        await store.dropEvents(events[0]!.seq)
+        continue
       }
-    })
+      if (!live()) return
+      if (isRefusal(answer)) return this.lost(answer)
+      this.contactAt = this.now()
+      await store.dropEvents(answer.lastEvent)
+      // The hub did not take them all: the next pulse brings the rest again.
+      if (!live() || events.length === 0 || answer.lastEvent < events.at(-1)!.seq) return
+    }
   }
 
   /** One post after another over the connection they were made for; a post that fails breaks it. */

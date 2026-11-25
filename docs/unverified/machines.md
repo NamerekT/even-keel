@@ -345,6 +345,14 @@ Assumed: nothing the hub reads of a machine elsewhere needs a task outside the s
 
 To check, on the benches (entry 181): put a few hundred old transcripts of the project's tasks into a machine's account folder (copies of a real project's, tasks closed within the last week), connect the machine to that project and see "Repository" and the other steps pass, the machine stay online and its log show no `is not sent`, also in the first minute after a restart of the machine; then open the history window of a task done more than a day ago on that machine.
 
+## The hub's page on a machine whose state is over the link's limit (BTN-1560)
+
+`docs/machines/link.md`, "Numbers and what is kept" ("The hub hears of a snapshot over the limit"). A snapshot over 8 MB never reaches the hub, so the machine appends `snapshot.tooLarge` to its events and posts them on that connection before it drops it; the hub marks the machine, its card goes `blocked` ("its state does not reach the hub"), its page shows a band with the size, and service calls waiting for it fail with `machines.tooLarge`. Covered by `src/link/link.test.ts` (the event at every try, a hub over HTTP in the test), `src/service/machine-network.test.ts` (the mark, the refused calls, the mark cleared by a snapshot), `src/service/machine-cards.test.ts`, `src/service/machine-page.test.ts` and `web/src/machineView.test.ts` with machines made up in the test.
+
+Assumed: the hub takes the events post the machine sends right before it drops the connection — the stream is still open there — and a real snapshot over the limit fails the same way as the one made up in the test. If not, the hub's page shows the machine online and silent as before, a step on it waits, or the band stays after the machine's state fits again.
+
+To check, on the benches (entry 181): make a machine's snapshot too large (entry 299's few hundred old transcripts, without the scope's cut, or a big account folder), see the hub log `machines: machine … cannot send its state to the hub` once, the machine's card `blocked` and its page's band with the size, and a step of a project on it fail with the notice instead of waiting; then bring the snapshot under the limit and see `… sends its state to the hub again` and the band go without a reload.
+
 ## "+ Machine" on a hub with a revoked machine (BTN-1552)
 
 `docs/machines/page.md`, "The pool on the page" ("More than one machine"). A hub restored on another computer keeps its old own machine, revoked; the page counted machines by every name the hub ever had and hid "+ Machine" everywhere with one live machine. Covered by `src/service/machine-network.test.ts` (the live machines after a join and a revoke) and `web/src/machineView.test.ts` (`severalMachines`) with machines made up in the test.

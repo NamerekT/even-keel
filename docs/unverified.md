@@ -356,6 +356,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 328 | [The new device asking again over a lost link](unverified/page.md#the-new-device-asking-again-over-a-lost-link-btn-1663) | phones joining by an invitation whose screen goes off or tab goes to the background | the screen stays on "Connection lost" or shows an error after a decline; press "Try again", or sign in with the owner key | — |
 | 329 | [The invitation's link from a page open by localhost](unverified/page.md#the-invitations-link-from-a-page-open-by-localhost-btn-1661) | hubs opened by `localhost` that invite a phone | the link goes to an address the phone cannot open; press "Another address" and type the one the phone uses | — |
 | 330 | [A machine's CLI folder signed in but not added](unverified/machines.md#a-machines-cli-folder-signed-in-but-not-added-btn-1568) | hubs with machines elsewhere signed in before they joined | the machine's account row asks for a new sign-in although its `~/.claude` holds that account; add the folder with "Add account" on the machine's accounts page | — |
+| 331 | [The hub's page on a machine whose state is over the link's limit](unverified/machines.md#the-hubs-page-on-a-machine-whose-state-is-over-the-links-limit-btn-1560) | a machine elsewhere whose snapshot does not fit 8 MB | the hub's page shows the machine online and silent, a step on it waits, or the band stays after its state goes again; send the hub's and the machine's `machines:` and `link` log lines with an issue | — |
 
 ### Waiting for the event / not checked by choice
 

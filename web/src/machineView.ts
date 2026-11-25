@@ -18,7 +18,7 @@ export interface MachineState {
   /** `limit` — when the first of its accounts frees. */
   until?: string
   /** `blocked` — why it takes no task. */
-  reason?: 'git' | 'packages' | 'version'
+  reason?: 'git' | 'packages' | 'version' | 'state'
   /** `blocked` by `version` — Even Keel's version the machine runs. */
   version?: string
   /** `offline` — since when, as the hub saw it go; `null` — not seen since the hub started. */
@@ -68,6 +68,8 @@ export function machineState(state: View, cards: readonly MachineCard[], card: M
   // Another protocol is refused at the handshake, so such a machine is off the link: its card says why (BTN-1609).
   if (card.otherBuild !== undefined) return { lamp: 'blocked', reason: 'version', version: card.otherBuild }
   if (!card.online) return { lamp: 'offline', since: card.offlineSince }
+  // The hub sees none of its sessions while its state does not reach it (BTN-1560).
+  if (card.stateTooLarge !== undefined) return { lamp: 'blocked', reason: 'state' }
   const lanes = lanesOfMachine(state, card).filter((lane) => lane.current !== null && (project === undefined || lane.project === project))
   const running = lanes[0]?.current
   if (running) return { lamp: 'working', task: { id: running.task, title: titleOf(state, lanes[0]!.project, running.task) } }

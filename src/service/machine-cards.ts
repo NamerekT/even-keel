@@ -1,7 +1,7 @@
 import type { AccountView } from '../account/model.js'
 import { MACHINE_PALETTE } from '../link/colors.js'
 import type { MachineRecord } from '../link/hub-store.js'
-import type { MachineCard, MachineCardAccount } from '../link/view.js'
+import type { MachineCard, MachineCardAccount, StateTooLarge } from '../link/view.js'
 import { currentLimits, exhaustedReset, type RateLimits } from '../limits/model.js'
 import type { RemoteMachine } from '../machine/remote.js'
 import { machineAccountOf } from './machine-page.js'
@@ -14,6 +14,8 @@ export interface MachineCardsDeps {
   /** When the hub saw the machine go off the link; `undefined` — not since it started. */
   offlineSince: (machine: string) => number | undefined
   colors: () => Record<string, string>
+  /** The machine's snapshot is over the link's limit (BTN-1560); `undefined` — not so. */
+  tooLarge: (machine: string) => StateTooLarge | undefined
   folders: (machine: string) => Promise<Array<{ project: string; folder: string; enabled: boolean }>>
   mirror: (machine: string) => Pick<RemoteMachine, 'facts' | 'page'> | undefined
   /** The own machine's accounts panel, with the limits it read. */
@@ -52,6 +54,7 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
     }))
     const online = isOwn || deps.online(record.id)
     const ownGit = isOwn ? deps.ownGit() : null
+    const tooLarge = isOwn ? undefined : deps.tooLarge(record.id)
     const git = isOwn
       ? { name: ownGit?.name ?? undefined, email: ownGit?.email ?? undefined, user: ownGit === null ? null : ownGit.name !== null && ownGit.email !== null }
       : { name: record.about?.gitName, email: record.about?.gitEmail, user: record.about?.gitUser ?? null }
@@ -66,6 +69,7 @@ export async function machineCards(deps: MachineCardsDeps): Promise<MachineCard[
       ...(git.name !== undefined && { gitName: git.name }),
       ...(git.email !== undefined && { gitEmail: git.email }),
       ...(!isOwn && record.about !== null && buildGap({ evenKeel: deps.version }, record.about) === 'protocol' && { otherBuild: record.about.evenKeel }),
+      ...(tooLarge !== undefined && { stateTooLarge: tooLarge }),
       ...limitedOf(accounts.filter((account) => account.signedIn), now),
       accounts,
       active: panel?.active || null,

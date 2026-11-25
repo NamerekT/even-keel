@@ -291,6 +291,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     colors: () => network.colors(),
     paletteColors: () => network.paletteColors(),
     taken: (machine) => network.takenOn(machine),
+    tooLarge: (machine) => network.stateTooLarge(machine),
     setCapacity: (machine, capacity) => network.setCapacity(machine, capacity),
     setColor: (machine, color) => network.setColor(machine, color),
     ownIdentity: async (name, email) => {
@@ -322,6 +323,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     online: (machine) => network.connected(machine),
     offlineSince: (machine) => network.offlineSince(machine),
     colors: () => network.colors(),
+    tooLarge: (machine) => network.stateTooLarge(machine),
     folders: (machine) => network.foldersOf(machine),
     mirror: (machine) => ctx.machineLink.mirror(machine),
     ownAccounts: () => ctx.getState().account,

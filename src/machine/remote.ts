@@ -15,7 +15,7 @@ import { MOVE_PREFIX, MOVE_STATE_EVENT, type MoveDone, type MoveSaved } from './
 import type { LaunchBrief, MachinePort } from './port.js'
 import { pageReads, type PageReads } from './page.js'
 import { isRecordEvent } from './records.js'
-import { remoteServices, type MachineServices } from './services.js'
+import { remoteServices, SERVICE_TYPES, type MachineServices } from './services.js'
 import { COMMAND_PREFIX, DONE_EVENT, FACTS_EVENT, HANDOFF_EVENT, LEFTOVER_EVENT, TRANSCRIPT_EVENT, type CommandDone, type FactsPosted, type FactsSnapshot, type PortCommand } from './runner.js'
 
 export interface RemoteDeps {
@@ -200,6 +200,18 @@ export class RemoteMachine {
       if (!LOCKED.has(waiter.type)) continue
       this.waiters.delete(seq)
       waiter.reject(fail('machine.lockLost', { command: waiter.type }))
+    }
+  }
+
+  /**
+   * The machine's state does not reach the hub (BTN-1560): the results of the page's and the pool's calls to it come
+   * no sooner than its state does, so each one waiting is let go with `error`. The chain's commands keep waiting.
+   */
+  refuseServices(error: () => Error): void {
+    for (const [seq, waiter] of this.waiters) {
+      if (!SERVICE_TYPES.has(waiter.type)) continue
+      this.waiters.delete(seq)
+      waiter.reject(error())
     }
   }
 

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { bench } from './link.fixture.js'
 import type { FolderMarks, FolderOwner, MachineEnd } from './machine.js'
 import {
-  API_VERSION, ASSIGN_COMMAND, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, INVITE_MS, REFUSED_EVENT, TAKEN_EVENT, bearerOf, encodeToken, isRefusal, parseToken, type MachineAbout, type VersionRefusal,
+  API_VERSION, ASSIGN_COMMAND, FAILED_EVENT, HEARTBEAT_MS, INTERRUPTED_EVENT, INVITE_MS, REFUSED_EVENT, SNAPSHOT_TOO_LARGE_EVENT, TAKEN_EVENT, bearerOf, encodeToken, isRefusal, parseToken, type MachineAbout, type VersionRefusal,
 } from './protocol.js'
 
 const PROJECT = '11111111-1111-4111-8111-111111111111'
@@ -306,6 +306,26 @@ describe('the hub ↔ machine link', () => {
     await tick(30_000)
     expect(end.status()).toEqual({ state: 'online' })
     expect(made.snapshots).toEqual([{ sessions: [] }])
+  })
+
+  it('tells the hub at every try that its snapshot is over the limit, with the events its outbox holds (BTN-1560)', async () => {
+    const made = await bench()
+    stopHub = () => made.hub.stop()
+    const tasks = Object.fromEntries(Array.from({ length: 20 }, (_, index) => [`ABC-${index}`, 'x'.repeat(200)]))
+    const end = made.machine({ snapshot: () => ({ facts: { tasks } }) })
+    running.push(end)
+    made.wire.bodyLimit = 2_000
+    await made.machineStore.appendEvent('example.done', 0, { seq: 1 })
+    await end.start()
+    await tick()
+    expect(made.snapshots).toEqual([])
+    expect(made.taken.map((event) => event.type)).toEqual(['example.done', SNAPSHOT_TOO_LARGE_EVENT])
+    expect(made.taken[1]!.payload).toEqual({ bytes: expect.any(Number), parts: expect.stringContaining('snapshot.facts.tasks (20 parts)') })
+    expect((made.taken[1]!.payload as { bytes: number }).bytes).toBeGreaterThan(2_000)
+    expect(made.machineStore.outbox).toEqual([])
+    expect(end.status()).toEqual({ state: 'offline', notice: 'link.tooLarge' })
+    await tick(30_000)
+    expect(made.taken.map((event) => event.type)).toEqual(['example.done', SNAPSHOT_TOO_LARGE_EVENT, SNAPSHOT_TOO_LARGE_EVENT])
   })
 
   it('posts the snapshot first after every reconnect', async () => {

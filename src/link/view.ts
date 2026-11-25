@@ -115,6 +115,12 @@ export interface MachineView {
   taken: TakenFolder[]
 }
 
+/** A machine's snapshot over the link's limit (BTN-1560): its size, and since when the hub hears of it. */
+export interface StateTooLarge {
+  bytes: number
+  since: number
+}
+
 /**
  * A machine as the header's machines panel shows it (BTN-1051): the own one and every joined one not revoked. What it
  * runs and what it takes next the page reads from the chain; this is what only the hub knows.
@@ -137,6 +143,8 @@ export interface MachineCard {
    * refuses it, so it takes no task until it moves to the hub's build. Another version on the hub's API is none.
    */
   otherBuild?: string
+  /** Its snapshot is over the link's limit and none has reached the hub since (BTN-1560): it takes no task. */
+  stateTooLarge?: StateTooLarge
   /** The agents it has a signed-in account of. */
   agents: string[]
   /** By agent, when the first of its accounts frees, where every signed-in account of that agent there is at a limit. */
@@ -297,6 +305,8 @@ export interface MachinePage {
   /** Its sessions not finished. */
   sessions: Array<Pick<import('../state.js').SessionView, 'task' | 'sessionId' | 'agent' | 'model' | 'lamp' | 'cwd'>>
   taken: TakenFolder[]
+  /** Its snapshot is over the link's limit (BTN-1560): the hub sees none of its sessions; none — not so, or the own machine. */
+  stateTooLarge?: StateTooLarge
   /** Its build where it is not the hub's (BTN-1609); none — the same build, the own machine or no report yet. */
   build?: MachineBuildView
   /** A machine elsewhere's folders bound to projects' memory beyond its pool (BTN-1648); none on the own machine. */

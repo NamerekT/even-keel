@@ -39,6 +39,7 @@ function deps(patch: Partial<MachineCardsDeps> = {}): MachineCardsDeps {
     online: (machine) => machine === 'laptop',
     offlineSince: () => undefined,
     colors: () => ({ pc: '#111111', laptop: '#222222' }),
+    tooLarge: () => undefined,
     folders: async (machine) => (machine === 'laptop' ? [{ project: 'p1', folder: '/x', enabled: true }] : [{ project: 'p1', folder: '/y', enabled: false }]),
     mirror: () => undefined,
     ownAccounts: () => ({ accounts: [], active: '' }),
@@ -141,6 +142,13 @@ describe('machineCards', () => {
     const cards = await machineCards(deps({ mirror: (machine) => (machine === 'laptop' ? page : undefined) }))
     expect(cards[1]!.accounts.map(({ key, removing }) => ({ key, removing }))).toEqual([{ key: 'x', removing: true }, { key: 'y', removing: undefined }])
     expect(cards[1]!.apps).toEqual(apps)
+  })
+
+  it('marks a machine elsewhere whose snapshot is over the link\'s limit (BTN-1560)', async () => {
+    const cards = await machineCards(deps({ tooLarge: () => ({ bytes: 9_000_000, since: NOW - 60_000 }) }))
+    expect(cards[0]!.stateTooLarge).toBeUndefined()
+    expect(cards[1]!.stateTooLarge).toEqual({ bytes: 9_000_000, since: NOW - 60_000 })
+    expect((await machineCards(deps()))[1]!.stateTooLarge).toBeUndefined()
   })
 
   it('has no accounts on a machine elsewhere before its first snapshot', async () => {

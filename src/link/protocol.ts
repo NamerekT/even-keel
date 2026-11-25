@@ -68,6 +68,18 @@ export const EVENT_BATCH = 100
  */
 export const MAX_BODY_BYTES = 8 * 1024 * 1024
 
+/**
+ * The machine's snapshot is over `MAX_BODY_BYTES` and does not go (BTN-1560): an event posted on that connection before
+ * it is dropped, with `SnapshotTooLarge`, so the hub's page tells it. The next snapshot the hub takes ends it.
+ */
+export const SNAPSHOT_TOO_LARGE_EVENT = 'snapshot.tooLarge'
+
+export interface SnapshotTooLarge {
+  bytes: number
+  /** Its largest parts with their sizes (`partsOf`). */
+  parts: string
+}
+
 /** A post over `MAX_BODY_BYTES`, not sent: `parts` names its largest parts with their sizes, for the log. */
 export class TooLarge extends Error {
   constructor(readonly path: string, readonly bytes: number, readonly parts: string) {

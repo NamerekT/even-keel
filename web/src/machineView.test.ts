@@ -35,6 +35,9 @@ describe('machineState', () => {
     expect(machineState(view, cards, cards[0]!, 'ABC')).toEqual({ lamp: 'working', task: { id: 'ABC-1', title: 'Title ABC-1' } })
     expect(machineState(view, cards, card('srv', { otherBuild: '0.3.9', gitUser: false }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'version', version: '0.3.9' })
     expect(machineState(view, cards, card('srv', { gitUser: false }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'git' })
+    // Its state over the link's limit: the hub sees none of its sessions (BTN-1560); off the link it is offline still.
+    expect(machineState(view, cards, card('srv', { stateTooLarge: { bytes: 9_000_000, since: 1 } }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'state' })
+    expect(machineState(view, cards, card('srv', { online: false, offlineSince: 5, stateTooLarge: { bytes: 9_000_000, since: 1 } }), 'ABC')).toEqual({ lamp: 'offline', since: 5 })
     expect(machineState(view, cards, card('srv', { projects: [projectRow('ABC', true, true)] }), 'ABC')).toEqual({ lamp: 'blocked', reason: 'packages' })
     expect(machineState(view, cards, card('srv', { limitedUntil: { claude: '2026-11-17T18:40:00Z' } }), 'ABC')).toEqual({ lamp: 'limit', until: '2026-11-17T18:40:00Z' })
     expect(machineState(view, cards, cards[1]!, 'ABC')).toEqual({ lamp: 'free', task: { id: 'ABC-2', title: 'Title ABC-2' } })

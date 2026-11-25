@@ -9,8 +9,8 @@ import { kindOf } from '../link/kinds.js'
 import type { MachineKind } from '../state.js'
 import type { MachineRecord } from '../link/hub-store.js'
 import { HubEnd, type HubHandlers, type Invite } from '../link/hub.js'
-import { ASSIGN_COMMAND, HEARTBEAT_MS, TAKEN_EVENT, type AssignPayload, type FolderTaken } from '../link/protocol.js'
-import type { AddressChoice, HubBuild, MachineFollow, MachineInvite, MachineSignIn, MachineView, TakenFolder } from '../link/view.js'
+import { ASSIGN_COMMAND, HEARTBEAT_MS, SNAPSHOT_TOO_LARGE_EVENT, TAKEN_EVENT, megabytes, type AssignPayload, type FolderTaken, type SnapshotTooLarge } from '../link/protocol.js'
+import type { AddressChoice, HubBuild, MachineFollow, MachineInvite, MachineSignIn, MachineView, StateTooLarge, TakenFolder } from '../link/view.js'
 import type { LimitsPlan, MachineAccounts } from '../limits/polls.js'
 import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
 import { RemoteMachine } from '../machine/remote.js'
@@ -66,6 +66,8 @@ export class MachineNetwork {
   private readonly clones = new Map<string, (progress: CloneProgress) => void>()
   /** By machine off the link, when this hub saw it go (BTN-1051): kept in memory only. */
   private readonly wentOff = new Map<string, number>()
+  /** By machine whose snapshot is over the link's limit (BTN-1560), till the hub takes one: in memory only, told again at its next try. */
+  private readonly tooLarge = new Map<string, StateTooLarge>()
 
   constructor(private readonly options: MachineNetworkOptions) {
     this.hub = new HubEnd({
@@ -174,6 +176,11 @@ export class MachineNetwork {
   /** When the machine went off the link while this hub ran; `undefined` — it is on it, or was not seen since the start. */
   offlineSince(machine: string): number | undefined {
     return this.hub.connected(machine) ? undefined : this.wentOff.get(machine)
+  }
+
+  /** The machine's snapshot is over the link's limit and none has reached the hub since (BTN-1560); `undefined` — not so. */
+  stateTooLarge(machine: string): StateTooLarge | undefined {
+    return this.tooLarge.get(machine)
   }
 
   revoked(machine: string): boolean {
@@ -415,6 +422,8 @@ export class MachineNetwork {
   private async servicesOf(machine: string): Promise<MachineServices> {
     const record = await this.foreign(machine)
     const peer = this.peers.get(record.id)
+    // Its answers come no sooner than its state: a call would wait for good (BTN-1560).
+    if (this.tooLarge.has(record.id)) throw fail('machines.tooLarge', { name: record.name })
     if (peer === undefined || !this.hub.connected(record.id)) throw fail('machines.offline', { name: record.name })
     return peer.remote.services()
   }
@@ -459,6 +468,7 @@ export class MachineNetwork {
         peer.name = record?.name ?? machine
         peer.capacity = record?.capacity ?? 1
         if (record?.about != null) this.options.seen?.(machine, record.about)
+        if (this.tooLarge.delete(machine)) log(`machines: machine ${machine} (${peer.name}) sends its state to the hub again`)
         peers.connected(machine)
         // A new connection may be a new process of the machine, which holds no brief yet.
         peer.briefs.forget()
@@ -473,6 +483,7 @@ export class MachineNetwork {
         } else if (event.type === TAKEN_EVENT) await this.refused(machine, event.payload as FolderTaken)
         else if (event.type === KEPT_WRITE_EVENT) await peers.write(machine, event.payload as KeptWrite)
         else if (event.type === SESSIONS_READ_EVENT) void this.brief(machine)
+        else if (event.type === SNAPSHOT_TOO_LARGE_EVENT) await this.stateOverLimit(machine, event.payload as SnapshotTooLarge, peers)
         else if (event.type === CLONE_PROGRESS_EVENT) {
           const told = event.payload as CloneTold
           this.clones.get(`${machine}\0${told.project}`)?.(told.progress)
@@ -492,6 +503,20 @@ export class MachineNetwork {
         peers.changed()
       },
     }
+  }
+
+  /**
+   * The machine's snapshot does not go (BTN-1560): the page marks it, and the page's and the pool's calls waiting for it
+   * are let go with the reason, as are new ones till a snapshot comes. Logged once, where the size changes little.
+   */
+  private async stateOverLimit(machine: string, told: SnapshotTooLarge, peers: NetworkPeers): Promise<void> {
+    const name = (await this.options.store.machine(machine))?.name ?? machine
+    if (!this.tooLarge.has(machine)) {
+      this.options.log(`machines: machine ${machine} (${name}) cannot send its state to the hub: ${megabytes(told.bytes)} is over the link's limit; its largest parts: ${told.parts}`)
+    }
+    this.tooLarge.set(machine, { bytes: told.bytes, since: this.tooLarge.get(machine)?.since ?? Date.now() })
+    this.peer(machine, peers).remote.refuseServices(() => fail('machines.tooLarge', { name }))
+    this.options.changed()
   }
 
   private peer(machine: string, peers: NetworkPeers): Peer {
@@ -821,6 +846,7 @@ export class MachineNetwork {
   /** The folders group of a machine connected now. */
   folders(target: PoolTarget): MachineFolders {
     const peer = this.peers.get(target.id)
+    if (this.tooLarge.has(target.id)) throw fail('machines.tooLarge', { name: target.name })
     if (peer === undefined || !this.hub.connected(target.id)) throw fail('pool.offline', { name: target.name })
     return peer.remote.services().folders
   }

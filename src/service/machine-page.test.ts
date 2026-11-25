@@ -42,6 +42,7 @@ function deps(patch: Partial<MachinePageDeps> = {}): MachinePageDeps {
     colors: () => ({ own: '#6f8f7f', srv: '#123456' }),
     paletteColors: () => ({ own: '#6f8f7f', srv: '#a08060' }),
     taken: () => [],
+    tooLarge: () => undefined,
     setCapacity: vi.fn(async () => {}),
     setColor: vi.fn(async () => {}),
     ownIdentity: vi.fn(async () => {}),
@@ -75,6 +76,13 @@ describe('the page of a machine (BTN-1272)', () => {
   it('keeps the report when the panel names no CLIs, an older machine', async () => {
     const page = await machinePageControl(deps()).view('srv')
     expect(page.about?.agents).toEqual({ claude: '2.1.0' })
+  })
+
+  it("marks a machine elsewhere whose snapshot is over the link's limit, never the own one (BTN-1560)", async () => {
+    const control = machinePageControl(deps({ tooLarge: () => ({ bytes: 9_000_000, since: 1 }) }))
+    expect((await control.view('srv')).stateTooLarge).toEqual({ bytes: 9_000_000, since: 1 })
+    expect((await control.view('own')).stateTooLarge).toBeUndefined()
+    expect((await machinePageControl(deps()).view('srv')).stateTooLarge).toBeUndefined()
   })
 
   it('refuses a revoked or unknown machine', async () => {

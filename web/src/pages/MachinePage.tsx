@@ -169,6 +169,7 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
           </Band>
         )
       )}
+      {page.stateTooLarge !== undefined && <Band tone="warn">{text.stateTooLarge(page.stateTooLarge.bytes)}</Band>}
       {page.taken.map((each) => (
         <Band key={each.project} tone="warn" action={<TakeOverButton project={each.project} owner={each.machine} name={each.name} machine={page.id} className="button button--small" />}>
           <span><ProjectLabel project={each.project} /> — {text.taken(each.name)}</span>

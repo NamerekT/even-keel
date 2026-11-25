@@ -3,7 +3,7 @@ import type { AccountTie } from '../limits/polls.js'
 import { MACHINE_PALETTE } from '../link/colors.js'
 import type { MachineRecord } from '../link/hub-store.js'
 import { API_VERSION } from '../link/protocol.js'
-import type { HubBuild, MachineAbout, MachineAccount, MachineBuildView, MachinePage, MemoryFolderView, TakenFolder } from '../link/view.js'
+import type { HubBuild, MachineAbout, MachineAccount, MachineBuildView, MachinePage, MemoryFolderView, StateTooLarge, TakenFolder } from '../link/view.js'
 import type { RemoteMachine } from '../machine/remote.js'
 import { fail } from '../notice/notice.js'
 import { buildGap, followTarget, type MachineUpdates } from './machine-updates.js'
@@ -71,6 +71,8 @@ export interface MachinePageDeps {
   /** Each machine's palette colour by its place, picked or not. */
   paletteColors: () => Record<string, string>
   taken: (machine: string) => TakenFolder[]
+  /** The machine's snapshot is over the link's limit (BTN-1560); `undefined` — not so. */
+  tooLarge: (machine: string) => StateTooLarge | undefined
   setCapacity: (machine: string, capacity: number) => Promise<void>
   setColor: (machine: string, color: string | null) => Promise<void>
   /** The own machine's git is the hub's: its name and e-mail as the setup's Git step saves them, and its report read again. */
@@ -154,6 +156,7 @@ export function machinePageControl(deps: MachinePageDeps) {
       const entries = panel?.accounts ?? []
       const polls = deps.polled === undefined ? undefined : { panel: entries, identities: facts?.identities, polled: deps.polled, ...(deps.differs !== undefined && { differs: deps.differs }) }
       const online = own || deps.online(record.id)
+      const tooLarge = own ? undefined : deps.tooLarge(record.id)
       const build = own || record.about === null ? undefined : buildOf(deps, record.id, record.about, online)
       return {
         id: record.id,
@@ -179,6 +182,7 @@ export function machinePageControl(deps: MachinePageDeps) {
           .filter((view) => view.lamp !== 'finished')
           .map(({ task, sessionId, agent, model, lamp, cwd }) => ({ task, sessionId, agent, model, lamp, cwd })),
         taken: deps.taken(record.id),
+        ...(tooLarge !== undefined && { stateTooLarge: tooLarge }),
         ...(build !== undefined && { build }),
         ...(!own && deps.memory !== undefined && { memory: deps.memory.of(record.id) }),
       }

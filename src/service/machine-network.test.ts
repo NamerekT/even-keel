@@ -7,7 +7,7 @@ import { hubIdentity } from '../link/identity.js'
 import { MemoryMachineStore } from '../link/link.fixture.js'
 import { MachineEnd, type FolderOwner } from '../link/machine.js'
 import { httpsTransport, joinHub } from '../link/machine-transport.js'
-import { ASSIGN_COMMAND, isRefusal, parseToken, type MachineAbout, type NumberedCommand } from '../link/protocol.js'
+import { ASSIGN_COMMAND, MAX_BODY_BYTES, isRefusal, parseToken, type MachineAbout, type NumberedCommand } from '../link/protocol.js'
 import type { MachineProjectSettings } from '../link/view.js'
 import { LIMITS_PLAN_COMMAND } from '../limits/polls.js'
 import { BRIEF_COMMAND, type HubBrief } from '../machine/brief.js'
@@ -493,6 +493,68 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await network.unplace(laptop, ABC)
     expect(network.poolOf(ABC)).toEqual([])
     expect((await network.pool(ABC)).others.map((machine) => machine.id)).toEqual([laptop])
+  })
+
+  it("marks a machine whose snapshot is over the link's limit, lets its waiting calls of the page go and clears the mark at the next snapshot (BTN-1560)", async () => {
+    const snapshots: string[] = []
+    const peers: NetworkPeers = {
+      remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} }),
+      brief: (folders) => ({ config: { projects: folders } }) as unknown as HubBrief,
+      changed: () => {},
+      connected: (machine) => void snapshots.push(machine),
+      mcp: () => Promise.resolve({ status: 200, headers: {}, body: '' }),
+      hook: () => Promise.resolve({ status: 200, body: '' }),
+      write: async () => {},
+    }
+    const logged: string[] = []
+    const { network, settings, changes } = await started(peers, (line) => logged.push(line))
+    settings.address = '127.0.0.1'
+    await network.apply()
+    const joined = await joinHub(parseToken((await network.invite('Example laptop')).line)!, ABOUT, 5_000)
+    if (isRefusal(joined)) throw new Error(`refused: ${joined.refused}`)
+    const laptop = joined.machine
+    const target = await network.target(laptop)
+    await network.place(target, ABC, '/home/example/projects/abc-work')
+
+    let large = false
+    const facts = { sessionsRead: true, accountsRead: true, tasks: {}, projects: {}, ledger: {}, resets: {}, limits: {} }
+    const store = new MemoryMachineStore()
+    store.rootFolder = '/home/example/projects'
+    // The machine takes the commands and answers none: a check of a folder waits for it.
+    const end: MachineEnd = new MachineEnd({
+      transport: httpsTransport(joined, { log: () => {}, timeoutMs: 5_000 }),
+      store,
+      snapshot: () => ({ boot: 'boot-1', rev: 1, facts: large ? { ...facts, filler: 'x'.repeat(MAX_BODY_BYTES) } : facts }),
+      command: () => {},
+      log: () => {},
+    })
+    closing.push(async () => end.stop())
+    await end.start()
+    await until(() => snapshots.length === 1, 'the first snapshot')
+    const spec = { project: ABC, folder: '/home/example/projects/abc-work', remotes: [], branch: 'main', claude: false }
+    const check = network.folders(target).check('push', spec)
+    const checked = check.catch((error: unknown) => error)
+    expect(network.stateTooLarge(laptop)).toBeUndefined()
+
+    large = true
+    end.stop()
+    const counted = changes.length
+    await end.start()
+    expect(await checked).toMatchObject({ notice: { code: 'machines.tooLarge', params: { name: 'Example laptop' } } })
+    expect(network.stateTooLarge(laptop)).toEqual({ bytes: expect.any(Number), since: expect.any(Number) })
+    expect(network.stateTooLarge(laptop)!.bytes).toBeGreaterThan(MAX_BODY_BYTES)
+    expect(changes.length).toBeGreaterThan(counted)
+    expect(() => network.folders(target)).toThrow(/cannot send its state to the hub/)
+    expect(logged.filter((line) => line.includes('cannot send its state'))).toEqual([
+      expect.stringMatching(new RegExp(`^machines: machine ${laptop} \\(Example laptop\\) cannot send its state to the hub: 8\\.0 MB is over the link's limit; its largest parts: body`)),
+    ])
+
+    large = false
+    end.stop()
+    await end.start()
+    await until(() => snapshots.length === 2, 'the snapshot under the limit')
+    expect(network.stateTooLarge(laptop)).toBeUndefined()
+    expect(logged.filter((line) => line.includes('sends its state to the hub again'))).toHaveLength(1)
   })
 
   it("shows a machine's accounts and its sign-in, and starts the sign-in, its code and its cancel on that machine", async () => {
