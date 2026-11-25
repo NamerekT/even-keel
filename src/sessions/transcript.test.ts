@@ -148,6 +148,40 @@ describe('TranscriptFold', () => {
     expect(summary.compactions).toBe(2)
   })
 
+  it('shows a compaction as one divider with the tokens it saved, never its summary as the user line (BTN-1703)', () => {
+    const boundary = (metadata?: Record<string, unknown>) =>
+      JSON.stringify({ type: 'system', subtype: 'compact_boundary', timestamp: at(), content: 'Conversation compacted', ...(metadata && { compactMetadata: metadata }) })
+    const summaryLine = () =>
+      JSON.stringify({
+        type: 'user',
+        timestamp: at(),
+        isCompactSummary: true,
+        isVisibleInTranscriptOnly: true,
+        message: { role: 'user', content: 'This session is being continued from a previous conversation that ran out of context.' },
+      })
+    for (const whole of [false, true]) {
+      const transcript = new TranscriptFold(30, whole)
+      const lines = [
+        assistant('m1', [text('first')]),
+        boundary({ trigger: 'auto', preTokens: 217565, postTokens: 18247 }),
+        summaryLine(),
+        assistant('m2', [text('second')]),
+        boundary({ trigger: 'manual' }),
+        summaryLine(),
+        boundary(),
+      ]
+      for (const line of lines) transcript.push(line)
+      expect(transcript.summary().feed.map(({ at: _, ...line }) => line)).toEqual([
+        { kind: 'text', text: 'first' },
+        { kind: 'compact', text: '', saved: 199318 },
+        { kind: 'text', text: 'second' },
+        { kind: 'compact', text: '' },
+        { kind: 'compact', text: '' },
+      ])
+      expect(transcript.summary().compactions).toBe(3)
+    }
+  })
+
   it('keeps the prompt cache an hour from the request of the last answer when it was written with the hour lifetime', () => {
     const lines = [
       assistant('m1', [text('first')], { write1h: 4000 }),
