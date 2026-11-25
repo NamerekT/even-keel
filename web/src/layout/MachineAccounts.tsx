@@ -10,7 +10,7 @@ import { machineLogin } from '../machineSignIn.js'
 import { MachineLabels } from '../ui/MachineLabel.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
-import { AccountsDrawer } from '../pages/Accounts.js'
+import { ViewAccountPanel } from './Account.js'
 import { AccountBlock } from './AccountBlock.js'
 import { agentLabel } from '../accountName.js'
 import { AgentIcon } from './accountParts.js'
@@ -39,7 +39,7 @@ function MachineBlock({ card, now, project }: { card: MachineCard; now: Date; pr
   return <AccountBlock account={rows.view} limits={null} now={now} levels={levels.length > 0 ? levels : [{ account: rows.view.active, source: 'shared' }]} machine={rows} />
 }
 
-/** "All machines": pointing shows a block per account, pressing opens the hub's accounts drawer (BTN-1587). */
+/** "All machines": pointing shows a block per account, pressing opens the hub's narrow accounts drawer (BTN-1669). */
 function AllMachines({ now }: { now: Date }) {
   const { cards } = useMachineFilter()
   const { state } = useLive()
@@ -53,7 +53,7 @@ function AllMachines({ now }: { now: Date }) {
         <AllToggle blocks={blocks} />
       </button>
       {!open && <div id="machine-accounts" className="account-card machine-accounts__card" role="tooltip"><AccountBlocks blocks={blocks} now={now} /></div>}
-      {open && <AccountsDrawer card={null} onClose={() => setOpen(false)} />}
+      {open && state !== null && <ViewAccountPanel account={state.account} card={null} onClose={() => setOpen(false)} />}
     </div>
   )
 }
