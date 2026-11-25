@@ -14,7 +14,7 @@ import { loadSavedLimits } from '../limits/saved.js'
 import type { loadEnv } from '../locations.js'
 import { BriefCopy } from '../machine/brief.js'
 import type { CliChoices } from '../machine/config.js'
-import { machineValue } from '../machine/state.js'
+import { machineValue, setMachineValue } from '../machine/state.js'
 import type { Packages } from '../packages/service.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import type { KeepWarm } from '../sessions/keepwarm.js'
@@ -263,8 +263,12 @@ export async function assembleMachineHost(inputs: MachineHostInputs): Promise<As
   const savedLimits = await loadSavedLimits(machineDb)
   /** The context windows the agents named before this start, per launch and per session (BTN-946). */
   const savedWindows = await loadContextWindows(machineDb)
-  // The machine's mailbox: its messages come from the hub at the link's start (`records.restore`).
-  const mailbox = Mailbox.detached(writes, () => new Date())
+  // The machine's mailbox: its messages come from the hub (`records.restore`), its last number from its own database.
+  const mailbox = Mailbox.detached(writes, () => new Date(), {
+    last: Number(await machineValue(machineDb, 'mail.last') ?? 0),
+    parity: inputs.planFirst === true ? 1 : 0,
+    keep: (id) => writes.add('the mailbox\'s last number', setMachineValue(machineDb, 'mail.last', id)),
+  })
   const inboxes = new Inboxes()
   const limitsFile = join(stateDir, 'rate-limits.json')
   const accountFile = join(stateDir, 'account.json')

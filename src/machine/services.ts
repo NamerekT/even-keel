@@ -95,10 +95,14 @@ export interface MachineChats {
   past(chat: string): Promise<ChatPast | null>
 }
 
-/** The records the hub keeps for the machine, handed to its new process before its monitor, hooks and chat start. */
+/**
+ * The records the hub keeps for the machine, handed to its own machine's new process before its monitor, hooks and chat
+ * start. A machine elsewhere gets only its `mail`, at each connection (BTN-1699); absent `launches` and `windows` leave
+ * the machine's as they are.
+ */
 export interface RetainedRecords {
-  launches: LaunchEntry[]
-  windows: [string, number][]
+  launches?: LaunchEntry[]
+  windows?: [string, number][]
   mail: Mail[]
   /** The keep-warm pings of the last `MAX_KEEP_WARM_HOURS`, for the series a restart would lose (BTN-1507); absent — none handed. */
   warm?: WarmPing[]

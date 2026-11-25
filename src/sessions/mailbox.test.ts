@@ -145,6 +145,49 @@ describe('Mailbox', { timeout: 30_000 }, () => {
   })
 })
 
+/** A machine's mailbox as its host makes it: rows only in memory, the last number in `kept`, as its database holds it. */
+function machineBox(kept: { last: number }, parity: 0 | 1, now: () => Date = () => new Date('2026-10-18T10:00:00.000Z')) {
+  return Mailbox.detached(new Writes(() => {}), now, { last: kept.last, parity, keep: (id) => void (kept.last = id) })
+}
+
+// BTN-1699: a machine restarted, its mailbox came back empty and the next letter got the number 1 again; the transcript
+// took it for the letter 1 it had already shown.
+describe("a machine's mailbox numbers", () => {
+  it('give a message after a restart a number past every one given before, though nothing came back', () => {
+    const kept = { last: 0 }
+    const before = machineBox(kept, 1)
+    const given = ['a', 'b', 'c'].map((text) => before.post('ABC-1', SESSION, text, []).id)
+    const after = machineBox(kept, 1)
+    after.restore([])
+    expect(after.post('ABC-1', SESSION, 'd', []).id).toBeGreaterThan(Math.max(...given))
+  })
+
+  it('never come again once the old messages are cut', () => {
+    let now = Date.parse('2026-10-18T10:00:00.000Z')
+    const mailbox = machineBox({ last: 0 }, 0, () => new Date(now))
+    const old = mailbox.post('ABC-1', SESSION, 'old', [])
+    mailbox.settle(mailbox.take(SESSION), 'delivered', 'inbox')
+    now += 8 * 24 * 60 * 60_000
+    expect(mailbox.post('ABC-1', SESSION, 'fresh', []).id).toBeGreaterThan(old.id)
+  })
+
+  it("are even on the hub's own machine and odd on a machine elsewhere: a session elsewhere gets both", () => {
+    const own = machineBox({ last: 0 }, 0)
+    const elsewhere = machineBox({ last: 0 }, 1)
+    expect(['a', 'b'].map((text) => own.post('ABC-1', SESSION, text, []).id)).toEqual([2, 4])
+    expect(['a', 'b'].map((text) => elsewhere.post('ABC-1', SESSION, text, []).id)).toEqual([1, 3])
+  })
+
+  it('go past the restored messages and keep a message posted before them', () => {
+    const mailbox = machineBox({ last: 0 }, 1)
+    const early = mailbox.post('ABC-1', SESSION, 'before the hub answered', [])
+    const kept = { ...early, id: 41, text: 'kept by the hub', postedAt: '2026-10-18T09:00:00.000Z', fate: 'delivered' as const, event: 'inbox' as const, settledAt: '2026-10-18T09:00:01.000Z' }
+    mailbox.restore([kept, { ...early, text: 'an older copy' }])
+    expect(mailbox.of(SESSION).map((mail) => mail.text)).toEqual(['kept by the hub', 'before the hub answered'])
+    expect(mailbox.post('ABC-1', SESSION, 'next', []).id).toBe(43)
+  })
+})
+
 describe('mailOutcome', () => {
   const posted = '2026-10-18T10:00:00.000Z'
   const at = (seconds: number) => new Date(Date.parse(posted) + seconds * 1000)
