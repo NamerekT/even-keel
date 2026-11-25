@@ -354,6 +354,11 @@ export function textOf(raw: unknown, field: string): string {
   return raw
 }
 
+/** `textOf` for a field that may be left out: absent or `null` — `null`. */
+export function optionalText(raw: unknown, field: string): string | null {
+  return raw === null || raw === undefined ? null : textOf(raw, field)
+}
+
 export function numberOf(raw: unknown, field: string): number {
   if (typeof raw !== 'number' || !Number.isFinite(raw)) throw fail('request.required', { field })
   return raw

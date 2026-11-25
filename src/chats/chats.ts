@@ -128,6 +128,13 @@ export class ProjectChats {
     return this.cardOf(chat)
   }
 
+  /** A chat's own choice of packages over its project's set (BTN-1696), for its `/` menu (BTN-1716). */
+  async packagesOf(id: string): Promise<Record<string, boolean>> {
+    const chat = await this.deps.store.find(id)
+    if (chat === undefined) throw fail('chats.unknown', {})
+    return chat.packages
+  }
+
   /** The user's message: the chat's first one starts its session, a later one goes into it. */
   async send(id: string, message: ChatMessageIn): Promise<ChatCard> {
     const chat = await this.active(id)

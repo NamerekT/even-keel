@@ -697,7 +697,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     builtinExports,
     builtinImports,
     chats: ctx.projectChats,
-    chatMenu: createMenuSource({ config: () => ctx.configStore.current, packages: ctx.packages, globalDir: ctx.homes.global.dir, trim: () => ctx.dispatcher.state.trimTools, git: runGit, branchOf: ctx.branchOf }),
+    chatMenu: createMenuSource({ config: () => ctx.configStore.current, packages: ctx.packages, globalDir: ctx.homes.global.dir, trim: () => ctx.dispatcher.state.trimTools, git: runGit, branchOf: ctx.branchOf, chatPackages: (chat) => ctx.projectChats.packagesOf(chat) }),
     dictation: new Dictation(() => ctx.db),
     backup: ctx.backups,
     configConflicts: ctx.memory,

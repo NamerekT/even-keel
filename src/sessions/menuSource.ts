@@ -15,15 +15,17 @@ export interface MenuSourceDeps {
   trim: () => boolean
   git: Git
   branchOf: (project: string) => string
+  /** A project chat's own choice of packages (`ChatRecord.packages`, BTN-1696); throws for an unknown chat. */
+  chatPackages: (chat: string) => Promise<Record<string, boolean>>
 }
 
 /**
  * The hub's answer to `chat/menu` (BTN-1695): what the session gets, never asked of the session or its machine. A chain
  * session with "Trim the tools" on loses what the trim's `skillOverrides` turn off (`trimSettings`); a project chat has
- * no trim (`createChatSettings`).
+ * no trim (`createChatSettings`) and gets the packages of its own choice, as its launch does (BTN-1716).
  */
 export function createMenuSource(deps: MenuSourceDeps) {
-  return async (project: string, task: string | null): Promise<MenuEntry[]> => {
+  return async (project: string, task: string | null, chat: string | null): Promise<MenuEntry[]> => {
     const config = deps.config()
     const repo = config.projects[project]
     if (repo === undefined) return []
@@ -32,6 +34,7 @@ export function createMenuSource(deps: MenuSourceDeps) {
       const files = await readProjectSettings(deps.git, repo, deps.branchOf(project), isPlain(config, project))
       overrides = trimSettings(config.hiddenSkills, files.project, files.local).skillOverrides as Record<string, unknown>
     }
-    return chatMenu({ configFolder: configStore(deps.globalDir), plugins: deps.packages.pluginFolders(project, task), overrides })
+    const own = task === null && chat !== null ? await deps.chatPackages(chat) : {}
+    return chatMenu({ configFolder: configStore(deps.globalDir), plugins: deps.packages.pluginFolders(project, task, own), overrides })
   }
 }
