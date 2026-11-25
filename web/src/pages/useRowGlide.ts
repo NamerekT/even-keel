@@ -14,7 +14,7 @@ const CAPTION = '.chain__group-caption'
  * A row moving into the running group or out of it (BTN-1613) goes on its motion's beat, in a step; a row on its way out
  * is held in the frame until it moves. Any other order the server changed — another tab's drop, a rule, a lane taking a
  * row that joins no group — glides at once in `--motion-fast` (BTN-1612); not during the user's own drag and its
- * settling (`held`), nor in the render that switches the view. The frame is drawn around its rows as they are on screen,
+ * settling (`held`). In the render that switches the view no row glides, the motion's neither (BTN-1672). The frame is drawn around its rows as they are on screen,
  * so it stretches to meet a row coming in, and glides shut once a row has gone.
  *
  * `play` is called from the motion's layout effect, before this hook's own one records the rows' new places: call the
@@ -94,7 +94,8 @@ export function useRowGlide(
 
   play.current = (motion) => {
     const list = listRef.current
-    if (list === null || !regroups(motion) || stillMotion()) return
+    // The rows' places on record are the view left's: back on a view its rows stand in place, its marks still play.
+    if (list === null || lastView.current !== view || !regroups(motion) || stillMotion()) return
     const now = performance.now()
     let end = now
     for (const row of list.querySelectorAll<HTMLElement>('li[data-block]')) {
