@@ -919,6 +919,8 @@ export const en = {
   'auth.invitesFull': (p: { count: number }) => `sign-in: ${p.count} invitations wait already; cancel one or let it expire first`,
   'auth.inviteSlowDown': () => 'sign-in: too many tries from this address; wait a minute and open the link again',
   'auth.inviteNoAnswer': () => 'sign-in: the hub does not answer; check the connection and try again, the invitation keeps waiting',
+  'auth.inviteOriginBad': () => 'sign-in: that is not a page address; type it as https://name:port',
+  'auth.inviteOriginLocal': () => 'sign-in: another device cannot open localhost; type the name the page opens by from outside',
   'auth.signInKeepsKey': () => 'sign-in: it stays on while the owner key is set; remove the key first',
   'config.modelPromptPlaceholder': (p: { model: string; placeholder: string }) =>
     `config: modelPrompts.${p.model} has the substitution ${p.placeholder}, but a model prompt is passed on as it is`,

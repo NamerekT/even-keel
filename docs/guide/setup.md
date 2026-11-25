@@ -77,7 +77,7 @@ If you leave the setup unfinished, **Add project** (or **Connect your own** in t
 
 The second step lets your phone in without looking for the owner key in `.env`. Press **Invite the phone**: the window shows a QR and a link. Scan the QR with the phone, check that both screens show the same two digits and press **Let in**; the phone signs in and offers to add a passkey. The step is checked once the first device is in, and from then the page asks every browser that comes by the proxy's name to sign in ([Signing in on a new device](#signing-in-on-a-new-device)).
 
-The phone reaches the page by the name of a proxy on this machine, such as a Tailscale Service ([Reaching the page from another machine](#reaching-the-page-from-another-machine)), never by `localhost`. Opened by `localhost`, the step has no invite button and says so: open the page by the proxy's name and come back, or press **Skip for now** — the same invitation is under Settings → **Sign-in and devices**.
+The phone reaches the page by the name of a proxy on this machine, such as a Tailscale Service ([Reaching the page from another machine](#reaching-the-page-from-another-machine)), never by `localhost`. Opened by `localhost`, the window's link goes to the address the page was last opened by from outside; when there was none yet, the window asks for it — the proxy's address with its port, such as `https://my-pc.example.ts.net:8443` ([Signing in on a new device](#signing-in-on-a-new-device)). No proxy yet? Press **Skip for now**: the same invitation is under Settings → **Sign-in and devices**.
 
 ### The Git step
 
@@ -705,7 +705,7 @@ Each sign-in gives the browser a token of its own in an `HttpOnly`, `SameSite=St
 
 A new phone or laptop does not need the owner key: invite it from a device that is signed in already.
 
-1. On the signed-in device open Settings → **Sign-in and devices** and press **Invite a device** under "Devices". Open the page there by the name the new device will use (the proxy's HTTPS name, not `localhost`).
+1. On the signed-in device open Settings → **Sign-in and devices** and press **Invite a device** under "Devices". The link goes to the address the page is open by. On a page open by `localhost` it never goes to `localhost`, which another device cannot open: it goes to the address the page was last opened by from outside, with a choice when there were several, and when there was none yet the window asks for it — type the address the new device opens the page by, such as the proxy's HTTPS name with its port. Even Keel remembers it for the next invitation; **Another address** in the window types a different one.
 2. On the new device scan the QR with its camera, or open the link from **Copy the link**. It shows two digits and waits. Where Even Keel is installed as an app (on an iPhone, "Add to Home Screen"), press **Scan a QR** on its sign-in screen instead: the system camera opens the link in the browser, which keeps its sign-in apart from the app's, so the app would still ask to sign in.
 3. On the first device the window now says which device opened the link and shows its two digits. Press **Let in** only if they are the same as on the new device; otherwise **Decline**.
 4. The new device signs in and offers to add a passkey, so next time it needs nothing.

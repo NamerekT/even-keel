@@ -421,4 +421,13 @@ export const STEPS: readonly string[] = [
     since text not null
   );
   `,
+  // The page's outside addresses (BTN-1661, `docs/web/sign-in.md`, "Invitations"): the `Origin` of requests the guard
+  // let in by a name other than loopback, and the ones typed in the invitation dialog. An invitation made on a page
+  // opened by `localhost` links to one of them; `seen_at` picks the last one used.
+  `
+  create table page_origins (
+    origin  text primary key,
+    seen_at text not null
+  );
+  `,
 ]

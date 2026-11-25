@@ -900,6 +900,8 @@ export const noticesRu: NoticeTexts = {
   'auth.invitesFull': (p) => `Уже ждут ${p.count} приглашений: отмените одно или дождитесь, пока истечёт`,
   'auth.inviteSlowDown': () => 'Слишком много попыток с этого адреса: подождите минуту и откройте ссылку снова',
   'auth.inviteNoAnswer': () => 'Хаб не отвечает: проверьте связь и попробуйте снова, приглашение пока ждёт',
+  'auth.inviteOriginBad': () => 'Это не адрес страницы: введите его как https://имя:порт',
+  'auth.inviteOriginLocal': () => 'С другого устройства localhost не открыть: введите имя, по которому страница открывается снаружи',
   'auth.signInKeepsKey': () => 'Пока задан ключ владельца, вход не выключить: сначала уберите ключ',
   'config.modelPromptPlaceholder': (p) => `в modelPrompts.${p.model} подстановка ${p.placeholder}, а промт модели передаётся как есть`,
   'config.contextPercents': () => 'context.warn и context.danger должны быть процентами, 0 < warn < danger <= 100',

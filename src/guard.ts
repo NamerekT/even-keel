@@ -19,6 +19,8 @@ export interface GuardSettings {
    * key itself and the form asks for it.
    */
   book?: DeviceBook
+  /** The page's outside addresses (BTN-1661): every request let in notes its `Origin` (`src/access/origins.ts`). */
+  origins?: { seen(origin: string | undefined): void }
 }
 
 /** The device tokens the guard checks a request against, held in memory (`src/access/book.ts`). */

@@ -19,6 +19,27 @@
   margin: 0;
 }
 
+/* "Another address" under the link of a page opened by localhost (BTN-1661): a quiet button, not a second action. */
+.invite__other {
+  align-self: flex-start;
+}
+
+/* The outside address typed in: the field and its button on one line, the button at the field's height. */
+.invite__ask {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-8);
+}
+
+.invite__ask .add-package__field {
+  flex: 1;
+  min-width: 0;
+}
+
+.invite__ask > .button {
+  flex: none;
+}
+
 .invite__state {
   display: flex;
   flex-wrap: wrap;
