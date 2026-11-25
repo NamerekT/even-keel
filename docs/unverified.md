@@ -355,6 +355,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 325 | [The sign-in an invitation turns on, on a hub without the owner key](unverified/page.md#the-sign-in-an-invitation-turns-on-on-a-hub-without-the-owner-key-btn-1656) | hubs without the owner key, reached by a proxy's name | the device that let the first one in is shut out by the proxy's name, or "Turn sign-in off" leaves it asking; open the page by `localhost` on the hub | — |
 | 326 | [A machine's accounts changed from its view](unverified/machines.md#a-machines-accounts-changed-from-its-view-btn-1584) | hubs with machines elsewhere | a removal, a rename or VS Code's account on a machine does not take, or the name differs between the hub and the machine; change the folder on the machine by hand | — |
 | 327 | [The setup's "Phone access" step](unverified/page.md#the-setups-phone-access-step-btn-1638) | new hubs whose setup is opened by a proxy's name | the step stays unchecked after the phone is in, or has no invite button; skip it, the phone is in all the same | — |
+| 328 | [The new device asking again over a lost link](unverified/page.md#the-new-device-asking-again-over-a-lost-link-btn-1663) | phones joining by an invitation whose screen goes off or tab goes to the background | the screen stays on "Connection lost" or shows an error after a decline; press "Try again", or sign in with the owner key | — |
 
 ### Waiting for the event / not checked by choice
 

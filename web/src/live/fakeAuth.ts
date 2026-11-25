@@ -117,7 +117,8 @@ function makeInvite(current: DevicesView, now: number): unknown {
 
 /**
  * The new device's side at `/invite?signIn`: `?invite=` picks the outcome (`declined`, `expired`, `cancelled`, `waiting`
- * for good, `used` and `gone` at once); without it the hub lets the device in `OPEN_MS` after it opened the link.
+ * for good, `used` and `gone` at once, `lost` — every wait fails as a dropped connection); without it the hub lets the
+ * device in `OPEN_MS` after it opened the link.
  */
 function fakeJoin(name: string, now: number): JoinView | Promise<JoinView> {
   const outcome = new URLSearchParams(location.search).get('invite')
@@ -125,6 +126,7 @@ function fakeJoin(name: string, now: number): JoinView | Promise<JoinView> {
     if (outcome === 'used' || outcome === 'gone') return { state: outcome }
     return { state: 'waiting', digits: '47', expiresAt: new Date(now + INVITE_MS).toISOString() }
   }
+  if (outcome === 'lost') throw new TypeError('Failed to fetch')
   const after: JoinView =
     outcome === 'declined' || outcome === 'expired' || outcome === 'cancelled'
       ? { state: outcome }
