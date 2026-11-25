@@ -8,6 +8,7 @@ import { MoreMenu } from '../ui/MoreMenu.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AgentIcon, type Send } from './accountParts.js'
 import { SignIn } from './MachineAccounts.js'
+import { MachineKeyDialog } from './MachineKey.js'
 import '../tools/addPackage.css'
 import './machineAccounts.css'
 
@@ -28,24 +29,31 @@ export interface FolderSignInProps {
 
 /**
  * The end of a machine's signed-out folder's row (BTN-1585): a subscription's "Sign in" there; a key's, a cloud's or a
- * long token's folder says so in place of a browser sign-in, which would put some subscription into it; one whose way
- * neither the machine nor the hub knows asks it first.
+ * long token's folder says so in place of a browser sign-in, which would put some subscription into it, a key's with
+ * "Enter key" beside (BTN-1684); one whose way neither the machine nor the hub knows asks it first.
  */
 export function FolderSignIn({ machine, agent, folder, way, busy, noCli, send, menu = false }: FolderSignInProps) {
   const view = t.machinePanel.view
-  const [asking, setAsking] = useState<'way' | 'remove' | null>(null)
+  const [asking, setAsking] = useState<'way' | 'key' | 'remove' | null>(null)
   const login = () => void send('machines/login', { machine: machine.id, agent, account: folder })
   const removal = asking === 'remove' && (
     <ConfirmDialog title={folder} question={way === 'token' ? t.account.removeNow : t.account.removeKeyNow} confirm={t.common.remove} cancel={t.account.keep}
       busy={busy} onClose={() => setAsking(null)}
       onConfirm={() => void send('machines/account/remove', { machine: machine.id, account: folder }).then((ok) => { if (ok) setAsking(null) })} />
   )
+  // A folder of unknown way may still go instead, from the key's own window.
+  const keying = asking === 'key' && (
+    <MachineKeyDialog machine={machine} agent={agent} folder={folder} busy={busy} onClose={() => setAsking(null)}
+      extra={way === 'unknown' && <button type="button" className="button button--danger" disabled={busy} onClick={() => setAsking('remove')}>{view.keyRemove}</button>} />
+  )
+  const enter = <button type="button" className="button button--small" disabled={busy || !machine.online} onClick={() => setAsking('key')}>{view.keyEnter}</button>
   if (way === 'subscription') return <SignIn name={machine.name} online={machine.online} busy={busy} noCli={noCli} onClick={login} />
   if (way === 'unknown') {
     return <>
       <SignIn name={machine.name} online={machine.online} busy={busy} noCli={noCli} onClick={() => setAsking('way')} />
       {asking === 'way' && <FolderWayDialog machine={machine.name} agent={agent} folder={folder} busy={busy} onClose={() => setAsking(null)}
-        onSubscription={() => { setAsking(null); login() }} onKey={() => setAsking('remove')} />}
+        onSubscription={() => { setAsking(null); login() }} onKey={() => setAsking('key')} />}
+      {keying}
       {removal}
     </>
   }
@@ -53,8 +61,10 @@ export function FolderSignIn({ machine, agent, folder, way, busy, noCli, send, m
     <Tipped className="machine-accounts__muted" tip={way === 'key' ? view.keyFolderTip(machine.name) : view.tokenFolderTip(machine.name)} align="end" focusable>
       {way === 'key' ? view.keyFolder : view.tokenFolder}
     </Tipped>
+    {way === 'key' && (machine.online ? enter : <Tipped tip={view.accountsOffline(machine.name)} align="end">{enter}</Tipped>)}
     {menu && <MoreMenu label={t.account.more(folder)} disabled={busy}
       items={[{ label: t.common.remove, danger: true, ...(!machine.online && { problem: view.accountsOffline(machine.name) }), pick: () => setAsking('remove') }]} />}
+    {keying}
     {removal}
   </span>
 }
@@ -69,7 +79,7 @@ interface WayProps {
   onClose: () => void
 }
 
-/** How a folder the machine finds no sign-in in signs in: a subscription in a browser, or a key, which is not entered from here. */
+/** How a folder the machine finds no sign-in in signs in: a subscription in a browser, or a key entered here. */
 function FolderWayDialog({ machine, agent, folder, busy, onSubscription, onKey, onClose }: WayProps) {
   const view = t.machinePanel.view
   const dialog = useRef<HTMLDialogElement>(null)

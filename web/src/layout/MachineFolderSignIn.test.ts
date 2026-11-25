@@ -54,14 +54,29 @@ describe("a machine's signed-out folder's sign-in (BTN-1585)", () => {
     expect(send).toHaveBeenCalledWith('machines/login', { machine: 'machine-1', agent: 'codex', account: 'john.doe@example.com' })
   })
 
-  it('asks the way of a folder that tells none before any sign-in, and a key there offers removing the folder', async () => {
+  it('asks the way of a folder that tells none before any sign-in; a key there opens the key window, which can remove the folder', async () => {
     const { send, button } = await row('unknown', 'spare')
     await act(async () => button(t.account.login)!.click())
     expect(send).not.toHaveBeenCalled()
     expect(document.querySelector('dialog')?.textContent).toContain(t.machinePanel.view.wayTitle('spare', 'Example laptop'))
     await act(async () => button(t.machinePanel.view.wayKey)!.click())
+    expect(document.body.textContent).toContain(t.machinePanel.view.keyFolderTitle('spare', 'Example laptop'))
+    await act(async () => button(t.machinePanel.view.keyRemove)!.click())
     expect(document.body.textContent).toContain(t.account.removeKeyNow)
     expect(send).not.toHaveBeenCalled()
+  })
+
+  it("enters a key into a key's folder from its row (BTN-1684)", async () => {
+    const { button } = await row('key')
+    await act(async () => button(t.machinePanel.view.keyEnter)!.click())
+    const input = document.querySelector<HTMLInputElement>('dialog input')!
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'sk-example')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(button(t.machinePanel.view.keyRemove)).toBeUndefined()
+    await act(async () => button(t.machinePanel.view.keySave)!.click())
+    expect(live.command).toHaveBeenCalledWith('machines/key', { machine: 'machine-1', agent: 'codex', key: 'sk-example', name: '', folder: 'example-api' })
   })
 
   it("the way dialog's subscription tile starts the sign-in", async () => {

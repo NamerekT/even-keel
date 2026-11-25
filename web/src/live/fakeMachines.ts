@@ -593,7 +593,7 @@ export function fakeMachineSignIns(state: EvenKeelState, mode: string | null): M
 
 const FOLDERS: MachineSignIn['accounts'] = [
   { key: 'john.doe@example.com', agent: 'claude', email: 'john.doe@example.com', signedIn: false },
-  { key: 'example-api', agent: 'codex', email: null, signedIn: false, paysPerToken: true },
+  { key: 'example-api', agent: 'codex', email: null, signedIn: false, paysPerToken: true, keyReplaceable: true },
   { key: 'spare', agent: 'claude', email: null, signedIn: false },
 ]
 
@@ -673,6 +673,16 @@ export function fakeMachineCommand(state: EvenKeelState, name: string, body: Rec
       ...each,
       accounts: [...each.accounts, { key: 'token', agent: 'claude', email: hub?.status?.email ?? null, signedIn: true, longToken: true }],
     }))
+  }
+  if (name === 'machines/key') {
+    const folder = typeof body.folder === 'string' ? body.folder : undefined
+    return change(machine, (each) => {
+      const held = each.accounts.find((entry) => entry.key === folder && entry.keyReplaceable === true)
+      if (held !== undefined) return { ...each, accounts: each.accounts.map((entry) => (entry === held ? { ...entry, signedIn: true } : entry)) }
+      const agent = each.accounts.find((entry) => entry.key === folder)?.agent ?? String(body.agent ?? 'claude')
+      const key = `${String(body.name ?? '').trim() || folder || 'api'}-key`
+      return { ...each, accounts: [...each.accounts, { key, agent, email: null, signedIn: true, paysPerToken: true, keyReplaceable: true }] }
+    })
   }
   if (name === 'machines/sharedToken') {
     const from = state.account.accounts.find((entry) => entry.key === body.from)

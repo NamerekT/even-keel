@@ -269,6 +269,8 @@ export interface MachineAccount {
   longToken?: true
   /** It runs on a key or a cloud there (BTN-1585): signed out, it gets no browser sign-in. */
   paysPerToken?: true
+  /** The folder keeps an API key of its own there: a key from the hub replaces it in place (BTN-1684). */
+  keyReplaceable?: true
   /** A long token whose account no machine polls: its limits come only from its sessions (BTN-1266). */
   sessionsOnly?: true
   /** A long token whose sessions tell other limit windows than the poll of its account's full sign-in (BTN-1267). */

@@ -255,7 +255,7 @@ export const addAccount = {
     legend: 'Where it signs in',
     hubName: 'Hub',
     hub: 'The hub: every way of signing in',
-    machine: 'Signs in there: through a browser or on a long token',
+    machine: 'Signs in there: through a browser, on a long token or an API key',
     offline: 'Off the link',
     next: 'Next',
     tokenNone: (name: string) => `A long token is tied to a hub Claude subscription not signed in on "${name}": there is none`,

@@ -7,7 +7,7 @@ import { machineAccountOf } from './machine-page.js'
 export interface MachineAccountDeps {
   online(machine: string): boolean
   /** The machine's own `AccountControl` through the link; refuses a machine unknown or revoked. */
-  control(machine: string): Promise<Pick<AccountControl, 'remove' | 'keep' | 'switchApp' | 'rename'>>
+  control(machine: string): Promise<Pick<AccountControl, 'remove' | 'keep' | 'switchApp' | 'rename' | 'addApiKey' | 'replaceApiKey'>>
   /** The machine's accounts panel as its last snapshot posted it; `undefined` — none since the hub started. */
   panel(machine: string): AccountView | undefined
   name(machine: string): string
@@ -28,6 +28,20 @@ export interface MachineAccountCommands {
   app(machine: string, app: string, account: string): Promise<void>
   rename(machine: string, account: string, name: string): Promise<void>
   switchTo(machine: string, account: string): Promise<void>
+  /**
+   * An API key for the machine (BTN-1684), kept in its folder there as the hub keeps its own and checked there with the
+   * provider: into `folder` when that folder keeps a key of its own, else in a new folder of that folder's agent and
+   * name, or of `agent` and `name`. The key goes only as the command's payload, never into the log.
+   */
+  key(machine: string, given: MachineKey): Promise<void>
+}
+
+export interface MachineKey {
+  agent: string
+  key: string
+  name: string
+  /** The machine's folder the key is entered from: its row signed out. */
+  folder?: string
 }
 
 export function machineAccountCommands(deps: MachineAccountDeps): MachineAccountCommands {
@@ -67,6 +81,19 @@ export function machineAccountCommands(deps: MachineAccountDeps): MachineAccount
       if (hub === undefined) throw fail('machines.accountNotOnHub', { name: deps.name(machine), account: email ?? account })
       deps.log(`machines: Even Keel's account moves to the hub's folder ${hub.key}, the account of folder ${account} on machine ${machine}`)
       deps.hub.switchTo(hub.key)
+    },
+    async key(machine, { agent, key, name, folder }) {
+      const there = await control(machine)
+      const entry = folder === undefined ? undefined : deps.panel(machine)?.accounts.find((each) => each.key === folder)
+      if (folder !== undefined && entry === undefined) throw fail('account.unknown', { key: folder })
+      if (entry !== undefined && machineAccountOf(entry).keyReplaceable === true) {
+        deps.log(`machines: a new API key goes into the account folder ${entry.key} on machine ${machine}`)
+        await there.replaceApiKey(entry.key, key)
+        return
+      }
+      const of = entry?.agent ?? agent
+      deps.log(`machines: an API account of ${of} is added on machine ${machine}`)
+      await there.addApiKey(name.trim() === '' ? (folder ?? '') : name, key, of)
     },
   }
 }
