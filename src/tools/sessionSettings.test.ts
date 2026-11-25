@@ -8,7 +8,7 @@ import { contextArgs, parseContextWindow } from '../claude/context.js'
 import type { Git } from '../git/types.js'
 import { runGit } from '../git/run.js'
 import { withinWindow } from '../stats/checkpoint.js'
-import { createSessionSettings } from './sessionSettings.js'
+import { createChatSettings, createSessionSettings } from './sessionSettings.js'
 
 const project = { id: 'p', key: 'ABC', repo: 'C:/example', tracker: 'huly' }
 const raw = { projects: [project] }
@@ -118,5 +118,35 @@ describe('chain auto-compaction window', () => {
     const threshold = { first: 250_000, source: 'calibrated' as const }
     expect(withinWindow(threshold, measured('250k'), undefined, 'claude')).toMatchObject({ first: 180_000, late: 188_000, hard: 203_000 })
     expect(withinWindow(threshold, measured('300k'), undefined, 'claude')).toMatchObject({ first: 216_000, late: 238_000, hard: 253_000 })
+  })
+})
+
+describe("a Claude project chat's --settings (BTN-1694)", () => {
+  it("turns off the plugins of the user's and the folder's settings its set does not bring, on the hour-long cache, keys blanked, never trimmed", () => {
+    const root = mkdtempSync(join(tmpdir(), 'chat-settings-'))
+    try {
+      mkdirSync(join(root, 'home'))
+      mkdirSync(join(root, '.claude'))
+      writeFileSync(join(root, 'home', 'settings.json'), JSON.stringify({ enabledPlugins: { 'own@market': true } }))
+      writeFileSync(join(root, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: { 'notes@market': true } }))
+      writeFileSync(join(root, '.claude', 'settings.local.json'), JSON.stringify({ enabledPlugins: { 'local@market': true } }))
+      const seen: { task: string | null; files: unknown[] }[] = []
+      const chatSettingsFor = createChatSettings({
+        config: () => parseConfig({ cacheTtl: '5m', hiddenSkills: ['example-skill'], projects: [{ ...project, repo: root, cacheTtl: '5m' }] }),
+        packages: {
+          otherPlugins: (_project, task, files) => (seen.push({ task, files }), { 'own@market': false, 'notes@market': false }),
+          keyNames: () => ['EXAMPLE_KEY'],
+        },
+        globalDir: join(root, 'home'),
+      })
+      const settings = JSON.parse(chatSettingsFor('p', root)) as Record<string, unknown>
+      expect(seen).toEqual([{ task: null, files: [{ enabledPlugins: { 'own@market': true } }, { enabledPlugins: { 'notes@market': true } }, { enabledPlugins: { 'local@market': true } }] }])
+      expect(settings).toMatchObject({ promptCacheTtl: '1h', enabledPlugins: { 'own@market': false, 'notes@market': false }, env: { EXAMPLE_KEY: '' } })
+      expect(settings).toHaveProperty('permissions.deny')
+      expect(settings).not.toHaveProperty('skillOverrides')
+      expect(settings).not.toHaveProperty('autoCompactWindow')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })

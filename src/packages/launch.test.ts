@@ -1,17 +1,11 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { emptyPackages, type PackageInstall, type PackageRecord } from './model.js'
 import {
-  bridgePlugins,
-  ensureServerless,
   installMarketplace,
   otherPlugins,
   parseRoute,
-  pluginDir,
   routeOf,
-  serverlessDir,
   sessionPackages,
   sessionReach,
 } from './launch.js'
@@ -48,68 +42,6 @@ describe('routes', () => {
     expect(parseRoute('/mcp/x/strata/strata')).toBeNull()
     expect(parseRoute('/api/state')).toBeNull()
     expect(parseRoute('/mcp/x/strata@s1/strata/more')).toBeNull()
-  })
-})
-
-describe('bridgePlugins', () => {
-  it("gives a project chat only the built-in plugin's current install, its servers named to be turned off (BTN-1346)", () => {
-    const file = catalog()
-    expect(bridgePlugins(file, 'huly@even-keel', places.cache)).toEqual([
-      {
-        package: 'huly@even-keel',
-        dir: join(places.cache, 'huly@even-keel', 'b', 'plugin'),
-        name: 'huly',
-        marketplace: 'ek-b',
-        marketplaceFile: join(places.cache, 'huly@even-keel', 'b', '.claude-plugin', 'marketplace.json'),
-        servers: ['huly'],
-      },
-    ])
-  })
-
-  it('gives none without a built-in package, an install of it or with it removed', () => {
-    const file = catalog()
-    expect(bridgePlugins(file, undefined, places.cache)).toEqual([])
-    expect(bridgePlugins(file, 'pending@even-keel', places.cache)).toEqual([])
-    file.packages['huly@even-keel']!.removed = true
-    expect(bridgePlugins(file, 'huly@even-keel', places.cache)).toEqual([])
-  })
-})
-
-describe('ensureServerless', () => {
-  let cache: string
-  beforeEach(() => {
-    cache = mkdtempSync(join(tmpdir(), 'even-keel-serverless-'))
-  })
-  afterEach(() => rmSync(cache, { recursive: true, force: true }))
-
-  const plugin = (manifest: Record<string, unknown>) => {
-    const dir = pluginDir(cache, 'agent-bridge@even-keel', 'b')
-    mkdirSync(join(dir, '.claude-plugin'), { recursive: true })
-    mkdirSync(join(dir, 'hooks'), { recursive: true })
-    writeFileSync(join(dir, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'agent-bridge', version: '1.6.0', ...manifest }))
-    writeFileSync(join(dir, '.mcp.json'), JSON.stringify({ mcpServers: { memory: { type: 'http', url: 'http://127.0.0.1:4748/memory' } } }))
-    writeFileSync(join(dir, 'hooks', 'hooks.json'), '{"hooks":{}}')
-    writeFileSync(join(dir, 'hooks', '.mcp.json'), '{}')
-  }
-
-  it("copies the install's plugin with its hooks but without its MCP servers (BTN-1371)", () => {
-    plugin({ mcpServers: { other: { command: 'node' } } })
-    const dir = ensureServerless(cache, 'agent-bridge@even-keel', 'b')
-    expect(dir).toBe(serverlessDir(cache, 'agent-bridge@even-keel', 'b'))
-    expect(existsSync(join(dir, '.mcp.json'))).toBe(false)
-    expect(readFileSync(join(dir, 'hooks', 'hooks.json'), 'utf8')).toBe('{"hooks":{}}')
-    expect(existsSync(join(dir, 'hooks', '.mcp.json'))).toBe(true)
-    expect(JSON.parse(readFileSync(join(dir, '.claude-plugin', 'plugin.json'), 'utf8'))).toEqual({ name: 'agent-bridge', version: '1.6.0' })
-    expect(existsSync(join(pluginDir(cache, 'agent-bridge@even-keel', 'b'), '.mcp.json'))).toBe(true)
-  })
-
-  it('keeps a copy already made: an install never changes', () => {
-    plugin({})
-    const dir = ensureServerless(cache, 'agent-bridge@even-keel', 'b')
-    writeFileSync(join(dir, 'kept'), '')
-    ensureServerless(cache, 'agent-bridge@even-keel', 'b')
-    expect(existsSync(join(dir, 'kept'))).toBe(true)
-    expect(readdirSync(join(cache, 'agent-bridge@even-keel', 'b')).sort()).toEqual(['plugin', 'serverless'])
   })
 })
 
@@ -177,6 +109,17 @@ describe('sessionPackages', () => {
     file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'a', strata: 's1' } }
     file.projects.ABC!.off.push('strata')
     expect(sessionPackages(file, 'ABC', 'ABC-1', places).installs).toEqual({ 'huly@even-keel': 'a' })
+  })
+
+  it("gives a project chat, which has no task, the current installs whatever is pinned and no task in the tasks server's address (BTN-1694)", () => {
+    const file = catalog()
+    const tasks = { ...install('t1', []), servers: { tasks: { entry: { type: 'http', url: 'http://127.0.0.1:4748/tasks' }, npm: null } } }
+    file.packages['tasks@even-keel'] = { kind: 'plugin', plugin: { name: 'tasks', marketplace: 'even-keel' }, default: false, settings: {}, installs: [tasks] }
+    file.projects.ABC!.on.push('tasks@even-keel')
+    file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'a' } }
+    const got = sessionPackages(file, 'ABC', null, places)
+    expect(got.installs).toEqual({ 'huly@even-keel': 'b', strata: 's1', 'tasks@even-keel': 't1' })
+    expect(got.mcp.find((each) => each.name === 'tasks')?.url).toBe(`http://127.0.0.1:4748${routeOf(places.projectId, 'tasks@even-keel', 't1', 'tasks')}`)
   })
 
   it('takes the current install for a pin whose install is gone', () => {

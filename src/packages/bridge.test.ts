@@ -95,6 +95,29 @@ describe('the built-in bridge transition', () => {
     expect(packages.startOf('project', 'ABC-1', 'claude').plugins.map((each) => each.package)).toEqual([BRIDGE])
   })
 
+  it("gives a project chat the project's set on its current installs and pins nothing for it (BTN-1694)", () => {
+    const saved = emptyPackages()
+    saved.packages[BRIDGE] = record('agent-bridge', 'new')
+    saved.packages['notes@example'] = { ...record('notes', 'n1'), default: false }
+    saved.projects.project = { on: ['notes@example'], off: [], settings: {} }
+    saved.pins.project = { 'ABC-1': { [BRIDGE]: 'new' } }
+    const { packages, file } = fixture(saved)
+    const before = readFileSync(file, 'utf8')
+    const start = packages.chatStartOf('project', 'claude')
+    expect(start.plugins.map((each) => each.package)).toEqual([BRIDGE, 'notes@example'])
+    expect(start.mcp).toEqual([])
+    expect(packages.bringsMail(start.plugins)).toBe(true)
+    expect(readFileSync(file, 'utf8')).toBe(before)
+  })
+
+  it('refuses to start a project chat on an install whose files are gone, as a chain session (BTN-1694)', () => {
+    const saved = emptyPackages()
+    saved.packages[BRIDGE] = record('agent-bridge', 'new')
+    const { packages, oldDir } = fixture(saved)
+    rmSync(join(oldDir, '..', '..', '..', BRIDGE, 'new'), { recursive: true, force: true })
+    expect(() => packages.chatStartOf('project', 'claude')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'packages.lostMarketplace' }) }))
+  })
+
   it('knows which sessions bring the mail hooks: the bridge, not the old pinned plugin', () => {
     const saved = emptyPackages()
     saved.packages[OLD] = record('checkpoint', 'old')

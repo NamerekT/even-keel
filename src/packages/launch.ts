@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { gatewayName, type SessionMcp, type SessionPlugin } from '../agent/contract.js'
 import { isTasksUrl } from '../taskmcp/server.js'
@@ -48,37 +48,6 @@ export function pluginDir(cache: string, name: string, install: string): string 
   return join(cache, name, install, 'plugin')
 }
 
-/** The install's plugin without its MCP servers (`ensureServerless`). */
-export function serverlessDir(cache: string, name: string, install: string): string {
-  return join(cache, name, install, 'serverless')
-}
-
-/**
- * A copy of the install's plugin without `.mcp.json` and the manifest's `mcpServers`, made once: an install never
- * changes. For a Claude project chat (BTN-1371), whose CLI starts a `--plugin-dir` plugin's servers and can turn them
- * off only by `--strict-mcp-config`, which would drop the account's own servers too.
- */
-export function ensureServerless(cache: string, name: string, install: string): string {
-  const dir = serverlessDir(cache, name, install)
-  if (existsSync(dir)) return dir
-  const source = pluginDir(cache, name, install)
-  const temp = `${dir}.${process.pid}.tmp`
-  rmSync(temp, { recursive: true, force: true })
-  cpSync(source, temp, { recursive: true, filter: (path) => path !== join(source, '.mcp.json') })
-  const manifest = join(temp, '.claude-plugin', 'plugin.json')
-  if (existsSync(manifest)) {
-    const { mcpServers: _, ...rest } = JSON.parse(readFileSync(manifest, 'utf8')) as Record<string, unknown>
-    writeFileSync(manifest, `${JSON.stringify(rest, null, 2)}\n`)
-  }
-  try {
-    renameSync(temp, dir)
-  } catch (error) {
-    rmSync(temp, { recursive: true, force: true })
-    if (!existsSync(dir)) throw error
-  }
-  return dir
-}
-
 /** The marketplace of one install of a plugin package. */
 export function marketplaceName(install: string): string {
   return `ek-${install}`
@@ -101,8 +70,11 @@ export function ensureMarketplace(cache: string, name: string, install: string, 
   writeFileSync(file, `${JSON.stringify(installMarketplace(plugin, install), null, 2)}\n`)
 }
 
-/** `fileMemory` — the agent reads the memory folder itself (`readsFileMemory`): the memory server is left out, its plugin stays. */
-export function sessionPackages(file: PackagesFile, project: string, task: string, places: LaunchPlaces, fileMemory = false): SessionPackages {
+/**
+ * `fileMemory` — the agent reads the memory folder itself (`readsFileMemory`): the memory server is left out, its plugin
+ * stays. `task` null — a project chat (BTN-1694): the current installs, and no task in the servers' addresses.
+ */
+export function sessionPackages(file: PackagesFile, project: string, task: string | null, places: LaunchPlaces, fileMemory = false): SessionPackages {
   const mcp: SessionMcp[] = []
   const plugins: SessionPlugin[] = []
   const installs: Record<string, string> = {}
@@ -116,23 +88,11 @@ export function sessionPackages(file: PackagesFile, project: string, task: strin
       if (fileMemory && isMemoryUrl(entry.entry.url)) continue
       // The tasks server learns the session's task from its address: the session's own task is in its prompt (BTN-768);
       // the memory server stamps it on what the session writes (BTN-1029).
-      const own = isTasksUrl(entry.entry.url) || isMemoryUrl(entry.entry.url) ? `?task=${encodeURIComponent(task)}` : ''
+      const own = task !== null && (isTasksUrl(entry.entry.url) || isMemoryUrl(entry.entry.url)) ? `?task=${encodeURIComponent(task)}` : ''
       mcp.push({ name: server, plugin: record.plugin?.name ?? null, url: `${places.gateway}${routeOf(places.projectId, name, id, server)}${own}` })
     }
   }
   return { mcp, plugins, installs }
-}
-
-/**
- * A project chat's plugins (BTN-1346): the built-in package's current install alone, for its hooks — the chat's mail
- * mid-turn. Its servers are named so that the agent turns them off (Claude gets a copy without them, `ensureServerless`):
- * the chat keeps the account's own configuration.
- */
-export function bridgePlugins(file: PackagesFile, builtIn: string | undefined, cache: string): SessionPlugin[] {
-  const record = builtIn === undefined ? undefined : file.packages[builtIn]
-  const install = record === undefined ? undefined : current(record)
-  if (builtIn === undefined || record?.plugin === undefined || record.removed === true || install === undefined) return []
-  return [sessionPlugin(cache, builtIn, record.plugin.name, install)]
 }
 
 function sessionPlugin(cache: string, name: string, plugin: string, install: PackageInstall): SessionPlugin {

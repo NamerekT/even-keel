@@ -10,7 +10,7 @@ import { PassMemo } from '../pass-memo.js'
 import { bringsServer, NEEDS_USER, Probes, projectPackages } from './check.js'
 import { hubOwned, McpGateway, withoutAuthorization, type GatewayHub, type GatewayOAuth, type GatewayTarget, type LocalMcp } from './gateway.js'
 import { applySettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
-import { bridgePlugins, ensureMarketplace, ensureServerless, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
+import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
 import { catalogFor, followCatalog, type CatalogBrief } from './follow.js'
 import { Installs } from './installs.js'
 import { current, defaultsOf, installsFor, keepBuiltIn, OWN_SKILLS_PACKAGE, packageSettings, pluginKey, retireCheckpoint, retireOwnSkills, unpinned, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
@@ -381,7 +381,24 @@ export class Packages {
       this.prune()
       this.save()
     }
-    for (const [name, id] of Object.entries(found.installs)) {
+    this.ready(project, found.installs)
+    return { mcp: found.mcp, plugins: found.plugins }
+  }
+
+  /**
+   * What a project chat's session gets (BTN-1694): the project's set as a chain session's, on the current installs and
+   * pinned to nothing — a chat has no end a pin would wait for, so its next start takes the installs current then.
+   */
+  chatStartOf(project: string, agent: string): Pick<SessionStart, 'mcp' | 'plugins'> {
+    const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: project, builtIn: this.builtIn }
+    const found = sessionPackages(this.file, project, null, places, readsFileMemory(agent))
+    this.ready(project, found.installs)
+    return { mcp: found.mcp, plugins: found.plugins }
+  }
+
+  /** Throws for an install whose files are gone here; writes a plugin's marketplace on its first session. */
+  private ready(project: string, installs: Record<string, string>): void {
+    for (const [name, id] of Object.entries(installs)) {
       const record = this.file.packages[name]!
       const install = record.installs.find((each) => each.id === id)!
       const lost = this.installs.lostIn(project, name, install)
@@ -391,7 +408,6 @@ export class Packages {
       }
       if (record.plugin !== undefined) ensureMarketplace(this.deps.cache, name, id, record.plugin.name)
     }
-    return { mcp: found.mcp, plugins: found.plugins }
   }
 
   /** Whether a session's `plugins` bring the built-in one, whose hooks ask for the chat's mail mid-turn. */
@@ -404,27 +420,17 @@ export class Packages {
     return this.builtIn !== undefined && this.file.pins[project]?.[task]?.[this.builtIn] !== undefined
   }
 
-  /** Whether a project chat starts with the built-in plugin (`chatPlugins`). */
+  /** Whether a project chat starts with the built-in plugin: it is in every project's set while it has an install. */
   chatsMail(): boolean {
-    return this.bringsMail(bridgePlugins(this.file, this.builtIn, this.deps.cache))
+    const record = this.builtIn === undefined ? undefined : this.file.packages[this.builtIn]
+    return record?.plugin !== undefined && record.removed !== true && current(record) !== undefined
   }
 
   /**
-   * A project chat's plugins (`bridgePlugins`, BTN-1346): the built-in one's current install, not pinned — a chat has no
-   * end the pin would wait for, and its next turn takes the install current then. `withoutServers` — a copy of it without
-   * its MCP servers (`ensureServerless`), for an agent that cannot turn them off by name.
+   * `enabledPlugins: false` for every plugin the settings files enable and the task's set does not bring; `task` null —
+   * a project chat's (`chatStartOf`).
    */
-  chatPlugins(withoutServers = false): SessionPlugin[] {
-    return bridgePlugins(this.file, this.builtIn, this.deps.cache).map((plugin) => {
-      const install = current(this.file.packages[plugin.package]!)!.id
-      if (withoutServers) return { ...plugin, dir: ensureServerless(this.deps.cache, plugin.package, install), servers: [] }
-      ensureMarketplace(this.deps.cache, plugin.package, install, plugin.name)
-      return plugin
-    })
-  }
-
-  /** `enabledPlugins: false` for every plugin the settings files enable and the task's set does not bring. */
-  otherPlugins(project: string, task: string, settings: (Record<string, unknown> | undefined)[]): Record<string, false> {
+  otherPlugins(project: string, task: string | null, settings: (Record<string, unknown> | undefined)[]): Record<string, false> {
     const set = Object.keys(installsFor(this.file, project, task, this.builtIn)).flatMap((name) => {
       const plugin = this.file.packages[name]?.plugin
       return plugin === undefined ? [] : [pluginKey(plugin.name, plugin.marketplace)]
