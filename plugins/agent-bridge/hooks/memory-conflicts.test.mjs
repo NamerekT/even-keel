@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -59,6 +59,20 @@ describe("the memory conflicts hook", () => {
     rmSync(join(folder, CONFLICTS_FILE));
     expect(conflictsFor(touch("tone.md"), marks)).toBeNull();
     expect(conflictsFor({ session_id: "s-1", tool_input: { command: "ls" } }, marks)).toBeNull();
+  });
+
+  it("finds the global configuration's conflicts for a skill file opened through a link, and leaves a person's ones out (BTN-1690)", () => {
+    const skill = join(folder, "skills", "review");
+    mkdirSync(skill, { recursive: true });
+    mkdirSync(join(folder, "hooks"));
+    listConflicts(conflict(join("skills", "review", "SKILL.md").replace(/\\/g, "/")), { ...conflict("hooks/guard.mjs"), human: true });
+    const linked = join(root, "home", ".claude", "skills", "review");
+    mkdirSync(dirname(linked), { recursive: true });
+    symlinkSync(skill, linked, process.platform === "win32" ? "junction" : "dir");
+    const through = (file, session) => ({ ...touch("x", session), tool_input: { file_path: join(linked, file) } });
+    expect(conflictsFor(through("SKILL.md", "s-1"), marks)).toBe("merge skills/review/SKILL.md");
+    expect(conflictsFor(through("SKILL.md", "s-1"), marks)).toBe("merge skills/review/SKILL.md");
+    expect(conflictsFor(through("new.md", "s-2"), marks)).toBe("merge skills/review/SKILL.md");
   });
 
   it("puts the notes into the context of Claude Code's tool call", async () => {

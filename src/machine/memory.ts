@@ -1,5 +1,6 @@
 import { sharedMemory } from '../account/share.js'
 import type { GitAnswer, GitRequest } from '../link/protocol.js'
+import { CONFIG_REPOSITORY, ConfigCopy } from '../memory/git/config-copy.js'
 import { WorkingCopies } from '../memory/git/copies.js'
 import { MemoryRelay } from '../memory/git/relay.js'
 import type { MemorySyncDeps } from '../memory/git/sync.js'
@@ -39,11 +40,13 @@ export interface MachineMemoryDeps {
 /**
  * A machine's memory folders as working copies of the hub's repositories (`docs/sessions/memory.md`), reached through
  * its `MemoryRelay`. `apply` at every brief that changed; `online` at every reconnection: the commits made without
- * the link go then. The hub's own machine has none: its folders are the hub's copies (`MemoryHub`).
+ * the link go then. The hub's own machine has none: its folders are the hub's copies (`MemoryHub`). The machine's
+ * global configuration is one more copy, of the hub's `config` repository (`ConfigCopy`, BTN-1690).
  */
 export class MachineMemory {
   private readonly relay: MemoryRelay
   private readonly copies: WorkingCopies
+  private config: ConfigCopy | undefined
   private pulling: ReturnType<typeof setInterval> | undefined
   private started = false
 
@@ -64,8 +67,16 @@ export class MachineMemory {
   async start(): Promise<void> {
     await this.relay.start()
     this.started = true
+    this.config = new ConfigCopy({
+      globalDir: this.deps.globalDir,
+      remote: this.relay.originOf(CONFIG_REPOSITORY),
+      author: this.deps.author,
+      log: this.deps.log,
+      ...(this.deps.git !== undefined && { git: this.deps.git }),
+    })
+    void this.config.start()
     await this.copies.apply()
-    this.pulling = setInterval(() => void (this.deps.linked() && this.copies.syncAll()), PULL_EVERY_MS)
+    this.pulling = setInterval(() => void (this.deps.linked() && this.online()), PULL_EVERY_MS)
     this.pulling.unref()
   }
 
@@ -76,12 +87,13 @@ export class MachineMemory {
 
   /** The link is back: every copy syncs now. */
   online(): Promise<unknown> {
-    return this.copies.syncAll()
+    return Promise.allSettled([this.copies.syncAll(), this.config?.syncNow()])
   }
 
   async stop(): Promise<void> {
     clearInterval(this.pulling)
     this.copies.stop()
+    this.config?.stop()
     await this.relay.close()
   }
 }

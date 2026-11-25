@@ -4,10 +4,11 @@
 // `.git/even-keel-conflicts.json` (`CONFLICTS_FILE`, src/memory/git/conflicts.ts). A read or an edit of a file of that
 // folder brings them into the context: every one at the first touch in the session, one again whenever its own file is
 // touched, until the record is saved after the conflict. It reads only the local folder, so it works without the hub.
+// The global configuration's copy `~/.claude-config` (BTN-1690) keeps its conflicts the same way, its files in subfolders.
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { contextOutput } from "./evenkeel.mjs";
 
@@ -24,11 +25,12 @@ function readJson(path, fallback) {
   }
 }
 
-/** The open conflicts of the folder whose file is still as the conflict left it. */
+/** The open conflicts of the folder whose file is still as the conflict left it; a person's ones (`human`) are not a session's. */
 export function pendingIn(folder) {
   const conflicts = readJson(join(folder, CONFLICTS_FILE), { conflicts: [] }).conflicts;
   if (!Array.isArray(conflicts)) return [];
   return conflicts.filter((conflict) => {
+    if (conflict.human === true) return false;
     try {
       return typeof conflict.note === "string" && hashOf(readFileSync(join(folder, conflict.file), "utf8")) === conflict.hash;
     } catch {
@@ -37,12 +39,41 @@ export function pendingIn(folder) {
   });
 }
 
+/** The path with every link resolved; a file not made yet — through its nearest existing folder. */
+function realOf(path) {
+  let rest = "";
+  for (let at = path; ; ) {
+    try {
+      return join(realpathSync(at), rest);
+    } catch {
+      const up = dirname(at);
+      if (up === at) return path;
+      rest = join(basename(at), rest);
+      at = up;
+    }
+  }
+}
+
+/**
+ * The working copy a file lies in: the first folder up from its real path with a `.git`. A skill opened through
+ * `~/.claude/skills/<name>` or an account folder's link lies in the global configuration's copy (BTN-1690).
+ */
+function folderOf(file) {
+  for (let at = dirname(file); ; ) {
+    if (existsSync(join(at, ".git"))) return at;
+    const up = dirname(at);
+    if (up === at) return null;
+    at = up;
+  }
+}
+
 /** The text for the context of this tool call, or null; `marks` keeps what the session was told. */
 export function conflictsFor(input, marksDir = MARKS_DIR) {
   const path = input?.tool_input?.file_path;
   if (typeof path !== "string" || path === "" || typeof input.session_id !== "string") return null;
-  const file = resolve(input.cwd || ".", path);
-  const folder = dirname(file);
+  const file = realOf(resolve(input.cwd || ".", path));
+  const folder = folderOf(file);
+  if (folder === null) return null;
   const pending = pendingIn(folder);
   if (pending.length === 0) return null;
   const marksFile = join(marksDir, `${input.session_id.replace(/[^\w.-]/g, "_")}.json`);

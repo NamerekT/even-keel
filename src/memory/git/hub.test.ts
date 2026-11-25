@@ -103,6 +103,29 @@ describe('MemoryHub (BTN-1646)', { timeout: 120_000 }, () => {
     expect(hub.mirrorView()).toEqual({ code: 'memory.mirrorPrivate', params: { address: mirror } })
   })
 
+  it('keeps the global configuration in its own repository config.git, mirrored to the branch config (BTN-1690)', async () => {
+    const mirror = join(root, 'mirror.git')
+    await runGit(root, ['init', '--bare', '-q', mirror])
+    const globalDir = join(root, 'home', '.claude')
+    mkdirSync(join(root, 'home', '.claude-skills', 'review'), { recursive: true })
+    writeFileSync(join(root, 'home', '.claude-skills', 'review', 'SKILL.md'), '# Review\n')
+    mkdirSync(join(globalDir, 'skills'), { recursive: true })
+    symlinkSync(join(root, 'home', '.claude-skills', 'review'), join(globalDir, 'skills', 'review'), process.platform === 'win32' ? 'junction' : 'dir')
+    writeFileSync(join(globalDir, 'CLAUDE.md'), '# Rules\n')
+    writeFileSync(join(globalDir, 'settings.json'), JSON.stringify({ model: 'opus', env: { ONLY_HERE: '1' } }))
+    hub.stop()
+    hub = new MemoryHub({ db, dir, folders: () => ({}), author: 'hub', log: (line) => logs.push(line), mirror: () => mirror, globalDir, schedule: () => () => {}, watch: () => () => {} })
+    await hub.apply()
+    await hub.syncAll('config')
+    expect(hub.existingRepository('config')).toBe(join(dir, 'config.git'))
+    expect(await inRepository('config')).toEqual(['.gitattributes', 'CLAUDE.md', 'settings.json', 'skills'])
+    expect((await runGit(join(dir, 'config.git'), ['show', `${MEMORY_BRANCH}:settings.json`])).out).not.toContain('ONLY_HERE')
+    expect(readFileSync(join(root, 'home', '.claude-config', 'skills', 'review', 'SKILL.md'), 'utf8')).toBe('# Review\n')
+    const head = async () => (await runGit(join(dir, 'config.git'), ['rev-parse', MEMORY_BRANCH])).out
+    const mirrored = async () => (await runGit(root, ['ls-remote', mirror, 'refs/heads/config'])).out.split('\t')[0]
+    await vi.waitFor(async () => expect(await mirrored()).toBe(await head()), { timeout: 30_000, interval: 100 })
+  })
+
   it("makes a lost repository from the mirror's branch of the project, its history as it was (BTN-1674)", async () => {
     const mirror = join(root, 'mirror.git')
     await runGit(root, ['init', '--bare', '-q', mirror])

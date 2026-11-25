@@ -35,6 +35,15 @@ describe("the hub's answer to a machine's git (BTN-1648)", { timeout: 120_000 },
     expect(d.backend).not.toHaveBeenCalled()
   })
 
+  it('serves the global configuration to every machine of the network (BTN-1690)', async () => {
+    const d = deps({ repository: (project) => (project === 'config' ? '/state/memory/config.git' : null) })
+    const git = hubMemoryGit(d)
+    expect((await git('m3', 'config', PUSH)).status).toBe(200)
+    expect(d.backend).toHaveBeenCalledWith('/state/memory/config.git', PUSH, 'm3')
+    expect(d.pushed).toHaveBeenCalledWith('config')
+    expect(d.placed).not.toHaveBeenCalled()
+  })
+
   it('answers 404 for a project without a repository yet', async () => {
     const d = deps({ placed: async () => true })
     expect((await hubMemoryGit(d)('m1', 'p2', UPLOAD)).status).toBe(404)
