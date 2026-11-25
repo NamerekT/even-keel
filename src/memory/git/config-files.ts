@@ -6,6 +6,12 @@ import { fileHash } from '../record.js'
 export const CONFIG_FILES = ['CLAUDE.md', 'settings.json'] as const
 type ConfigFile = (typeof CONFIG_FILES)[number]
 
+/**
+ * Keys of `settings.json` each machine keeps its own (BTN-1707): `env`, and those holding a machine's absolute paths —
+ * hook commands, the status line, a marketplace's folder. The hook files themselves travel; their registration does not.
+ */
+export const MACHINE_SETTINGS: readonly string[] = ['env', 'hooks', 'statusLine', 'extraKnownMarketplaces']
+
 /** What the last exchange left on both sides, by file: the hash of the global folder's file and of the copy's. */
 const STATE_FILE = join('.git', 'even-keel-config-files.json')
 
@@ -25,7 +31,7 @@ export interface ConfigFilesDeps {
  * keeps copies of them (BTN-1690, `docs/sessions/memory.md`). `takeIn` runs before a sync's commit: a file edited in the
  * global folder since the last exchange goes into the copy. `giveOut` runs after the sync: a copy the sync changed goes
  * back, unless the global file was edited meanwhile (the next sync takes that in). `settings.json` travels without its
- * `env`: each machine keeps its own. A deletion travels in neither direction.
+ * `MACHINE_SETTINGS`: each machine keeps its own. A deletion travels in neither direction.
  */
 export class ConfigFiles {
   private readonly told = new Set<string>()
@@ -39,8 +45,11 @@ export class ConfigFiles {
       const live = readText(join(this.deps.globalDir, file))
       if (live === null) continue
       const liveHash = fileHash(live)
-      if (state[file]?.live === liveHash) continue
-      const copy = file === 'settings.json' ? this.sharedSettings(live) : live
+      if (state[file]?.live === liveHash) {
+        if (file === 'settings.json' && this.dropLocalFromCopy(state)) changed = true
+        continue
+      }
+      const copy = file === 'settings.json' ? this.sharedSettings(live, this.deps.globalDir) : live
       if (copy === null) continue
       const path = join(this.deps.folder, file)
       if (readText(path) !== copy) {
@@ -78,22 +87,40 @@ export class ConfigFiles {
     if (changed) this.save(state)
   }
 
-  /** The global `settings.json` as the copy keeps it: without `env`, two spaces, a newline at the end. */
-  private sharedSettings(text: string): string | null {
-    const settings = this.parse(text, join(this.deps.globalDir, 'settings.json'))
+  /** `settings.json` as the copy keeps it: without the machine-local keys, two spaces, a newline at the end. */
+  private sharedSettings(text: string, dir: string): string | null {
+    const settings = this.parse(text, join(dir, 'settings.json'))
     if (settings === null) return null
-    const { env: _env, ...shared } = settings
+    const shared = Object.fromEntries(Object.entries(settings).filter(([key]) => !MACHINE_SETTINGS.includes(key)))
     return `${JSON.stringify(shared, null, 2)}\n`
   }
 
-  /** The copy's `settings.json` with the global one's own `env`. */
+  /**
+   * A copy still holding machine-local keys, written by a build of before BTN-1707 while the global file has not changed
+   * since, loses them: otherwise they would stay in the network until the global file is next edited.
+   */
+  private dropLocalFromCopy(state: State): boolean {
+    const path = join(this.deps.folder, 'settings.json')
+    const copy = readText(path)
+    if (copy === null) return false
+    const copyHash = fileHash(copy)
+    if (state['settings.json']?.copy !== copyHash) return false
+    const shared = this.sharedSettings(copy, this.deps.folder)
+    if (shared === null || shared === copy) return false
+    writeFileSync(path, shared)
+    state['settings.json'] = { live: state['settings.json'].live, copy: fileHash(shared) }
+    return true
+  }
+
+  /** The copy's `settings.json` with the global one's own machine-local keys. */
   private ownSettings(copy: string, live: string | null): string | null {
     const settings = this.parse(copy, join(this.deps.folder, 'settings.json'))
     if (settings === null) return null
-    const { env: _env, ...shared } = settings
     const own = live === null ? null : this.parse(live, join(this.deps.globalDir, 'settings.json'))
-    const env = own?.env
-    return `${JSON.stringify(env === undefined ? shared : { ...shared, env }, null, 2)}\n`
+    const out: Json = {}
+    for (const [key, value] of Object.entries(settings)) if (!MACHINE_SETTINGS.includes(key)) out[key] = value
+    for (const key of MACHINE_SETTINGS) if (own?.[key] !== undefined) out[key] = own[key]
+    return `${JSON.stringify(out, null, 2)}\n`
   }
 
   private parse(text: string, path: string): Json | null {
