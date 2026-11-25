@@ -1004,6 +1004,37 @@ describe('chainBlocks', () => {
       expect(block.pinWait).toEqual({ why: 'busy', machines: ['Server'] })
       expect(chainBlocks(state, 'ABC')[0]?.pinWait).toBeUndefined()
     })
+
+    describe('the fix of main (BTN-1572)', () => {
+      const fixing = [{ ...running('ABC-2'), machine: 'srv' }, { ...running('ABC-FIX'), machine: 'pc', fixOnly: true as const }]
+      const names = { machineNames: { pc: 'PC', srv: 'Server' } }
+      const fixOf = (state: EvenKeelState) => chainBlocks(state, 'ABC').find((block) => block.id === 'ABC-FIX.1')
+
+      it('labels the live fix with the machine of the lane that runs it, the head lane or not', () => {
+        const state = stateOf({ tasks, sessions: [view('ABC-FIX', 'working', null)], chain: chain({ active: fixing, projects }), ...names })
+        expect(fixOf(state)?.machines).toEqual([{ id: 'pc', name: 'PC' }])
+        expect(chainBlocks(state, 'ABC').find((block) => block.id === 'ABC-2')?.machines).toEqual([{ id: 'srv', name: 'Server' }])
+      })
+
+      it('labels the live fix with the machine its sessions ran on where its lane names none', () => {
+        const runs = { 'ABC-FIX.1': [{ sessionId: 'f1', at: '2026-01-01T10:00:00.000Z', how: 'launch' as const, resumed: 0, answers: 0, machine: 'pc' }] }
+        const own = [fixing[0]!, { ...running('ABC-FIX'), fixOnly: true as const }]
+        const state = stateOf({ tasks, sessions: [view('ABC-FIX', 'working', null)], taskSessions: runs, chain: chain({ active: own, projects }), ...names })
+        expect(fixOf(state)?.machines).toEqual([{ id: 'pc', name: 'PC' }])
+      })
+
+      it('labels a fix that is over with the machines its sessions ran on', () => {
+        const runs = { 'ABC-FIX.1': [{ sessionId: 'f1', at: '2026-01-01T09:30:00.000Z', how: 'launch' as const, resumed: 0, answers: 0, machine: 'pc' }] }
+        const landed = { id: 'ABC-FIX.1', red: 'c6b3956', at: '2026-01-01T09:30:00.000Z', end: { at: '2026-01-01T10:00:00.000Z', how: 'landed' as const, commit: '15945fe' } }
+        const state = stateOf({ tasks, taskSessions: runs, fixes: { ABC: [landed] }, chain: chain({ active: lanes, projects }), ...names })
+        expect(fixOf(state)?.machines).toEqual([{ id: 'pc', name: 'PC' }])
+      })
+
+      it('labels no fix with one machine', () => {
+        const state = stateOf({ tasks, sessions: [view('ABC-FIX', 'working', null)], chain: chain({ active: fixing, projects }), machineNames: { pc: 'PC' } })
+        expect(fixOf(state)?.machines).toBeUndefined()
+      })
+    })
   })
 
   it('marks the tasks whose live session outlasted the stopped chain', () => {
