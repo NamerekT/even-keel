@@ -19,12 +19,20 @@
   background: var(--surface-muted);
 }
 
+/* A machine's row (BTN-1553): the head, then a line and its facts in a column, indented past the lamp. */
 .pool__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12) var(--space-12);
+  min-width: 0;
+}
+
+.pool__head {
   display: flex;
   align-items: center;
   gap: var(--space-12);
-  padding: var(--space-8) var(--space-12);
-  min-height: 44px;
+  min-height: 28px;
 }
 
 .pool__row + .pool__row {
@@ -52,18 +60,14 @@
   border-radius: var(--radius-pill);
 }
 
-.pool__main {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
+/* The name and its marks; on a narrow panel the marks go under the name. */
 .pool__name {
   display: flex;
+  flex: 1;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-8);
+  gap: var(--space-4) var(--space-8);
+  min-width: 0;
   font-size: var(--text-14);
   font-weight: 600;
 }
@@ -73,8 +77,16 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-6);
+  min-width: 0;
+  max-width: 100%;
   color: inherit;
   text-decoration: none;
+}
+
+.pool__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pool__link:hover {
@@ -97,20 +109,44 @@
   white-space: nowrap;
 }
 
-/* What the machine runs after a green main (BTN-994): a muted caption under its folder, a tag per command (BTN-1381). */
-.pool__after {
+/* The row's facts (BTN-1553): a caption over each value, under a line that starts past the lamp. */
+.pool__facts {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-4) var(--space-6);
-  color: var(--fg-muted);
-  font-size: var(--text-12);
+  flex-direction: column;
+  gap: var(--space-12);
+  margin: 0 0 0 calc(8px + var(--space-12));
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--border);
+  min-width: 0;
 }
 
-.pool__after .tag {
-  max-width: 100%;
-  font-family: var(--mono);
-  overflow-wrap: anywhere;
+.pool__fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.pool__fact dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.pool__facts .pool__folder {
+  color: var(--fg);
+  font-size: var(--text-13);
+}
+
+.pool__muted {
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
+/* A machine's own commands after a green main: a command block each (BTN-1553). */
+.pool__commands {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
 }
 
 .pool__empty {

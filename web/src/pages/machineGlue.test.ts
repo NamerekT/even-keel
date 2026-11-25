@@ -39,15 +39,24 @@ describe('the machine screens glue no facts with a dot (BTN-1381)', () => {
     expect(markup).toContain('Claude')
   })
 
-  it('lists the commands after green as tags', () => {
-    const markup = html(createElement(AfterGreen, { commands: ['Tests', 'macOS'], own: false }))
+  it("shows a machine's own commands after green as a command block each, never a tag (BTN-1553)", () => {
+    const markup = html(createElement(AfterGreen, { commands: ['npm run build', 'npm run deploy'], own: true }))
     expect(markup).not.toContain('·')
-    expect(markup.match(/class="tag"/g)).toHaveLength(2)
+    expect(markup).not.toContain('class="tag"')
+    expect(markup.match(/class="ui-command[ "]/g)).toHaveLength(2)
+    expect(markup).toContain('npm run deploy')
   })
 
-  it('says by one tag that a machine runs no commands after green (BTN-1597)', () => {
+  it("says the project's commands run without repeating them on every machine (BTN-1553)", () => {
+    const markup = html(createElement(AfterGreen, { commands: ['npm run build'], own: false })).replaceAll('&#x27;', "'")
+    expect(markup).toContain(t.pool.afterGreenProjects)
+    expect(markup).not.toContain('npm run build')
+    expect(markup).not.toContain('ui-command')
+  })
+
+  it('says in words that a machine runs no commands after green (BTN-1597)', () => {
     const markup = html(createElement(AfterGreen, { commands: [], own: true, off: true }))
-    expect(markup.match(/class="tag"/g)).toHaveLength(1)
+    expect(markup).not.toContain('class="tag"')
     expect(markup).toContain(t.pool.afterGreenOff)
   })
 

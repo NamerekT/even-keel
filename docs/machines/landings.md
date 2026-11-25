@@ -45,7 +45,7 @@ BTN-994: a green `main` runs `commands.afterGreen` on every machine of the pool 
 - **A machine off the link** catches up once: when it is back and briefed (`MachineNetwork` option `briefed`), each
   project of its pool whose last green commit (`ChainState.ci[project].green`, with the guard on) is not its
   `after_green` runs once, on that commit only.
-- The tab "Machines" shows under each row's folder what it runs after a green main, a tag per command (BTN-1381), the tip saying whose they are. The machine pick of "Connect" marks one off the link by a hollow lamp after its name (`machineOption`), and a server of the machine's own values whose name differs from its package's is a tag beside the package (`ServerName`).
+- The tab "Machines" (BTN-1553) gives each row a head — the lamp, the name, its marks, the switch — and under a line its facts, a caption over each value: "Folder", one line cut by an ellipsis with the whole path in its tip, and "After a green main": the machine's own commands a `CommandBlock` each, the project's ones only named ("the project's commands", never repeated on every machine), turned off said in words; the caption's tip says whose they are. The machine pick of "Connect" marks one off the link by a hollow lamp after its name (`machineOption`), and a server of the machine's own values whose name differs from its package's is a tag beside the package (`ServerName`).
 
 ## Landings across machines
 

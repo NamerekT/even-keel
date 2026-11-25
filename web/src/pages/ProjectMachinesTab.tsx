@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import type { EvenKeelState, PoolMachine, ProjectPool } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
@@ -6,6 +6,7 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { machinePath } from '../machineColor.js'
 import { severalMachines } from '../machineView.js'
+import { CommandBlock } from '../ui/blocks.js'
 import { Loading } from '../ui/Loader.js'
 import { MachineMark } from '../ui/MachineIcon.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -21,26 +22,41 @@ import './projectMachines.css'
 /** The section "Machines" is shown only where the hub has a machine elsewhere: with one, there is nothing to pick. */
 export const poolShown = (state: EvenKeelState | null): boolean => severalMachines(state)
 
+/** One fact of a machine's row: the caption over the value (BTN-1553). */
+function PoolFact({ label, tip, children }: { label: string; tip?: string; children: ReactNode }) {
+  return (
+    <div className="pool__fact">
+      <dt className="ui-label">
+        {tip === undefined ? (
+          label
+        ) : (
+          <Tipped tip={tip} inline align="start">
+            <span>{label}</span>
+          </Tipped>
+        )}
+      </dt>
+      {children}
+    </div>
+  )
+}
+
 /**
- * A machine's commands after a green main as tags after their caption; whose they are — the machine's or the project's —
- * is the tip. `off` — the machine turned them off (BTN-1597): one tag says so.
+ * A machine's commands after a green main as a fact of its row (BTN-1553): its own ones a command block each; the
+ * project's ones only named, the same for every machine; `off` — the machine turned them off (BTN-1597).
  */
 export function AfterGreen({ commands, own, off = false }: { commands: string[]; own: boolean; off?: boolean }) {
   return (
-    <Tipped tip={off ? t.pool.afterGreenOffTip : own ? t.pool.afterGreenOwn : t.pool.afterGreenProject} inline align="start">
-      <span className="pool__after">
-        {t.pool.afterGreen}
-        {off ? (
-          <span className="tag">{t.pool.afterGreenOff}</span>
-        ) : (
-          commands.map((command, index) => (
-            <bdi key={index} className="tag" dir="ltr">
-              {command}
-            </bdi>
-          ))
-        )}
-      </span>
-    </Tipped>
+    <PoolFact label={t.pool.afterGreen} tip={off ? t.pool.afterGreenOffTip : own ? t.pool.afterGreenOwn : t.pool.afterGreenProject}>
+      {off || !own ? (
+        <dd className="pool__muted">{off ? t.pool.afterGreenOff : t.pool.afterGreenProjects}</dd>
+      ) : (
+        <dd className="pool__commands">
+          {commands.map((command, index) => (
+            <CommandBlock key={index} command={command} />
+          ))}
+        </dd>
+      )}
+    </PoolFact>
   )
 }
 
@@ -97,33 +113,37 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
               <ul className="pool">
                 {pool.machines.map((machine) => (
                   <li key={machine.id} className="pool__row">
-                    <span className={`pool__dot${machine.online ? ' pool__dot--online' : ''}`} aria-hidden="true" />
-                    <span className="pool__main">
+                    <div className="pool__head">
+                      <span className={`pool__dot${machine.online ? ' pool__dot--online' : ''}`} aria-hidden="true" />
                       <span className="pool__name">
                         <Link to={machinePath(machine.id)} className="pool__link">
                           <MachineMark id={machine.id} />
-                          {machine.name}
+                          <span className="pool__label">{machine.name}</span>
                         </Link>
                         {machine.own && <span className="tag">{t.pool.own}</span>}
                         {!machine.online && <span className="pool__offline">{t.pool.offline}</span>}
+                        {slot > 0 && (
+                          <Tipped tip={t.pool.slotsTip} inline>
+                            <span className="tag">{t.pool.slots(slot)}</span>
+                          </Tipped>
+                        )}
                       </span>
-                      <Tipped tip={t.pool.folderTip} inline align="start">
-                        <bdi className="pool__folder" dir="ltr">
-                          {machine.folder}
-                        </bdi>
-                      </Tipped>
+                      <Switch checked={machine.enabled} disabled={sending} label={t.pool.enable(machine.name)} onChange={(on) => void enable(machine, on)} />
+                    </div>
+                    <dl className="pool__facts">
+                      <PoolFact label={t.pool.folder}>
+                        <dd>
+                          <Tipped tip={machine.folder} align="start" className="pool__folder">
+                            <bdi dir="ltr">{machine.folder}</bdi>
+                          </Tipped>
+                        </dd>
+                      </PoolFact>
                       {machine.settings.afterGreenOff === true ? (
                         <AfterGreen commands={[]} own off />
                       ) : (
                         machine.afterGreen.length > 0 && <AfterGreen commands={machine.afterGreen} own={machine.settings.afterGreen !== undefined} />
                       )}
-                    </span>
-                    {slot > 0 && (
-                      <Tipped tip={t.pool.slotsTip} inline>
-                        <span className="tag">{t.pool.slots(slot)}</span>
-                      </Tipped>
-                    )}
-                    <Switch checked={machine.enabled} disabled={sending} label={t.pool.enable(machine.name)} onChange={(on) => void enable(machine, on)} />
+                    </dl>
                   </li>
                 ))}
               </ul>

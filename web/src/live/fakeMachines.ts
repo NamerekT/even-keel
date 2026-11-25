@@ -112,7 +112,10 @@ export class FakeNetwork {
   private rows(project: string): PoolMachine[] {
     const own: PoolMachine = { id: OWN, name: OWN_NAME, own: true, online: true, folder: this.repoOf(project), enabled: true, settings: {}, afterGreen: [] }
     const laptop: PoolMachine = { id: 'machine-1', name: 'Example laptop', own: false, online: true, folder: `${LONG_ROOT}/${folderName(this.repoOf(project))}`, enabled: true, settings: {}, afterGreen: [] }
-    const rows = this.pools.get(project) ?? (this.pooled ? [own, laptop] : [own])
+    // `pooledCommands` (BTN-1553): the laptop runs its own commands after a green main, the desktop none.
+    const desktop: PoolMachine = { id: 'machine-2', name: 'Example desktop', own: false, online: true, folder: `D:/Projects/${folderName(this.repoOf(project))}`, enabled: true, settings: { afterGreenOff: true }, afterGreen: [] }
+    const commands: PoolMachine = { ...laptop, settings: { afterGreen: OWN_AFTER_GREEN } }
+    const rows = this.pools.get(project) ?? (this.mode === 'pooledCommands' ? [own, commands, desktop] : this.pooled ? [own, laptop] : [own])
     this.pools.set(project, rows)
     return rows
   }
@@ -123,7 +126,7 @@ export class FakeNetwork {
   }
 
   private get pooled(): boolean {
-    return this.mode === 'pooled' || this.mode === 'pooledOff'
+    return this.mode === 'pooled' || this.mode === 'pooledOff' || this.mode === 'pooledCommands'
   }
 
   private poolOf(project: string): ProjectPool {
@@ -399,6 +402,8 @@ export class FakeNetwork {
 
 /** The command lists and the stdio servers every project of `dev:fake` has, for a machine's own ones (BTN-994). */
 const FAKE_COMMANDS = { beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], afterGreen: ['npm run build'] }
+/** A machine's own commands after a green main in `?machines=pooledCommands`: the first too long for a line of the panel. */
+const OWN_AFTER_GREEN = ['git -C "$HOME/example-run" pull -q --ff-only origin main && "$HOME/example-run/service/rebuild.sh" "$(git rev-parse HEAD)" >>"$HOME/example-run/logs/rebuild.log" 2>&1', 'npm run deploy']
 const FAKE_SERVERS = [
   { package: 'files', server: 'files', command: 'npx', args: ['-y', 'example-files-mcp', '/home/example/shared'] },
   // A package whose server is named apart from it: its name shows the server as a tag (BTN-1381).
