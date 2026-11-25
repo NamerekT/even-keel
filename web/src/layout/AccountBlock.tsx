@@ -5,7 +5,7 @@ import { limitSpans, type LimitWindow, type RateLimits } from '../../../src/limi
 import { formatSpan, formatTokens } from '../format.js'
 import { t } from '../i18n/index.js'
 import { accountBadge } from '../state.js'
-import { AccountsDrawer } from '../pages/Accounts.js'
+import { AccountPanel, ViewAccountPanel } from './Account.js'
 import { useMachineFilter } from './MachineFilter.js'
 import { spendsByKey, spendText, useSpend, useTokens, type Spend, type Tokens } from './accountParts.js'
 import { seriesStyle } from '../ui/series.js'
@@ -51,7 +51,7 @@ export function AccountBlock({ account, now, levels = [{ account: account.active
       </span>
     </button>
     {!open && <AccountLevels account={account} levels={levels} now={now} spend={spend} tokens={tokens} machine={machine} />}
-    {open && <AccountsDrawer card={machine?.card ?? null} onClose={() => setOpen(false)} />}
+    {open && <AccountPanel account={account} spend={spend} tokens={tokens} onClose={() => setOpen(false)} machine={machine} />}
   </div>
 }
 
@@ -106,6 +106,6 @@ export function AccountSheet({ account, now }: BlockProps) {
       {account.accounts.some((entry) => entry.needsLogin || entry.error !== null) && <span className="account-problem-dot" aria-label={t.account.checkFailedShort} />}
       <span className="sheet__chevron" aria-hidden="true">›</span>
     </button>
-    {open && <AccountsDrawer card={selected} onClose={() => setOpen(false)} />}
+    {open && <ViewAccountPanel account={account} card={selected} onClose={() => setOpen(false)} />}
   </div>
 }
