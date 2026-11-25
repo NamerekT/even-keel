@@ -19,7 +19,7 @@ import { MachineMark } from '../ui/MachineIcon.js'
 import { Select } from '../ui/Select.js'
 import { TipFacts } from '../ui/TipFacts.js'
 import { Tipped } from '../ui/Tipped.js'
-import { accountAfter, machineChoices, machinePanel } from './chatMachines.js'
+import { accountAfter, chatOptions, machineChoices, machinePanel } from './chatMachines.js'
 import { HelpTip } from './settingsParts.js'
 import { modelsReading, offersOf, useModelCatalog } from './useModels.js'
 import { CloseIcon } from '../ui/icons.js'
@@ -56,7 +56,7 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
   const shownMachine = machine ?? machines?.picked ?? null
   const choices = machineChoices(machines)
   const view = machinePanel(machines, shownMachine, state?.account)
-  const groups = view === undefined ? [] : accountGroups(view, now)
+  const groups = view === undefined ? [] : accountGroups(chatOptions(view), now)
   const open = groups.flatMap((group) => group.entries).filter((entry) => blockOf(entry, now) === null)
   const [wanted, setAccount] = useState(choice?.account ?? '')
   // The account follows the machine: one the machine picked has not, or not open, gives way to the first that is (BTN-1614).
@@ -140,8 +140,9 @@ export function NewChatDialog({ project, choice, onClose, onStarted }: Props) {
             <CloseIcon />
           </button>
         </header>
+        {/* Above the scrolling body: a long list of accounts never takes the machine out of view (BTN-1670). */}
+        {choices.length > 0 && <MachinePick machines={choices} picked={shownMachine} onPick={setMachine} />}
         <div className="add-package__body new-chat__body">
-          {choices.length > 0 && <MachinePick machines={choices} picked={shownMachine} onPick={setMachine} />}
           {unread ? (
             <p className="notice notice--warn">{t.chats.dialog.unread}</p>
           ) : groups.length === 0 || open.length === 0 ? (
@@ -213,7 +214,7 @@ function MachinePick({ machines, picked, onPick }: { machines: ChatMachine[]; pi
   const { state } = useLive()
   const text = t.chats.dialog
   return (
-    <section role="radiogroup" aria-label={text.machine} className="new-chat__group">
+    <section role="radiogroup" aria-label={text.machine} className="new-chat__group new-chat__machines">
       <h3 className="new-chat__agent">{text.machine}</h3>
       {machines.map((each) => {
         const on = each.id === picked

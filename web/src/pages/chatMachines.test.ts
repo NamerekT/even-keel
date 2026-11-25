@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import type { ChatMachines } from '../../../src/chats/model.js'
-import { accountAfter, chatAccounts, machineChoices, machinePanel } from './chatMachines.js'
+import { accountAfter, chatAccounts, chatOptions, machineChoices, machinePanel } from './chatMachines.js'
 
 const entry = (key: string): AccountEntry => ({ key, agent: 'claude' }) as AccountEntry
 const panel = (...keys: string[]): AccountView => ({ active: keys[0] ?? '', accounts: keys.map(entry) }) as AccountView
@@ -50,5 +50,60 @@ describe('the accounts a chat goes on with in a new session (BTN-1614)', () => {
     expect(chatAccounts(answer, 'machine-far', 'machine-own', OWN_PANEL)?.map((each) => each.key)).toEqual(['server-work'])
     expect(chatAccounts(answer, 'machine-away', 'machine-own', OWN_PANEL)).toEqual([])
     expect(chatAccounts(answer, 'machine-gone', 'machine-own', OWN_PANEL)).toEqual([])
+  })
+})
+
+const account = (key: string, fields: Partial<AccountEntry> = {}): AccountEntry => ({
+  key, name: null, agent: 'claude', global: false, needsLogin: false, removing: false, apiKey: false, limits: null,
+  status: { loggedIn: true, authMethod: 'claude.ai', email: `${key}@example.com`, orgName: null, subscriptionType: 'max' },
+  ...fields,
+}) as AccountEntry
+
+describe('the accounts of a machine elsewhere in the "New session" window (BTN-1670)', () => {
+  const hub = { active: 'work', accounts: [account('work', { name: 'Work', status: { loggedIn: true, authMethod: 'claude.ai', email: 'jane@example.com', orgName: null, subscriptionType: 'max' } })] } as AccountView
+  const far = (accounts: AccountEntry[]): ChatMachines => ({
+    picked: 'machine-own',
+    machines: [answer.machines[0]!, { id: 'machine-far', name: 'Home server', own: false, block: null, accounts: { active: '', accounts } as unknown as AccountView }],
+  })
+
+  it("names an account by the hub's name of the same e-mail, keeping the machine's folder key", () => {
+    const there = account('claude-3', { status: { loggedIn: true, authMethod: 'claude.ai', email: 'JANE@example.com', orgName: null, subscriptionType: 'max' } })
+    const shown = machinePanel(far([there, account('solo')]), 'machine-far', hub)?.accounts
+    expect(shown?.map((each) => [each.key, each.name])).toEqual([['claude-3', 'Work'], ['solo', null]])
+  })
+
+  it('names a signed-out folder by the e-mail it was last signed in as', () => {
+    const out = account('claude-4', { needsLogin: true, lastEmail: 'jane@example.com', status: { loggedIn: false, authMethod: null, email: null, orgName: null, subscriptionType: null } })
+    expect(machinePanel(far([out]), 'machine-far', hub)?.accounts[0]?.name).toBe('Work')
+  })
+})
+
+describe('the accounts a new chat may start on (BTN-1670)', () => {
+  const spent = account('spent', { limits: { fiveHour: { usedPercentage: 100, resetsAt: '2026-11-25T12:00:00Z' }, sevenDay: null } as AccountEntry['limits'] })
+
+  it('leaves out one signed out there, one whose sign-in expired and one being removed', () => {
+    const view = { active: '', accounts: [
+      account('open'),
+      account('out', { status: { loggedIn: false, authMethod: null, email: null, orgName: null, subscriptionType: null } }),
+      account('expired', { needsLogin: true }),
+      account('unread', { status: null }),
+      account('leaving', { removing: true }),
+    ] } as unknown as AccountView
+    expect(chatOptions(view).accounts.map((each) => each.key)).toEqual(['open'])
+  })
+
+  it('leaves out an API account whose key the provider refused or the CLI does not find, keeps one with its key', () => {
+    const key = { loggedIn: true, authMethod: 'api_key', email: null, orgName: null, subscriptionType: null }
+    const view = { active: '', accounts: [
+      account('keyed', { apiKey: true, keyReplaceable: true, status: key }),
+      account('refused', { apiKey: true, keyReplaceable: true, needsLogin: true, status: key }),
+      account('keyless', { status: { ...key, loggedIn: false, authMethod: null } }),
+    ] } as unknown as AccountView
+    expect(chatOptions(view).accounts.map((each) => each.key)).toEqual(['keyed'])
+  })
+
+  it('keeps an account on a limit: it waits, greyed with its reset', () => {
+    const view = { active: '', accounts: [account('open'), spent] } as unknown as AccountView
+    expect(chatOptions(view).accounts.map((each) => each.key)).toEqual(['open', 'spent'])
   })
 })

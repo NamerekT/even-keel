@@ -451,6 +451,13 @@
   background: var(--surface-muted);
 }
 
+/* The machine pick sits between the head and the scrolling body, as wide as the body's content; it never shrinks,
+   which a hidden overflow in a flex column otherwise lets it do down to nothing (BTN-1670). */
+.new-chat__machines {
+  flex-shrink: 0;
+  margin: var(--space-6) 20px;
+}
+
 .new-chat__agent {
   display: flex;
   align-items: center;

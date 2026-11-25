@@ -35,16 +35,19 @@ function poolOf(state: EvenKeelState, project: string): string[] {
 
 /**
  * `chats/machines` of the fake: the own machine, the first one elsewhere with all but the first of the own accounts,
- * as its mirror would have them, and any further one off the link.
+ * as its mirror would have them — without the hub's names, which the window puts back by e-mail (BTN-1670), and with
+ * a folder signed out there, which it leaves out — and any further one off the link.
  */
 function machinesOf(state: EvenKeelState, project: string): ChatMachines {
   const ids = poolOf(state, project)
+  const far = state.account.accounts.slice(1).map((entry) => ({ ...entry, name: null }))
+  const out = state.account.accounts[0] === undefined ? [] : [{ ...state.account.accounts[0], key: 'signed-out', name: null, needsLogin: true, limits: null }]
   const machines: ChatMachine[] = ids.map((id, index) => ({
     id,
     name: state.machineNames?.[id] ?? id,
     own: index === 0,
     block: index > 1 ? 'offline' : null,
-    accounts: index === 1 ? { ...state.account, accounts: state.account.accounts.slice(1) } : null,
+    accounts: index === 1 ? { ...state.account, accounts: [...far, ...out] } : null,
   }))
   return { machines, picked: ids[0] ?? null }
 }
