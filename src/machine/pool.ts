@@ -22,7 +22,7 @@ export interface PoolDeps {
 }
 
 /**
- * The chain's one port over every machine of the hub (BTN-993, `docs/machines.md`, "The pool"): a call about a task
+ * The chain's one port over every machine of the hub (BTN-993, `docs/machines/pool.md`, "The pool"): a call about a task
  * goes to the machine the task went to (`machine_tasks`, written by the lane's `bind` before its launch), a call about a
  * session to the machine that has it, and the rest — the project's main, fix and carry sessions, the accounts' reads —
  * to the own machine. A read of a task whose machine has no port (revoked, or off the link since the hub started) falls

@@ -2,7 +2,7 @@ import { laneMachine, projectOn } from './lanes.js'
 import type { ActiveChain, ChainState, DispatcherDeps } from './model.js'
 
 /**
- * With the switch "Go on where a limit is left" on (BTN-996, `docs/machines.md`, "Past a limit"), a lane whose next
+ * With the switch "Go on where a limit is left" on (BTN-996, `docs/machines/pool.md`, "Past a limit"), a lane whose next
  * task would wait out its machine's limit goes to another machine of the project's pool that has a free place, runs no
  * other lane of the project (BTN-1569), can run the task and has limit left for it. Only a task never launched moves: one launched stays with its machine, its
  * worktree and its sessions. The switch off, the lane waits on its machine, as does a project of width 1 with it.

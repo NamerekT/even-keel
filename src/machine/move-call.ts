@@ -4,7 +4,7 @@ import type { Language } from '../language.js'
 import type { Notice } from '../notice/notice.js'
 import type { LaunchBrief, MachinePort } from './port.js'
 
-/** The moves of a task's session the machine makes (`docs/machines.md`, "Moves"), as the link names them: `task.<move>`. */
+/** The moves of a task's session the machine makes (`docs/machines/seam.md`, "Moves"), as the link names them: `task.<move>`. */
 export const MOVES = ['follow', 'guard', 'deliver', 'deliverLoose', 'replace', 'renew', 'handOverCurrent', 'handOver'] as const
 export type MoveName = (typeof MOVES)[number]
 export const MOVE_PREFIX = 'task.'

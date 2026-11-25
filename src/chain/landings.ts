@@ -76,7 +76,7 @@ function clearNetwork(landing: Landing): void {
  * got meanwhile. A conflict or a red check rolls main back and goes to the session, three rounds at most; a remote out of
  * reach is tried again with the task not closed and its session told nothing; a refusal pauses the chain.
  *
- * The turn (BTN-1583, `docs/machines.md`, "Landings across machines"): a project lands one task at a time on all its
+ * The turn (BTN-1583, `docs/machines/landings.md`, "Landings across machines"): a project lands one task at a time on all its
  * machines, the others waiting until it landed or went back to its session, so a slow merge and check is not overtaken
  * again and again. A landing longer than `LANDING_WAIT_MS` goes on behind the chain, its step held; one whose machine went
  * off the link waits for it to come back and gives up the turn meanwhile. A landing that went through has the other

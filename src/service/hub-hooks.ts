@@ -14,7 +14,7 @@ export interface HubHooksDeps {
 const answerOf = (status: number): HookAnswer => ({ status, body: '' })
 
 /**
- * The hub's side of the hooks of a machine's sessions (BTN-1260, `docs/machines.md`, "Hooks through the hub"): a route
+ * The hub's side of the hooks of a machine's sessions (BTN-1260, `docs/machines/link.md`, "Hooks through the hub"): a route
  * of the hooks is asked of the hub's own page, as a session of the hub's machine asks it; a session another machine
  * holds is not the machine's to ask about.
  */

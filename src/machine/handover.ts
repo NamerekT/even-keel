@@ -51,7 +51,7 @@ function settle(current: CurrentTask): void {
 
 // The session of a chain's current task that the dispatcher continues or replaces itself (invariant 1, exceptions
 // 1–3, 6 and 9–10): after a limit, on a checkpoint, by "New session", with the user's answer (also once the chain stopped)
-// and when a released task returns. It runs on the machine (`docs/machines.md`, "Moves").
+// and when a released task returns. It runs on the machine (`docs/machines/seam.md`, "Moves").
 export class Handovers {
   private readonly transientRetries: LimitRetries
   private readonly sources: HandoverMemory['sources']

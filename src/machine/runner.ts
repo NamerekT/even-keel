@@ -113,7 +113,7 @@ export interface RunnerDeps {
 const isPortCommand = (name: string): name is PortCommand => (PORT_COMMANDS as readonly string[]).includes(name)
 
 /**
- * The machine's side of the port (`docs/machines.md`, "The chain over the link"): runs the hub's commands on the local
+ * The machine's side of the port (`docs/machines/seam.md`, "The chain over the link"): runs the hub's commands on the local
  * port and tells the hub what they gave and what the machine holds. The facts go before a command's result, so the
  * hub's mirror is never older than a result it acts on.
  */

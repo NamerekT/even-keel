@@ -28,7 +28,7 @@ import { recentHistory } from './page-history.js'
 const OWN_KIND = kindOf({ os: process.platform, container: inContainer })
 
 export function wireGetState(ctx: HostingContext): () => EvenKeelState {
-  // The machine's sessions and accounts come from the hub's mirror (`docs/machines.md`, "The mirror"), never its objects.
+  // The machine's sessions and accounts come from the hub's mirror (`docs/machines/pool.md`, "The mirror"), never its objects.
   const machine = ctx.machineLink.page
   const panel = (): AccountView => ({ ...(machine.panel() ?? EMPTY_PANEL), active: ctx.activeAccount() })
   const view = (orders: ReturnType<HostingContext['dispatcher']['orders']>, accounts: AccountView): EvenKeelState => ({

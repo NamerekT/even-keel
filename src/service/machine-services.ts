@@ -74,7 +74,7 @@ const fileOf = (type: string, path: string): Promise<CarriedFile | undefined> =>
   readFile(path).then((data) => toCarried(type, data), () => undefined)
 
 /**
- * The machine's own side of `MachineServices` (`docs/machines.md`, "The seam"): its accounts, the transcripts in its
+ * The machine's own side of `MachineServices` (`docs/machines/seam.md`, "The seam"): its accounts, the transcripts in its
  * account folders, and the mailbox and folders of its sessions.
  */
 export function wireMachineServices(ctx: MachineServicesContext, deps: MachineServicesDeps): MachineServices {

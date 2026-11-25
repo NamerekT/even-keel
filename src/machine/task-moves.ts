@@ -1,6 +1,6 @@
 import type { Db, Writes } from '../storage/database.js'
 
-/** A task moved by hand off a machine gone (BTN-1270, `docs/machines.md`, "A machine gone"). */
+/** A task moved by hand off a machine gone (BTN-1270, `docs/machines/landings.md`, "A machine gone"). */
 export interface TaskMove {
   project: string
   task: string

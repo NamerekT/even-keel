@@ -34,7 +34,7 @@ export interface HeldChanges {
 const keyOf =(project: string, task: string): string => `${project}\n${task}`
 
 /**
- * Which machine runs which task (`machine_tasks`, `docs/machines.md`, "Tasks to machines"): a task goes to a machine
+ * Which machine runs which task (`machine_tasks`, `docs/machines/pool.md`, "Tasks to machines"): a task goes to a machine
  * with its launch and leaves it when its place there is cleaned up. The hub's own record, never a status: the tracker
  * does not know about machines. Read from memory; a change is written behind.
  */

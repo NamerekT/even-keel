@@ -2,7 +2,7 @@ import type { PromptTexts } from '../chain/prompts.js'
 import { fill } from '../sessions/prompt.js'
 import { notice, type Notice } from '../notice/notice.js'
 
-/** What the hub knows when a person asks to move a task off its machine (BTN-1270, `docs/machines.md`, "A machine gone"). */
+/** What the hub knows when a person asks to move a task off its machine (BTN-1270, `docs/machines/landings.md`, "A machine gone"). */
 export interface ReassignFacts {
   task: string
   /** The machine of the task's `machine_tasks` row; `undefined` — none. */

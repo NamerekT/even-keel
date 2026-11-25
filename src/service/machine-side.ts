@@ -26,7 +26,7 @@ import { CLONE_PROGRESS_EVENT, cloneTold, type MachineServices } from '../machin
 export interface MachineSideOptions {
   transport: HubTransport
   store: MachineStore
-  /** The marks of the folders it agrees to (`docs/machines.md`, "The folder's mark"). */
+  /** The marks of the folders it agrees to (`docs/machines/machine-side.md`, "The folder's mark"). */
   marks?: FolderMarks
   /** What the machine tells of itself at each handshake: a machine on the network only. */
   about?: () => Promise<MachineAbout>

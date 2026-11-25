@@ -22,7 +22,7 @@ export interface OwnMachineDeps {
 }
 
 /**
- * The machine this installation itself is (`docs/machines.md`, "One process"): made at the first start of a version
+ * The machine this installation itself is (`docs/machines/seam.md`, "One process"): made at the first start of a version
  * that has machines, found again at every later one. The hub's database names it (`machines.own`) and keeps the hash
  * of its secret, the machine's database keeps the token; when the two no longer agree — one of the folders was
  * restored or removed — a new machine is made and the old one revoked. The old one's place in the projects' pools

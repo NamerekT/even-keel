@@ -12,7 +12,7 @@
 
 ## Task branches on the remote (BTN-1270)
 
-A task's branch goes to the remote whatever the project's mode, so another machine can take the task over when its machine is gone ([machines](../machines.md#a-machine-gone)). Sessions never push it; Even Keel does, on the machine that runs the task (`pushTaskBranch`, `src/git/push.ts`, through `pushOf` in `src/service/machine-chain.ts`):
+A task's branch goes to the remote whatever the project's mode, so another machine can take the task over when its machine is gone ([machines](../machines/landings.md#a-machine-gone)). Sessions never push it; Even Keel does, on the machine that runs the task (`pushTaskBranch`, `src/git/push.ts`, through `pushOf` in `src/service/machine-chain.ts`):
 
 - at a handoff and a checkpoint (`relay`): once the previous session is stopped, from its folder, behind the next session's launch (the machine's `writes`), so a slow pre-push hook holds nothing;
 - at a stop of a task's session (`stop`: a red main interrupting it, extra usage held);
@@ -46,7 +46,7 @@ The dispatcher keeps what a landing still holds in `ChainState.landings` (`docs/
 - **Refused** by the remote (a hook, permissions, `sync.notMain`) — the chain pauses on the task with `landing.refused` and git's text as its cause; no round.
 - A task that leaves the chain meanwhile (cancelled, back in Backlog, Done by hand) drops its record; the main checkout is already clean after the roll-back. A session mid-turn is not landed: its turn may still be merging. For the same reason a fix of main (`MainFix.yields`) asks the machine's `merged(project, task, true)` — merged into the local `main`, not landed — so a session whose branch is merged only locally is not stopped mid-turn; its landing follows the turn.
 
-The landing runs on the machine that holds the task's checkout. A project lands one task at a time on all its machines, and a landing that went through brings the other machines' `main` up to the pushed commit (BTN-1583, `docs/machines.md`, "Landings across machines"). A step waits for a landing at most `LANDING_WAIT_MS` (2 s); a longer one — a merge with `commands.check`, a machine off the link — goes on behind the chain with the task held, and its end wakes the chain.
+The landing runs on the machine that holds the task's checkout. A project lands one task at a time on all its machines, and a landing that went through brings the other machines' `main` up to the pushed commit (BTN-1583, `docs/machines/landings.md`, "Landings across machines"). A step waits for a landing at most `LANDING_WAIT_MS` (2 s); a longer one — a merge with `commands.check`, a machine off the link — goes on behind the chain with the task held, and its end wakes the chain.
 
 ### The hold while a landing resolves (BTN-1582)
 

@@ -300,7 +300,7 @@ export class MachineNetwork {
   }
 
   /**
-   * Starts a sign-in on the machine through its CLI (`docs/machines.md`, "Signing in on a machine"): again in its folder
+   * Starts a sign-in on the machine through its CLI (`docs/machines/machine-side.md`, "Signing in on a machine"): again in its folder
    * `account` when it has one, else in a new folder named after the account signed in. The link and the code go
    * through the hub; the token the CLI gets stays in the machine's folder.
    */

@@ -151,7 +151,7 @@ export interface LinkedMachine {
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
 /**
- * A hub and its own machine in one process (`docs/machines.md`, "One process"): the chain's port is `RemoteMachine`,
+ * A hub and its own machine in one process (`docs/machines/seam.md`, "One process"): the chain's port is `RemoteMachine`,
  * the local port runs behind `MachineRunner`, and the two talk through `HubEnd` and `MachineEnd` over a carrier that
  * is a call. Nothing is connected until `start`.
  */
@@ -191,7 +191,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
   let linked: MachineEnd | undefined
   /**
    * The machine serves the projects of its own installation, each in its folder; a project gone is served no longer,
-   * and neither is one whose folder another machine's mark holds (`docs/machines.md`, "The folder's mark").
+   * and neither is one whose folder another machine's mark holds (`docs/machines/machine-side.md`, "The folder's mark").
    */
   const agree = async (again = false): Promise<void> => {
     const { projects } = ctx.configStore.current
@@ -325,7 +325,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     },
   })
   const polls = new AccountPolls({ hub: () => own, log })
-  /** One poller per account and the newest limits for the others (`docs/machines.md`, "Account limits"). */
+  /** One poller per account and the newest limits for the others (`docs/machines/landings.md`, "Account limits"). */
   const steerLimits = (): void => {
     const facts = remote.facts()
     if (facts === undefined) return

@@ -9,7 +9,7 @@ import { OverageStops } from './overage.js'
 type Reason = 'restart' | 'message' | 'checkpoint' | 'review' | ReturnReason
 
 /**
- * The moves of a task's session as the hub's chain asks for them (`docs/machines.md`, "Moves"): the limit, a
+ * The moves of a task's session as the hub's chain asks for them (`docs/machines/seam.md`, "Moves"): the limit, a
  * checkpoint, the user's answer, "New session", a returned task, the fix's handoff and the stop on paid usage.
  */
 export interface TaskMoves {

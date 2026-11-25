@@ -31,7 +31,7 @@ import { CONTACT_EVERY_MS, contactKeeper, holdInstallation } from './service/mac
 import { wireMachineSide } from './service/machine-side.js'
 import type { Inboxes } from './sessions/inboxes.js'
 
-// A machine of a hub elsewhere (`docs/machines.md`, "Machines elsewhere", BTN-1247): the machine's assembly and its end
+// A machine of a hub elsewhere (`docs/machines/elsewhere.md`, "Machines elsewhere", BTN-1247): the machine's assembly and its end
 // of the link over HTTPS, nothing of the hub — no state database, no page, no trackers, no Tally database: its Tally
 // collector sends its rows to the hub (BTN-1280). `src/start.ts` loads this module instead of the service once `join`
 // made the installation a machine.

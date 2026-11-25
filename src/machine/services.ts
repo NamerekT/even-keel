@@ -175,7 +175,7 @@ export interface MachineUpdate {
 }
 
 /**
- * What the hub's page, hooks and chat ask of a machine besides the chain's port (`docs/machines.md`, "The seam"): each
+ * What the hub's page, hooks and chat ask of a machine besides the chain's port (`docs/machines/seam.md`, "The seam"): each
  * member is the link's command `<group>.<member>` with `{args}`, its value in `command.done` as for `port.*`.
  */
 export interface MachineServices {

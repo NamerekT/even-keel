@@ -49,7 +49,7 @@ export interface RemoteDeps {
   released?: (project: string, task: string) => void
   /**
    * Squares the hub's record of the machine's tasks with the first snapshot of a connection that has read the sessions
-   * (`docs/machines.md`, "Tasks to machines"): `named` — every task the machine knows a session of, `live` — the ones
+   * (`docs/machines/pool.md`, "Tasks to machines"): `named` — every task the machine knows a session of, `live` — the ones
    * with a live session there.
    */
   held?: (named: ReadonlySet<string>, live: AssignedTask[]) => HeldChanges
@@ -83,7 +83,7 @@ type Outcome = { value: unknown } | { error: Error | ((type: string) => Error) }
 type Place = { project?: string | undefined; folder?: string | undefined }
 
 /**
- * The hub's side of the port (`docs/machines.md`, "The chain over the link"). A command or a query goes to the machine
+ * The hub's side of the port (`docs/machines/seam.md`, "The chain over the link"). A command or a query goes to the machine
  * as a numbered command and the call waits for the event that names its number; a snapshot member reads the mirror,
  * which the machine's snapshot replaces at every connection and its `facts` events keep up between them.
  */
@@ -208,7 +208,7 @@ export class RemoteMachine {
     await this.send(LIMITS_PLAN_COMMAND, {}, plan)
   }
 
-  /** Hands the machine the hub's brief (`docs/machines.md`, "The brief"); it waits for the machine to take it. */
+  /** Hands the machine the hub's brief (`docs/machines/seam.md`, "The brief"); it waits for the machine to take it. */
   async tellBrief(brief: HubBrief): Promise<void> {
     await this.send(BRIEF_COMMAND, {}, brief)
   }

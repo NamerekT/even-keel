@@ -490,7 +490,7 @@ export interface EvenKeelState {
    */
   pools?: Record<string, string[]>
   /**
-   * By project and task, why a task pinned to machines waits (`docs/machines.md`, "A task pinned to machines"): `busy`,
+   * By project and task, why a task pinned to machines waits (`docs/machines/pool.md`, "A task pinned to machines"): `busy`,
    * `offline`, `gone` or `elsewhere`; a task that waits for nothing is not there. Absent — an older service.
    */
   pinWaits?: Record<string, Record<string, PinWait>>

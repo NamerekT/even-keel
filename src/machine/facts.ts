@@ -51,7 +51,7 @@ export interface ProjectFacts {
 }
 
 /**
- * The machine's state as its hub mirrors it (`docs/machines.md`, "The mirror"): the values of the port's snapshot
+ * The machine's state as its hub mirrors it (`docs/machines/pool.md`, "The mirror"): the values of the port's snapshot
  * members, computed by the machine for every key the chain may ask about. The reads with a free time — `accountAt`,
  * `limitReopenedAt` — are computed by the hub from `ledger` and `limits`.
  */

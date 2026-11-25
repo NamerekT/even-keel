@@ -101,12 +101,12 @@ export const STEPS: readonly string[] = [
   alter table machines add column joined_at bigint;
   alter table machines add column about text;
   `,
-  // The capacity of a machine elsewhere (BTN-993, `docs/machines.md`, "The pool"): how many of the hub's tasks it runs
+  // The capacity of a machine elsewhere (BTN-993, `docs/machines/pool.md`, "The pool"): how many of the hub's tasks it runs
   // at once; `null` — 1, so that the rows of a copy made before this step go in. The hub's own machine takes `parallel`.
   `
   alter table machines add column capacity integer;
   `,
-  // A task moved by hand off a machine gone (BTN-1270, `docs/machines.md`, "A machine gone"): the machine it left, which
+  // A task moved by hand off a machine gone (BTN-1270, `docs/machines/landings.md`, "A machine gone"): the machine it left, which
   // takes it no more, and its branch on the remote, restored at its next launch; `launched_at` — once launched since.
   // The row goes with the task's cleanup, as its `machine_tasks` row.
   `
@@ -120,24 +120,24 @@ export const STEPS: readonly string[] = [
     primary key (project_id, task)
   );
   `,
-  // The folder of a project on a machine of its pool (BTN-1271, `docs/machines.md`, "The pool on the page"): one the
+  // The folder of a project on a machine of its pool (BTN-1271, `docs/machines/page.md`, "The pool on the page"): one the
   // person named or the clone went into; `null` — the folder named as the hub's inside the machine's folder of projects.
   `
   alter table project_machines add column folder text;
   `,
-  // A machine's colour picked on its page (BTN-1272, `docs/machines.md`, "The machine's page"), `#rrggbb`; `null` — the
+  // A machine's colour picked on its page (BTN-1272, `docs/machines/page.md`, "The machine's page"), `#rrggbb`; `null` — the
   // colour of the palette by the machine's place among the hub's machines.
   `
   alter table machines add column color text;
   `,
-  // A machine's own values in a project (BTN-994, `docs/machines.md`, "A machine in a project"), JSON of
+  // A machine's own values in a project (BTN-994, `docs/machines/landings.md`, "A machine in a project"), JSON of
   // `MachineProjectSettings`; `null` — every value is the project's. `after_green` — the last green commit the
-  // machine's commands after a green main were started on there (`docs/machines.md`, "After a green main").
+  // machine's commands after a green main were started on there (`docs/machines/landings.md`, "After a green main").
   `
   alter table project_machines add column settings text;
   alter table project_machines add column after_green text;
   `,
-  // The machine whose session a message went to (BTN-1251, `docs/machines.md`, "The chain over the link"): a machine's cleanup of old
+  // The machine whose session a message went to (BTN-1251, `docs/machines/seam.md`, "The chain over the link"): a machine's cleanup of old
   // settled messages takes only its own; `null` — a row kept before the step, when one machine wrote them all.
   `
   alter table mailbox add column machine_id text;

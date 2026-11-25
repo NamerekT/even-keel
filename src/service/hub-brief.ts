@@ -36,7 +36,7 @@ export interface BriefSources {
   memory?: () => MemoryFolder[]
 }
 
-/** What the machine's assembly reads of the hub now (`docs/machines.md`, "The brief"). */
+/** What the machine's assembly reads of the hub now (`docs/machines/seam.md`, "The brief"). */
 export function hubBrief(sources: BriefSources): HubBrief {
   const config = sources.config()
   const folders = sources.folders()

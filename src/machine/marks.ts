@@ -41,7 +41,7 @@ async function readMark(file: string): Promise<FolderOwner | undefined> {
 }
 
 /**
- * The marks of a machine in the folders it takes (`docs/machines.md`, "The folder's mark"): its id, whatever host and
+ * The marks of a machine in the folders it takes (`docs/machines/machine-side.md`, "The folder's mark"): its id, whatever host and
  * path reach the folder — a container, a network share. A mark that cannot be read is nobody's.
  */
 export class GitFolderMarks implements FolderMarks {

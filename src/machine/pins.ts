@@ -9,7 +9,7 @@ export function pinnable(pool: readonly string[], live: readonly string[], own: 
 }
 
 /**
- * What each pinned task of the project waits for, by task (`docs/machines.md`, "A task pinned to machines"); a task that
+ * What each pinned task of the project waits for, by task (`docs/machines/pool.md`, "A task pinned to machines"); a task that
  * waits for no machine of its list is not there. A machine off the list holding it is told even while it runs there.
  */
 export function pinWaits(project: string, pins: Record<string, readonly string[]>, state: ChainState, machines: ChainMachines): Record<string, PinWait> {

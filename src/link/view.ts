@@ -27,7 +27,7 @@ export interface MachineAbout {
   gitName?: string
   /** Git's `user.email` there (BTN-1307); none — not set, or a machine older than the field. */
   gitEmail?: string
-  /** The folder of projects the machine agreed to (`docs/machines.md`, "What a command may touch"); `null` — none. */
+  /** The folder of projects the machine agreed to (`docs/machines/link.md`, "What a command may touch"); `null` — none. */
   root: string | null
   /** The commit of the checkout Even Keel runs from there (BTN-1275); none — a package of npm or an older machine. */
   commit?: string
@@ -266,7 +266,7 @@ export interface MachineAccount {
 /** The machine's sign-in under way as its panel shows it (`AccountLogin`); the code the person types goes back through the hub. */
 export type MachineLogin = Pick<AccountLogin, 'agent' | 'method' | 'target' | 'startedAt' | 'urls' | 'deviceCode' | 'output' | 'error' | 'codeSent'>
 
-/** The page of one machine, the own one or one elsewhere (BTN-1272, `docs/machines.md`, "The machine's page"). */
+/** The page of one machine, the own one or one elsewhere (BTN-1272, `docs/machines/page.md`, "The machine's page"). */
 export interface MachinePage {
   id: string
   name: string
@@ -330,7 +330,7 @@ export interface MachineProject {
   packagesPause: import('../notice/notice.js').Notice | null
 }
 
-/** A project's folder held by another machine (`docs/machines.md`, "The folder's mark"). */
+/** A project's folder held by another machine (`docs/machines/machine-side.md`, "The folder's mark"). */
 export interface TakenFolder {
   project: string
   /** The machine the mark names, and its name: the hub's when it knows the machine, else the mark's. */

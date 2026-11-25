@@ -1,7 +1,7 @@
 import { englishOf, notice, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
 import type { ActiveChain, CarrySession, ChainState, CurrentTask, DispatcherDeps, SessionFix } from './model.js'
 
-/** A launch is the hub's decision and one command of the port (`docs/machines.md`, "Moves"). */
+/** A launch is the hub's decision and one command of the port (`docs/machines/seam.md`, "Moves"). */
 type StartDeps = Pick<DispatcherDeps, 'machine' | 'save' | 'journal' | 'moveStatus' | 'now' | 'log'>
 
 const SLOT_REFUSALS = new Set(['slot.noneFree', 'slot.busyStart'])

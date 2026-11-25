@@ -31,7 +31,7 @@ export function briefAccounts(folders: readonly FolderHere[]): Record<string, Br
 }
 
 /**
- * The folder of this machine that runs what the hub's folder `key` runs (`docs/machines.md`, "The pool"): the one of
+ * The folder of this machine that runs what the hub's folder `key` runs (`docs/machines/pool.md`, "The pool"): the one of
  * the same name when it is of the same account, else a full sign-in of that account, else a long token of it; `null` —
  * none here. When the hub told nothing that names the account, the folder of the same name (and agent, if told) or
  * `null` (BTN-1512): a key with no folder here is the account absent from this machine, not a folder to switch from.

@@ -360,7 +360,7 @@ let browserHotkeys = await loadBrowserHotkeys(db)
 const intakeEntries = ((await stateValue(db, 'intake')) as IntakeEntry[] | undefined) ?? []
 /** By project, the issue templates that put its intake label on (BTN-1130); filled by the intake's ticks. */
 const intakeTemplateHits: Record<string, TemplateHit[]> = {}
-/** The machine's own database (`docs/machines.md`, "The machine's stores"): closed by the machine link. */
+/** The machine's own database (`docs/machines/seam.md`, "The machine's stores"): closed by the machine link. */
 const machineDb = await openMachineDatabase(join(stateDirOf(), MACHINE_DIR))
 if (await importMachineStores(machineDb, db, new Date())) console.log('machine: the account limits, account settings and CLI copies moved into the machine database')
 /** The tasks the merge closer closed and the commits main had of their branches then (BTN-689). */
@@ -473,7 +473,7 @@ const machineChanged = (): void => {
   stateChanged()
 }
 /**
- * The own machine's assembly (`docs/machines.md`, "The machine's context"): this host's objects, and of the hub only
+ * The own machine's assembly (`docs/machines/seam.md`, "The machine's context"): this host's objects, and of the hub only
  * what its brief hands over. What it tells the hub goes over the link, connected once the link is built.
  */
 const machineTell = laterTell()

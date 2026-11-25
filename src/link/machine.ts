@@ -41,7 +41,7 @@ export interface LinkStatus {
   notice?: LinkNotice
 }
 
-/** The machine that holds a project's folder, as its mark there names it (`docs/machines.md`, "The folder's mark"). */
+/** The machine that holds a project's folder, as its mark there names it (`docs/machines/machine-side.md`, "The folder's mark"). */
 export interface FolderOwner {
   machine: string
   name: string
@@ -441,7 +441,7 @@ export class MachineEnd {
       if (generation !== this.generation) return
       if (this.opened && this.frames === 0) {
         if (this.notice !== 'link.buffered') {
-          this.options.log('link: the stream to the hub is open and nothing comes over it: a proxy on the way seems to hold it back; turn its buffering off for the hub\'s address (docs/machines.md, "Behind a proxy")')
+          this.options.log('link: the stream to the hub is open and nothing comes over it: a proxy on the way seems to hold it back; turn its buffering off for the hub\'s address (docs/machines/link.md, "Behind a proxy")')
         }
         this.notice = 'link.buffered'
       } else {

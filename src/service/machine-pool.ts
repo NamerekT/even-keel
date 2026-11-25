@@ -48,7 +48,7 @@ export interface ConnectRequest {
 }
 
 /**
- * The steps that connect a machine elsewhere to a project (BTN-1271, `docs/machines.md`, "The pool on the page"): the
+ * The steps that connect a machine elsewhere to a project (BTN-1271, `docs/machines/page.md`, "The pool on the page"): the
  * clone, if asked, the folder put into the pool turned off, the checks of the folder on the machine, and the machine
  * turned on. A failed check stops the job with what to do and Retry runs it again; Cancel takes the machine out of the
  * pool if the job put it there. A clone made stays on the machine. `project` is read when the steps run.

@@ -114,7 +114,7 @@ export function laterTell(): LaterTell {
 }
 
 /**
- * The machine's context (`docs/machines.md`, "The machine's context"): the host's objects and, from the hub's brief, the
+ * The machine's context (`docs/machines/seam.md`, "The machine's context"): the host's objects and, from the hub's brief, the
  * config, the tasks' runs and lists and the chain's switches. Read lazily: the host's objects are made after it.
  */
 export function machineContext(host: MachineHost, brief: BriefCopy, tell: LaterTell, cli: CliChoices = {}): MachineContext {

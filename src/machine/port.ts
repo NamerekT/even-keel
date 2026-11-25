@@ -31,7 +31,7 @@ export interface LaunchBrief {
 }
 
 /**
- * Everything the hub's chain asks of the machine that runs the sessions (`docs/machines.md`, "The seam"). Today the
+ * Everything the hub's chain asks of the machine that runs the sessions (`docs/machines/seam.md`, "The seam"). Today the
  * hub calls the one in-process implementation (`wireMachine`) directly; the link (`src/link/`) later carries each
  * member as its comment says:
  *
@@ -215,7 +215,7 @@ export interface MachinePort {
 
   /**
    * Brings the snapshot members up to the machine's state now, before a step of the chain reads them: the port over the
-   * link has the machine in this process post what changed (`docs/machines.md`, "The mirror"). Absent — the members
+   * link has the machine in this process post what changed (`docs/machines/pool.md`, "The mirror"). Absent — the members
    * read the machine itself, or a machine elsewhere whose mirror is as fresh as its last event. Facts read under
    * `FRESH_MS` ago with no change told since are taken as they are, unless `whole` (a person's command, BTN-1475).
    */
@@ -223,7 +223,7 @@ export interface MachinePort {
 
   /**
    * Command. The moves of a task's session (limit, checkpoint, answer, handoff, paid usage) made by the machine
-   * (`docs/machines.md`, "Moves"). Absent — the hub's process makes them over the other members.
+   * (`docs/machines/seam.md`, "Moves"). Absent — the hub's process makes them over the other members.
    */
   moves?: MovesPort
 }

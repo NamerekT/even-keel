@@ -8,7 +8,7 @@ export interface PoolMachine {
 }
 
 /**
- * The patch with its `machines` named by id (`docs/machines.md`, "A task pinned to machines"): each given name or id is
+ * The patch with its `machines` named by id (`docs/machines/pool.md`, "A task pinned to machines"): each given name or id is
  * a machine of the pool, the name in any case; another is refused with the pool's names. An empty list clears the pin.
  */
 export function pinnedPatch(patch: RunPatch, pool: readonly PoolMachine[]): RunPatch {

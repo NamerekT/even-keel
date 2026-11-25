@@ -48,7 +48,7 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
  * The machine's side of the moves: each command runs `Handovers` or `OverageStops` with the machine's own port over the
  * task the hub sent. The memory of the moves (the retry ladder, the sources of a handoff) is the machine's, shared by all.
  * With `alone` it keeps the hub's last call of each task and, while the link is down, follows and guards the task by
- * its own facts (`docs/machines.md`, "Moves").
+ * its own facts (`docs/machines/seam.md`, "Moves").
  */
 export class MachineMoves {
   private readonly memory: HandoverMemory = handoverMemory()

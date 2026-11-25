@@ -34,7 +34,7 @@ export interface ChainMachineDeps {
 }
 
 /**
- * The hub's machines as the chain's lanes see them (BTN-993, `docs/machines.md`, "The pool"): the own machine first,
+ * The hub's machines as the chain's lanes see them (BTN-993, `docs/machines/pool.md`, "The pool"): the own machine first,
  * with `parallel` places, then each machine elsewhere online with its capacity. A machine runs a task when it has an
  * account of the task's agent and a folder of the account the task runs on (BTN-1311), or when no machine of the
  * project's pool has: with one machine the chain falls back to another agent, or pauses, as before. A task stays with

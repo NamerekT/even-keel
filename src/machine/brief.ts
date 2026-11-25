@@ -8,7 +8,7 @@ import type { WarmTask } from '../sessions/keepwarm.js'
 import type { TaskRun } from '../sessions/runs.js'
 import type { BriefAccount } from './account-here.js'
 
-/** The hub's command that hands the machine what only the hub knows (`docs/machines.md`, "The brief"). */
+/** The hub's command that hands the machine what only the hub knows (`docs/machines/seam.md`, "The brief"). */
 export const BRIEF_COMMAND = 'hub.brief'
 
 /**

@@ -98,7 +98,7 @@ export interface MachineHost {
   lingering: Lingering
   /**
    * The machine's own launch journal: the hub hands it the one it keeps at the start (`records.restore`), the machine adds
-   * its launches. What runs on the machine reads this one, never the hub's launches (`docs/machines.md`, "One process").
+   * its launches. What runs on the machine reads this one, never the hub's launches (`docs/machines/seam.md`, "One process").
    */
   journal: LaunchEntry[]
   gitFound: ReturnType<typeof bootstrap.assembleGitFound>
@@ -160,7 +160,7 @@ export interface AssembledHost {
 }
 
 /**
- * This host's half of the service (`docs/machines.md`, "The machine's context"), the same for the hub's own machine and
+ * This host's half of the service (`docs/machines/seam.md`, "The machine's context"), the same for the hub's own machine and
  * for a machine of its own (BTN-1247): what it runs on comes from `inputs`, what it reads of the hub from the brief, and
  * what it tells the hub goes through `inputs.tell`. Nothing is started here: the caller's lifecycle and ticks do it.
  */

@@ -12,7 +12,7 @@ export const LOCAL_HEARTBEAT_MS = 10 * 24 * 60 * 60 * 1000
 const carried = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
 /**
- * The carrier between a hub and the machine of the same process (`docs/machines.md`, "One process"): the ends call
+ * The carrier between a hub and the machine of the same process (`docs/machines/seam.md`, "One process"): the ends call
  * each other directly, without HTTPS and a certificate, with the same numbers, confirmations and snapshot.
  */
 export class LocalTransport implements HubTransport {
