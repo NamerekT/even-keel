@@ -448,14 +448,44 @@
 }
 
 .new-chat__agent {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
   margin: 0;
-  padding: var(--space-8) var(--space-12);
-  border-bottom: 1px solid var(--border);
   font-size: var(--text-14);
   font-weight: 600;
+}
+
+/* The agent's head folds its accounts (BTN-1710): the whole row is the toggle. */
+.new-chat__agent .new-chat__toggle {
+  gap: var(--space-8);
+  width: 100%;
+  max-width: none;
+  padding: var(--space-8) var(--space-12);
+}
+
+.new-chat__agent .new-chat__toggle:hover {
+  background: color-mix(in srgb, var(--fg) 6%, var(--surface-muted));
+}
+
+.new-chat__agent .new-chat__toggle:focus-visible {
+  outline-offset: -2px;
+}
+
+.new-chat__agent-name {
+  flex: none;
+}
+
+/* A folded agent names the account picked in it, so the choice stays in view. */
+.new-chat__folded-pick {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.new-chat__entries {
+  border-top: 1px solid var(--border);
 }
 
 .new-chat__pick {

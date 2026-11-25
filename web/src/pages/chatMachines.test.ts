@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import type { ChatMachines } from '../../../src/chats/model.js'
-import { accountAfter, chatAccounts, chatOptions, machineChoices, machinePanel } from './chatMachines.js'
+import { accountAfter, agentsOpen, agentToggled, chatAccounts, chatOptions, machineChoices, machineFirst, machinePanel } from './chatMachines.js'
 
 const entry = (key: string): AccountEntry => ({ key, agent: 'claude' }) as AccountEntry
 const panel = (...keys: string[]): AccountView => ({ active: keys[0] ?? '', accounts: keys.map(entry) }) as AccountView
@@ -36,6 +36,28 @@ describe('the machine of a new chat (BTN-1614)', () => {
     expect(accountAfter(open, 'work', 'global')?.key).toBe('global')
     expect(accountAfter(open, 'work', undefined)?.key).toBe('server-work')
     expect(accountAfter([], 'work', 'global')).toBeUndefined()
+  })
+
+  it("offers the last choice's machine first while it can take a chat, else the one the hub picked (BTN-1710)", () => {
+    expect(machineFirst(answer, 'machine-far')).toBe('machine-far')
+    expect(machineFirst(answer, 'machine-away')).toBe('machine-own')
+    expect(machineFirst(answer, 'machine-gone')).toBe('machine-own')
+    expect(machineFirst(answer, undefined)).toBe('machine-own')
+    expect(machineFirst(null, 'machine-far')).toBeNull()
+  })
+})
+
+describe('the agents of the "New session" window unfolded (BTN-1710)', () => {
+  it("unfolds the agent of the account offered first until one is folded or unfolded by hand, which then stays", () => {
+    expect([...agentsOpen(null, 'codex')]).toEqual(['codex'])
+    expect([...agentsOpen(null, undefined)]).toEqual([])
+    expect([...agentsOpen(new Set(['claude', 'opencode']), 'codex')]).toEqual(['claude', 'opencode'])
+    expect([...agentsOpen(new Set(), 'codex')]).toEqual([])
+  })
+
+  it('folds or unfolds one agent, the others as they were', () => {
+    expect([...agentToggled(new Set(['claude']), 'codex')]).toEqual(['claude', 'codex'])
+    expect([...agentToggled(new Set(['claude', 'codex']), 'claude')]).toEqual(['codex'])
   })
 })
 

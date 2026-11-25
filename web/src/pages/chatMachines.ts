@@ -38,6 +38,27 @@ export const chatOptions = (view: AccountView): AccountView => ({
 export const accountAfter = (open: readonly AccountEntry[], current: string, preferred: string | undefined): AccountEntry | undefined =>
   open.find((entry) => entry.key === current) ?? open.find((entry) => entry.key === preferred) ?? open[0]
 
+/** The machine offered first (BTN-1710): the last choice's while it can take a chat, else the one the hub picked. */
+export function machineFirst(answer: ChatMachines | null, preferred: string | undefined): string | null {
+  if (answer === null) return null
+  return answer.machines.some((each) => each.id === preferred && each.block === null) ? preferred! : answer.picked
+}
+
+/**
+ * The agents whose accounts are unfolded (BTN-1710): as set by hand once one was folded or unfolded, before that the
+ * agent of the account offered first.
+ */
+export const agentsOpen = (byHand: ReadonlySet<string> | null, first: string | undefined): ReadonlySet<string> =>
+  byHand ?? new Set(first === undefined ? [] : [first])
+
+/** The agents unfolded after one is folded or unfolded, the others as they were. */
+export function agentToggled(open: ReadonlySet<string>, agent: string): Set<string> {
+  const next = new Set(open)
+  if (next.has(agent)) next.delete(agent)
+  else next.add(agent)
+  return next
+}
+
 /**
  * The accounts a chat may go on with in a new session: its own machine's, since the history stays there. The hub's
  * own machine (or no machine told, an older service) — the page's live accounts; one elsewhere — from the answer,

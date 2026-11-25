@@ -18,7 +18,7 @@ import { Select } from '../ui/Select.js'
 import { TipFacts } from '../ui/TipFacts.js'
 import { Tipped } from '../ui/Tipped.js'
 import type { ChatRenewal } from './chatRenewal.js'
-import { blockOf } from './NewChatDialog.js'
+import { blockOf } from './ChatChoiceForm.js'
 import { modelsReading, offersOf, useModelCatalog } from './useModels.js'
 import './chats.css'
 

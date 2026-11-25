@@ -92,12 +92,18 @@ export class ChatStore {
 
   static async open(deps: ChatStoreDeps): Promise<ChatStore> {
     const { rows } = await deps.db.query<ChatRow>(`select ${COLUMNS} from chats where archived_at is null order by created_at, id`)
-    const choices = await deps.db.query<{ project_id: string; account: string; model: string | null; effort: string | null; packages: string | null }>(
-      'select project_id, account, model, effort, packages from chat_choices',
+    const choices = await deps.db.query<{ project_id: string; account: string; model: string | null; effort: string | null; packages: string | null; machine_id: string | null }>(
+      'select project_id, account, model, effort, packages, machine_id from chat_choices',
     )
     return new ChatStore(deps, rows.map(recordOf), choices.rows.map((row) => {
       const packages = packagesOf(row.packages)
-      return [row.project_id, { account: row.account, model: row.model, effort: row.effort, ...(Object.keys(packages).length > 0 && { packages }) }]
+      return [row.project_id, {
+        account: row.account,
+        model: row.model,
+        effort: row.effort,
+        ...(Object.keys(packages).length > 0 && { packages }),
+        ...(row.machine_id !== null && { machine: row.machine_id }),
+      }]
     }))
   }
 
@@ -143,9 +149,10 @@ export class ChatStore {
   setChoice(project: string, choice: ChatChoice): void {
     this.choices.set(project, choice)
     this.deps.writes.add(`the chat choice of ${project}`, this.deps.db.query(
-      `insert into chat_choices (project_id, account, model, effort, packages) values ($1, $2, $3, $4, $5)
-       on conflict (project_id) do update set account = excluded.account, model = excluded.model, effort = excluded.effort, packages = excluded.packages`,
-      [project, choice.account, choice.model, choice.effort, packagesColumn(choice.packages)],
+      `insert into chat_choices (project_id, account, model, effort, packages, machine_id) values ($1, $2, $3, $4, $5, $6)
+       on conflict (project_id) do update set account = excluded.account, model = excluded.model, effort = excluded.effort, packages = excluded.packages,
+         machine_id = excluded.machine_id`,
+      [project, choice.account, choice.model, choice.effort, packagesColumn(choice.packages), choice.machine ?? null],
     ))
   }
 

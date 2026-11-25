@@ -94,7 +94,7 @@ export class ProjectChats {
     const account = this.deps.accounts(machine)?.find((each) => each.key === choice.account)
     if (account === undefined) throw fail('chats.noAccount', { account: choice.account })
     const chat = this.newRecord(project, account.agent, choice, machine, this.deps.now().toISOString())
-    this.deps.store.setChoice(project, choice)
+    this.deps.store.setChoice(project, { ...choice, machine })
     this.deps.store.put(chat)
     this.deps.log(`chats: ${chat.id} of ${project} created on ${choice.account}`)
     this.deps.changed()
@@ -246,7 +246,7 @@ export class ProjectChats {
         previous: old.id,
         pending: renewPrompt(said, past, language),
       }
-      this.deps.store.setChoice(old.project, choice)
+      this.deps.store.setChoice(old.project, { ...choice, machine: place.machine })
       this.deps.store.put(next)
       this.putArchived(this.deps.store.get(id) ?? old, next.id)
       this.deps.log(`chats: ${id} goes on in ${next.id} on ${choice.account}`)

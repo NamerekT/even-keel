@@ -38,7 +38,7 @@ describe('a project chat going on in a new session (BTN-1232)', { timeout: 120_0
       expect(next).toMatchObject({ agent: 'codex', account: 'codex-work', sessionId: `session-${next.id}`, title: 'Fix the header', state: 'starting' })
       expect(next.previous).toBe(old)
       expect(await fixture.chats.card(old)).toMatchObject({ state: 'archived', successor: next.id })
-      expect(fixture.chats.choice(ABC)).toEqual({ account: 'codex-work', model: 'gpt-5.5', effort: 'medium' })
+      expect(fixture.chats.choice(ABC)).toEqual({ account: 'codex-work', model: 'gpt-5.5', effort: 'medium', machine: OWN })
       expect(fixture.store.get(next.id)?.pending).toBeNull()
     } finally {
       await fixture.close()

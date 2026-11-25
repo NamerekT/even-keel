@@ -225,6 +225,8 @@ export function fakeChats(mode: string | null) {
                 effort: 'medium',
                 // The "More" window with the chat's own values, one of a package out of the catalog (BTN-1696).
                 ...(mode === 'packages' && { packages: { 'github@even-keel': true, forgejo: false, 'old-review@example': true } }),
+                // The last chat went to the first machine elsewhere of a pool with several: the window offers it (BTN-1710).
+                ...(poolOf(state, project)[1] !== undefined && { machine: poolOf(state, project)[1] }),
               },
       }
       lists.set(project, list)
@@ -302,8 +304,8 @@ export function fakeChats(mode: string | null) {
         made += 1
         const created = card(state, project, { id: `${project}-new-${made}`, agent, ...choice, machine, state: 'new', context: null, lastAt: new Date().toISOString() })
         list.active = [created, ...list.active]
-        // The window opens with the last choice of packages again (BTN-1696).
-        list.choice = { ...choice, ...(typeof body.packages === 'object' && body.packages !== null && { packages: body.packages as Record<string, boolean> }) }
+        // The window opens with the last choice of packages (BTN-1696) and its machine (BTN-1710) again.
+        list.choice = { ...choice, machine, ...(typeof body.packages === 'object' && body.packages !== null && { packages: body.packages as Record<string, boolean> }) }
         return created
       }
       if (name === 'chats/chat') {

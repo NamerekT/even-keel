@@ -5,7 +5,7 @@ import type { AccountEntry } from '../../../src/account/model.js'
 import { t } from '../i18n/index.js'
 import { RenewWhy } from './ChatRenewDialog.js'
 import { ActiveTab } from './ChatsPanel.js'
-import { barTip, blockOf } from './NewChatDialog.js'
+import { barTip, blockOf } from './ChatChoiceForm.js'
 import { Gone } from './ShareCard.js'
 
 const NOW = new Date('2026-10-12T12:00:00Z')

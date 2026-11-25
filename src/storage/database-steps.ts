@@ -445,4 +445,9 @@ export const STEPS: readonly string[] = [
   alter table chats add column packages text;
   alter table chat_choices add column packages text;
   `,
+  // The machine of the project's last chat choice (BTN-1710, `docs/sessions/project-chats.md`), offered first in the
+  // window of a new session. Null — none kept, as every choice before the step.
+  `
+  alter table chat_choices add column machine_id text;
+  `,
 ]

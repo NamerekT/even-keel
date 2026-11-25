@@ -99,6 +99,8 @@ export interface ChatChoice {
   effort: string | null
   /** The chat's own choice of packages (`ChatRecord.packages`); absent — none of its own. */
   packages?: Record<string, boolean>
+  /** The machine the chat went to (BTN-1710), offered first while it can take one; absent — a choice kept before. */
+  machine?: string
 }
 
 /** Why a machine cannot take a new chat of the project: off the link, or no folder of the project there. */

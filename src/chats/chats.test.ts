@@ -10,7 +10,7 @@ describe('ProjectChats', { timeout: 120_000 }, () => {
     try {
       const card = await chats.create(ABC, { account: 'codex-work', model: 'gpt-5.5', effort: 'high' })
       expect(card).toMatchObject({ id: 'chat-000000000001', agent: 'codex', account: 'codex-work', state: 'new', sessionId: null })
-      expect(chats.choice(ABC)).toEqual({ account: 'codex-work', model: 'gpt-5.5', effort: 'high' })
+      expect(chats.choice(ABC)).toEqual({ account: 'codex-work', model: 'gpt-5.5', effort: 'high', machine: OWN })
       expect(calls).toEqual([])
       await expect(chats.create(ABC, { account: 'nobody', model: null, effort: null })).rejects.toMatchObject({ notice: { code: 'chats.noAccount' } })
     } finally {
@@ -42,7 +42,7 @@ describe('ProjectChats', { timeout: 120_000 }, () => {
     try {
       const packages = { 'lint@example': true, 'huly@even-keel': false }
       const { id } = await chats.create(ABC, { account: 'global', model: 'opus', effort: null, packages })
-      expect(chats.choice(ABC)).toEqual({ account: 'global', model: 'opus', effort: null, packages })
+      expect(chats.choice(ABC)).toEqual({ account: 'global', model: 'opus', effort: null, packages, machine: OWN })
       await chats.send(id, { text: 'Hello', files: [] })
       await chats.send(id, { text: 'And then?', files: [] })
       expect(calls.map((call) => (call.at(-1) as { packages?: unknown }).packages)).toEqual([packages, packages])
@@ -59,11 +59,14 @@ describe('ProjectChats', { timeout: 120_000 }, () => {
     try {
       const card = await chats.create(ABC, { account: 'global', model: null, effort: null }, FAR)
       expect(card.machine).toBe(FAR)
+      // The machine is in the project's last choice, offered first next time (BTN-1710).
+      expect(chats.choice(ABC)?.machine).toBe(FAR)
       await chats.send(card.id, { text: 'Hello', files: [] })
       expect(calls[0]).toEqual(['launch', ABC, FAR_FOLDER, card.id, expect.objectContaining({ account: 'global' })])
       expect(store.get(card.id)?.machine).toBe(FAR)
       await expect(chats.create(ABC, { account: 'global', model: null, effort: null }, 'machine-other')).rejects.toMatchObject({ notice: { code: 'chats.notInPool' } })
       expect((await chats.create(ABC, { account: 'global', model: null, effort: null })).machine).toBe(OWN)
+      expect(chats.choice(ABC)?.machine).toBe(OWN)
     } finally {
       await close()
     }
