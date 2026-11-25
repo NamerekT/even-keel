@@ -76,6 +76,8 @@ export interface FeedLine {
   answers?: { ask?: string; answers: AskAnswers }
   /** The paths of the files the user sent along with a prompt or an answer. */
   files?: string[]
+  /** A prompt or an answer the chat's mail or the CLI's queue gave a running turn: it begins no turn of its own (BTN-1718). */
+  midTurn?: true
   /** The files a `SendUserFile` tool line sent the user, only in a whole transcript; the page fetches them by the call's id. */
   share?: Share
   /** A tool line as the README badge may publish it (`badgeActionOf`, BTN-915); absent on lines of agents that do not set it. */
@@ -283,7 +285,7 @@ export class TranscriptFold {
     if (entry.type === 'attachment' && entry.attachment?.type?.startsWith('hook_') === true) {
       const text = stringsOf(entry.attachment).join('\n')
       if (statusAsked(text)) this.statusAsked = true
-      this.pushMail(entry.timestamp ?? '', text)
+      this.pushMail(entry.timestamp ?? '', text, this.running())
       return
     }
     if (entry.type === 'attachment' && entry.attachment?.type === 'queued_command') {
@@ -461,11 +463,11 @@ export class TranscriptFold {
       this.openAsk = null
       const answers = toolAnswers(entry.toolUseResult)
       // The mailbox hook turned the question down with the user's message: nothing is left to answer (BTN-181).
-      const declined = askResult.is_error === true && this.pushMail(entry.timestamp ?? '', failureText(askResult.content, Infinity))
+      const declined = askResult.is_error === true && this.pushMail(entry.timestamp ?? '', failureText(askResult.content, Infinity), true)
       if (answers !== null) this.addFeed({ at: entry.timestamp ?? '', kind: 'answer', text: '', answers: { ask: ask.id, answers } })
       else if (!declined) this.strayAsk = ask
     }
-    if (isPrompt(entry.message?.content) && this.pushMail(entry.timestamp ?? '', promptOf(entry.message?.content))) {
+    if (isPrompt(entry.message?.content) && this.pushMail(entry.timestamp ?? '', promptOf(entry.message?.content), false)) {
       // The inbox socket's message between turns starts the turn that works on it (BTN-1322).
       if (entry.origin?.kind === 'peer') this.startTurn(entry.timestamp ?? '')
       return
@@ -516,13 +518,12 @@ export class TranscriptFold {
    * The chat's messages a hook of the mailbox gave the session, as the user's prompts, each id once; whether `text`
    * held any. Read only where a hook's text lands, never from a tool's output: a Read of the source holds the mark too.
    */
-  private pushMail(at: string, text: string): boolean {
+  private pushMail(at: string, text: string, midTurn: boolean): boolean {
     const found = mailIn(text)
     for (const { id, prompt } of found) {
       if (this.mailSeen.has(id)) continue
       this.mailSeen.add(id)
-      const line = userLine(at, prompt, null, (each) => this.textOf(each))
-      if (line !== null) this.addFeed(line)
+      this.addUserLine(userLine(at, prompt, null, (each) => this.textOf(each)), midTurn)
     }
     return found.length > 0
   }
@@ -533,13 +534,20 @@ export class TranscriptFold {
    */
   private pushQueued(at: string, attachment: NonNullable<Entry['attachment']>): void {
     const prompt = promptOf(attachment.prompt)
-    if (this.pushMail(at, prompt)) return
+    if (this.pushMail(at, prompt, this.running())) return
     const kind = attachment.origin?.kind
     if (kind !== undefined && kind !== 'human') return
     // The notice the CLI queues after a resume about the last process's background command has no origin (BTN-1504).
     if (attachment.commandMode === 'task-notification') return
-    const line = userLine(at, prompt, null, (text) => this.textOf(text))
-    if (line !== null) this.addFeed(line)
+    this.addUserLine(userLine(at, prompt, null, (text) => this.textOf(text)), this.running())
+  }
+
+  private addUserLine(line: FeedLine | null, midTurn: boolean): void {
+    if (line !== null) this.addFeed(midTurn ? { ...line, midTurn } : line)
+  }
+
+  private running(): boolean {
+    return this.turnStartedAt !== null && !this.turnEnded
   }
 
   /**

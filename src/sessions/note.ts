@@ -54,10 +54,11 @@ const isKept = (name: string): boolean => name === HANDOFF_TOOL || name.endsWith
 /**
  * The note the turn wrote among its last few tool calls, as `.temp/handoff….md` or `HANDOFF_TOOL` for one kept with
  * Even Keel, the latest one first; null — none. With no `CHECKPOINT` line after it, the agent-bridge plugin's Stop hook
- * sends the session back to add the line for this note. `feed` is a whole transcript's.
+ * sends the session back to add the line for this note. `feed` is a whole transcript's. A message the turn took while
+ * it ran (`midTurn`) does not start it: a reply to a chat message sent after the note still owes the line (BTN-1718).
  */
 export function noteWritten(feed: readonly FeedLine[]): string | null {
-  const start = feed.findLastIndex((line) => line.kind === 'prompt' || line.kind === 'answer')
+  const start = feed.findLastIndex((line) => (line.kind === 'prompt' || line.kind === 'answer') && line.midTurn !== true)
   const tools = feed.slice(start + 1).filter((line) => line.kind === 'tool')
   for (const line of tools.slice(-NEAR_END).reverse()) {
     const name = line.name ?? ''

@@ -1058,8 +1058,17 @@ describe('TranscriptFold', () => {
       const turn = started.summary().turn
       started.push(queued([IMAGE, text('Should these settings go?')], { kind: 'human' }))
       const summary = started.summary()
-      expect(summary.feed.at(-1)).toMatchObject({ kind: 'prompt', text: 'Should these settings go?' })
+      expect(summary.feed.at(-1)).toMatchObject({ kind: 'prompt', text: 'Should these settings go?', midTurn: true })
       expect(summary.turn).toEqual(turn)
+    })
+
+    it('marks no message mid-turn once the turn has ended (BTN-1718)', () => {
+      const ended = fold([
+        JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: 'ABC-1' } }),
+        JSON.stringify({ type: 'system', subtype: 'turn_duration', timestamp: at(), durationMs: 1000 }),
+        queued('Go on.', { kind: 'human' }),
+      ])
+      expect(ended.summary().feed.at(-1)).toEqual({ at: expect.any(String), kind: 'prompt', text: 'Go on.' })
     })
 
     it('takes a plain string prompt too', () => {
