@@ -4,6 +4,8 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ArchivePage, OutsideTask } from '../../../src/state.js'
 import type { Task, TaskStatus } from '../../../src/tracker/model.js'
+import { MemoryRouter } from 'react-router'
+import type { ChainBlock } from '../state.js'
 import { OutsideView } from './OutsideView.js'
 
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
@@ -76,10 +78,16 @@ afterEach(async () => {
   live.archive = { tasks: [], next: null }
   live.readAt = null
   live.failAfter = null
+  chain = []
 })
 
+let chain: ChainBlock[] = []
 const render = (edits: number) =>
-  act(async () => root.render(createElement(OutsideView, { project: 'p1', switcher: null, edits, onCard: () => {} })))
+  act(async () =>
+    root.render(
+      createElement(MemoryRouter, { initialEntries: ['/p/p1?view=outside'] }, createElement(OutsideView, { project: 'p1', switcher: null, chain, edits, onCard: () => {} })),
+    ),
+  )
 /** The first read: the rows come once the loader has gone through its entrance and exit. */
 const open = async () => {
   await render(0)
@@ -137,6 +145,21 @@ describe('OutsideView', () => {
     await act(async () => vi.advanceTimersByTimeAsync(10))
     expect(sections()).toEqual([['Todo', ['A-1']]])
     expect(host.querySelector('.outside__failed')).toBeNull()
+  })
+
+  it('puts the open chain tasks that block a task before it, with their status, out of the counts', async () => {
+    const blocker = (id: string, lamp: ChainBlock['lamp'], status: string, stage: ChainBlock['stage']) =>
+      ({ id, title: `Title of ${id}`, status, stage, lamp, locked: false, current: false }) as ChainBlock
+    chain = [blocker('C-1', 'working', 'In Progress', 'Active'), blocker('C-2', 'ahead', 'Todo', 'ToDo'), blocker('C-3', 'done', 'Done', 'Won')]
+    const held = (id: string, by: string[]): OutsideTask => ({ ...out(id, TODO), task: { ...task(id, TODO), blockedBy: by } })
+    live.tasks = [held('A-1', ['C-1', 'C-3']), held('A-2', ['C-2', 'C-1'])]
+    await open()
+    expect(sections()).toEqual([['Todo', ['C-1', 'C-2', 'A-2', 'C-1', 'A-1']]])
+    expect(host.querySelector('.outside__status-count')?.textContent).toBe('2')
+    const first = host.querySelector('.outside__holder')!
+    expect(first.querySelector('.outside__holder-status')?.textContent).toBe('In Progress')
+    expect(first.querySelector('a.block__key')?.getAttribute('href')).toBe('/p/p1#C-1')
+    expect(host.querySelector('.bracket')).not.toBeNull()
   })
 
   it('shows the order switch only over rows', async () => {

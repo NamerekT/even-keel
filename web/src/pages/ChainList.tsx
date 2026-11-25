@@ -31,6 +31,7 @@ import { useLockedEntry } from './useLockedEntry.js'
 import { useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
 import { useChainMotion, useSwitched } from './useChainMotion.js'
 import { useArchivePages } from './useArchivePages.js'
+import { Bracket } from '../ui/Bracket.js'
 
 /** How long the ghost takes to grow open or fold shut. */
 const GHOST_MS = 250
@@ -316,6 +317,7 @@ export function ChainList(props: Props) {
                   />
                 </li>
               )}
+              {section.blocks.some((block) => block.locked) && <Bracket blockers=".block--locked" />}
             </ol>
           </section>
         ))}

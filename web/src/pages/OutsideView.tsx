@@ -1,14 +1,18 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Link, useLocation } from 'react-router'
 import type { ArchivePage, OutsideReason, OutsideTask } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { chainTo } from '../parents.js'
+import type { ChainBlock } from '../state.js'
 import { taskLamp } from '../taskLamp.js'
+import { Bracket } from '../ui/Bracket.js'
 import { ChevronIcon, FlagIcon } from '../ui/icons.js'
 import { FoldBody } from '../ui/Fold.js'
 import { Lamp } from '../ui/Lamp.js'
 import { Loading } from '../ui/Loader.js'
-import { openText, outsideGroups, outsidePage, parseOpen, type OutsideGroup } from '../ui/outside.js'
+import { chainHolders, openText, outsideGroups, outsidePage, parseOpen, type OutsideGroup } from '../ui/outside.js'
 import { Tipped } from '../ui/Tipped.js'
 import { compareTasks, OUTSIDE_ORDER_KEY, useBacklogOrder } from './backlogOrder.js'
 import { Divider } from './ChainDivider.js'
@@ -31,6 +35,8 @@ interface Archive {
 interface Props {
   project: string
   switcher: ReactNode
+  /** The chain's rows: an open chain task that blocks a task of the view stands before it (BTN-1714). */
+  chain: readonly ChainBlock[]
   /** Bumped by every edit of the task card: the view reads anew, so a changed status moves its row at once (BTN-1673). */
   edits?: number
   onCard: (task: string) => void
@@ -42,7 +48,7 @@ interface Props {
  * archive of the closed ones an excluding label or a left-out milestone kept out. Read when the view opens, and anew
  * without the loader after a card's edit and each read of the tracker; a row only opens the task's card.
  */
-export function OutsideView({ project, switcher, edits = 0, onCard }: Props) {
+export function OutsideView({ project, switcher, chain: blocks, edits = 0, onCard }: Props) {
   const { state, read } = useLive()
   const [loaded, setLoaded] = useState<Read>({ tasks: null, failed: false })
   const [archive, setArchive] = useState<Archive | null>(null)
@@ -106,7 +112,7 @@ export function OutsideView({ project, switcher, edits = 0, onCard }: Props) {
   // What the chain shows (its order and its locked blockers) and the backlog stay theirs, whatever the read said.
   const shown = new Set([...(chain?.order ?? []), ...(chain?.waiting ?? []), ...(chain?.backlog ?? [])])
   const groups = loaded.tasks === null ? [] : outsideGroups(loaded.tasks, shown, compareTasks(order))
-  const keyChars = Math.max(0, ...[...(loaded.tasks ?? []).map((each) => each.task), ...(archive?.tasks ?? [])].map((task) => task.id.length))
+  const keyChars = Math.max(0, ...[...(loaded.tasks ?? []).map((each) => each.task), ...(archive?.tasks ?? []), ...(loaded.tasks ?? []).flatMap((each) => chainHolders(each.task.blockedBy, blocks))].map((task) => task.id.length))
   const retry = () => {
     setLoaded({ tasks: null, failed: false })
     setAttempt((count) => count + 1)
@@ -144,6 +150,7 @@ export function OutsideView({ project, switcher, edits = 0, onCard }: Props) {
               <Group
                 key={group.reason}
                 group={group}
+                chain={blocks}
                 open={open.includes(group.reason)}
                 more={more[group.reason] ?? 0}
                 onToggle={() => setOpen(group.reason, !open.includes(group.reason))}
@@ -228,6 +235,7 @@ function ArchivedRow({ task, milestone, onCard }: { task: Task; milestone: strin
 
 interface GroupProps {
   group: OutsideGroup
+  chain: readonly ChainBlock[]
   open: boolean
   more: number
   onToggle: () => void
@@ -235,7 +243,7 @@ interface GroupProps {
   onCard: (task: string) => void
 }
 
-function Group({ group, open, more, onToggle, onMore, onCard }: GroupProps) {
+function Group({ group, chain, open, more, onToggle, onMore, onCard }: GroupProps) {
   const id = `outside-${group.reason}`
   return (
     <section className="outside__group">
@@ -245,14 +253,17 @@ function Group({ group, open, more, onToggle, onMore, onCard }: GroupProps) {
         toggle={{ expanded: open, title: open ? t.chain.outside.fold : t.chain.outside.unfold, run: onToggle }}
       />
       <FoldBody open={open} id={id}>
-        {() => <GroupRows group={group} more={more} onMore={onMore} onCard={onCard} />}
+        {() => <GroupRows group={group} chain={chain} more={more} onMore={onMore} onCard={onCard} />}
       </FoldBody>
     </section>
   )
 }
 
-function GroupRows({ group, more, onMore, onCard }: Omit<GroupProps, 'open' | 'onToggle'>) {
+function GroupRows({ group, chain, more, onMore, onCard }: Omit<GroupProps, 'open' | 'onToggle'>) {
   const page = outsidePage(group, more)
+  const location = useLocation()
+  // A holder's link opens its session panel in the chain, the rest of the address kept.
+  const toChain = chainTo(location.search).search
   return (
     <div className="outside__rows">
       {page.sections.map((section) => (
@@ -271,9 +282,18 @@ function GroupRows({ group, more, onMore, onCard }: Omit<GroupProps, 'open' | 'o
                 <span className="outside__status-count">{status.count}</span>
               </h4>
               <ol className="chain__blocks">
-                {status.tasks.map((each) => (
-                  <Row key={each.task.id} task={each.task} onCard={onCard} />
-                ))}
+                {status.tasks.map((each) => {
+                  const holders = chainHolders(each.task.blockedBy, chain)
+                  return (
+                    <Fragment key={each.task.id}>
+                      {holders.map((holder) => (
+                        <HolderRow key={`${each.task.id}:${holder.id}`} block={holder} search={toChain} onCard={onCard} />
+                      ))}
+                      <Row task={each.task} onCard={onCard} />
+                    </Fragment>
+                  )
+                })}
+                {status.tasks.some((each) => chainHolders(each.task.blockedBy, chain).length > 0) && <Bracket blockers=".outside__holder" />}
               </ol>
             </div>
           ))}
@@ -309,6 +329,28 @@ function Row({ task, onCard }: { task: Task; onCard: (task: string) => void }) {
       <span className="block__divider" aria-hidden="true" />
       <p className="block__title">{task.title}</p>
       <div className="block__side" />
+    </li>
+  )
+}
+
+/**
+ * A chain task that holds the task under it (BTN-1714): a dashed row in from the others, its tracker status's dot and the
+ * status in words at the right, so it shows whether it is under way; its key opens its session in the chain.
+ */
+function HolderRow({ block, search, onCard }: { block: ChainBlock; search: string; onCard: (task: string) => void }) {
+  const working = block.current || block.lamp === 'working'
+  return (
+    <li className={`block block--${block.lamp} block--far outside__holder`} data-block={block.id} onDoubleClick={() => onCard(block.id)}>
+      <span className="block__number" />
+      <div className="block__head">
+        <span className="outside__lamp">{block.stage === null ? <Lamp lamp={block.lamp} /> : <StatusDot status={{ category: block.stage }} />}</span>
+        <Link to={{ search, hash: block.id }} className="block__key">
+          {block.id}
+        </Link>
+      </div>
+      <span className="block__divider" aria-hidden="true" />
+      <p className="block__title">{block.title ?? block.id}</p>
+      <div className="block__side">{block.status !== null && <span className={working ? 'outside__holder-status outside__holder-status--working' : 'outside__holder-status'}>{block.status}</span>}</div>
     </li>
   )
 }

@@ -80,6 +80,23 @@
   width: 12px;
 }
 
+/* A chain task that holds the task under it (BTN-1714): in by the blockers' indent, a dashed frame, no fill. */
+.chain .outside__holder {
+  margin-left: var(--blocker-indent);
+  border-style: dashed;
+  background: transparent;
+}
+
+.outside__holder-status {
+  color: var(--fg-muted);
+  font-size: var(--text-12);
+  white-space: nowrap;
+}
+
+.outside__holder-status--working {
+  color: var(--accent);
+}
+
 .outside__tools {
   gap: var(--space-12);
   margin-left: auto;
