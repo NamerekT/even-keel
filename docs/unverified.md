@@ -356,6 +356,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 332 | [The "Outside the chain" archive from a live tracker](unverified/trackers.md#the-outside-the-chain-archive-from-a-live-tracker-btn-1673) | projects on Huly or GitHub with closed tasks labelled to stay out of the chain | a closed Manual task is missing from the view's archive, or the archive never shows | — |
 | 333 | [A memory record changed on two machines](unverified/machines.md#a-memory-record-changed-on-two-machines-btn-1686) | projects whose memory is kept on two or more copies | the other version of a record stays only in the memory repository's history and no session merges it; `git log --grep '^Memory-Conflict:'` in the memory folder lists them | — |
 | 334 | [The global configuration between machines](unverified/machines.md#the-global-configuration-between-machines-btn-1690) | hubs with machines elsewhere; the move of the old skill and hook stores on every install that has them | a skill or setting edited on one machine never reaches the others, or an old store stays in place with a warning in the log; the log's `config:` lines say why | — |
+| 335 | [A person's choice of a configuration conflict](unverified/machines.md#a-persons-choice-of-a-configuration-conflict-btn-1692) | hubs with machines elsewhere where a hook or `settings.json` changed on two of them | the banner does not come or stays after a choice, or a machine keeps its own version; save the file again on any machine to end the conflict | — |
 
 ### Waiting for the event / not checked by choice
 

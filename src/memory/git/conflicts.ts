@@ -32,6 +32,8 @@ export interface MemoryConflict {
   other: string
   /** When the conflict was met (ISO). */
   since: string
+  /** The machine it was met on: the author of `commit`. Absent in a conflicts file of before BTN-1692. */
+  by?: string
   /** `fileHash` of the file as the conflict left it: a file no longer so was saved since, its conflict ending. */
   hash: string
   /** The other version's text. */
@@ -47,18 +49,23 @@ export function conflictTrailer(file: string, trailer = CONFLICT_TRAILER): strin
   return `${trailer}: ${file}`
 }
 
-/** The conflicts the history leaves open, newest first, one a file. */
+/**
+ * The conflicts the history leaves open, newest first, one a file. A person's choice (`SyncFlavor.settled`) newer than
+ * a file's last conflict ends it as a later change of the file does.
+ */
 export async function openConflicts(git: RunGit, folder: string, flavor: SyncFlavor = MEMORY_FLAVOR): Promise<MemoryConflict[]> {
   if ((await git('rev-parse', '--verify', '-q', 'HEAD')).code !== 0) return []
-  const { trailer } = flavor
-  const log = await git('log', '--format=%H%x1f%aI%x1f%B%x1e', `--grep=^${trailer}:`, 'HEAD')
+  const { trailer, settled } = flavor
+  const log = await git('log', '--format=%H%x1f%aI%x1f%an%x1f%B%x1e', `--grep=^${trailer}:`, `--grep=^${settled}:`, 'HEAD')
   if (log.code !== 0) return []
   const seen = new Set<string>()
   const open: MemoryConflict[] = []
   for (const entry of log.out.split('\x1e')) {
-    const [commit, since, body] = entry.trim().split('\x1f')
-    if (commit === undefined || since === undefined || body === undefined) continue
+    const [commit, since, by, body] = entry.trim().split('\x1f')
+    if (commit === undefined || since === undefined || by === undefined || body === undefined) continue
     for (const line of body.split('\n')) {
+      const ended = line.startsWith(`${settled}: `) ? line.slice(settled.length + 2).trim() : ''
+      if (ended !== '') seen.add(ended)
       const file = line.startsWith(`${trailer}: `) ? line.slice(trailer.length + 2).trim() : ''
       if (file === '' || seen.has(file)) continue
       seen.add(file)
@@ -71,7 +78,7 @@ export async function openConflicts(git: RunGit, folder: string, flavor: SyncFla
       const other = parent.out
       const shown = await git('show', `${other}:${file}`)
       const otherText = shown.code === 0 ? `${shown.out}\n` : ''
-      const conflict = { file, commit, other, since, hash: fileHash(readFileSync(path, 'utf8')), otherText }
+      const conflict = { file, commit, other, since, by, hash: fileHash(readFileSync(path, 'utf8')), otherText }
       if (flavor.human(file)) open.push({ ...conflict, human: true, note: humanNote(conflict, folder) })
       else open.push({ ...conflict, note: conflictNote(conflict, folder, 'file', flavor) })
     }
@@ -123,5 +130,5 @@ export function conflictNote(conflict: Pick<MemoryConflict, 'file' | 'other' | '
 
 /** A conflict a person settles: where the other version is. */
 function humanNote(conflict: Pick<MemoryConflict, 'file' | 'other'>, folder: string): string {
-  return `${conflict.file} of the global configuration (${folder}) was changed on two machines: the newer version is kept, the other is \`git -C "${folder}" show ${conflict.other}:${conflict.file}\`. Settle it by hand: the conflict ends once the file is saved again.`
+  return `${conflict.file} of the global configuration (${folder}) was changed on two machines: the newer version is kept, the other is \`git -C "${folder}" show ${conflict.other}:${conflict.file}\`. Choose the version on the page (the configuration conflict banner), or save the file again: either ends the conflict.`
 }

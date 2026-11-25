@@ -698,6 +698,7 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     chats: ctx.projectChats,
     dictation: new Dictation(() => ctx.db),
     backup: ctx.backups,
+    configConflicts: ctx.memory,
     machines: ctx.machineLink.network,
     machineAccounts: machineAccountCommands({
       online: (machine) => network.connected(machine),

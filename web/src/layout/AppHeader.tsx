@@ -5,6 +5,7 @@ import { BackupBanner } from './BackupBanner.js'
 import { CliCheckBanner } from './CliCheckBanner.js'
 import { CliCopiesBanner } from './CliCopies.js'
 import { ConfigBanner } from './ConfigBanner.js'
+import { ConfigConflictBanner } from './ConfigConflictBanner.js'
 import { Header } from './Header.js'
 import { MachineStrip } from './MachinePanel.js'
 import { MemoryMirrorBanner } from './MemoryMirrorBanner.js'
@@ -46,6 +47,7 @@ export function AppHeader() {
         <PackagesBanner />
         <BackupBanner />
         <MemoryMirrorBanner />
+        <ConfigConflictBanner />
       </div>
     </div>
   )

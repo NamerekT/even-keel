@@ -33,6 +33,24 @@ import type { UpdatesView } from './updates/release.js'
  */
 export type PinWait = 'busy' | 'offline' | 'gone' | 'elsewhere'
 
+/** A hook or `settings.json` of the global configuration changed on two machines (BTN-1692): the page's banner. */
+export interface ConfigConflictView {
+  /** The file in the configuration repository, `/` between its parts. */
+  file: string
+  /** The machine the conflict was met on, as its commits name it; `null` — not known. */
+  machine: string | null
+  /** When it was met (ISO). */
+  since: string
+  /** What the banner says: `memory.configConflict`, or `memory.configConflictAnywhere` without the machine. */
+  notice: Notice
+  /** The file as the conflict left it, sent back with the choice: a choice made after the file changed is refused. */
+  hash: string
+  /** The version the file holds, the newer one; cut past `CONFIG_CONFLICT_TEXT`. */
+  kept: string
+  /** The other version; cut so too. */
+  other: string
+}
+
 /** A task held by a machine gone (BTN-1270). */
 export interface StrandedTask {
   /** The machine holding it; the page names it by `machineNames`. */
@@ -439,6 +457,11 @@ export interface EvenKeelState {
   backup?: BackupView
   /** The warning that the memory mirror must be private, while one is set (BTN-1649); `null` or absent — no mirror. */
   memoryMirror?: Notice | null
+  /**
+   * The conflicts of the global configuration's hooks and `settings.json` a person settles (BTN-1692), met on any
+   * machine: the hub's copy holds them all. Absent — an older service.
+   */
+  configConflicts?: ConfigConflictView[]
   /**
    * The page's "Got it" marks (BTN-759): a banner's id and the stamp of what it said when closed; it comes back once
    * the stamp changes. Kept in `service_state`, so every device sees them.

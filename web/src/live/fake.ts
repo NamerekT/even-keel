@@ -15,6 +15,7 @@ import { fakeCi, fakeMainCi } from './fakeCi.js'
 import { EVENT_MS, fakeEvent } from './fakeEvents.js'
 import { fakeUpdates } from './fakeUpdates.js'
 import { fakeBackup } from './fakeBackup.js'
+import { fakeConfigConflictCommand, fakeConfigConflicts } from './fakeConfigConflicts.js'
 import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_VOCABULARY, fakeHandEdit } from './fakeConfig.js'
 import { withCarry } from './fakeCarry.js'
 import { withCompletionFailure, withMoveFailure } from './fakeCompletion.js'
@@ -187,6 +188,7 @@ export function createFakeSource(search: string): LiveSource {
   }
   if (current.state !== null) current.state.updates = fakeUpdates(params)
   if (current.state !== null) current.state.backup = fakeBackup(params.get('backup'))
+  if (current.state !== null) current.state.configConflicts = fakeConfigConflicts(params.get('configConflict'))
   if (params.get('memoryMirror') === 'on' && current.state !== null) {
     const address = 'ssh://git@git.example.com/john-doe/even-keel-memory.git'
     current.state.memoryMirror = notice('memory.mirrorPrivate', { address })
@@ -741,7 +743,7 @@ export function createFakeSource(search: string): LiveSource {
       const machine = fakeMachineCommand(state, name, body)
       // A machine's accounts changed: its cards are read again, as its next snapshot makes the hub tell the page.
       if (machine !== null) setTimeout(() => network.changed(), 0)
-      const next = fakeBranchCommand(state, name, body, params.get('branch')) ?? machine ?? fakeCommand(state, name, body, launches)
+      const next = fakeBranchCommand(state, name, body, params.get('branch')) ?? machine ?? fakeConfigConflictCommand(state, name, body, params.get('configConflict')) ?? fakeCommand(state, name, body, launches)
       if (name === 'cli/download') setTimeout(() => {
         if (current.state === null) return
         current = { ...current, state: finishFakeCli(current.state, String(body.agent)) }

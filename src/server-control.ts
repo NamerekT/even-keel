@@ -281,6 +281,8 @@ export interface ServerDeps {
   hulyClient?: { install(): void }
   /** "Make a copy now" of the backup's settings (BTN-1083): refused while a copy runs. */
   backup?: { copyNow(): void }
+  /** "Keep this" and "Take the other" of a global configuration conflict (BTN-1692): refused once it is settled or changed. */
+  configConflicts?: { settleConfig(file: string, hash: string, take: 'kept' | 'other'): Promise<void> }
   /** The machines elsewhere (BTN-1242): their window is BTN-1056; without it the calls answer nothing. */
   machines?: {
     addresses(): AddressChoice[]

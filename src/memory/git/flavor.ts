@@ -9,6 +9,11 @@ export interface SyncFlavor {
   attributes: string
   /** The commit trailer of a conflict kept for later (`conflictTrailer`). */
   trailer: string
+  /**
+   * The commit trailer of a person's choice of a version (`MemorySync.settle`, BTN-1692): it ends the file's conflict
+   * even when the file kept its text.
+   */
+  settled: string
   /** `MEMORY.md` is tidied by `reindex` after every fetch. */
   index: boolean
   /** The folder has subfolders: its watcher goes into them. */
@@ -26,6 +31,7 @@ export const MEMORY_FLAVOR: SyncFlavor = {
   kind: 'memory',
   attributes: `${MEMORY_INDEX} merge=union\n`,
   trailer: 'Memory-Conflict',
+  settled: 'Memory-Settled',
   index: true,
   nested: false,
   human: () => false,
@@ -40,6 +46,7 @@ export const CONFIG_FLAVOR: SyncFlavor = {
   // `-merge`: a rebase stops at any change of both sides instead of merging the lines, so `settleMet` sees every one.
   attributes: 'hooks/** -merge\nsettings.json -merge\n',
   trailer: 'Config-Conflict',
+  settled: 'Config-Settled',
   index: false,
   nested: true,
   human: (path) => HUMAN.test(path.replace(/\\/g, '/')),
