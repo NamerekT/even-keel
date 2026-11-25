@@ -2,10 +2,12 @@ import { basename, posix, win32 } from 'node:path'
 import type { HubLongToken } from '../account/longToken.js'
 import type { TokenAccountOf } from '../account/model.js'
 import type { HubCertificate } from '../link/cert.js'
-import type { HubStore } from '../link/hub-store.js'
+import type { CloneProgress } from '../git/clone-progress.js'
+import type { HubStore, MachineRecord } from '../link/hub-store.js'
+import type { HubEnd } from '../link/hub.js'
 import type { JoinRequests } from '../link/join-requests.js'
 import type { CredentialsAnswer, GitAnswer, GitRequest, HookAnswer, HookRequest, McpAnswer, McpRequest, SkillsAnswer, TallyAnswer } from '../link/protocol.js'
-import type { MachineAbout, MachineProjectSettings, PoolServer } from '../link/view.js'
+import type { MachineAbout, MachineProjectSettings, PoolServer, StateTooLarge, TakenFolder } from '../link/view.js'
 import type { HubBrief } from '../machine/brief.js'
 import type { RemoteDeps, RemoteMachine } from '../machine/remote.js'
 import type { MachinePort } from '../machine/port.js'
@@ -118,6 +120,26 @@ const windowsRoot = (root: string): boolean => root.includes('\\') || /^[A-Za-z]
 /** Whether `folder` is inside the machine's folder of projects, compared the way the machine writes paths. */
 export function insideRoot(folder: string, root: string): boolean {
   return isInside(folder, root, windowsRoot(root) ? 'win32' : 'linux')
+}
+
+/**
+ * What the parts of `MachineNetwork` in other files (the pool, the briefs, the accounts on a machine, the door) need of
+ * it: its hub end, its maps by machine and a few of its own moves.
+ */
+export interface NetworkHost {
+  readonly options: MachineNetworkOptions
+  readonly hub: HubEnd
+  readonly peers: Map<string, Peer>
+  readonly taken: Map<string, Map<string, TakenFolder>>
+  readonly clones: Map<string, (progress: CloneProgress) => void>
+  readonly wentOff: Map<string, number>
+  readonly tooLarge: Map<string, StateTooLarge>
+  refresh(): Promise<void>
+  foreign(machine: string): Promise<MachineRecord>
+  folderOf(project: string, folder: string | null, root: string | null): string | undefined
+  folderOn(machine: string, project: string, root: string | null): Promise<string | undefined>
+  holds(machine: string, project: string, owner: { machine: string; name: string } | undefined): Promise<boolean>
+  brief(machine: string): Promise<void>
 }
 
 /** A machine of a project's pool as the connect job finds it: joined, with a folder of projects. */
