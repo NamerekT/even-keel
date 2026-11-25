@@ -188,7 +188,7 @@ export interface PoolMachine {
 }
 
 /**
- * A machine's own values in a project (BTN-994, `docs/settings.md`, "A machine in a project"): a command list left
+ * A machine's own values in a project (BTN-994, `docs/settings/levels.md`, "A machine in a project"): a command list left
  * empty or out is the project's.
  */
 export interface MachineProjectSettings {

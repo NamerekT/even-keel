@@ -5,7 +5,7 @@ import { remoteUrls } from './remote-urls.js'
 import type { Git, GitDenied, GitResult } from './types.js'
 
 /**
- * A token the service gives its own git for one HTTPS remote (BTN-1541, `docs/ci.md`, "Git over HTTPS"): the
+ * A token the service gives its own git for one HTTPS remote (BTN-1541, `docs/ci/layer.md`, "Git over HTTPS"): the
  * profile's token as the password, under the forge's user name.
  */
 export interface GitCredential {

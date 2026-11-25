@@ -59,7 +59,7 @@ export function settingsOf(draft: Draft, servers: ProjectPool['servers']): Machi
 }
 
 /**
- * A machine elsewhere's own values in the project (BTN-994, `docs/settings.md`, "A machine in a project"): its command
+ * A machine elsewhere's own values in the project (BTN-994, `docs/settings/levels.md`, "A machine in a project"): its command
  * lists and the commands of the project's stdio servers there. A field left blank shows the project's value as its
  * placeholder and takes it.
  */
