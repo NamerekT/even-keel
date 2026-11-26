@@ -284,7 +284,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>, 
     return { text: await dictation.transcribe(textOf(body.audio, 'audio'), textOf(body.type, 'type')) }
   },
   'chat/menu': async ({ chatMenu }, body) =>
-    (await chatMenu?.(projectOf(body), optionalText(body.task, 'task'), optionalText(body.chat, 'chat'))) ?? [],
+    (await chatMenu?.(projectOf(body), optionalText(body.task, 'task'), optionalText(body.chat, 'chat'), optionalText(body.agent, 'agent') ?? undefined)) ?? [],
 }
 
 const MAX_BODY_BYTES = 64 * 1024

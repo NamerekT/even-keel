@@ -864,7 +864,7 @@ export function createFakeSource(search: string): LiveSource {
       if (name === 'project/git/changes') return fakeGitChanges(params.get('gitChanges')) as T
       if (name === 'project/badge/check') return fakeBadgeCheck(body, params.get('badgeCheck')) as T
       if (name === 'dictation/transcribe') return (await fakeDictation(params.get('dictation'))) as T
-      if (name === 'chat/menu') return FAKE_MENU as T
+      if (name === 'chat/menu') return (body.agent === 'codex' ? FAKE_MENU.filter((entry) => entry.kind === 'skill') : FAKE_MENU) as T
       if (name === 'history/events') return current.state.eventLog as T
       if (name === 'history/task') return fakeTaskHistory(current.state, String(body.task)) as T
       if (name === 'archive/page') return (await fakeArchivePage(current.state, body, fakeArchiveCount(params.get('archive')))) as T

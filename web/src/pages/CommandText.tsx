@@ -53,7 +53,7 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
 
   const items = menu?.items ?? []
   const query = menu === null ? null : menuQuery(value)
-  const options = query === null ? [] : matchingItems(query, items)
+  const options = query === null ? [] : matchingItems(query.typed, items, query.sigil)
   const open = focused && !disabled && options.length > 0 && dismissed !== value
   const chosen = Math.min(active, options.length - 1)
   const typed = menu === null ? null : typedItem(value, items)
@@ -97,7 +97,7 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
     box.scrollTop = box.scrollHeight
   }
   const pick = (item: MenuItem) => {
-    const text = withCommand(value, item.name)
+    const text = withCommand(value, item.name, item.sigil)
     change(text, text.length)
     area.current?.focus()
   }
@@ -240,7 +240,7 @@ export function CommandText({ value, onChange, rows, disabled, placeholder, onPa
       )}
       {typed !== null && tokenSpot !== null && (
         <div className="chat__command-card" style={{ left: tokenSpot.left, bottom: tokenSpot.bottom }} role="tooltip">
-          <span className="chat__command-card-name">/{typed.item.name}</span>
+          <span className="chat__command-card-name">{typed.item.sigil}{typed.item.name}</span>
           {typed.item.description !== '' && <span>{typed.item.description}</span>}
         </div>
       )}
