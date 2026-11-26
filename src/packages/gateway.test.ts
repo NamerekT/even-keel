@@ -484,6 +484,14 @@ server.listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1', () => setTimeout((
       expect(awayReplies('{')).toBeUndefined()
     })
 
+    it('carries the memory server to the hub before the brief lists its route: a project just added (BTN-1733)', async () => {
+      const relayed: McpRequest[] = []
+      const url = await start({ entry: { type: 'http', url: 'http://127.0.0.1:4747/memory' }, npm: null, env: {} })
+      gateway!.throughHub({ servers: () => [], relay: async (request) => (relayed.push(request), { status: 200, headers: {}, body: '{"from":"hub"}' }), tasks: { handle: async () => null } })
+      expect(await (await post(url, { jsonrpc: '2.0', id: 1, method: 'initialize' })).json()).toEqual({ from: 'hub' })
+      expect(relayed.map((each) => each.path)).toEqual([routeOf('p-1', 'echo', 'i1', 'echo')])
+    })
+
     it('answers the tasks server with the machine’s stand-in, the task of the address in its scope', async () => {
       const scopes: unknown[] = []
       await start(keyed)

@@ -208,9 +208,11 @@ export class McpGateway {
     if (isTasksUrl(target.entry.url) && tasks !== undefined) {
       return this.local(req, res, tasks, { project: route.project, task: url.searchParams.get('task'), ...machine })
     }
-    // The memory server answers only in the hub: a machine reaches it through `hub.servers()` above (BTN-1029).
+    // The memory server answers only in the hub (BTN-1029): a machine carries it there even before its brief lists the
+    // route, as for a project added a moment ago (BTN-1733).
     if (isMemoryUrl(target.entry.url)) {
-      if (this.hub !== undefined || this.deps.memory === undefined) return void res.writeHead(404).end()
+      if (this.hub !== undefined) return this.relayed(req, res, url, `${route.name}/${route.server}`, this.hub)
+      if (this.deps.memory === undefined) return void res.writeHead(404).end()
       return this.local(req, res, this.deps.memory, { project: route.project, task: url.searchParams.get('task'), ...machine })
     }
     const label = `${route.name}/${route.server}`
