@@ -16,6 +16,7 @@ export const sharedEn = {
     tools: 'Tools',
     context: 'Context',
     cacheChats: 'Cache and chats',
+    copiesMirror: 'Copies and memory mirror',
     interface: 'Interface',
     addresses: 'Page addresses',
     connect: 'Connecting machines',

@@ -62,22 +62,17 @@
 .settings__field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-6);
 }
 
 /* The fields under the switch of their group (the trackers under "Deleting tracker records"): a line at their left ties them to it. */
 .settings__nested {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-16);
   margin-left: var(--space-8);
   padding-left: var(--space-16);
   border-left: 2px solid color-mix(in srgb, var(--fg) 30%, transparent);
-}
-
-.settings__nested > .settings__field {
-  padding-top: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
 }
 
 /* A row's name is lighter than the card's head and darker than a hint: head → name → value. */
@@ -265,7 +260,7 @@ textarea.settings__text[rows='5'] {
 }
 
 .settings__row .settings__number {
-  width: 7em;
+  width: 120px;
 }
 
 .settings__grow {
@@ -322,7 +317,7 @@ textarea.settings__text[rows='5'] {
 .settings__section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-16);
   margin: 0;
   padding: 14px 16px 16px;
   border: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
@@ -372,16 +367,8 @@ textarea.settings__text[rows='5'] {
   display: contents;
 }
 
-/* Fields of a section are parted by thin lines; a block under a switch counts its own fields. */
-.settings__section > :not(.settings__heading) + .settings__field,
-.settings__section > :not(.settings__heading) + .settings__guarded,
-.settings__guarded > .settings__field + .settings__field,
-.settings__fields > .settings__field + .settings__field {
-  padding-top: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
-}
-
-/* A row: the name at the left, the control at the right, every control one width so the right edges line up. */
+/* A row: the name at the left, the control at the right. In a settings form only a switch keeps one (`SwitchField`);
+   any other setting stands under its name (`Field`, docs/design.md "Settings form"). */
 .settings__line-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--control-width);
@@ -445,51 +432,16 @@ textarea.settings__text[rows='5'] {
 }
 
 /*
- * The one-column form (BTN-1717, a trial on the two Sessions screens): every name over its control at one left edge,
- * a switch alone in its name's line at the column's right edge, fields parted by space instead of lines. It does not
- * switch by the window: in the side panel the column is the panel's width, on the page at most 680 px.
+ * The one-column form (BTN-1717, the standard since BTN-1727): every name over its control at one left edge, a switch
+ * alone in its name's line at the column's right edge, fields parted by space instead of lines. It does not switch by
+ * the window: in the side panel the column is the panel's width, on the page at most 680 px (`.settings-page__form`).
  */
-.settings__form.settings--column {
-  max-width: 680px;
-}
-
-.panel.settings .settings__form.settings--column {
-  max-width: none;
-}
-
-.settings--column .settings__section {
-  gap: var(--space-16);
-}
-
-.settings--column .settings__field {
-  gap: var(--space-6);
-}
-
-.settings--column .settings__nested {
-  gap: var(--space-16);
-}
-
-.settings--column .settings__section > :not(.settings__heading) + .settings__field,
-.settings--column .settings__section > :not(.settings__heading) + .settings__guarded,
-.settings--column .settings__nested > .settings__field {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.settings--column .settings__section > :not(.settings__heading) + .settings__field--changed::before {
-  top: 0;
-}
-
-.settings--column .settings__text,
-.settings--column .rows__table {
+.settings__form .settings__text,
+.settings__form .rows__table {
   margin-top: 0;
 }
 
-.settings--column .settings__row .settings__number {
-  width: 120px;
-}
-
-.settings--column .settings__stack > .settings__line-extra {
+.settings__stack > .settings__line-extra {
   justify-content: flex-start;
 }
 
@@ -514,6 +466,10 @@ textarea.settings__text[rows='5'] {
 
 .settings__stack-control--select {
   width: 240px;
+}
+
+.settings__stack-control--fit {
+  width: fit-content;
 }
 
 .settings__stack-control > .field-strip {
@@ -719,9 +675,12 @@ textarea.settings__text[rows='5'] {
   white-space: pre-line;
 }
 
-/* The page of shared settings: the groups in a column at the left, the open one at the right, together no wider than reads well. */
+/* The page of shared settings: the groups in a column at the left, the open one at the right — a column of 680 px, so the
+   two are centred together and no empty half is left at the right. */
 .settings-page {
-  max-width: 1180px;
+  width: 100%;
+  max-width: calc(200px + 32px + 680px);
+  margin-inline: auto;
 }
 
 .settings-page__title {
@@ -749,15 +708,8 @@ textarea.settings__text[rows='5'] {
 }
 
 .settings-page__form {
-  max-width: 820px;
+  max-width: 680px;
   animation: fade-in var(--motion-appear) ease-out;
-}
-
-/* The one-column form is narrow: the groups and the column are centred together, no empty half at the right. */
-.settings-page--column {
-  width: 100%;
-  max-width: calc(200px + 32px + 680px);
-  margin-inline: auto;
 }
 
 .settings-nav {
@@ -905,7 +857,7 @@ textarea.settings__text[rows='5'] {
   }
 
   /* The groups folded into a button over the form: the column is as wide as that button. */
-  .settings-page__form.settings--column {
+  .settings-page__form {
     max-width: none;
   }
 }
@@ -1147,11 +1099,6 @@ textarea.settings__text[rows='5'] {
   border-radius: var(--radius-pill);
   background: var(--accent);
   content: '';
-}
-
-.settings__section > :not(.settings__heading) + .settings__field--changed::before,
-.settings__guarded > .settings__field + .settings__field--changed::before {
-  top: 12px;
 }
 
 /* The ↺ of a changed field, in its head line: what it was is in its tip, so the field grows by nothing. */

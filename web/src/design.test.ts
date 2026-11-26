@@ -5,9 +5,11 @@ import { describe, expect, it } from 'vitest'
 import baselineText from './design-baseline.json?raw'
 import glueBaselineText from './glue-baseline.json?raw'
 import noteBaselineText from './note-baseline.json?raw'
+import rowBaselineText from './row-baseline.json?raw'
 import { compareBaseline, cssViolations, violationCounts } from './ui/cssRules.js'
 import { glueCounts, glueScanned, glueSpots } from './ui/glueRules.js'
 import { noteCounts, noteScanned, noteSpots } from './ui/noteRules.js'
+import { rowCounts, rowScanned, rowSpots } from './ui/rowRules.js'
 
 // Read from the disk, not through `import.meta.glob`: vitest's module cache keeps a glob's file list from the transform
 // that first ran, so a file added later would stay unseen until this test changes.
@@ -25,6 +27,8 @@ const sources = read((path) => path.endsWith('.tsx'))
 const pageFiles = read(glueScanned)
 // The page code the note guard reads (`noteScanned`).
 const codeFiles = read(noteScanned)
+// The page code the row guard reads (`rowScanned`).
+const rowFiles = read(rowScanned)
 
 /** The lines of every `add-package__body` div of a source, matched to its closing tag by counting divs. */
 function dialogBodies(source: string): { line: number; text: string }[] {
@@ -114,5 +118,15 @@ describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
     })
     expect(added, 'An explanation under a field: put it into the "?" of its heading, a state into its FieldStrip (docs/design.md, "Tip")').toEqual([])
     expect(fewer, 'Fewer notes than the baseline: run `npm run design-baseline` and commit web/src/note-baseline.json').toEqual([])
+  })
+  it('no settings screen puts more controls at the right of their names than the baseline, and the baseline is not above what is left', () => {
+    const baseline = JSON.parse(rowBaselineText) as Record<string, number>
+    const { more, fewer } = compareBaseline(rowCounts(rowFiles), baseline)
+    const added = more.map((file) => {
+      const lines = rowSpots(file, rowFiles[file] ?? '').map((spot) => `  ${file}:${spot.line}`)
+      return `${file}: ${lines.length} rows, the baseline allows ${baseline[file] ?? 0}\n${lines.join('\n')}`
+    })
+    expect(added, 'A control at the right of its name: put it under the name with Field, only a switch keeps its line (docs/design.md, "Settings form")').toEqual([])
+    expect(fewer, 'Fewer rows than the baseline: run `npm run design-baseline` and commit web/src/row-baseline.json').toEqual([])
   })
 })

@@ -5,7 +5,7 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { secretInput } from '../ui/secret.js'
 import { CLASSIFIER, CLASSIFIER_FIELDS, classifierChanges, classifierDraft, classifierVariable, type ClassifierField } from './classifier.js'
-import { fieldId, Row, Section } from './settingsParts.js'
+import { Field, fieldId, Section } from './settingsParts.js'
 
 const hintOf = (text: string, name: string, outer: boolean) => [text, t.secrets.variable(name), outer ? t.secrets.outerHint : ''].filter((part) => part !== '').join(' ')
 
@@ -32,7 +32,7 @@ export function PageToken({ state }: { state: EvenKeelState }) {
   }
 
   return (
-    <Row
+    <Field
       className="settings__field"
       label={t.secrets.token}
       hint={hintOf(t.secrets.tokenHint, PAGE_TOKEN, variable.outer)}
@@ -65,7 +65,7 @@ export function PageToken({ state }: { state: EvenKeelState }) {
           )}
         </div>
       )}
-    </Row>
+    </Field>
   )
 }
 
@@ -99,7 +99,7 @@ export function ClassifierSettings({ state }: { state: EvenKeelState }) {
           const { label, hint } = LABELS[field]()
           const id = fieldId(CLASSIFIER[field])
           return (
-            <Row
+            <Field
               key={field}
               className="settings__field"
               label={label}

@@ -30,13 +30,11 @@ import {
   marksOf,
   minutesOf,
   ModelStrip,
-  Row,
   RULE_KEYS,
   rulesOf,
   SAVE_LANDING_MS,
   SaveBar,
   Section,
-  SETTINGS_COLUMN,
   SHARE_KEYS,
   shareOf,
   shown,
@@ -203,15 +201,12 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       {numberInput(key, invalid, { disabled })}
     </div>
   )
-  const numberRow = (key: string, label: string, invalid: boolean, hint?: string) => (
-    <Row className={marks.box(key)} label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} control={numberInput(key, invalid)} error={errorOf(key)} />
-  )
   const numberField = (key: string, label: string, invalid: boolean, hint?: string) => (
     <Field className={marks.box(key)} label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} width="number" control={numberInput(key, invalid)} error={errorOf(key)} />
   )
   // A path or an address in one line; `empty` is what no value means.
-  const monoRow = (key: string, label: string, hint: string, empty: string) => (
-    <Row
+  const monoField = (key: string, label: string, hint: string, empty: string) => (
+    <Field
       className={marks.box(key)}
       label={label}
       hint={hint}
@@ -232,19 +227,19 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       error={errorOf(key)}
     />
   )
-  // A pick of one of a few; `stacked` — under its name, in the one-column form.
-  const select = (key: string, label: string, options: readonly { value: string; label: string }[], hint?: string, stacked = false) => {
-    const props = {
-      className: marks.box(key),
-      label,
-      hint,
-      htmlFor: fieldId(key),
-      mark: marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value)),
-      control: <Select id={fieldId(key)} className="settings__text" value={text(key)} options={options} onChange={(value) => edit(key, value)} />,
-      error: errorOf(key),
-    }
-    return stacked ? <Field {...props} width="select" /> : <Row {...props} />
-  }
+  // A pick of one of a few, under its name.
+  const select = (key: string, label: string, options: readonly { value: string; label: string }[], hint?: string) => (
+    <Field
+      className={marks.box(key)}
+      label={label}
+      hint={hint}
+      htmlFor={fieldId(key)}
+      mark={marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
+      width="select"
+      control={<Select id={fieldId(key)} className="settings__text" value={text(key)} options={options} onChange={(value) => edit(key, value)} />}
+      error={errorOf(key)}
+    />
+  )
   // The model is typed freely; the account is picked from the offered folders.
   const model = (key: string, label: string, account: string, vendor: string | null) => (
     <div className={marks.box(key)}>
@@ -312,10 +307,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {modesFailure}
           {/* With machines elsewhere `parallel` is this machine's capacity, set on its page (BTN-1272). */}
           {severalMachines(state) && state.ownMachine !== undefined ? (
-            <Row
+            <Field
               className="settings__field"
               label={t.machinePage.capacityOwn}
               hint={t.machinePage.sharedHint}
+              width="fit"
               control={
                 <span className="settings__value-link">
                   <span>{text('parallel')}</span>
@@ -324,7 +320,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               }
             />
           ) : (
-            numberRow('parallel', t.shared.parallel, wholeOf(text('parallel'), 1) === undefined || errorOf('parallel') !== null, t.shared.parallelHint)
+            numberField('parallel', t.shared.parallel, wholeOf(text('parallel'), 1) === undefined || errorOf('parallel') !== null, t.shared.parallelHint)
           )}
           {/* Machines only for now (BTN-996): a switch of accounts on one machine is BTN-125's. */}
           {severalMachines(state) && (
@@ -572,7 +568,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               { value: '1h', label: t.shared.cacheTtl1h },
             ],
             t.shared.cacheTtlHint,
-            true,
           )}
           {numberField('keepWarm', t.shared.keepWarm, wholeOf(text('keepWarm'), 0) === undefined || errorOf('keepWarm') !== null, t.shared.keepWarmHint)}
           <SectionLabel>{t.shared.chats}</SectionLabel>
@@ -583,7 +578,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     ci: () => (
       <Section title={t.settings.sections.guard}>
         {check('guard', t.settings.guard, t.settings.guardHint)}
-        <div className={unguarded ? 'settings__guarded settings__guarded--off' : 'settings__guarded'}>
+        <div className={unguarded ? 'settings__nested settings__guarded settings__guarded--off' : 'settings__nested settings__guarded'}>
           <fieldset className={marks.box('kinds', 'settings__field settings__group')}>
             <legend>
               <FieldHead label={t.settings.ci} hint={t.settings.ciHint} mark={marks.note('kinds', (value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind])))} />
@@ -603,12 +598,13 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             </div>
             <FieldNote error={errorOf('ci')} />
           </fieldset>
-          <Row
+          <Field
             className={marks.box('wait')}
             label={t.settings.ciWait}
             hint={t.settings.ciWaitHint}
             htmlFor={fieldId('wait')}
             mark={marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
+            width="number"
             control={numberInput('wait', minutesOf(text('wait')) === undefined, { placeholder: t.settings.ciWaitPlaceholder, disabled: unguarded })}
           />
           {check('recheck', t.settings.recheckMain, t.settings.recheckMainHint, unguarded)}
@@ -623,10 +619,10 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         <Section title={t.shared.sections.interface}>
           {select('language', t.shared.language, [{ value: '', label: t.shared.languageAuto }, ...languages])}
           {/* Not a config key: kept in this browser and applied at once, outside the draft (BTN-1089). */}
-          <Row className="settings__field" label={t.shared.theme} hint={t.shared.themeHint} control={<ThemeSwitch words />} />
+          <Field className="settings__field" label={t.shared.theme} hint={t.shared.themeHint} width="fit" control={<ThemeSwitch words />} />
           {check('updatesCheck', t.shared.updatesCheck, t.shared.updatesCheckHint, false, 'updates')}
           {check('updatesNotify', t.shared.updatesNotify, t.shared.updatesNotifyHint)}
-          {numberRow('attachmentLimit', t.shared.attachmentLimit, wholeOf(text('attachmentLimit'), 1) === undefined || errorOf('attachmentLimit') !== null, t.shared.attachmentLimitHint)}
+          {numberField('attachmentLimit', t.shared.attachmentLimit, wholeOf(text('attachmentLimit'), 1) === undefined || errorOf('attachmentLimit') !== null, t.shared.attachmentLimitHint)}
         </Section>
       </>
     ),
@@ -650,7 +646,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     machines: () => (
       <>
         <Section title={t.shared.sections.connect}>
-          <Row
+          <Field
             className={marks.box('machinesAddress')}
             label={t.shared.machinesAddress}
             hint={t.shared.machinesAddressHint}
@@ -667,10 +663,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             error={errorOf('machinesAddress')}
           />
           {/* With several machines "+ Machine" is at the foot of the machines panel; with one there is no panel, so the first is added from here. */}
-          {!poolShown(state) && <Row
+          {!poolShown(state) && <Field
             className="settings__field"
             label={t.machines.title}
             hint={t.machines.addHint}
+            width="fit"
             control={
               <button type="button" className="button" onClick={() => openAddMachine()}>
                 {t.machines.add}
@@ -683,11 +680,14 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     backup: () => (
       <>
         <BackupStatus state={state} />
-        <Section title={t.shared.backupCopies}>
-          {monoRow('backupDir', t.shared.backupDir, t.shared.backupDirHint, t.shared.backupDirDefault)}
-          {numberRow('backupKeep', t.shared.backupKeep, wholeOf(text('backupKeep'), 1) === undefined || errorOf('backupKeep') !== null, t.shared.backupKeepHint)}
+        {/* The mirror alone would be a card of one field: it is a part of the copies' card. */}
+        <Section title={t.shared.sections.copiesMirror}>
+          <SectionLabel>{t.shared.backupCopies}</SectionLabel>
+          {monoField('backupDir', t.shared.backupDir, t.shared.backupDirHint, t.shared.backupDirDefault)}
+          {numberField('backupKeep', t.shared.backupKeep, wholeOf(text('backupKeep'), 1) === undefined || errorOf('backupKeep') !== null, t.shared.backupKeepHint)}
+          <SectionLabel>{t.shared.memoryMirrorTitle}</SectionLabel>
+          {monoField('memoryMirror', t.shared.memoryMirror, t.shared.memoryMirrorHint, t.shared.memoryMirrorNone)}
         </Section>
-        <Section title={t.shared.memoryMirrorTitle}>{monoRow('memoryMirror', t.shared.memoryMirror, t.shared.memoryMirrorHint, t.shared.memoryMirrorNone)}</Section>
       </>
     ),
     stats: () => (
@@ -700,7 +700,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           </div>
         </Section>
         <Section title={t.shared.sections.other}>
-          {numberRow('otherBelow', t.shared.otherBelow, amountOf(text('otherBelow')) === undefined, t.shared.otherBelowHint)}
+          {numberField('otherBelow', t.shared.otherBelow, amountOf(text('otherBelow')) === undefined, t.shared.otherBelowHint)}
           <div className={marks.box('moves')}>
             <FieldHead label={t.shared.moves} hint={t.shared.movesHint} mark={marks.note('moves')} />
             <RowsTable
@@ -725,14 +725,12 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     packages: () => <PackageCatalog state={state} />,
   }
 
-  // The trial of the one-column form (BTN-1717) is on the Sessions group alone; the rest keep their rows.
-  const columned = open === 'sessions'
   const draftForm = (titled: boolean, between = false) => (
     <TableDraft value={{ draft, setDraft }}>
     <form
       ref={formRef}
       key={open}
-      className={[titled ? 'settings__form settings-page__form' : between ? 'settings__form settings__form--between' : 'settings__form', columned && SETTINGS_COLUMN].filter(Boolean).join(' ')}
+      className={titled ? 'settings__form settings-page__form' : between ? 'settings__form settings__form--between' : 'settings__form'}
       aria-labelledby={titled ? 'settings-group' : undefined}
       onSubmitCapture={(event) => validateTables(event, invalidPending(draft, keysOf(open)))}
       onSubmit={(event) => {
@@ -755,7 +753,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   )
 
   return (
-    <div className={columned ? 'page settings-page settings-page--column' : 'page settings-page'}>
+    <div className="page settings-page">
       <header>
         <h1 className="page__title settings-page__title">
           {t.shared.title}
@@ -770,10 +768,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             {groupTitle(open)}
             {ruled.length > 0 && (
               // A list, not tabs: a workspace with a dozen tracker profiles does not fit a strip.
-              <Row
+              <Field
                 className="settings__field"
                 label={t.shared.ruleScopes}
                 htmlFor="rule-scope"
+                width="select"
                 control={
                   <Select
                     id="rule-scope"

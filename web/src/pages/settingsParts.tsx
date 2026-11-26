@@ -201,12 +201,16 @@ export function Row({
   )
 }
 
-/** How wide a stacked field's control is, by what it holds: a line of text fills the column, a number or a pick is as wide as its value. */
-export type FieldWidth = 'full' | 'number' | 'tokens' | 'select'
+/**
+ * How wide a stacked field's control is, by what it holds: a line of text fills the column, a number or a pick is as
+ * wide as its value, `fit` — as wide as the control itself (a button, a segmented choice, a value set elsewhere).
+ */
+export type FieldWidth = 'full' | 'number' | 'tokens' | 'select' | 'fit'
 
 /**
- * A setting of the one-column form (BTN-1717): its name, and its control under it at the column's left edge, as wide as
- * `width` says; `error` goes into a strip under the control, `children` under it all. Only inside `SETTINGS_COLUMN`.
+ * A setting of the one-column form (BTN-1717, the standard since BTN-1727, docs/design.md "Settings form"): its name,
+ * and its control under it at the column's left edge, as wide as `width` says; `error` goes into a strip under the
+ * control, `children` under it all. Only a switch keeps its name's line (`SwitchField`).
  */
 export function Field({
   className,
@@ -240,9 +244,6 @@ export function Field({
   )
 }
 
-/** The class of a form laid out as one column of stacked fields, switches at its right edge (BTN-1717). */
-export const SETTINGS_COLUMN = 'settings--column'
-
 /** On or off: a switch, never a pick of two. */
 export function Switch({ id, checked, disabled = false, label, onChange }: { id?: string; checked: boolean; disabled?: boolean; label?: string; onChange: (checked: boolean) => void }) {
   return (
@@ -252,7 +253,7 @@ export function Switch({ id, checked, disabled = false, label, onChange }: { id?
   )
 }
 
-/** An on/off setting as a row with a switch at its right. */
+/** An on/off setting as a row with a switch at the column's right edge: the one setting whose control keeps its name's line. */
 export function SwitchField({
   className,
   label,

@@ -16,6 +16,7 @@ export const sharedRu = {
     tools: 'Инструменты',
     context: 'Контекст',
     cacheChats: 'Кэш и чаты',
+    copiesMirror: 'Копии и зеркало памяти',
     interface: 'Интерфейс',
     addresses: 'Адреса страницы',
     connect: 'Подключение машин',
