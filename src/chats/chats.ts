@@ -259,7 +259,7 @@ export class ProjectChats {
         // The old session is stopped by now: its transcript is whole.
         const copy = gone ? null : await this.carryTranscript(old, from, services, place.folder)
         carried = { sessionId: old.sessionId, recent: past?.recent ?? [], transcript: copy }
-        if (copy === null && (gone || past?.transcript != null)) stayedOn = this.deps.machineName(from)
+        if (copy === null) stayedOn = this.deps.machineName(from)
       }
       const at = this.deps.now().toISOString()
       const text = message.text.trim() === '' ? files.join('\n') : message.text
@@ -346,15 +346,18 @@ export class ProjectChats {
 
   /**
    * The old chat's transcript, read from its machine `from` part by part, saved into `.temp/inbox/` of `folder` at the
-   * machine the chat goes on at (BTN-1711); the copy's path there. `null` — none known, over `TRANSCRIPT_COPY_BYTES`, or
-   * a read or a save failed: a line in the log, and the chat goes on without it.
+   * machine the chat goes on at (BTN-1711); the copy's path there. `null` — none known (BTN-1739), over
+   * `TRANSCRIPT_COPY_BYTES`, or a read or a save failed: a line in the log, and the prompt says it stayed on `from`.
    */
   private async carryTranscript(old: ChatRecord, from: string, to: Pick<MachineServices, 'chat'>, folder: string): Promise<string | null> {
     const reader = this.deps.services(from)
     if (reader === undefined) return null
     try {
       const head = await reader.chats.transcriptPart(old.id, 0, 0)
-      if (head === null) return null
+      if (head === null) {
+        this.deps.log(`chats: ${old.id}: its transcript was not found on ${from} and stays there if it is anywhere`)
+        return null
+      }
       if (head.size > TRANSCRIPT_COPY_BYTES) {
         this.deps.log(`chats: ${old.id}: its transcript of ${head.size} bytes is over the copy's limit and stays on ${from}`)
         return null

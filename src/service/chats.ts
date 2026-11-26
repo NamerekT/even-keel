@@ -3,12 +3,27 @@ import { ProjectChats } from '../chats/chats.js'
 import type { ChatMachines } from '../chats/model.js'
 import { pickedOf, placeOf, placesOf, type ChatPlaceDeps } from '../chats/places.js'
 import { ChatStore } from '../chats/store.js'
+import type { MachineServices } from '../machine/services.js'
 import type { ServiceContext } from '../service.js'
+import type { LinkedMachine } from './machine-link.js'
 
 type ChatsContext = Pick<ServiceContext, 'configStore' | 'db' | 'machineLink' | 'promptLanguage' | 'stateChanged' | 'writes'>
 
 /** How often the chats keep what their sessions said and the day-old ones go to the archive. */
 export const CHATS_SWEEP_MS = 60_000
+
+type ChatLink = Pick<LinkedMachine, 'own' | 'services' | 'mirror'> & { network: Pick<LinkedMachine['network'], 'connected'> }
+
+/**
+ * The chats' commands to a machine: the own one's, else those of a machine elsewhere connected now. A mirror outlives
+ * its machine's connection and its calls wait for the machine to come back, so it alone does not count (BTN-1739).
+ */
+export const chatServicesOf =
+  (link: ChatLink) =>
+  (machine: string): Pick<MachineServices, 'chat' | 'chats'> | undefined => {
+    if (machine === link.own()) return link.services
+    return link.network.connected(machine) ? link.mirror(machine)?.services() : undefined
+  }
 
 /**
  * The project chats on the hub (BTN-1230, `docs/sessions/project-chats.md`): their store and the machine of each chat —
@@ -52,7 +67,7 @@ export async function wireProjectChats(ctx: ChatsContext): Promise<ProjectChats>
     store,
     placeOf: (project, machine) => placeOf(places, project, machine),
     machines,
-    services: (machine) => (machine === link.own() ? link.services : link.mirror(machine)?.services()),
+    services: chatServicesOf(link),
     sessions: (machine) => link.mirror(machine)?.page.sessions() ?? [],
     machineName: (machine) => link.network.names()[machine] ?? machine,
     accounts: (machine) => link.mirror(machine)?.page.panel()?.accounts.map((entry) => ({ key: entry.key, agent: entry.agent })),

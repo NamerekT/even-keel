@@ -115,6 +115,22 @@ describe('a project chat going on in a new session (BTN-1232)', { timeout: 120_0
     }
   })
 
+  it('says the transcript stayed on the old machine when that machine, on the link, no longer knows it (BTN-1739)', async () => {
+    const fixture = await setup()
+    try {
+      const old = await started(fixture)
+      fixture.pasts.delete(old)
+      await fixture.chats.renew(old, { text: 'Fix the header', files: [] }, { account: 'global', model: null, effort: null }, FAR)
+      expect(fixture.calls.map(([name]) => name)).toEqual(['stop', 'launch'])
+      expect(fixture.carried.filter(([, kind]) => kind === 'save')).toEqual([])
+      const prompt = (fixture.calls[1]![4] as { prompt: string }).prompt
+      expect(prompt).toContain('Its transcript stayed on the machine "Workstation"')
+      expect(fixture.logged.some((line) => line.includes(`${old}: its transcript was not found on ${OWN}`))).toBe(true)
+    } finally {
+      await fixture.close()
+    }
+  })
+
   it('refuses a machine off the link named for the new session', async () => {
     const fixture = await setup()
     try {
