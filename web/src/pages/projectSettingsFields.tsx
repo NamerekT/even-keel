@@ -5,10 +5,10 @@ import { Select } from '../ui/Select.js'
 import { switchOf } from './projectForm.js'
 import { labelOf, onOff, same, type Option } from './projectSettingsDraft.js'
 import { edited, inheritedEdit, ownEdited, reverted, type Draft, type Value, type Values } from './settingsDraft.js'
-import { ErrorStrip, Field, FieldHead, fieldId, FieldNote, type Inheritance, marksOf, Row, shown, SwitchField } from './settingsParts.js'
+import { Field, fieldId, FieldNote, type Inheritance, marksOf, shown, SwitchField } from './settingsParts.js'
 import type { SetDraft } from './settingsStore.js'
 
-/** The project settings panel's draft and the field builders its tabs draw their rows with. */
+/** The project settings panel's draft and the field builders its tabs draw their fields with (`Field`, docs/design.md "Settings form"). */
 export function panelFields(draft: Draft, setDraft: SetDraft, saved: Values, errorOf: (field: string) => Notice | null) {
   const text = (key: string) => draft.edit[key] as string
   const on = (key: string) => draft.edit[key] as boolean
@@ -21,8 +21,8 @@ export function panelFields(draft: Draft, setDraft: SetDraft, saved: Values, err
   // A key whose '' is "as shared": the field shows the shared value under a chip until an edit makes it the project's own.
   const inheritOf = (key: string, sharedLabel: string, disabled = false): Inheritance => ({ own: text(key) !== '', shared: sharedLabel, disabled, onReset: () => edit(key, '') })
   const notes = (key: string) => <FieldNote error={errorOf(key)} />
-  // `stacked` — under its name, in the one-column form (BTN-1717); `under` — what goes under the pick there.
-  const pick = (key: string, label: string, hint: string, options: Option[], inherit?: { value: string; label: string }, stacked?: { under?: ReactNode }) => {
+  // `under` — what goes under the pick.
+  const pick = (key: string, label: string, hint: string, options: Option[], inherit?: { value: string; label: string }, under?: ReactNode) => {
     const select = (
       <Select
         id={fieldId(key)}
@@ -33,19 +33,19 @@ export function panelFields(draft: Draft, setDraft: SetDraft, saved: Values, err
         onChange={(value) => (inherit === undefined ? edit(key, value) : editInherited(key, value, inherit.value))}
       />
     )
-    const props = {
-      className: marks.box(key),
-      label,
-      hint,
-      htmlFor: fieldId(key),
-      inherit: inherit === undefined ? undefined : inheritOf(key, inherit.label),
-      mark: marks.note(key, (value) => (inherit !== undefined && value === '' ? t.settings.asShared(inherit.label) : labelOf(options)(value))),
-      error: errorOf(key),
-    }
-    if (stacked === undefined) return <Row {...props} control={select} />
     return (
-      <Field {...props} width="select" control={select}>
-        {stacked.under}
+      <Field
+        className={marks.box(key)}
+        label={label}
+        hint={hint}
+        htmlFor={fieldId(key)}
+        inherit={inherit === undefined ? undefined : inheritOf(key, inherit.label)}
+        mark={marks.note(key, (value) => (inherit !== undefined && value === '' ? t.settings.asShared(inherit.label) : labelOf(options)(value)))}
+        width="select"
+        control={select}
+        error={errorOf(key)}
+      >
+        {under}
       </Field>
     )
   }
@@ -64,7 +64,7 @@ export function panelFields(draft: Draft, setDraft: SetDraft, saved: Values, err
     </SwitchField>
   )
   const input = (key: string, label: string, hint: string, placeholder?: string, mono = true) => (
-    <Row
+    <Field
       className={marks.box(key)}
       label={label}
       hint={hint}
@@ -86,9 +86,13 @@ export function panelFields(draft: Draft, setDraft: SetDraft, saved: Values, err
     />
   )
   const lines = (key: string, label: string, hint: string, placeholder: string, rows: number, mono = true, disabled = false) => (
-    <div className={marks.box(key)}>
-      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} />
-      <ErrorStrip error={errorOf(key)} wide>
+    <Field
+      className={marks.box(key)}
+      label={label}
+      hint={hint}
+      htmlFor={fieldId(key)}
+      mark={marks.note(key)}
+      control={
         <textarea
           id={fieldId(key)}
           className={mono ? 'settings__text settings__text--mono' : 'settings__text'}
@@ -99,8 +103,9 @@ export function panelFields(draft: Draft, setDraft: SetDraft, saved: Values, err
           disabled={disabled}
           onChange={(event) => edit(key, event.target.value)}
         />
-      </ErrorStrip>
-    </div>
+      }
+      error={errorOf(key)}
+    />
   )
 
   // Fields kept own by a flag: they show the shared values until an edit turns the flag on with the shared values as the start.

@@ -9,7 +9,7 @@ import { GitOnSection } from './GitSwitch.js'
 import { ProjectName } from './ProjectName.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import type { PanelFields } from './projectSettingsFields.js'
-import { ErrorStrip, FieldHead, fieldId, Row, Section, SwitchField, wholeOf } from './settingsParts.js'
+import { Field, FieldHead, fieldId, Section, SwitchField, wholeOf } from './settingsParts.js'
 
 /** The "Repository" tab of the project settings panel. */
 export function ProjectRepoTab({
@@ -43,21 +43,8 @@ export function ProjectRepoTab({
   return (
     <>
       <Section title={t.settings.sections.repository}>
-        <div className={marks.box('repo')}>
-          <FieldHead label={t.settings.repo} hint={t.settings.repoHint} htmlFor={fieldId('repo')} mark={marks.note('repo')} />
-          <ErrorStrip error={errorOf('repo')} wide>
-            <input
-              id={fieldId('repo')}
-              className="settings__text settings__text--mono"
-              autoComplete="off"
-              spellCheck={false}
-              value={text('repo')}
-              aria-invalid={errorOf('repo') !== null}
-              onChange={(event) => edit('repo', event.target.value)}
-            />
-          </ErrorStrip>
-        </div>
-        <Row
+        {input('repo', t.settings.repo, t.settings.repoHint)}
+        <Field
           className={marks.box('branch')}
           label={t.settings.branch}
           hint={t.settings.branchHint}
@@ -68,7 +55,7 @@ export function ProjectRepoTab({
           }
         >
           {drift !== undefined && <BranchDriftBand project={project} drift={drift} />}
-        </Row>
+        </Field>
         {input('changelog', t.settings.changelog, t.settings.changelogHint, 'CHANGELOG.md')}
         <SwitchField
           className={marks.box('testProject')}
@@ -80,12 +67,13 @@ export function ProjectRepoTab({
         >
           {notes('testProject')}
         </SwitchField>
-        <Row
+        <Field
           className={marks.box('slot')}
           label={t.settings.slot}
           hint={t.settings.slotHint}
           htmlFor={fieldId('slot')}
           mark={marks.note('slot')}
+          width="number"
           control={number('slot', text('slot'), wholeOf(text('slot'), 0) === undefined || errorOf('slot') !== null, (value) => edit('slot', value))}
           error={errorOf('slot')}
         />
@@ -119,7 +107,7 @@ export function ProjectRepoTab({
 
 /** The name is no draft field: it saves at once, as in the head, where a touch screen has no "Add a name" (BTN-1042). */
 function NameField({ project, form }: { project: string; form: ProjectForm }) {
-  return <Row className="settings__field" label={t.project.name} hint={t.project.nameHint} control={<ProjectName project={project} form={form} />} />
+  return <Field className="settings__field" label={t.project.name} hint={t.project.nameHint} control={<ProjectName project={project} form={form} />} />
 }
 
 /**
@@ -132,7 +120,7 @@ function PlainRepoTab({ fields, project, form, state }: { fields: PanelFields; p
   return (
     <>
       <Section title={text.section}>
-        <Row className="settings__field" label={text.mode} hint={text.modeHint} control={<span>{text.modeValue}</span>} />
+        <Field className="settings__field" label={text.mode} hint={text.modeHint} width="fit" control={<span>{text.modeValue}</span>} />
         <div className="settings__field">
           <FieldHead label={text.folder} hint={text.folderHint} />
           <CommandBlock command={form.repo} copyLabel={t.common.copyPath} />
@@ -147,7 +135,7 @@ function PlainRepoTab({ fields, project, form, state }: { fields: PanelFields; p
         >
           {notes('testProject')}
         </SwitchField>
-        <Row className="settings__field" label={t.settings.slot} hint={text.slotHint} control={<span>{text.slotValue}</span>} />
+        <Field className="settings__field" label={t.settings.slot} hint={text.slotHint} width="fit" control={<span>{text.slotValue}</span>} />
         <NameField project={project} form={form} />
         <ColorField fields={fields} />
       </Section>

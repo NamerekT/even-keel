@@ -15,7 +15,7 @@ import { secretInput } from '../ui/secret.js'
 import { Tipped } from '../ui/Tipped.js'
 import { badgeDraft, badgeMarkdown, BADGE_GROUPS, badgePngName, defaultSlug, groupOn, releasesLink, withGroup } from './badgeParts.js'
 import { badgePng, download } from './badgePng.js'
-import { ErrorStrip, Row, Section, SwitchField } from './settingsParts.js'
+import { Field, Section, SwitchField } from './settingsParts.js'
 import './settings.css'
 import '../tools/addPackage.css'
 import '../tools/packages.css'
@@ -134,7 +134,7 @@ function PlaceSection({ project, badge, state, disabled, onSave }: PlaceProps) {
   return (
     <Section title={t.badge.where} hint={t.badge.whereHint} aside={deploy}>
       <SwitchField className="badge-dialog__field" label={t.badge.on} hint={t.badge.onHint} checked={badge.on} disabled={disabled} onChange={(on) => void onSave({ ...badge, on })} />
-      <TextRow wide label={t.badge.url} hint={t.badge.urlHint} field={url} placeholder="https://even-keel-badge.example.workers.dev" />
+      <TextRow label={t.badge.url} hint={t.badge.urlHint} field={url} placeholder="https://even-keel-badge.example.workers.dev" />
       <TextRow label={t.badge.slug} hint={t.badge.slugHint} field={slug} placeholder="project" />
       <SecretRow state={state} />
       <div className="badge-dialog__check">
@@ -185,10 +185,10 @@ function useTextField(saved: string, next: (value: string) => BadgeSettings, pro
   }
 }
 
-function TextRow({ label, hint, field, placeholder, wide = false }: { label: string; hint: string; field: TextField; placeholder: string; wide?: boolean }) {
+function TextRow({ label, hint, field, placeholder }: { label: string; hint: string; field: TextField; placeholder: string }) {
   return (
-    <Row
-      className={`badge-dialog__field badge-dialog__field--${wide ? 'wide' : 'text'}`}
+    <Field
+      className="settings__field"
       label={label}
       hint={hint}
       htmlFor={field.id}
@@ -229,14 +229,14 @@ function SecretRow({ state }: { state: EvenKeelState }) {
     if (value !== '' && (await send('secrets/set', { name: BADGE_SECRET, value }))) setValue('')
   }
   return (
-    <Row
-      className="badge-dialog__field badge-dialog__field--text"
+    <Field
+      className="settings__field"
       label={t.badge.secret}
       hint={outer ? `${t.badge.secretHint}. ${t.badge.secretOuter}` : t.badge.secretHint}
       htmlFor={id}
       mark={!set && <span className="chip packages__unset">{t.badge.secretUnset}</span>}
+      error={failure}
       control={
-        <ErrorStrip error={failure}>
           <form className="badge-dialog__secret" onSubmit={(event) => void submit(event)}>
             <input
               id={id}
@@ -252,7 +252,6 @@ function SecretRow({ state }: { state: EvenKeelState }) {
               {t.badge.save}
             </button>
           </form>
-        </ErrorStrip>
       }
     />
   )
@@ -337,8 +336,8 @@ function Snippet({ state, project, badge, name }: { state: EvenKeelState; projec
   const ready = badge.url !== '' && badge.slug !== ''
   return (
     <Section title={t.badge.markdown} hint={t.badge.markdownHint}>
-      <Row
-        className="badge-dialog__field badge-dialog__field--wide"
+      <Field
+        className="settings__field"
         label={t.badge.releases}
         hint={t.badge.releasesHint}
         htmlFor={id}

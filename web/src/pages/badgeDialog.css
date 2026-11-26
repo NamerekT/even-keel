@@ -23,15 +23,6 @@
   min-width: 0;
 }
 
-.badge-dialog__field--text .settings__control {
-  width: min(100%, 22em);
-}
-
-/* An address is read whole: it takes the card's width. */
-.badge-dialog__field--wide .settings__control {
-  width: 100%;
-}
-
 .badge-dialog__check {
   display: flex;
   flex-wrap: wrap;

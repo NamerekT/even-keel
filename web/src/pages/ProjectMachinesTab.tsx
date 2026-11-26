@@ -15,7 +15,7 @@ import { ConnectMachineDialog } from './ConnectMachine.js'
 import { JobWindow } from './JobWindow.js'
 import { cappedWidth, widthMaxOf } from './poolWidth.js'
 import type { PanelFields } from './projectSettingsFields.js'
-import { fieldId, Row, Section, Switch, SwitchField, wholeOf } from './settingsParts.js'
+import { Field, fieldId, Section, Switch, SwitchField, wholeOf } from './settingsParts.js'
 import { useVocabularies } from './useVocabularies.js'
 import './projectMachines.css'
 
@@ -160,12 +160,13 @@ export function ProjectMachinesTab({ fields, project, slot, state }: { fields: P
           </>
           )}
         </Loading>
-        <Row
+        <Field
           className={marks.box('width')}
           label={t.pool.width}
           hint={widthMax === undefined ? t.pool.widthHint : `${t.pool.widthHint} ${t.pool.widthMax(widthMax)}`}
           htmlFor={fieldId('width')}
           mark={marks.note('width')}
+          width="number"
           control={number('width', text('width'), wholeOf(text('width'), 1) === undefined || errorOf('width') !== null, (value) => edit('width', cappedWidth(value, widthMax)))}
           error={errorOf('width')}
         />

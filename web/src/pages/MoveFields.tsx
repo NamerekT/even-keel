@@ -7,7 +7,7 @@ import { useLive } from '../live/context.js'
 import { FieldStrip } from '../ui/FieldStrip.js'
 import { Select } from '../ui/Select.js'
 import type { Value } from './settingsDraft.js'
-import { fieldId, Row, Section, type Marks } from './settingsParts.js'
+import { Field, fieldId, Section, type Marks } from './settingsParts.js'
 import { missingMove, moveLabel, moveOptions, type MovesText } from './statusMoves.js'
 
 /** The statuses a tracker profile's tracker lists (BTN-554), off the top bar (BTN-1257): `undefined` — reading, `null` — none read. */
@@ -57,12 +57,13 @@ export function MoveFields({ rules, statuses, text, profile, idPrefix, marks, on
         const select = <Select id={id} className="settings__text" value={text[key]} options={moveOptions(key, rules, statuses ?? [], text[key], profile)} loading={statuses === undefined} onChange={(value) => onEdit(key, value)} />
         const missing = missingMove(text[key], statuses ?? [])
         return (
-          <Row
+          <Field
             key={key}
             className={marks.box(key)}
             label={label}
             hint={hint}
             htmlFor={id}
+            width="select"
             mark={marks.note(key, (value: Value) => moveLabel(key, String(value), profile))}
             control={
               <FieldStrip line={missing ? { tone: 'plain', text: t.profiles.moves.missingNote, short: t.profiles.moves.missingShort } : null} fold>
