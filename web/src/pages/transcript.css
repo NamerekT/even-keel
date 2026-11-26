@@ -580,7 +580,7 @@ button.tools__toggle:hover {
   flex: 1;
   min-width: 0;
   min-height: 34px;
-  max-height: calc(5lh + 2 * var(--space-6));
+  max-height: min(calc(15lh + 2 * var(--space-6)), 35dvh);
   overflow-y: auto;
   padding: 6px 4px;
   border: 0;
@@ -807,10 +807,10 @@ button.tools__toggle:hover {
     font-size: var(--text-16);
   }
 
-  /* Five lines of a draft, focused or not; two while the reader is up the feed (BTN-1700, `feedRaised`). */
+  /* Eight lines of a draft, focused or not; two while the reader is up the feed (BTN-1700, `feedRaised`). */
   .chat__text {
     min-height: calc(1lh + 2 * var(--space-4));
-    max-height: calc(5lh + 2 * var(--space-4));
+    max-height: calc(8lh + 2 * var(--space-4));
     transition: max-height var(--motion-fold) ease-out;
   }
 
