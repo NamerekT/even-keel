@@ -87,13 +87,19 @@
   }
 }
 
-/* The facts of a sign-in on a machine (BTN-1585): three in a row while they fit, fewer on a phone; no word breaks inside. */
+/* The facts of a sign-in on a machine (BTN-1585, BTN-1732): two in a row, so four make two even rows; one on a phone, where half a row tears an e-mail. */
 .machine-login__facts {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .machine-login__facts dd {
   overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .machine-login__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* A key's or a long token's folder signed out (BTN-1585): its note and the machine page's ⋯ on one line. */
