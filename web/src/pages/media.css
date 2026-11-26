@@ -559,10 +559,15 @@ video.viewer__media {
   top: 50%;
   width: 3rem;
   height: 3rem;
-  font-size: 2.5em;
   opacity: 0.85;
   transform: translateY(-50%);
   transition: opacity var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.viewer__nav .icon {
+  width: 1.375rem;
+  height: 1.375rem;
+  stroke-width: 1.75;
 }
 
 .viewer__nav--prev {
@@ -583,6 +588,9 @@ video.viewer__media {
 .viewer__nav:focus-visible {
   outline: 2px solid var(--viewer-link);
   outline-offset: 2px;
+}
+
+.viewer__close:focus-visible {
   border-radius: var(--radius-control);
 }
 
@@ -639,6 +647,6 @@ video.viewer__media {
     height: 2.75rem;
     border-radius: 50%;
     background: var(--viewer-control);
-    font-size: 2em;
+    -webkit-tap-highlight-color: transparent;
   }
 }

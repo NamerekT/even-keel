@@ -116,6 +116,25 @@ describe('the viewer dock (BTN-1713)', () => {
   })
 })
 
+describe('the phone arrows (BTN-1721)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('draws the pill icons, not text glyphs that sit below the circle centre', async () => {
+    const real = window.matchMedia
+    vi.stubGlobal('matchMedia', (query: string) => (query === '(max-width: 760px)' ? { ...real(query), matches: true, addEventListener() {}, removeEventListener() {} } : real(query)))
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
+    const host = document.body.appendChild(document.createElement('div'))
+    root = createRoot(host)
+    await view(host, ['a.png', 'b.png', 'c.png'].map((name) => ({ kind: 'image', name, url: `/${name}` })), 1)
+    const arrows = [...host.querySelectorAll('.viewer__nav')]
+    expect(arrows).toHaveLength(2)
+    for (const arrow of arrows) {
+      expect(arrow.querySelector('svg.icon')).not.toBeNull()
+      expect(arrow.textContent?.trim()).toBe('')
+    }
+  })
+})
+
 describe('splitName', () => {
   it('splits the extension after the last folder only', () => {
     expect(splitName('a/b.c/readme')).toEqual(['a/b.c/readme', ''])

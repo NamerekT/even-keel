@@ -100,7 +100,7 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
       </button>
       {narrow && prev !== null && (
         <button type="button" className="viewer__nav viewer__nav--prev" aria-label={t.card.viewer.prev} title={t.card.viewer.prev} onClick={() => go(prev)}>
-          ‹
+          <PrevIcon />
         </button>
       )}
       <figure className="viewer__figure">
@@ -152,7 +152,7 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
       </figure>
       {narrow && next !== null && (
         <button type="button" className="viewer__nav viewer__nav--next" aria-label={t.card.viewer.next} title={t.card.viewer.next} onClick={() => go(next)}>
-          ›
+          <NextIcon />
         </button>
       )}
     </dialog>
