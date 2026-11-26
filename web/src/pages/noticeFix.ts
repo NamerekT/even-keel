@@ -67,6 +67,7 @@ const BY_CODE: Partial<Record<Notice['code'], NoticeFix>> = {
   'account.signedOut': ACCOUNTS,
   'usage.goKeyExpired': ACCOUNTS,
   'account.loginExpired': ACCOUNTS,
+  'account.keyRejected': ACCOUNTS,
   'account.activeGone': ACCOUNTS,
   'account.sharedPool': { to: 'shared', tab: 'models' },
   'profiles.paused': PROFILES,

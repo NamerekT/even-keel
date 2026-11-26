@@ -375,7 +375,12 @@ export function launchBlock(view: AccountView, key = view.active): Notice | unde
   if (copilotOnly(active)) return copilotUnsupported()
   if (view.login !== null && view.login.target === key && view.login.error === null) return notice('account.signingIn', {})
   if (active.status?.loggedIn === false) return notice('account.signedOut', {})
-  if (active.needsLogin) return notice('account.loginExpired', { account: active.status?.email ?? active.key })
+  if (active.needsLogin) {
+    const account = active.status?.email ?? active.key
+    // An API folder has no login to renew: its key was refused and a new one is the fix.
+    if (active.apiKey) return notice(active.keyReplaceable === true ? 'account.keyRejected' : 'account.keyRejectedOutside', { account })
+    return notice('account.loginExpired', { account })
+  }
   return freeHeld(view.accounts, key)
 }
 
