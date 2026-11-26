@@ -36,6 +36,23 @@
   outline-offset: 2px;
 }
 
+/* No open task: the row asks for the first one — accent text on a faint accent wash, still dashed. Its hover fills
+   the wash and makes the edge solid, so the asking and the pointer stay apart. */
+.add-ghost--invite {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  opacity: 1;
+}
+
+.add-ghost--invite:hover,
+.add-ghost--invite:focus-visible {
+  border-style: solid;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
 .add-ghost .icon {
   width: 14px;
   height: 14px;

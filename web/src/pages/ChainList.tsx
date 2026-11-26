@@ -324,7 +324,14 @@ export function ChainList(props: Props) {
       </div>
       {adding !== null && looseGhost(view.sections, adding.rules) && (
         <div className="chain__loose">
-          <AddGhost project={project} place={chainPlace(null)} label={t.chain.add.task} tip={adding.running ? t.chain.add.queued : null} onCard={onCard} />
+          <AddGhost
+            project={project}
+            place={chainPlace(null)}
+            label={t.chain.add.task}
+            tip={adding.running ? t.chain.add.queued : null}
+            invite={!view.sections.some((section) => section.blocks.some((block) => block.open))}
+            onCard={onCard}
+          />
         </div>
       )}
       {view.next !== null && (

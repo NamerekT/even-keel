@@ -21,6 +21,8 @@ interface Props {
   label: string
   /** The closed ghost's tip; `null` — none. */
   tip?: string | null
+  /** Nothing open to work on: the ghost asks for the first task in the accent, apart from its hover. */
+  invite?: boolean
   onCard: (task: string) => void
 }
 
@@ -28,7 +30,7 @@ interface Props {
  * A dashed row that turns into a title field in its place (BTN-770): Enter makes a task of the built-in tracker and keeps the
  * field for the next one, Ctrl+Enter opens the new task's card, Escape closes it keeping the text as a draft.
  */
-export function AddGhost({ project, place, label, tip = null, onCard }: Props) {
+export function AddGhost({ project, place, label, tip = null, invite = false, onCard }: Props) {
   const key = draftKey(project, place)
   const { query } = useLive()
   const [open, setOpen] = useState(() => Date.now() - (left.get(key) ?? 0) < REMOUNT_MS)
@@ -85,7 +87,7 @@ export function AddGhost({ project, place, label, tip = null, onCard }: Props) {
 
   if (!open) {
     const button = (
-      <button type="button" className="add-ghost" onClick={() => setOpen(true)}>
+      <button type="button" className={`add-ghost${invite ? ' add-ghost--invite' : ''}`} onClick={() => setOpen(true)}>
         <PlusIcon />
         <span className="add-ghost__label">{label}</span>
       </button>
