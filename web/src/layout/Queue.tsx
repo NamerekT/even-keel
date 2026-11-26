@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { cardTask, chainStatus, projectLabel, projectName, projectPath, projectSlot } from '../state.js'
+import { cardTask, chainStatus, projectLabel, projectName, projectPath, projectSlot, type CardTask } from '../state.js'
 import { CloseIcon, ProjectsIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
@@ -13,7 +13,8 @@ import { useDragList } from '../ui/useDragList.js'
 import { mergeQueue } from '../machineView.js'
 import { chainWaits } from '../waits.js'
 import { HelpTip } from '../pages/settingsParts.js'
-import { usePopover } from './usePopover.js'
+import { activeProjects, chainKind, queueRows } from './queueRows.js'
+import { usePopover, usePopoverRoom } from './usePopover.js'
 
 /**
  * The header's chains block; `row` is the burger's row: the word at the left, the lamp and the count at the right (BTN-1162).
@@ -21,9 +22,9 @@ import { usePopover } from './usePopover.js'
  */
 export function QueueMenu({ state, row = false, queue: whole }: { state: EvenKeelState; row?: boolean; queue?: string[] }) {
   const { open, setOpen, rootRef } = usePopover()
-  const { active, queue } = state.chain
-  const kind = active.length === 0 ? 'idle' : active.every((chain) => chain.paused) ? 'paused' : 'running'
-  const names = active.map(({ project }) => projectName(state, project) ?? projectLabel(state, project))
+  const { queue } = state.chain
+  const kind = chainKind(state.chain)
+  const names = activeProjects(state.chain).map((project) => projectName(state, project) ?? projectLabel(state, project))
   const tip = t.queue.toggle(names, queue.length)
 
   return (
@@ -62,7 +63,7 @@ export function QueueContents({ state }: { state: EvenKeelState }) {
     <>
       <span className="queue-toggle__dot" aria-hidden="true" />
       <ProjectsIcon />
-      <span className="queue-toggle__count">{state.chain.active.length}</span>
+      <span className="queue-toggle__count">{activeProjects(state.chain).length}</span>
     </>
   )
 }
@@ -71,7 +72,8 @@ function QueuePanel({ state, whole }: { state: EvenKeelState; whole: string[] | 
   const { send, sending, failure } = useCommand()
   const [pending, setPending] = useState<string[] | null>(null)
   const served = state.chain.queue
-  const active = state.chain.active
+  const active = queueRows(state)
+  const panelRef = usePopoverRoom<HTMLDivElement>()
 
   useEffect(() => setPending(null), [served.join(',')])
 
@@ -81,16 +83,16 @@ function QueuePanel({ state, whole }: { state: EvenKeelState; whole: string[] | 
   }
 
   return (
-    <div id="queue-panel" className="queue" role="dialog" aria-label={t.queue.title}>
+    <div id="queue-panel" ref={panelRef} className="queue" role="dialog" aria-label={t.queue.title}>
       <section className="queue__section">
         <h2 className="queue__heading">{t.queue.now}</h2>
         {active.length === 0 && <p className="queue__empty">{t.queue.idle}</p>}
-        {active.map(({ project }) => (
+        {active.map(({ project, tasks }) => (
           <div key={project} className="queue__row queue__row--active" style={seriesStyle(projectSlot(state, project))}>
             <span className="card__swatch" aria-hidden="true" />
             <ProjectLink state={state} project={project} />
             <StatusChip status={chainStatus(state.chain, project)} wait={chainWaits(state, project)[0]} />
-            <TaskLine state={state} project={project} />
+            {tasks.length === 0 ? <TaskText task={null} /> : tasks.map((task) => <TaskText key={task.id} task={task} />)}
           </div>
         ))}
       </section>
@@ -185,7 +187,10 @@ function ProjectLink({ state, project }: { state: EvenKeelState; project: string
 }
 
 function TaskLine({ state, project }: { state: EvenKeelState; project: string }) {
-  const task = cardTask(state, project)
+  return <TaskText task={cardTask(state, project)} />
+}
+
+function TaskText({ task }: { task: CardTask | null }) {
   if (task === null) return <p className="queue__task queue__task--empty">{t.queue.noTasks}</p>
   return (
     <p className="queue__task">
