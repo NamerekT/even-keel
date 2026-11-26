@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { TasksScope } from '../taskmcp/calls.js'
-import { saveConflicts } from './git/conflicts.js'
+import { savedMarks, saveConflicts } from './git/conflicts.js'
 import type { MemoryHub } from './git/hub.js'
 import { isMemoryUrl, MemoryMcp } from './mcp.js'
 import { fileHash } from './record.js'
@@ -164,6 +164,18 @@ describe('the memory server over the working copy (BTN-1029, BTN-1646)', () => {
     expect(read).toContain('Start Podman first.')
     const merged = await call('memory_write', { ...fact, body: 'Start Docker or Podman first.', version: keptVersion(read.split('\n')[0]!.replace(/^.*version (\d+).*$/, 'version $1.')) })
     expect(merged.text).toMatch(/^Kept tests-need-docker, version \d+\.$/)
+    expect((await call('memory_read', { names: [fact.name] })).text).not.toContain('sync conflict')
+  })
+
+  it('takes a write of the record with its text unchanged as the end of its conflict (BTN-1746)', async () => {
+    const v1 = keptVersion((await call('memory_write', fact)).text)
+    const file = `${fact.name}.md`
+    const conflict = { file, commit: 'c1', other: 'c0', since: '2026-11-24T20:46:00Z', hash: fileHash(readFileSync(join(folder, file), 'utf8')), otherText: 'Start Podman first.\n', note: '' }
+    saveConflicts(folder, [conflict])
+    expect((await call('memory_read', { names: [fact.name] })).text).toContain('sync conflict')
+    const same = await call('memory_write', { ...fact, version: v1 })
+    expect(same.text).toBe(`Kept tests-need-docker, version ${v1}.`)
+    expect(savedMarks(folder)).toEqual([{ file, hash: conflict.hash }])
     expect((await call('memory_read', { names: [fact.name] })).text).not.toContain('sync conflict')
   })
 })

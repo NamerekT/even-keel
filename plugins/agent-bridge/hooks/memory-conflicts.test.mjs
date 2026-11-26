@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { CONFLICTS_FILE, conflictsFor } from "./memory-conflicts.mjs";
+import { CONFLICTS_FILE, conflictsFor, SAVED_FILE } from "./memory-conflicts.mjs";
 
 const HOOKS = dirname(fileURLToPath(import.meta.url));
 let root;
@@ -73,6 +73,18 @@ describe("the memory conflicts hook", () => {
     expect(conflictsFor(through("SKILL.md", "s-1"), marks)).toBe("merge skills/review/SKILL.md");
     expect(conflictsFor(through("SKILL.md", "s-1"), marks)).toBe("merge skills/review/SKILL.md");
     expect(conflictsFor(through("new.md", "s-2"), marks)).toBe("merge skills/review/SKILL.md");
+  });
+
+  it("marks a conflict saved when a session saves its file unchanged, and tells of it no more (BTN-1746)", () => {
+    listConflicts(conflict("tone.md"), conflict("pace.md"), { ...conflict("guard.mjs"), human: true });
+    expect(conflictsFor(touch("tone.md", "s-1", "PostToolUse", "Write"), marks)).toBeNull();
+    expect(JSON.parse(readFileSync(join(folder, SAVED_FILE), "utf8"))).toEqual({ saved: [{ file: "tone.md", hash: hashOf(KEPT) }] });
+    expect(conflictsFor(touch("other.md", "s-2"), marks)).toBe("merge pace.md");
+    conflictsFor(touch("tone.md", "s-1", "PostToolUse", "Edit"), marks);
+    conflictsFor(touch("guard.mjs", "s-1", "PostToolUse", "Write"), marks);
+    writeFileSync(join(folder, "pace.md"), "Merged.\n");
+    conflictsFor(touch("pace.md", "s-1", "PostToolUse", "MultiEdit"), marks);
+    expect(JSON.parse(readFileSync(join(folder, SAVED_FILE), "utf8")).saved).toEqual([{ file: "tone.md", hash: hashOf(KEPT) }]);
   });
 
   it("puts the notes into the context of Claude Code's tool call", async () => {

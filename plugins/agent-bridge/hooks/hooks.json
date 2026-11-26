@@ -64,7 +64,7 @@
         ]
       },
       {
-        "matcher": "Read",
+        "matcher": "Read|Edit|Write|MultiEdit",
         "hooks": [
           {
             "type": "command",

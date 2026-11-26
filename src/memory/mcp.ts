@@ -2,7 +2,7 @@ import { CLAUDE } from '../claude/name.js'
 import type { TasksScope } from '../taskmcp/calls.js'
 import type { ToolSpec } from '../taskmcp/tools.js'
 import { folderRecord, folderRecords, removeRecord, writeRecord } from './files.js'
-import { conflictNote, pendingConflicts } from './git/conflicts.js'
+import { conflictNote, markSaved, pendingConflicts } from './git/conflicts.js'
 import type { MemoryHub } from './git/hub.js'
 import { indexLine, MEMORY_NAME, MEMORY_TYPES, similarRecords, type MemoryFact, type MemoryRecord } from './record.js'
 
@@ -195,6 +195,7 @@ export class MemoryMcp {
         }
       } else if (current?.version !== version) throw new Refused(refusal(fact.name, { kind: 'changed', current }))
       const kept = writeRecord(folder, fact, current?.file)
+      markSaved(folder, kept.file)
       return withConflicts(folder, `Kept ${fact.name}, version ${kept.version}.`)
     }, true)
   }

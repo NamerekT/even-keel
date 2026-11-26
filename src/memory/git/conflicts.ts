@@ -10,7 +10,8 @@ export type RunGit = (...args: string[]) => Promise<GitResult>
  * The trailer of a sync's commit that kept the newer of two versions changed on the same lines (BTN-1686):
  * `Memory-Conflict: <file>`, `Config-Conflict: <file>` in the global configuration (`SyncFlavor.trailer`). Its parent
  * holds the other version in the file, so no hash in the message goes stale when a refused push rebases the commit
- * again. The conflict stays open until a later commit changes the file: the file saved after it, on any machine.
+ * again. The conflict stays open until a later commit changes the file (the file saved after it, on any machine) or
+ * ends it with the `settled` trailer: a person's choice, or a session's save that left the text as it was (`SAVED_FILE`).
  */
 export const CONFLICT_TRAILER = MEMORY_FLAVOR.trailer
 
@@ -50,8 +51,8 @@ export function conflictTrailer(file: string, trailer = CONFLICT_TRAILER): strin
 }
 
 /**
- * The conflicts the history leaves open, newest first, one a file. A person's choice (`SyncFlavor.settled`) newer than
- * a file's last conflict ends it as a later change of the file does.
+ * The conflicts the history leaves open, newest first, one a file. A `SyncFlavor.settled` trailer newer than a file's
+ * last conflict ends it as a later change of the file does.
  */
 export async function openConflicts(git: RunGit, folder: string, flavor: SyncFlavor = MEMORY_FLAVOR): Promise<MemoryConflict[]> {
   if ((await git('rev-parse', '--verify', '-q', 'HEAD')).code !== 0) return []
@@ -97,8 +98,13 @@ export function saveConflicts(folder: string, conflicts: readonly MemoryConflict
   writeFileSync(path, `${JSON.stringify({ conflicts }, null, 2)}\n`)
 }
 
-/** The conflicts the last sync left open whose file is still as the conflict left it. */
+/** The conflicts the last sync left open whose file is still as the conflict left it and not saved since (`SAVED_FILE`). */
 export function pendingConflicts(folder: string): MemoryConflict[] {
+  const saved = savedMarks(folder)
+  return unchanged(folder).filter((conflict) => !saved.some((mark) => mark.file === conflict.file && mark.hash === conflict.hash))
+}
+
+function unchanged(folder: string): MemoryConflict[] {
   let conflicts: MemoryConflict[]
   try {
     conflicts = (JSON.parse(readFileSync(join(folder, CONFLICTS_FILE), 'utf8')) as { conflicts: MemoryConflict[] }).conflicts
@@ -112,6 +118,42 @@ export function pendingConflicts(folder: string): MemoryConflict[] {
       return false
     }
   })
+}
+
+/**
+ * The files of open conflicts a session saved with their text unchanged (BTN-1746): a save that leaves the file as it
+ * was makes no commit, so the next sync ends each such conflict by a commit with the `settled` trailer
+ * (`MemorySync`), on every copy. The `agent-bridge` plugin's `memory-conflicts.mjs` hook writes it too: change both together.
+ */
+export const SAVED_FILE = join('.git', 'even-keel-saved.json')
+
+export interface SavedMark {
+  file: string
+  /** `fileHash` of the file as it was saved: the conflict's own, else the mark is stale. */
+  hash: string
+}
+
+export function savedMarks(folder: string): SavedMark[] {
+  try {
+    const saved = (JSON.parse(readFileSync(join(folder, SAVED_FILE), 'utf8')) as { saved?: unknown }).saved
+    if (!Array.isArray(saved)) return []
+    return saved.filter((mark): mark is SavedMark => typeof mark?.file === 'string' && typeof mark?.hash === 'string')
+  } catch {
+    return []
+  }
+}
+
+/**
+ * A session's save of `file` (the memory tools): when it left the file of an open conflict a session settles as the
+ * conflict left it, the conflict is marked saved. `true` — marked now.
+ */
+export function markSaved(folder: string, file: string): boolean {
+  const conflict = pendingConflicts(folder).find((each) => each.file === file && each.human !== true)
+  if (conflict === undefined) return false
+  const path = join(folder, SAVED_FILE)
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, `${JSON.stringify({ saved: [...savedMarks(folder), { file, hash: conflict.hash }] })}\n`)
+  return true
 }
 
 /** What a session is told of a conflict: `file` — it edits the folder's files, `tool` — it has the memory tools. */

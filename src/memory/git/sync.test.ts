@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runGit } from '../../git/run.js'
 import { memoryFile } from '../record.js'
-import { CONFLICTS_FILE, pendingConflicts } from './conflicts.js'
+import { CONFLICTS_FILE, markSaved, pendingConflicts, SAVED_FILE } from './conflicts.js'
 import { MEMORY_BRANCH, MemorySync, SETTLE_MS, RETRY_MS } from './sync.js'
 
 let root: string
@@ -155,6 +155,46 @@ describe('MemorySync', { timeout: 120_000 }, () => {
     expect(existsSync(join(b.folder, CONFLICTS_FILE))).toBe(true)
     await b.sync.sync()
     expect(existsSync(join(b.folder, CONFLICTS_FILE))).toBe(false)
+  })
+
+  it('ends a conflict on every copy when a session saves the record with its text unchanged (BTN-1746)', async () => {
+    const a = copy('a')
+    const b = copy('b')
+    await a.sync.start()
+    write(a, 'tone.md', cli('Base.', '2026-11-24T09:00:00.000Z'))
+    await a.sync.sync()
+    await b.sync.start()
+    write(a, 'tone.md', cli('Version of a.', '2026-11-24T10:00:00.000Z'))
+    write(b, 'tone.md', cli('Version of b.', '2026-11-24T11:00:00.000Z'))
+    await a.sync.sync()
+    await b.sync.sync()
+    await a.sync.sync()
+    expect(pendingConflicts(a.folder)).toHaveLength(1)
+
+    write(a, 'tone.md', read(a, 'tone.md'))
+    expect(markSaved(a.folder, 'tone.md')).toBe(true)
+    expect(pendingConflicts(a.folder)).toEqual([])
+    await a.sync.sync()
+    expect(existsSync(join(a.folder, SAVED_FILE))).toBe(false)
+    expect(existsSync(join(a.folder, CONFLICTS_FILE))).toBe(false)
+    expect(await git(a.folder, 'log', '-1', '--format=%B')).toContain('Memory-Settled: tone.md')
+    expect(read(a, 'tone.md')).toBe(cli('Version of b.', '2026-11-24T11:00:00.000Z'))
+    await b.sync.sync()
+    expect(existsSync(join(b.folder, CONFLICTS_FILE))).toBe(false)
+    expect(markSaved(a.folder, 'tone.md')).toBe(false)
+  })
+
+  it('drops a mark of a save the conflict has moved past, committing nothing for it (BTN-1746)', async () => {
+    const a = copy('a')
+    await a.sync.start()
+    write(a, 'tone.md', cli('Base.', '2026-11-24T09:00:00.000Z'))
+    await a.sync.sync()
+    mkdirSync(join(a.folder, '.git'), { recursive: true })
+    writeFileSync(join(a.folder, SAVED_FILE), JSON.stringify({ saved: [{ file: 'tone.md', hash: 'stale' }] }))
+    const head = await git(a.folder, 'rev-parse', 'HEAD')
+    await a.sync.sync()
+    expect(existsSync(join(a.folder, SAVED_FILE))).toBe(false)
+    expect(await git(a.folder, 'rev-parse', 'HEAD')).toBe(head)
   })
 
   it('keeps the remote version when it is newer and its own in the history for the merge', async () => {

@@ -10,8 +10,8 @@ export interface SyncFlavor {
   /** The commit trailer of a conflict kept for later (`conflictTrailer`). */
   trailer: string
   /**
-   * The commit trailer of a person's choice of a version (`MemorySync.settle`, BTN-1692): it ends the file's conflict
-   * even when the file kept its text.
+   * The commit trailer that ends a file's conflict even when the file kept its text: a person's choice of a version
+   * (`MemorySync.settle`, BTN-1692), or a session's save of the file unchanged (`SAVED_FILE`, BTN-1746).
    */
   settled: string
   /** `MEMORY.md` is tidied by `reindex` after every fetch. */

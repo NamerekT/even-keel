@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { runGit } from '../../git/run.js'
 import type { Git, GitResult } from '../../git/types.js'
 import { fileHash, MEMORY_INDEX, MIRROR_MARK, parseMemoryFile, type MemoryFact } from '../record.js'
-import { conflictTrailer, openConflicts, pendingConflicts, saveConflicts } from './conflicts.js'
+import { conflictTrailer, openConflicts, pendingConflicts, SAVED_FILE, saveConflicts, savedMarks } from './conflicts.js'
 import { flavorOf, MEMORY_FLAVOR, type SyncFlavor, type SyncKind } from './flavor.js'
 import { settleTexts, type Settled, type Sides } from './merge.js'
 import { reindex } from './reindex.js'
@@ -178,6 +178,7 @@ export class MemorySync {
       await this.ensureRepository()
       this.deps.beforeCommit?.()
       await this.commitEdits(outcome)
+      await this.commitSaved()
       for (let round = 0; round < PUSH_ROUNDS && !outcome.reached; round++) {
         const step = await this.exchange(outcome)
         if (step === 'failed') break
@@ -275,6 +276,27 @@ export class MemorySync {
     if (outcome.committed.length === 0) return
     const files = outcome.committed.length === 1 ? '1 file' : `${outcome.committed.length} files`
     await this.must('commit', '-q', '--no-verify', '-m', `${this.label}: ${files} from ${this.deps.author}`, '-m', outcome.committed.join('\n'))
+  }
+
+  /**
+   * The conflicts sessions saved with their text unchanged (`SAVED_FILE`, BTN-1746) end by one commit with the `settled`
+   * trailer, which the push carries to every copy. A mark the conflict has moved past is dropped with the rest; a mark
+   * written while this ran stays for the next sync.
+   */
+  private async commitSaved(): Promise<void> {
+    const { folder, author } = this.deps
+    const path = join(folder, SAVED_FILE)
+    if (!existsSync(path)) return
+    const read = readFileSync(path, 'utf8')
+    const marks = savedMarks(folder)
+    const open = await openConflicts((...args) => this.run(...args), folder, this.flavor)
+    const ended = open.filter((conflict) => conflict.human !== true && marks.some((mark) => mark.file === conflict.file && mark.hash === conflict.hash)).map((conflict) => conflict.file)
+    if (ended.length > 0) {
+      const title = `${this.label}: ${ended.join(', ')} saved unchanged by a session on ${author}, the conflict ends`
+      await this.must('commit', '-q', '--no-verify', '--allow-empty', '-m', title, '-m', ended.map((file) => `${this.flavor.settled}: ${file}`).join('\n'))
+      this.deps.log(`${this.label}: ${folder} ${ended.join(', ')} saved unchanged by a session: the newer version is kept, the conflict ends`)
+    }
+    if (readFileSync(path, 'utf8') === read) rmSync(path, { force: true })
   }
 
   /** One round with the remote: fetch, take its history, tidy, push; `rejected` — someone pushed in between. */
