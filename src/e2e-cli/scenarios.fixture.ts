@@ -264,7 +264,12 @@ export function chainOnRealCli(kit: CliKit): void {
      */
     it.runIf(kit.agent === 'opencode')('goes on with the turn after OpenCode rejects an ask, and finishes the task', async () => {
       run.board.add('ABC-1')
-      const read: LateReply = (tools) => (tools.includes('read') ? { calls: [{ name: 'read', args: { filePath: join(sessionOf('ABC-1')!.cwd, '.env') } }] } : { text: `No read tool among ${tools.join(', ')}` })
+      // The first request can come before the session monitor lists the session: the worktree is read from the prompt.
+      const read: LateReply = (tools, _result, context) => {
+        const worktree = /Worktree (?:is ready|готов): (.+?) — /.exec(context)?.[1]
+        if (worktree === undefined) return { text: 'No worktree in the prompt' }
+        return tools.includes('read') ? { calls: [{ name: 'read', args: { filePath: join(worktree, '.env') } }] } : { text: `No read tool among ${tools.join(', ')}` }
+      }
       const rejected: LateReply = (_tools, result) => (result.includes(REJECTED_ASK) ? commit('ABC-1') : { text: `The read was not rejected: ${result.slice(0, 300)}` })
       model.script('ABC-1', read, rejected, merge('ABC-1'), { text: 'Merged ABC-1.' })
       await start(() => {
