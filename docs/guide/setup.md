@@ -89,6 +89,8 @@ Where git is already installed, **Yes** is picked in advance.
 
 The answer is what the project wizard starts on for a new project, each project still picking its own; change it later on the Git step or in Settings → Chain → **New projects**.
 
+On Windows, after installing git with its installer, press **Check again**: Even Keel reads the system and user `PATH` anew and finds git without a restart. Only when it still does not, the step says how to restart Even Keel.
+
 On macOS, the setup's **Git** step always offers `xcode-select --install`, even when Homebrew is installed.
 
 It installs only Command Line Tools; Xcode from the App Store is not needed. After installation, press **Check again**.

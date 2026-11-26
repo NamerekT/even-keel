@@ -5,6 +5,7 @@ import { findBinary } from '../paths.js'
 import { expandFolder } from '../projects/folder.js'
 import type { GitSetupView, WindowsStart } from '../state.js'
 import { windowsStart } from '../updates/control.js'
+import { refreshWindowsPath } from '../windows-path.js'
 import { runGit } from './run.js'
 import type { Git, GitResult } from './types.js'
 
@@ -55,14 +56,19 @@ export function onPath(bin: string, env: NodeJS.ProcessEnv = process.env, platfo
 
 const installHere = (): string | null => gitInstallCommand(process.platform, (bin) => onPath(bin))
 
-/** `install` and `start` — the command and the way Even Keel was started on Windows, for a machine without git, read only then. */
+/**
+ * `install` and `start` — the command and the way Even Keel was started on Windows, for a machine without git, read
+ * only then. `refresh` adds what the registry's `Path` gained since node's start, and a git it brought is asked again.
+ */
 export async function readGitSetup(
   git: Git,
   home: string,
   install: () => string | null = installHere,
   start: () => Promise<WindowsStart | null> = windowsStart,
+  refresh: () => Promise<boolean> = refreshWindowsPath,
 ): Promise<GitSetupView> {
-  const started = await git(home, ['--version'])
+  let started = await git(home, ['--version'])
+  if (started.missing === true && (await refresh())) started = await git(home, ['--version'])
   const version = started.code === 0 ? (/(\d+(?:\.\d+)+)/.exec(started.out)?.[1] ?? started.out.trim()) : null
   if (version === null) {
     const command = install()

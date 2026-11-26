@@ -8,6 +8,7 @@ import type { GitResult } from './types.js'
 const home = 'C:\\Users\\john'
 const MISSING: GitResult = { code: -1, out: 'spawn git ENOENT', missing: true }
 const noStart = async () => null
+const noRefresh = async () => false
 
 function fakeGit(answers: Record<string, GitResult> = {}) {
   const calls: string[] = []
@@ -48,20 +49,39 @@ describe('readGitSetup', () => {
 
   it('says git that does not start as no version, and asks nothing more', async () => {
     const { git, calls } = fakeGit({ '--version': MISSING })
-    expect(await readGitSetup(git, home, () => null, noStart)).toEqual({ version: null, name: null, email: null })
+    expect(await readGitSetup(git, home, () => null, noStart, noRefresh)).toEqual({ version: null, name: null, email: null })
     expect(calls).toHaveLength(1)
+  })
+
+  it('asks git again once the registry PATH brought new folders, and shows no install or restart for the git it found', async () => {
+    let refreshed = false
+    const git = async (_cwd: string, args: string[]): Promise<GitResult> =>
+      args[0] === '--version' ? (refreshed ? { code: 0, out: 'git version 2.56.0.windows.1' } : MISSING) : { code: 0, out: '' }
+    const refresh = async () => (refreshed = true)
+    const start = async () => ({ by: 'console' }) as const
+    expect(await readGitSetup(git, home, () => 'winget install --id Git.Git -e', start, refresh)).toEqual({ version: '2.56.0', name: null, email: null })
+  })
+
+  it('asks git once when the registry PATH brought nothing, and leaves a git that starts and fails alone', async () => {
+    const missing = fakeGit({ '--version': MISSING })
+    expect((await readGitSetup(missing.git, home, () => null, noStart, noRefresh)).version).toBeNull()
+    expect(missing.calls).toHaveLength(1)
+    let asked = 0
+    const broken = fakeGit({ '--version': { code: 128, out: 'fatal' } })
+    expect((await readGitSetup(broken.git, home, () => null, noStart, async () => (asked++, true))).version).toBeNull()
+    expect(asked).toBe(0)
   })
 
   it('gives the command that installs git only when git does not start', async () => {
     const install = () => 'winget install --id Git.Git -e'
-    expect(await readGitSetup(fakeGit({ '--version': MISSING }).git, home, install, noStart)).toEqual({ version: null, name: null, email: null, install: 'winget install --id Git.Git -e' })
-    expect(await readGitSetup(fakeGit({ '--version': { code: 0, out: 'git version 2.47.1' } }).git, home, install, noStart)).not.toHaveProperty('install')
+    expect(await readGitSetup(fakeGit({ '--version': MISSING }).git, home, install, noStart, noRefresh)).toEqual({ version: null, name: null, email: null, install: 'winget install --id Git.Git -e' })
+    expect(await readGitSetup(fakeGit({ '--version': { code: 0, out: 'git version 2.47.1' } }).git, home, install, noStart, noRefresh)).not.toHaveProperty('install')
   })
 
   it('says how Even Keel was started on Windows only when git does not start: the restart that finds a new git depends on it', async () => {
     const start = async () => ({ by: 'service', name: 'EvenKeel' }) as const
-    expect(await readGitSetup(fakeGit({ '--version': MISSING }).git, home, () => null, start)).toEqual({ version: null, name: null, email: null, restart: { by: 'service', name: 'EvenKeel' } })
-    expect(await readGitSetup(fakeGit({ '--version': { code: 0, out: 'git version 2.47.1' } }).git, home, () => null, start)).not.toHaveProperty('restart')
+    expect(await readGitSetup(fakeGit({ '--version': MISSING }).git, home, () => null, start, noRefresh)).toEqual({ version: null, name: null, email: null, restart: { by: 'service', name: 'EvenKeel' } })
+    expect(await readGitSetup(fakeGit({ '--version': { code: 0, out: 'git version 2.47.1' } }).git, home, () => null, start, noRefresh)).not.toHaveProperty('restart')
   })
 })
 
