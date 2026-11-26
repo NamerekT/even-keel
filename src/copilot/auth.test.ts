@@ -19,7 +19,7 @@ function setup() {
   dirs.push(dir)
   const home = { key: 'copilot', dir, agent: 'copilot', global: false }
   const cli = new CopilotCli(() => 'copilot', 1000,
-    (folder) => copilotEnv({ COPILOT_GITHUB_TOKEN: 'gho_inherited', GH_TOKEN: 'gho_other', GITHUB_TOKEN: 'gho_other' }, folder.dir), {} as never)
+    (folder) => copilotEnv({ COPILOT_GITHUB_TOKEN: 'gho_inherited', GH_TOKEN: 'gho_other', GITHUB_TOKEN: 'gho_other' }, folder.dir, '/home/john'), {} as never)
   return { cli, home }
 }
 
@@ -27,7 +27,7 @@ it('rechecks the session folder on refresh, with inherited tokens removed (EKR-7
   const { cli, home } = setup()
   probe.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
   expect(await cli.authStatus(home)).toMatchObject({ loggedIn: false, authMethod: 'none' })
-  expect(probe.mock.calls[0]).toEqual(['copilot', { COPILOT_HOME: home.dir, COPILOT_AUTO_UPDATE: 'false', EVEN_KEEL_AGENT: 'copilot' }, home.dir, 1000])
+  expect(probe.mock.calls[0]).toEqual(['copilot', { COPILOT_HOME: home.dir, COPILOT_AUTO_UPDATE: 'false', EVEN_KEEL_AGENT: 'copilot', COPILOT_SKILLS_DIRS: join('/home/john', '.agents', 'skills') }, home.dir, 1000])
   expect(cli.terminalLogin(home)).toContain('COPILOT_HOME')
   expect(await cli.authStatus(home)).toMatchObject({ loggedIn: true, authMethod: 'none' })
 })

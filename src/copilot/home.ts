@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AccountStatus } from '../account/model.js'
 import { leadingComments, parseJsonc } from '../jsonc.js'
@@ -19,10 +20,15 @@ export const TOKEN_KEYS = ['COPILOT_GITHUB_TOKEN', 'GH_TOKEN', 'GITHUB_TOKEN'] a
 
 /**
  * What every Copilot command gets on top of the base: the account's folder and token, no self-update, and
- * `EVEN_KEEL_AGENT`, by which the agent-bridge package's hooks answer in the shape Copilot takes (BTN-467).
+ * `EVEN_KEEL_AGENT`, by which the agent-bridge package's hooks answer in the shape Copilot takes (BTN-467), and
+ * `~/.agents/skills` in `COPILOT_SKILLS_DIRS`: under `COPILOT_HOME` the CLI's personal skills are `$COPILOT_HOME/skills`,
+ * so the user's own skills Even Keel links there (`linkAgentSkills`) reach it only this way (1.0.114, BTN-1735).
  */
-export function copilotEnv(base: NodeJS.ProcessEnv, dir: string): NodeJS.ProcessEnv {
+export function copilotEnv(base: NodeJS.ProcessEnv, dir: string, home: string = homedir()): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...base, COPILOT_HOME: dir, COPILOT_AUTO_UPDATE: 'false', EVEN_KEEL_AGENT: 'copilot' }
+  const skills = join(home, '.agents', 'skills')
+  const dirs = (base.COPILOT_SKILLS_DIRS ?? '').split(',').filter((each) => each.trim() !== '')
+  env.COPILOT_SKILLS_DIRS = (dirs.some((each) => samePath(each.trim(), skills)) ? dirs : [...dirs, skills]).join(',')
   for (const key of TOKEN_KEYS) delete env[key]
   const token = tokenOf(dir)
   if (token !== null) env.COPILOT_GITHUB_TOKEN = token

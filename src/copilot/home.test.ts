@@ -19,6 +19,14 @@ describe('copilot home', () => {
     expect(env.GITHUB_TOKEN).toBeUndefined()
   })
 
+  it("gives the CLI ~/.agents/skills, which it stops reading under COPILOT_HOME, after the user's own skill folders (BTN-1735)", () => {
+    dir = mkdtempSync(join(tmpdir(), 'copilot-'))
+    const own = join('/home/john', '.agents', 'skills')
+    expect(copilotEnv({}, dir, '/home/john').COPILOT_SKILLS_DIRS).toBe(own)
+    expect(copilotEnv({ COPILOT_SKILLS_DIRS: '~/my-skills' }, dir, '/home/john').COPILOT_SKILLS_DIRS).toBe(`~/my-skills,${own}`)
+    expect(copilotEnv({ COPILOT_SKILLS_DIRS: `${own},~/my-skills` }, dir, '/home/john').COPILOT_SKILLS_DIRS).toBe(`${own},~/my-skills`)
+  })
+
   it("leaves a folder without a token on the CLI's own sign-in", () => {
     dir = mkdtempSync(join(tmpdir(), 'copilot-'))
     const env = copilotEnv({ COPILOT_GITHUB_TOKEN: 'gho_inherited' }, dir)
