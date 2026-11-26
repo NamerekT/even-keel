@@ -321,6 +321,7 @@
   overflow: auto;
   overscroll-behavior: contain;
   padding: 8px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface-muted);
   font-family: var(--mono);
