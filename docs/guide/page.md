@@ -17,6 +17,8 @@ Everything is driven from one web page: the chains, the sessions, the accounts a
 
 ## The project page
 
+![The project page: the chain of a milestone on the left, the open task's card on the right](images/project-page.webp)
+
 ### The legend
 
 Open **?** above the side panel for a legend grouped by location: the header, project row, tabs, task card and session strip.
@@ -30,6 +32,8 @@ What each lamp and shape of a row means, and each sign of the header that has no
 ### A task's row in the chain
 
 A task's row in the chain shows its live session: a ring for the prompt cache that drains until it goes cold, the context with its percent in blue, amber or red by its level, the account's initial when the session runs on an account other than the project's, and a counter of context resets — every handoff plus every compaction of the agent's own — hidden while there are none; a closed task keeps that counter on its archive row.
+
+![A milestone's rows: the running task with its current action and context, the tasks waiting their turn below it](images/chain-rows.webp)
 
 ### The archive
 

@@ -1,0 +1,13 @@
+{
+  "frames": [
+    {
+      "id": "project-page",
+      "route": "/p/ABC"
+    },
+    {
+      "id": "chain-rows",
+      "route": "/p/ABC",
+      "crop": { "x": 24, "y": 204, "width": 800, "height": 372 }
+    }
+  ]
+}

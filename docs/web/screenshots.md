@@ -65,6 +65,24 @@ npm run shot -- '?chain=ask&card=empty' .cards 'dialog[open]' --click '.card__ke
 - Exit code 1 when a selector is not found or the page logged an error (both printed), 2 when a step or the launch failed.
 - The browser is only Playwright's headless shell (`npx playwright install chromium-headless-shell` after a Playwright bump). Never the installed Chrome: on Windows a fresh Chrome profile checks for a blank OS password with `LogonUser`, each launch is a failed logon (Security 4625 from `chrome.exe`), and a few runs lock the account and the service with it. The page side is `scripts/shot.page.js`, plain JS as an init script: tsx would wrap functions passed to `evaluate` in an undefined `__name`.
 
+## The guide's frames (`npm run guide-shots`, BTN-1748)
+
+The pictures of `docs/guide/` are shot, never drawn by hand: each is a frame of the manifest `docs/guide/images/shots.json`, and `npm run guide-shots` shoots every frame (or `npm run guide-shots -- <id> …` the ones named) into `docs/guide/images/<id>.webp`. A page links one as `![What the frame shows](images/<id>.webp)`; GitHub and the docs site both render WebP.
+
+```json
+{ "frames": [
+  { "id": "chain-rows", "route": "/p/ABC", "crop": { "x": 24, "y": 204, "width": 800, "height": 372 } },
+  { "id": "machine-pins", "route": "/p/ABC?chain=pins", "steps": [{ "hover": ".block__pin" }, { "wait": "300" }], "width": 1024, "theme": "light" }
+] }
+```
+
+- A frame: `id` (lower-case words joined by `-`, the file's name), `route` (a `dev:fake` route with its query, as `npm run shot` takes it), `steps` (each `{ "<kind>": "<arg>" }`, the kinds and arguments of `npm run shot`'s steps above: `click`, `context`, `hover`, `press`, `fill`, `upload`, `wait`, `wheel`, `drag`, `drop`), `selector` (the element shot alone; none — the viewport), `width` and `height` of the viewport (1280×800), `theme` (`dark`, or `light`), `scale` (the device pixel ratio, 1), `crop` (`{x, y, width, height}` in CSS pixels from the top left of the element or the viewport), `quality` (WebP, 0.9) and `settle` (ms after the steps, 500). An unknown key or a wrong value stops the run with the frame's id.
+- The same machinery as `npm run shot` (`scripts/shot-browser.ts`, `scripts/shot-step.ts`): Playwright's headless shell and `dev:fake` in process. The encoder is the browser's own (`canvas.toDataURL('image/webp')`, `scripts/guide-shots.page.js`), no new dependency.
+- A run without interface changes rewrites no file: the line says `same`, `changed` or `new` per frame. For that the frame is shot at a fixed moment (`page.clock.setFixedTime`), in UTC and `en-US`, with `Math.random` seeded, every animation and transition run to its end at once, subpixel text off (`--disable-lcd-text`: its fringes followed the page's layers, one run in a few differed), and only once two shots 300 ms apart match (late panels such as the milestone's stats). A frame whose page logs an error is not saved and the run exits 1.
+- Only `dev:fake` data, so no real names reach a picture; its task titles are Russian, as the rest of the fake.
+- `scripts/guide-shots-manifest.test.ts` holds the manifest and the guide together: every picture a guide page links under `images/` is a frame, every frame is linked from a page and has its file, and `docs/guide/images/` holds nothing else. A new frame is a manifest entry, a run with its id and a link in the same commit.
+- The frames are shot again before each release (`docs/releases.md`, step 2).
+
 ## Motion frame sheets (BTN-95)
 
 An animation is checked by eye on one sheet of captioned frames, not frame by frame. Everything runs in one `browser_run_code_unsafe` call, without new dependencies.

@@ -53,6 +53,7 @@
     "test:all": "vitest run --mode all --exclude \"src/e2e-cli/**\" --exclude \"src/e2e-trackers/**\"",
     "tally": "tsx tally/src/main.ts",
     "shot": "tsx scripts/shot.ts",
+    "guide-shots": "tsx scripts/guide-shots.ts",
     "storage": "tsx scripts/storage.ts",
     "cli-check": "tsx scripts/cli-check.ts",
     "cli-compare": "tsx scripts/cli-sample-compare.ts",
