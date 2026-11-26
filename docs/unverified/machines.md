@@ -498,11 +498,3 @@ To check, on the benches: on the bench hub's `/accounts?machine=machine-1`, remo
 Assumed: `auth status` of a folder not added answers on the machine within the watcher's round, its e-mail is the one the hub's folder reports, and the machine's `account.useGlobal` adds it as the hub's `account/global` does. If not, the row keeps "Sign in" for an account the machine is signed in to, or "Use it" fails with "account unknown"; add the folder with "Add account" on the machine's accounts page instead.
 
 To check, on the benches: a machine whose `~/.claude` is signed in as an account of the bench hub and not added shows that account's row "signed in here, not added" within 10 minutes of its start; "Use it" makes it a signed-in row of the machine with its limits and no new sign-in; a `~/.claude` of another account offers nothing.
-
-## A project chat going on at another machine (BTN-1711)
-
-`docs/sessions/project-chats.md`, `ProjectChats.renew`. The renewal window picks a machine; at another one the hub reads the old transcript from the old chat's machine in parts of 4 MB (`MachineChats.transcriptPart`) and saves it into the new folder's `.temp/inbox/` (`saveInbox`), and the prompt points at the copy. Covered by `src/chats/renew.test.ts` and `src/service/machine-chats.test.ts` with fake machines; no real transcript has crossed the link.
-
-Assumed: a part of 4 MB in base64 stays under the link's 8 MB post, a save of up to 64 MB reaches a machine elsewhere as a message's files do, and the stopped session's transcript is whole when it is read. If not, the copy fails with a line `its transcript was not carried` in the hub's log and the prompt says the transcript stayed on the old machine; the new session goes on from the last turns alone.
-
-Seen on 2026-11-26 ([verified/machines.md](../verified/machines.md)): carried byte for byte both ways between the hub and machine-1. With the old machine off the link the renewal hung until it was back and then said nothing of the transcript (BTN-1739). To check, after BTN-1739: a chat on machine-1, machine-1 stopped, the chat renewed onto the hub — the renewal does not wait, the log says the old session was not stopped, the prompt says the transcript stayed on machine-1 and the new chat starts.
