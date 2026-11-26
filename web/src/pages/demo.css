@@ -11,7 +11,16 @@
   font-size: var(--text-14);
 }
 
-.demo-welcome__actions,
+/* The welcome's choices are the shared choice cards (`add-package__kind`), pressed anywhere; a link one loses its underline. */
+.demo-tile {
+  text-decoration: none;
+}
+
+.demo-tile:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
 .demo-end__actions {
   display: flex;
   flex-wrap: wrap;

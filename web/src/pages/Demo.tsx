@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { language, say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
 import { Band, Card } from '../ui/blocks.js'
-import { ButtonWithTip } from '../ui/ButtonWithTip.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { MoreMenu } from '../ui/MoreMenu.js'
-import { AddProjectLink } from './SetupAsk.js'
+import { AddFolderIcon, DemoScreenIcon } from './demoIcons.js'
+import { ADD_PROJECT, AddProjectLink, unfinishedStep } from './SetupAsk.js'
+import { stepPath } from './setupSteps.js'
 import { WizardFrame } from './WizardFrame.js'
+import '../tools/addPackage.css'
 import './demo.css'
 
 /**
@@ -35,41 +37,33 @@ function useDemoStart(state: EvenKeelState) {
   return { start, sending: sending || waiting !== null, failure }
 }
 
-/** The home page with no project at all (BTN-776): the demo or the person's own project. */
+/**
+ * The home page with no project at all (BTN-776): the demo or the person's own project, each a tile pressed anywhere.
+ * While the setup is not done, the project's tile says so and opens the step it stopped at, with no question between.
+ */
 export function DemoWelcome({ state }: { state: EvenKeelState }) {
   const { start, sending, failure } = useDemoStart(state)
+  const step = unfinishedStep(state)
   return (
     <section className="page demo-welcome">
       <WizardFrame title={t.demo.welcome} lead={t.demo.lead}>
         <div className="demo-welcome__choices">
-          <Card title={t.demo.watchTitle} className="demo-welcome__choice">
-            {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-            <div className="demo-welcome__actions">
-              <ButtonWithTip
-                label={t.demo.help}
-                tip={t.demo.watchHint}
-                action={
-                  <button type="button" className="button button--primary" disabled={sending} onClick={() => void start(false)}>
-                    {t.demo.watch}
-                  </button>
-                }
-              />
-            </div>
-          </Card>
-          <Card title={t.demo.connectTitle} className="demo-welcome__choice">
-            <div className="demo-welcome__actions">
-              <ButtonWithTip
-                label={t.demo.help}
-                tip={t.demo.connectHint}
-                action={
-                  <AddProjectLink state={state} className="button">
-                    {t.demo.connect}
-                  </AddProjectLink>
-                }
-              />
-            </div>
-          </Card>
+          <button type="button" className="add-package__kind demo-tile" disabled={sending} onClick={() => void start(false)}>
+            <span className="add-package__kind-icon">
+              <DemoScreenIcon />
+            </span>
+            <span className="add-package__kind-title">{t.demo.watch}</span>
+            <span className="add-package__kind-desc">{t.demo.watchDesc}</span>
+          </button>
+          <Link to={step === null ? ADD_PROJECT : stepPath(step)} className="add-package__kind demo-tile">
+            <span className="add-package__kind-icon">
+              <AddFolderIcon />
+            </span>
+            <span className="add-package__kind-title">{step === null ? t.demo.connectTile : t.demo.setupTile}</span>
+            <span className="add-package__kind-desc">{step === null ? t.demo.connectDesc : t.demo.setupDesc}</span>
+          </Link>
         </div>
+        {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       </WizardFrame>
     </section>
   )

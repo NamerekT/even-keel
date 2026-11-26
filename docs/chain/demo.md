@@ -35,7 +35,7 @@ Each turn reads, thinks and checks with pauses of 2–4 s (`PACE`), commits `[DE
 
 ## The page
 
-- **No project at all**: the home page is the welcome, two cards — «Посмотреть демо» (`demo/start`, then the demo's project page) and «Подключить своё» (the first run's setup while it is not walked, the project wizard after it).
+- **No project at all**: the home page is the welcome, two choice cards pressed anywhere (the shared `add-package__kind`, no "?" and no buttons) — «Посмотреть демо» (`demo/start`, then the demo's project page) and the project's card: «Настроить Even Keel и подключить проект» while the first run's setup is not walked, a link straight to the step it stopped at with no question; «Подключить свой проект», the project wizard, after it.
 - **The demo's project page**: a band «Это демо: агент — сценарий, ничего не тратится» with «Подключить своё» and «Убрать» in its ⋯ (a confirmation: the demo is still running); once over, the end card «Демо закончено» with «Убрать», «Ещё раз» (`demo/again`) and «Подключить своё».
 - **The demo is none of the person's projects** (`ownProjects`): it does not end the first run, the project wizard shows the first run's line while only the demo is there, and the stats are asked about only once an own project exists.
 - **The project wizard** shows «Убрать демо», on by default, while a demo exists; after the project is added the page sends `demo/remove`.

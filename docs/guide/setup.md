@@ -71,7 +71,7 @@ The projects and the settings live in Even Keel's database and are edited on the
 
 A step is checked on the line only once it has its answer, and a step you skip is not offered again.
 
-If you leave the setup unfinished, **Add project** (or **Connect your own** in the demo) first asks whether to finish it: **Set up** goes back to the step it stopped at, **Not now** leaves you where you are.
+If you leave the setup unfinished, **Add project** (or **Connect your own** in the demo) first asks whether to finish it: **Set up** goes back to the step it stopped at, **Not now** leaves you where you are. On the welcome page with no project yet, the card **Set up Even Keel and connect a project** takes you back to that step at once.
 
 ### Phone access
 
@@ -143,7 +143,7 @@ Microsoft Foundry's Entra ID way needs `az login` as that user, or give the reso
 
 ### The demo
 
-With no project yet, the home page offers two ways: **Watch the demo** or **Connect your own**.
+With no project yet, the home page offers two cards: **Watch the demo** or **Connect your project** (**Set up Even Keel and connect a project** while the setup is not finished).
 
 The demo takes about two minutes and needs nothing installed: Even Keel makes a small project folder in its state folder and a project `DEMO` on the built-in tracker, and its chain goes through three tasks while you watch — one waits for another, and one asks you a question in the session's chat.
 
