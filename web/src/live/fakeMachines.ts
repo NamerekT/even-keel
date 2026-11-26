@@ -300,8 +300,6 @@ export class FakeNetwork {
             const signedIn = entry.status?.loggedIn === true
             return { key: entry.key, agent: entry.agent, email: entry.status?.email ?? null, signedIn, limits: signedIn ? state.limits : null }
           })
-        // `checking` (BTN-1520): the laptop's page read lags its snapshot that signed an account in.
-        : this.mode === 'checking' && id === 'machine-1' ? []
         : (panel?.accounts ?? []).map((account) => ({ ...account, limits: account.signedIn ? state.limits : null })),
       missing: own ? [] : [...new Set([...(panel?.missing ?? []), ...Object.keys(report.agents).filter((agent) => report.agents[agent] === null)])],
       sessions: own ? state.sessions.filter((session) => session.lamp !== 'finished').map(({ task, sessionId, agent, model, lamp, cwd }) => ({ task, sessionId, agent, model, lamp, cwd })) : [],
@@ -591,7 +589,7 @@ export function fakeMachineSignIns(state: EvenKeelState, mode: string | null): M
     machine: 'machine-1', name: 'Example laptop', online: mode !== 'offline', login: null, missing: mode === 'nocli' ? ['claude'] : [],
     ...(mode === 'nocli' && { installs: { claude: installCommand('claude', 'linux') } }),
     ...(mode === 'global' && activeEmail !== null && { globals: [{ key: 'global', agent: active?.agent ?? 'claude', email: activeEmail }] }),
-    accounts: mode === 'checking' ? desktop.accounts.slice(0, 1) : mode === 'folders' ? FOLDERS : [],
+    accounts: mode === 'folders' ? FOLDERS : [],
     ...(mode === 'folders' && { active: 'john.doe@example.com' }),
   }
   if (mode === 'many') return [...manyMachines(state, laptop), desktop]

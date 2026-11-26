@@ -23,6 +23,7 @@ import { FULL_PERCENT, spanNames, WARM_PERCENT, windowFact, windowValue } from '
 import { HelpTip } from '../pages/settingsParts.js'
 import { TipFacts, type TipFact } from '../ui/TipFacts.js'
 import { AccountMachines, MachineNotes } from './MachineSignIns.js'
+import { MachineTokenNote } from './MachineTokenNote.js'
 import { useLive } from '../live/context.js'
 import { OverageChip, OverageValue, OverageWarning } from './Overage.js'
 import './accountRows.css'
@@ -119,12 +120,13 @@ function groupCount(rows: AccountEntry[], machine: MachineRows | undefined): str
 /**
  * A row of a machine elsewhere's view (BTN-1570): the limits the machine read and the levels it takes the account at.
  * Its own folder has the hub row's menu, each item done on the machine (BTN-1584); one the machine is not signed in
- * to says so in a note's tone, with "Sign in" there.
+ * to says so in a note's tone, with "Sign in" there. A folder on a long token is tagged so, with its note under the row.
  */
 function MachineRow({ entry, machine, now, page }: { entry: AccountEntry; machine: MachineRows; now: Date; page: boolean }) {
   const away = machine.away.get(entry.key)
   const uses = machine.uses.get(entry.key) ?? []
-  const plan = planText(entry)
+  const token = machine.tokens.get(entry.key)
+  const plan = token === undefined ? planText(entry) : t.account.longToken
   const chips = <div className="account-role-chips">
     {away !== undefined && <span className="account-role account-role--away"><InfoIcon />{away.global !== undefined ? t.machinePanel.view.notAdded : away.why === 'hub' ? t.machinePanel.view.hubOnly : t.machinePanel.view.signedOut}</span>}
     {(away === undefined || !page) && <MachineUses uses={uses} none={away === undefined} />}
@@ -157,6 +159,7 @@ function MachineRow({ entry, machine, now, page }: { entry: AccountEntry; machin
   return <AccountRowMenu entry={entry} view={machine.view} send={machine.send} sending={machine.busy} className={className}
     off={machine.online ? undefined : t.machinePanel.view.accountsOffline(machine.card.name)} switchOff={machine.switchOff(entry.key)}>
     {grid}
+    {token !== undefined && <MachineTokenNote token={token} machine={machine} />}
     {entry.removing && <Band tone="warn" className="account-problem" action={<KeepButton entry={entry} sending={machine.busy} send={machine.send} />}>
       {t.account.removing}{entry.sessions.length > 0 ? t.account.removingAlive(entry.sessions.join(', ')) : ''}
     </Band>}

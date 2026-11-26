@@ -1,25 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import type { EvenKeelState, MachinePage as MachinePageView } from '../../../src/state.js'
 import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { checkText } from '../layout/MachineJoined.js'
-import { Limits } from '../layout/Limits.js'
-import { useOpenAdd } from '../layout/AddAccountDialog.js'
-import { SessionsOnly } from '../layout/MachineSignIns.js'
-import { MachineTokenDialog, type MachineTokenTarget } from '../layout/MachineTokenDialog.js'
 import { useNow } from '../layout/useNow.js'
 import { usePaintMachineStrip } from '../layout/MachineFilter.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountColors, nearAccountColor } from '../machineColor.js'
-import { hubGapsOn, machineAccountsChecking, machineAccountsEmpty, machineAgents, machineChecks, osLabel } from '../machineAdd.js'
-import { folderWay, gapCommand, machineLogin } from '../machineSignIn.js'
-import { SignIn } from '../layout/MachineAccounts.js'
-import { FolderSignIn } from '../layout/MachineFolderSignIn.js'
+import { machineAgents, machineChecks, osLabel } from '../machineAdd.js'
 import { projectPath } from '../state.js'
 import { packagesPath } from '../tools/packageGroups.js'
-import { AccountTag } from '../ui/AccountTag.js'
 import { Band, Card, CommandBlock, EmptyState, Fact, FactList, PageHead } from '../ui/blocks.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { Lamp } from '../ui/Lamp.js'
@@ -41,7 +33,6 @@ import './machinePage.css'
 const REREAD_MS = 15_000
 const CLOCK_MS = 30_000
 const PICK_REST_MS = 400
-const WINDOWS_DIFFER = { code: 'usage.tokenWindowsDiffer', params: {} } as const
 
 /** A commit by its first seven characters, as git shows it; a version stays whole. */
 const shortRef = (ref: string): string => (/^[0-9a-f]{40}$/.test(ref) ? ref.slice(0, 7) : ref)
@@ -62,10 +53,10 @@ function ContainerSteps({ version }: { version: string }) {
 }
 
 /**
- * The machine's page, read again at each `machines` event, every `REREAD_MS`, at each change of `snapshot` and at
- * `reload`, whose promise ends once that read has landed; `null` while read, `false` — none.
+ * The machine's page, read again at each `machines` event, every `REREAD_MS` and at `reload`, whose promise ends once
+ * that read has landed; `null` while read, `false` — none.
  */
-function useMachinePage(machine: string, snapshot: string): { page: MachinePageView | null | false; reload: () => Promise<void> } {
+function useMachinePage(machine: string): { page: MachinePageView | null | false; reload: () => Promise<void> } {
   const { read, onMachines } = useLive()
   const [page, setPage] = useState<MachinePageView | null | false>(null)
   const loader = useRef<() => Promise<void>>(async () => {})
@@ -86,13 +77,6 @@ function useMachinePage(machine: string, snapshot: string): { page: MachinePageV
       clearInterval(timer)
     }
   }, [machine])
-  // A machine's snapshot moves the live state, not a `machines` event (BTN-1520): its accounts are read again at once.
-  const seen = useRef(snapshot)
-  useEffect(() => {
-    if (seen.current === snapshot) return
-    seen.current = snapshot
-    void loader.current()
-  }, [snapshot])
   const reload = useCallback(() => loader.current(), [])
   return { page, reload }
 }
@@ -100,8 +84,7 @@ function useMachinePage(machine: string, snapshot: string): { page: MachinePageV
 /** `/machines/<id>` (BTN-1272): one machine of the hub, the own one or one elsewhere — its report, settings, pool and work. */
 export function MachinePage({ state }: { state: EvenKeelState }) {
   const { id = '' } = useParams()
-  const live = state.machineSignIns?.find((each) => each.machine === id)
-  const { page, reload } = useMachinePage(id, JSON.stringify([live?.accounts, live?.login === null || live?.login === undefined]))
+  const { page, reload } = useMachinePage(id)
   return (
     <div className="page machine-page">
       <Loading busy={page === null} label={t.machinePage.reading} fit="block">
@@ -187,7 +170,6 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
         <div className="machine-page__column">
           <ProjectsCard page={page} />
           {!page.own && <MachineMemoryCard state={state} page={page} reload={reload} />}
-          <AccountsCard state={state} page={page} now={now} />
           <SessionsCard page={page} />
         </div>
       </div>
@@ -517,137 +499,6 @@ function ProjectsCard({ page }: { page: MachinePageView }) {
           ))}
         </ul>
       )}
-    </Card>
-  )
-}
-
-/**
- * The machine's accounts, signed in there or not, with the limits it read; on a machine elsewhere then the hub's
- * subscriptions it is not signed in to, each with "Sign in" there, as its accounts page has them (BTN-1302).
- */
-function AccountsCard({ state, page, now }: { state: EvenKeelState; page: MachinePageView; now: Date }) {
-  const text = t.machinePage
-  const view = t.machinePanel.view
-  const { send, sending, failure } = useCommand()
-  const openAdd = useOpenAdd()
-  const signIns = state.machineSignIns
-  const machine = signIns?.find((each) => each.machine === page.id)
-  const gaps = page.own || machine === undefined ? [] : hubGapsOn(state.account.accounts, machine)
-  const busy = sending || machineLogin(signIns) !== undefined
-  const [token, setToken] = useState<MachineTokenTarget | null>(null)
-  // A token whose windows differ from the poll (BTN-1267) is issued again for the hub's full sign-in of its e-mail.
-  const newToken = (email: string | null) => {
-    const hub = state.account.accounts.find((entry) => entry.agent === 'claude' && entry.longToken === undefined && email !== null && entry.status?.email === email)
-    if (hub === undefined || page.own || !page.online) return null
-    return (
-      <button type="button" className="button button--small" disabled={busy} onClick={() => setToken({ machine: page.id, name: page.name, account: hub.key, who: email! })}>
-        {t.account.newKey.longToken}
-      </button>
-    )
-  }
-  // A folder signed out is signed in again where it is: on a machine elsewhere through its sign-in window, here on `/accounts`.
-  const signIn = (agent: string, account?: string) =>
-    page.own ? (
-      <Link to="/accounts" className="button button--small">
-        {text.signIn}
-      </Link>
-    ) : (
-      <SignIn
-        name={page.name}
-        online={page.online}
-        busy={busy}
-        noCli={page.missing.includes(agent) ? agentName(agent) : null}
-        onClick={() => void send('machines/login', { machine: page.id, agent, ...(account !== undefined && { account }) })}
-      />
-    )
-  const add = page.own ? (
-    <Link to="/accounts" className="button button--small">
-      {text.accountsOpen}
-    </Link>
-  ) : page.online ? (
-    <button type="button" className="button button--small" disabled={busy || state.account.login !== null} onClick={() => openAdd(null)}>
-      + {t.account.add}
-    </button>
-  ) : (
-    <Tipped tip={view.addOffline(page.name)} align="start">
-      <button type="button" className="button button--small" aria-disabled="true">
-        + {t.account.add}
-      </button>
-    </Tipped>
-  )
-  const none = !page.own && machineAccountsEmpty(page.id, signIns) === 'waiting' ? view.accountsNone : view.accountsEmpty(page.name)
-  // Signed in by the machine's last snapshot, not yet by the page's read: "checking", never "no account" (BTN-1520).
-  const checking = page.own ? [] : machineAccountsChecking(page.accounts, machine)
-  const isChecking = (account: { agent: string; key: string }) => checking.some((each) => each.agent === account.agent && each.key === account.key)
-  const unread = checking.filter((each) => !page.accounts.some((account) => account.agent === each.agent && account.key === each.key))
-  const checkingNote = (
-    <span className="machine-page__checking" role="status">
-      <span className="machine-page__spinner" aria-hidden="true" />
-      {text.checkingSignIn}
-    </span>
-  )
-  return (
-    <Card title={text.accounts} titleId="machine-accounts">
-      {page.accounts.length === 0 && gaps.length === 0 && unread.length === 0 ? (
-        <EmptyState action={add}>{none}</EmptyState>
-      ) : (
-        <ul className="machine-page__list">
-          {page.accounts.map((account) => (
-            <li key={`${account.agent}:${account.key}`} className="machine-page__row machine-page__row--account">
-              <span className="machine-page__main">
-                <span className="machine-page__name">
-                  {/* A machine elsewhere names its own folders: the hub knows the account by its e-mail. */}
-                  <AccountTag account={page.own ? account.key : (account.email ?? account.key)} agent={account.agent} />
-                  {isChecking(account) ? checkingNote : <span className={account.signedIn ? 'machine-page__muted' : 'machine-page__warn'}>{account.signedIn ? text.signedIn : text.signedOut}</span>}
-                  {account.longToken === true && <span className="tag">{text.longToken}</span>}
-                </span>
-                {account.signedIn && account.sessionsOnly === true && <span className="machine-page__state"><SessionsOnly email={account.email} send={send} sending={sending} /></span>}
-                {account.signedIn && account.limitsDiffer === true && (
-                  <span className="machine-page__state">
-                    <Tipped className="machine-page__warn" tip={say(WINDOWS_DIFFER)} align="start" focusable>{text.limitsDiffer}</Tipped>
-                    {newToken(account.email)}
-                  </span>
-                )}
-              </span>
-              {account.signedIn ? <Limits limits={account.limits} now={now} /> : !isChecking(account) && (page.own ? signIn(account.agent, account.key) : (
-                <FolderSignIn machine={{ id: page.id, name: page.name, online: page.online }} agent={account.agent} folder={account.key}
-                  way={folderWay(account, state.account.accounts)} busy={busy} noCli={page.missing.includes(account.agent) ? agentName(account.agent) : null} send={send} menu />
-              ))}
-            </li>
-          ))}
-          {unread.map((account) => (
-            <li key={`checking:${account.agent}:${account.key}`} className="machine-page__row machine-page__row--account">
-              <span className="machine-page__main">
-                <span className="machine-page__name">
-                  <AccountTag account={account.email ?? account.key} agent={account.agent} />
-                  {checkingNote}
-                </span>
-              </span>
-            </li>
-          ))}
-          {gaps.map(({ entry, gap }) => (
-            <li key={`hub:${entry.key}`} className="machine-page__row machine-page__row--account">
-              <span className="machine-page__main">
-                <span className="machine-page__name">
-                  <AccountTag account={entry.key} agent={entry.agent} />
-                  <span className="machine-page__muted">{gap.global !== undefined ? view.notAdded : view.hubOnly}</span>
-                </span>
-              </span>
-              {gap.global !== undefined ? (
-                <SignIn name={page.name} online={page.online} busy={busy} noCli={null} global onClick={() => void send(...gapCommand(entry.agent, gap))} />
-              ) : (
-                signIn(entry.agent, gap.account)
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {failure !== null && (
-        <p role="alert" className="notice notice--error">
-          {say(failure)}
-        </p>
-      )}
-      {token !== null && <MachineTokenDialog target={token} onClose={() => setToken(null)} />}
     </Card>
   )
 }

@@ -79,37 +79,6 @@
   color: var(--fg-muted);
 }
 
-.machine-page__warn {
-  color: var(--warn-fg);
-  font-size: var(--text-12);
-}
-
-/* An account the machine's snapshot signed in while the page's read of it lands (BTN-1520). */
-.machine-page__checking {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-6);
-  color: var(--fg-muted);
-  font-size: var(--text-12);
-  font-weight: 400;
-}
-
-.machine-page__spinner {
-  flex-shrink: 0;
-  width: 10px;
-  height: 10px;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: spin var(--motion-spin) linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .machine-page__spinner {
-    animation-duration: 3s;
-  }
-}
-
 .machine-page__empty,
 .machine-page__state {
   margin: 0;
@@ -234,10 +203,6 @@
   border-top: 1px solid var(--border);
 }
 
-.machine-page__row--account {
-  flex-wrap: wrap;
-}
-
 .machine-page__main {
   display: flex;
   flex: 1;
@@ -259,12 +224,6 @@
 
 a.machine-page__name:hover {
   text-decoration: underline;
-}
-
-.machine-page__name .machine-page__muted,
-.machine-page__name .machine-page__warn {
-  font-size: var(--text-12);
-  font-weight: 400;
 }
 
 .machine-page__state {

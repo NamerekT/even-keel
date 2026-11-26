@@ -31,6 +31,17 @@ export interface MachineAccounts {
   folders: Map<string, string>
   /** By key of `view`: the hub's folder of the same account, whose name it shows and whose Even Keel role it moves (BTN-1584). */
   hubFolders: Map<string, string>
+  /** By key of `view`: its folder there on a long token, with what the hub's snapshot of the machine says of its limits. */
+  tokens: Map<string, MachineToken>
+}
+
+/** A folder of a machine elsewhere on a long token (BTN-1002); the two marks only while it is signed in. */
+export interface MachineToken {
+  email: string | null
+  /** No machine polls its account: its limits come only from its sessions (BTN-1266). */
+  sessionsOnly: boolean
+  /** Its sessions tell other windows than its account's full sign-in's poll (BTN-1267). */
+  limitsDiffer: boolean
 }
 
 /** Where the machine takes an account, as "Used by" names it. */
@@ -45,7 +56,7 @@ const BLANK = {
   configPending: false, apiKey: false, limits: null, usage: { state: 'ok', reason: null, since: null },
 } satisfies Partial<AccountEntry>
 
-const keyOf = (account: MachineCardAccount): string => `${account.agent}:${account.key}`
+const keyOf = (account: Pick<MachineCardAccount, 'agent' | 'key'>): string => `${account.agent}:${account.key}`
 
 /**
  * The view a machine elsewhere's header and accounts page show in the hub's blocks: an account of the machine takes
@@ -58,11 +69,18 @@ export function machineAccountView(hub: AccountView, card: MachineCard, signIn: 
   const here = new Map<string, string>()
   const folders = new Map<string, string>()
   const hubFolders = new Map<string, string>()
+  const tokens = new Map<string, MachineToken>()
   const ordered = [...card.accounts.filter((each) => each.signedIn), ...card.accounts.filter((each) => !each.signedIn)]
   const own = ordered.map((account): AccountEntry => {
     const match = hubFolderOf(hub.accounts, account.agent, account.email)
     const key = keyOf(account)
     folders.set(key, account.key)
+    if (account.longToken === true) {
+      // The hub works the two marks out over the machine's sign-ins, not over its card.
+      const told = signIn?.accounts.find((each) => keyOf(each) === key) ?? account
+      const signed = account.signedIn
+      tokens.set(key, { email: account.email, sessionsOnly: signed && told.sessionsOnly === true, limitsDiffer: signed && told.limitsDiffer === true })
+    }
     if (match !== undefined) hubFolders.set(key, match.key)
     if (match !== undefined && !here.has(match.key)) here.set(match.key, key)
     if (!account.signedIn) away.set(key, { agent: account.agent, account: account.key, why: 'out', way: folderWay(account, hub.accounts), noCli: signIn?.missing.includes(account.agent) === true })
@@ -114,6 +132,7 @@ export function machineAccountView(hub: AccountView, card: MachineCard, signIn: 
     here,
     folders,
     hubFolders,
+    tokens,
   }
 }
 
