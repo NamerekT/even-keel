@@ -16,7 +16,7 @@ import { useLive } from '../live/context.js'
 import { useCommand, useLanding } from '../live/useCommand.js'
 import { changed, sent, type Value } from './settingsDraft.js'
 import { modelKey, namedProviders } from './settingsRun.js'
-import { GroupTabs, type RuleKey, rulesOf, SAVE_LANDING_MS, SaveBar, unplaced, useFieldErrors } from './settingsParts.js'
+import { GroupTabs, type RuleKey, rulesOf, SAVE_LANDING_MS, SaveBar, SETTINGS_COLUMN, unplaced, useFieldErrors } from './settingsParts.js'
 import { newMilestones, ruleChoicesOf, sourceTasks } from './settingsRows.js'
 import { useSourceMoves } from './SourceMoves.js'
 import { useVocabularies, VocabularyReading } from './useVocabularies.js'
@@ -199,7 +199,8 @@ export function SettingsPanel({
       <TableDraft value={{ draft, setDraft }}>
       <form
         ref={formRef}
-        className="settings__form"
+        // The trial of the one-column form (BTN-1717) is on the Sessions tab alone.
+        className={open === 'sessions' ? `settings__form ${SETTINGS_COLUMN}` : 'settings__form'}
         role="tabpanel"
         aria-labelledby={`settings-tab-${open}`}
         onSubmitCapture={(event) => {

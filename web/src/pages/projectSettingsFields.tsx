@@ -1,10 +1,11 @@
+import type { ReactNode } from 'react'
 import type { Notice } from '../../../src/notice/notice.js'
 import { t } from '../i18n/index.js'
 import { Select } from '../ui/Select.js'
 import { switchOf } from './projectForm.js'
 import { labelOf, onOff, same, type Option } from './projectSettingsDraft.js'
 import { edited, inheritedEdit, ownEdited, reverted, type Draft, type Value, type Values } from './settingsDraft.js'
-import { ErrorStrip, FieldHead, fieldId, FieldNote, type Inheritance, marksOf, Row, shown, SwitchField } from './settingsParts.js'
+import { ErrorStrip, Field, FieldHead, fieldId, FieldNote, type Inheritance, marksOf, Row, shown, SwitchField } from './settingsParts.js'
 import type { SetDraft } from './settingsStore.js'
 
 /** The project settings panel's draft and the field builders its tabs draw their rows with. */
@@ -20,27 +21,34 @@ export function panelFields(draft: Draft, setDraft: SetDraft, saved: Values, err
   // A key whose '' is "as shared": the field shows the shared value under a chip until an edit makes it the project's own.
   const inheritOf = (key: string, sharedLabel: string, disabled = false): Inheritance => ({ own: text(key) !== '', shared: sharedLabel, disabled, onReset: () => edit(key, '') })
   const notes = (key: string) => <FieldNote error={errorOf(key)} />
-  const pick = (key: string, label: string, hint: string, options: Option[], inherit?: { value: string; label: string }) => (
-    <Row
-      className={marks.box(key)}
-      label={label}
-      hint={hint}
-      htmlFor={fieldId(key)}
-      inherit={inherit === undefined ? undefined : inheritOf(key, inherit.label)}
-      mark={marks.note(key, (value) => (inherit !== undefined && value === '' ? t.settings.asShared(inherit.label) : labelOf(options)(value)))}
-      control={
-        <Select
-          id={fieldId(key)}
-          className="settings__text"
-          value={inherit === undefined || text(key) !== '' ? text(key) : inherit.value}
-          options={options}
-          invalid={errorOf(key) !== null}
-          onChange={(value) => (inherit === undefined ? edit(key, value) : editInherited(key, value, inherit.value))}
-        />
-      }
-      error={errorOf(key)}
-    />
-  )
+  // `stacked` — under its name, in the one-column form (BTN-1717); `under` — what goes under the pick there.
+  const pick = (key: string, label: string, hint: string, options: Option[], inherit?: { value: string; label: string }, stacked?: { under?: ReactNode }) => {
+    const select = (
+      <Select
+        id={fieldId(key)}
+        className="settings__text"
+        value={inherit === undefined || text(key) !== '' ? text(key) : inherit.value}
+        options={options}
+        invalid={errorOf(key) !== null}
+        onChange={(value) => (inherit === undefined ? edit(key, value) : editInherited(key, value, inherit.value))}
+      />
+    )
+    const props = {
+      className: marks.box(key),
+      label,
+      hint,
+      htmlFor: fieldId(key),
+      inherit: inherit === undefined ? undefined : inheritOf(key, inherit.label),
+      mark: marks.note(key, (value) => (inherit !== undefined && value === '' ? t.settings.asShared(inherit.label) : labelOf(options)(value))),
+      error: errorOf(key),
+    }
+    if (stacked === undefined) return <Row {...props} control={select} />
+    return (
+      <Field {...props} width="select" control={select}>
+        {stacked.under}
+      </Field>
+    )
+  }
   const inheritedSwitch = (key: string, label: string, hint: string, sharedValue: boolean, disabled = false) => (
     <SwitchField
       className={marks.box(key)}

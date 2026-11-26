@@ -15,6 +15,7 @@ export const sharedRu = {
     prompts: 'Промпты',
     tools: 'Инструменты',
     context: 'Контекст',
+    cacheChats: 'Кэш и чаты',
     interface: 'Интерфейс',
     addresses: 'Адреса страницы',
     connect: 'Подключение машин',

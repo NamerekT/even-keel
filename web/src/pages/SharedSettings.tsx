@@ -22,6 +22,7 @@ import { Select } from '../ui/Select.js'
 import { changed, edited, reverted, sent, type Value } from './settingsDraft.js'
 import {
   ErrorStrip,
+  Field,
   FieldHead,
   FieldNote,
   fieldId,
@@ -35,6 +36,7 @@ import {
   SAVE_LANDING_MS,
   SaveBar,
   Section,
+  SETTINGS_COLUMN,
   SHARE_KEYS,
   shareOf,
   shown,
@@ -45,6 +47,7 @@ import {
   wholeOf,
   type RuleKey,
 } from './settingsParts.js'
+import { SectionLabel } from '../ui/blocks.js'
 import { TrackerIcon } from '../ui/icons.js'
 import { ThemeSwitch } from '../ui/ThemeSwitch.js'
 import { TokensInput } from '../ui/TokensInput.js'
@@ -203,6 +206,9 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const numberRow = (key: string, label: string, invalid: boolean, hint?: string) => (
     <Row className={marks.box(key)} label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} control={numberInput(key, invalid)} error={errorOf(key)} />
   )
+  const numberField = (key: string, label: string, invalid: boolean, hint?: string) => (
+    <Field className={marks.box(key)} label={label} hint={hint} htmlFor={fieldId(key)} mark={marks.note(key)} width="number" control={numberInput(key, invalid)} error={errorOf(key)} />
+  )
   // A path or an address in one line; `empty` is what no value means.
   const monoRow = (key: string, label: string, hint: string, empty: string) => (
     <Row
@@ -226,17 +232,19 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       error={errorOf(key)}
     />
   )
-  const select = (key: string, label: string, options: readonly { value: string; label: string }[], hint?: string) => (
-    <Row
-      className={marks.box(key)}
-      label={label}
-      hint={hint}
-      htmlFor={fieldId(key)}
-      mark={marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
-      control={<Select id={fieldId(key)} className="settings__text" value={text(key)} options={options} onChange={(value) => edit(key, value)} />}
-      error={errorOf(key)}
-    />
-  )
+  // A pick of one of a few; `stacked` — under its name, in the one-column form.
+  const select = (key: string, label: string, options: readonly { value: string; label: string }[], hint?: string, stacked = false) => {
+    const props = {
+      className: marks.box(key),
+      label,
+      hint,
+      htmlFor: fieldId(key),
+      mark: marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value)),
+      control: <Select id={fieldId(key)} className="settings__text" value={text(key)} options={options} onChange={(value) => edit(key, value)} />,
+      error: errorOf(key),
+    }
+    return stacked ? <Field {...props} width="select" /> : <Row {...props} />
+  }
   // The model is typed freely; the account is picked from the offered folders.
   const model = (key: string, label: string, account: string, vendor: string | null) => (
     <div className={marks.box(key)}>
@@ -528,29 +536,33 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             <FieldNote error={errorOf('context')} />
           </div>
           {check('contextHandoffs', t.shared.contextHandoffs, `${t.shared.contextHandoffsHint} ${t.shared.forProjects}`)}
-          <Row
-            className={marks.box('checkpointTokens')}
-            label={t.shared.checkpointTokens}
-            hint={t.shared.checkpointTokensHint}
-            htmlFor={fieldId('checkpointTokens')}
-            mark={tokensNote('checkpointTokens', t.shared.checkpointTokensPlaceholder)}
-            control={tokensInput('checkpointTokens', countFrom(text('checkpointTokens'), 0) === undefined, {
-              placeholder: t.shared.checkpointTokensPlaceholder,
-              disabled: handoffsOff,
-            })}
-            error={errorOf('checkpointTokens')}
-          />
-          <div className="settings__field">
-            <FieldHead label={t.shared.checkpointShares} hint={t.shared.checkpointSharesHint} />
-            <div className="settings__row">
-              {SHARE_KEYS.map((key) => (
-                <Fragment key={key}>{number(key, t.shared[key], shareOf(text(key)) === undefined, handoffsOff)}</Fragment>
-              ))}
+          <div className="settings__nested">
+            <Field
+              className={marks.box('checkpointTokens')}
+              label={t.shared.checkpointTokens}
+              hint={t.shared.checkpointTokensHint}
+              htmlFor={fieldId('checkpointTokens')}
+              mark={tokensNote('checkpointTokens', t.shared.checkpointTokensPlaceholder)}
+              width="tokens"
+              control={tokensInput('checkpointTokens', countFrom(text('checkpointTokens'), 0) === undefined, {
+                placeholder: t.shared.checkpointTokensPlaceholder,
+                disabled: handoffsOff,
+              })}
+              error={errorOf('checkpointTokens')}
+            />
+            <div className="settings__field">
+              <FieldHead label={t.shared.checkpointShares} hint={t.shared.checkpointSharesHint} />
+              <div className="settings__row">
+                {SHARE_KEYS.map((key) => (
+                  <Fragment key={key}>{number(key, t.shared[key], shareOf(text(key)) === undefined, handoffsOff)}</Fragment>
+                ))}
+              </div>
+              <FieldNote error={errorOf('checkpointShares')} />
             </div>
-            <FieldNote error={errorOf('checkpointShares')} />
           </div>
         </Section>
-        <Section title={t.shared.claude}>
+        <Section title={t.shared.sections.cacheChats}>
+          <SectionLabel>{t.shared.claude}</SectionLabel>
           {select(
             'cacheTtl',
             t.shared.cacheTtl,
@@ -560,11 +572,11 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
               { value: '1h', label: t.shared.cacheTtl1h },
             ],
             t.shared.cacheTtlHint,
+            true,
           )}
-          {numberRow('keepWarm', t.shared.keepWarm, wholeOf(text('keepWarm'), 0) === undefined || errorOf('keepWarm') !== null, t.shared.keepWarmHint)}
-        </Section>
-        <Section title={t.shared.chats}>
-          {numberRow('chatSessions', t.shared.chatSessions, wholeOf(text('chatSessions'), 1) === undefined || errorOf('chatSessions') !== null, t.shared.chatSessionsHint)}
+          {numberField('keepWarm', t.shared.keepWarm, wholeOf(text('keepWarm'), 0) === undefined || errorOf('keepWarm') !== null, t.shared.keepWarmHint)}
+          <SectionLabel>{t.shared.chats}</SectionLabel>
+          {numberField('chatSessions', t.shared.chatSessions, wholeOf(text('chatSessions'), 1) === undefined || errorOf('chatSessions') !== null, t.shared.chatSessionsHint)}
         </Section>
       </>
     ),
@@ -713,12 +725,14 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     packages: () => <PackageCatalog state={state} />,
   }
 
+  // The trial of the one-column form (BTN-1717) is on the Sessions group alone; the rest keep their rows.
+  const columned = open === 'sessions'
   const draftForm = (titled: boolean, between = false) => (
     <TableDraft value={{ draft, setDraft }}>
     <form
       ref={formRef}
       key={open}
-      className={titled ? 'settings__form settings-page__form' : between ? 'settings__form settings__form--between' : 'settings__form'}
+      className={[titled ? 'settings__form settings-page__form' : between ? 'settings__form settings__form--between' : 'settings__form', columned && SETTINGS_COLUMN].filter(Boolean).join(' ')}
       aria-labelledby={titled ? 'settings-group' : undefined}
       onSubmitCapture={(event) => validateTables(event, invalidPending(draft, keysOf(open)))}
       onSubmit={(event) => {
@@ -741,7 +755,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   )
 
   return (
-    <div className="page settings-page">
+    <div className={columned ? 'page settings-page settings-page--column' : 'page settings-page'}>
       <header>
         <h1 className="page__title settings-page__title">
           {t.shared.title}
