@@ -1,8 +1,9 @@
-import { join } from 'node:path'
+import { open, type FileHandle } from 'node:fs/promises'
+import { basename, join } from 'node:path'
 import type { SessionStart } from '../agent/contract.js'
 import { CLAUDE } from '../claude/name.js'
 import { isPlain } from '../config.js'
-import type { ChatStart, MachineChats } from '../machine/services.js'
+import { TRANSCRIPT_PART_BYTES, type ChatStart, type MachineChats, type TranscriptPart } from '../machine/services.js'
 import { fail } from '../notice/notice.js'
 import { replyParts } from '../sessions/ask.js'
 import { typedText } from '../sessions/commandPrompt.js'
@@ -100,5 +101,28 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       const session = ctx.monitor.handoff(chat)
       return session === undefined ? null : { sessionId: session.sessionId, transcript: session.transcript, recent: session.recent }
     },
+    transcriptPart: async (chat, from, length) => {
+      const transcript = ctx.monitor.handoff(chat)?.transcript
+      return transcript == null ? null : transcriptPartOf(transcript, from, length)
+    },
+  }
+}
+
+/** `length` bytes from `from` of the file, at most `TRANSCRIPT_PART_BYTES`, with its name and size; `null` — not readable. */
+export async function transcriptPartOf(path: string, from: number, length: number): Promise<TranscriptPart | null> {
+  let file: FileHandle
+  try {
+    file = await open(path, 'r')
+  } catch {
+    return null
+  }
+  try {
+    const { size } = await file.stat()
+    const wanted = Math.max(0, Math.min(length, TRANSCRIPT_PART_BYTES, size - from))
+    const data = Buffer.alloc(wanted)
+    const { bytesRead } = wanted === 0 ? { bytesRead: 0 } : await file.read(data, 0, wanted, from)
+    return { name: basename(path), size, data: data.subarray(0, bytesRead).toString('base64') }
+  } finally {
+    await file.close()
   }
 }

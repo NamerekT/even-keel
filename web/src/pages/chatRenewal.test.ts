@@ -106,4 +106,10 @@ describe('the choice the window offers first (BTN-1232)', () => {
     const spent = entry('work', 'claude', { limits: limits(100) })
     expect(renewalChoice(chat(), limit, null, [spent, entry('spare', 'claude', { needsLogin: true })])).toEqual({ account: 'work', model: 'claude-opus-5-5', effort: 'high' })
   })
+
+  it("offers the chat's machine, never the last choice's (BTN-1711)", () => {
+    const last = { account: 'spare', model: null, effort: 'medium', machine: 'laptop' }
+    expect(renewalChoice(chat({ machine: 'pc' }), cold, last, [entry('work'), entry('spare')])).toEqual({ account: 'spare', model: null, effort: 'medium', machine: 'pc' })
+    expect(renewalChoice(chat(), cold, last, [entry('work'), entry('spare')])).toEqual({ account: 'spare', model: null, effort: 'medium' })
+  })
 })
