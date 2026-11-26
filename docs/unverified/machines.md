@@ -391,7 +391,7 @@ To check, on the benches (entry 181): give a project the bench hub (capacity 3) 
 
 Assumed: a machine elsewhere answers `transcript.*` over a real link within the checkpoint hook's timeout on a loaded hub, and a finished session's machine is still known from its mirror or its launch's task. If not, the transcript of an old session elsewhere opens as "not found" again, or the hook still times out; the log names the request.
 
-To check, on the benches (entry 181): run a task on a machine elsewhere of the bench hub, open its session's transcript (record, transcript, a picture) from the hub's page and see the hub's log free of `did not answer GET /api/sessions/…/checkpoint`; take the machine off the link and see the window name it instead of "not found".
+Seen on 2026-11-26 ([verified/machines.md](../verified/machines.md)): the record and transcript of a session on machine-1 read through the hub, and the read naming the machine while it was off the link. To check: the checkpoint hook of a session elsewhere — a task on machine-1 whose context passes the checkpoint's first share, with the hub's log free of `did not answer GET /api/sessions/…/checkpoint`.
 
 ## A hand session's tasks calls on a machine elsewhere (BTN-1573)
 
@@ -439,7 +439,7 @@ To check, on the benches: a project of the bench hub with machine-1 in its pool 
 
 Assumed: a real machine elsewhere going off the link and back turns the row's chip from "waits for …" to the launch there within a pull, the other lanes going on meanwhile; a pin set from the card or by the tasks server by name reaches the chain at its next step without a restart; and a revoked machine in a pin shows its chip with the button to the card. If not, a pinned task stays unseen by its machine, or runs elsewhere.
 
-To check, on the benches: a project of the bench hub with machine-1 in its pool and width 2, three ready tasks; pin the first to machine-1 from the card and the second to the hub by name through the tasks server (`run.machines`); see each start only on its machine, the third on whichever is free. Then stop machine-1's service with a fourth task pinned to it: the row says "waits for machine-1", the hub goes on; start it and see the task launch there.
+Seen on 2026-11-26 ([verified/machines.md](../verified/machines.md)): one task pinned to machine-1 by name through the tasks server ran there while the hub was free. To check, on the benches: a project of the bench hub with machine-1 in its pool and width 2, three ready tasks; pin the first to machine-1 from the card and the second to the hub; see each start only on its machine, the third on whichever is free. Then stop machine-1's service with a fourth task pinned to it: the row says "waits for machine-1", the hub goes on; start it and see the task launch there.
 
 ## The checkpoint hook of a machine elsewhere over a slow Tally (BTN-1634)
 
@@ -455,7 +455,7 @@ To check, once the hub and the machine run this version: the machine's log throu
 
 Assumed: a real Claude session on a machine elsewhere with `agent-bridge` 1.8.0 has its field open mid-turn and takes the message through its inbox socket on that machine at once, the row `delivered` with `inbox`; a session without an inbox takes it at its next tool call through the hooks, and one that ends its turn first gets it by a resume, not back in the chat as "gone". If not, the field stays shut or the message comes back.
 
-To check, on the benches: a task of the bench hub's project run on machine-1; mid-turn, write in its chat and see the session act on it within seconds and the row marked delivered; then the same with a long command running, and once more right before the turn ends.
+Seen on 2026-11-26 ([verified/machines.md](../verified/machines.md)): a Claude `--bg` session on machine-1 took a message mid-command through its inbox, the row `delivered` by `inbox`, and acted on it. To check, on the benches: a task run on machine-1, a message sent right before its turn ends: it comes by a resume, not back in the chat as "gone".
 
 ## Memory copies on a machine elsewhere over the link (BTN-1648)
 
@@ -513,4 +513,4 @@ To check, on the benches: a machine whose `~/.claude` is signed in as an account
 
 Assumed: a part of 4 MB in base64 stays under the link's 8 MB post, a save of up to 64 MB reaches a machine elsewhere as a message's files do, and the stopped session's transcript is whole when it is read. If not, the copy fails with a line `its transcript was not carried` in the hub's log and the prompt says the transcript stayed on the old machine; the new session goes on from the last turns alone.
 
-To check, on the benches: a cold chat on the hub's own machine renewed onto machine-1 — its first prompt names a path under machine-1's project folder, the file there is the old transcript byte for byte, and the new session greps it; the same from machine-1 to the hub; with the old machine off the link, the prompt says the transcript stayed there and the new chat starts.
+Seen on 2026-11-26 ([verified/machines.md](../verified/machines.md)): carried byte for byte both ways between the hub and machine-1. With the old machine off the link the renewal hung until it was back and then said nothing of the transcript (BTN-1739). To check, after BTN-1739: a chat on machine-1, machine-1 stopped, the chat renewed onto the hub — the renewal does not wait, the log says the old session was not stopped, the prompt says the transcript stayed on machine-1 and the new chat starts.

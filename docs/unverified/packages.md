@@ -64,4 +64,4 @@ A chat's own values in "More" of "New session" go with each launch and message t
 
 Assumed: a chat on a machine elsewhere gets the same set as on the hub's own machine. On the hub's own machine a Claude and a Codex chat got the packages turned on for them and lost the one turned off (2026-11-26, [verified/packages.md](../verified/packages.md)). If not, the chat's session on the machine has the project's set as if nothing were chosen, or misses a package it was given.
 
-To check, on the Docker hub and machines bench: start a Claude chat on a machine elsewhere with a package on that the project has off and one of its on packages off; ToolSearch in the chat finds the first's tools and not the second's.
+On machine-1 of the Docker machines bench a chat lost the project's package turned off for it (2026-11-26). To check, on that bench with a second package installed: start a Claude chat on machine-1 with a package on that the project has off; ToolSearch in the chat finds its tools.
