@@ -1,11 +1,9 @@
-import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { done, setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState } from './dispatcher.js'
 import { fakeMain } from './maincheck.fixture.js'
 import type { HandoffSession } from './relay.js'
-import { Writes } from '../storage/database.js'
-import { memoryDatabase } from '../storage/memory.js'
-import { Mailbox } from '../sessions/mailbox.js'
+import { memoryMailbox } from '../sessions/mailbox.fixture.js'
 import { createChat } from '../sessions/chat.js'
 import { mailFor, settleMail } from '../sessions/mailRelay.js'
 
@@ -29,9 +27,7 @@ async function running(merged: boolean, options: SetupOptions = {}) {
   context.handoffs['ABC-1'] = { ...session }
   context.dispatcher.setTasks('ABC', [task('ABC-1')])
   await context.dispatcher.idle()
-  const writes = new Writes(() => {})
-  const mailbox = await Mailbox.open(await memoryDatabase(), writes, () => context.clock.now)
-  onTestFinished(() => writes.settled())
+  const mailbox = memoryMailbox(() => context.clock.now)
   const chat = createChat({
     dispatcher: context.dispatcher, mailbox, configuredProject: () => 'ABC',
     liveView: () => ({ sessionId: session.sessionId, asking: false, ask: null }),

@@ -1,10 +1,8 @@
-import { describe, expect, it, onTestFinished } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { setup, task } from './dispatcher.fixture.js'
 import { emptyChainState } from './dispatcher.js'
 import type { HandoffSession } from './relay.js'
-import { Writes } from '../storage/database.js'
-import { memoryDatabase } from '../storage/memory.js'
-import { Mailbox } from '../sessions/mailbox.js'
+import { memoryMailbox } from '../sessions/mailbox.fixture.js'
 import { createChat, elsewhereChat, localChat } from '../sessions/chat.js'
 
 const session: HandoffSession = {
@@ -22,13 +20,11 @@ async function working(inbox: boolean, elsewhere = false) {
   context.handoffs['ABC-1'] = { ...session }
   context.dispatcher.setTasks('ABC', [task('ABC-1')])
   await context.dispatcher.idle()
-  const writes = new Writes(() => {})
-  const mailbox = await Mailbox.open(await memoryDatabase(), writes, () => context.clock.now)
-  onTestFinished(() => writes.settled())
+  const mailbox = memoryMailbox(() => context.clock.now)
   const told: { task: string; sessionId: string; text: string }[] = []
   const toldHere: string[] = []
   const tell = async (task: string, sessionId: string, text: string) => (told.push({ task, sessionId, text }), inbox)
-  const there = await Mailbox.open(await memoryDatabase(), writes, () => context.clock.now)
+  const there = memoryMailbox(() => context.clock.now)
   const own = localChat(mailbox, async () => false, elsewhere ? async (_task, _sessionId, text) => (toldHere.push(text), true) : tell)
   const chat = createChat({
     dispatcher: context.dispatcher, mailbox, configuredProject: () => 'ABC',
