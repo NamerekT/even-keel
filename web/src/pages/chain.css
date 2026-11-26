@@ -632,7 +632,7 @@
 
 /* The frame fades by its colours, not its opacity: an opacity under 1 would make it a stacking context and hide the
    caption under the rows. The frame paints only the group's fill; its edge is `::before`, cut where the caption stands
-   (BTN-1624), so the fill, the halo beside the caption and the row under it show as they would without it. */
+   (BTN-1624), so no halo shows around the caption's pill. */
 .chain {
   --caption-left: 14px;
 }
@@ -688,15 +688,19 @@
     height var(--motion-step) ease-out;
 }
 
-/* Over the first row, whose focus fill would cover its lower half, and over a row gliding past (z-index 2). No fill of
-   its own: the edge has a gap under it. */
+/* Over the first row, whose focus fill would cover its lower half, and over a row gliding past (z-index 2). A pill in
+   the group's colour on the page's fill (BTN-1715); the edge's gap under it keeps the halo off its rounded ends. The line
+   runs 1 px above the padding box (its centre is the frame's 1 px border), hence `top: -1px`. */
 .chain .chain__group-caption {
   position: absolute;
   z-index: 3;
-  top: 0;
+  top: -1px;
   left: var(--caption-left);
   translate: 0 -50%;
-  padding: 0 var(--space-6);
+  padding: 1px var(--space-8);
+  border: 2px solid var(--group-edge);
+  border-radius: var(--radius-pill);
+  background: var(--bg);
   opacity: 0;
   color: var(--group-edge);
   font-size: var(--text-12);
@@ -705,7 +709,8 @@
   white-space: nowrap;
   transition:
     opacity var(--motion-step) ease,
-    color var(--motion-step) ease;
+    color var(--motion-step) ease,
+    border-color var(--motion-step) ease;
 }
 
 .chain .chain__group--shown .chain__group-caption {
