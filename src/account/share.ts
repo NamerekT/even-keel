@@ -226,6 +226,14 @@ export function shareConfig(global: SharedSources, dir: string, warn: (message: 
     const target = linksTo(own, stored) ? stored : own
     if (!linksElsewhere(path, [own, stored, join(legacySkills, name)])) changed = link(target, path) || changed
   }
+  for (const name of entries(join(dir, 'skills'))) {
+    const path = join(dir, 'skills', name)
+    if (OWN_SKILLS.has(name) || existsSync(path) || lstatOf(path)?.isSymbolicLink() !== true) continue
+    const from = dirname(linkTarget(path))
+    if (![skills, legacySkills, join(global.dir, 'skills')].some((store) => sameSpelling(from, store))) continue
+    unlinkSync(path)
+    changed = true
+  }
   const store = memoryStore(global.dir)
   const projects = new Set([...entries(join(global.dir, 'projects')), ...entries(join(dir, 'projects'))])
   for (const project of projects) {

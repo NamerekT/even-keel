@@ -87,7 +87,9 @@ The page names the package; update Even Keel, or for now run the task on another
 
 ## Your own skills
 
-Your own skills need no package. Claude Code reads them from `~/.claude/skills`; Even Keel keeps them in `~/.claude-config/skills` (the same on every machine, [your Claude Code configuration](hub-machine.md)) and links each one into `~/.agents/skills`, where Codex, OpenCode and Copilot read them, so an edit of a skill reaches every agent at once. A skill of your own in `~/.agents/skills` stays as it is, and a link you made there to somewhere else too; the link of a skill you delete goes with it.
+Your own skills need no package. Claude Code reads them from `~/.claude/skills`; Even Keel keeps them in `~/.claude-config/skills` (the same on every machine, [your Claude Code configuration](hub-machine.md)) and links each one into `~/.agents/skills`, where Codex, OpenCode and Copilot read them, so an edit of a skill reaches every agent at once. A skill of your own in `~/.agents/skills` stays as it is, and a link you made there to somewhere else too.
+
+To delete a skill, delete it from `~/.claude/skills`, where you see it. Even Keel notices within seconds while it runs (or at its next start) and deletes the skill from `~/.claude-config/skills`: Codex, OpenCode and Copilot lose it at once, your other Claude accounts at their next launch, your other machines after their next sync. A skill deleted from `~/.claude-config/skills` goes the same way. The configuration's history keeps a deleted skill, so it can be brought back with git. Replacing the link in `~/.claude/skills` with a folder or a link of your own keeps the skill where it is.
 
 Skills you turned off for the chain in `skillOverrides` stay off only in Claude Code sessions: Codex, OpenCode and Copilot chain sessions still see them.
 

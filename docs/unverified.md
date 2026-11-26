@@ -360,6 +360,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 338 | [A sent video in the chat on Safari and from a machine](unverified/sessions.md#a-sent-video-in-the-chat-on-safari-and-from-a-machine-btn-1704) | anyone sending a video in a chat and watching it on an iPhone or from a task on a machine | the bubble's thumbnail is empty or the video does not play on Safari; a machine's video stalls | — |
 | 339 | [A project chat's own packages](unverified/packages.md#a-project-chats-own-packages-btn-1696) | anyone setting a chat's packages in "More" of "New session" for a chat on a machine elsewhere | the chat on the machine gets the project's set as if nothing were chosen, or misses a package it was given; change the project's packages instead | — |
 | 341 | [A project chat going on at another machine](unverified/machines.md#a-project-chat-going-on-at-another-machine-btn-1711) | hubs with machines elsewhere where a cold or limited chat is renewed onto another machine | the old transcript is not carried: the new session has only the last turns, the prompt says where the transcript stayed | — |
+| 342 | [A skill deleted from ~/.claude/skills](unverified/packages.md#a-skill-deleted-from-claudeskills-btn-1736) | anyone deleting a skill of their own while the service runs | the skill stays in the store and in the other agents' folders until the next restart, or its link comes back; delete it from `~/.claude-config/skills` instead | — |
 
 ### Waiting for the event / not checked by choice
 

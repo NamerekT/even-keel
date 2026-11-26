@@ -233,6 +233,20 @@ describe('shareConfig skills', () => {
     expect(linksTo(skill(folder), elsewhere)).toBe(true)
   })
 
+  it('removes an account link to a skill gone from the store, never a dead link elsewhere (BTN-1736)', () => {
+    share()
+    const elsewhere = join(root, 'repo', 'skills', 'strata')
+    mkdirSync(elsewhere, { recursive: true })
+    symlinkSync(elsewhere, skill(folder, 'strata'), linkType(process.platform))
+    rmSync(elsewhere, { recursive: true })
+    unlinkSync(skill(global.dir))
+    rmSync(stored(), { recursive: true })
+    expect(share()).toBe(true)
+    expect(() => lstatSync(skill(folder))).toThrow()
+    expect(lstatSync(skill(folder, 'strata')).isSymbolicLink()).toBe(true)
+    expect(share()).toBe(false)
+  })
+
   it('merges into a store folder that already has the skill and warns about files that differ', () => {
     mkdirSync(stored(), { recursive: true })
     writeFileSync(join(stored(), 'SKILL.md'), '# Review, stored')

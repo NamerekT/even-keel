@@ -46,9 +46,17 @@ The CLI 2.1.330 gave a bridged server up about 18 s after its stream dropped, an
 
 Assumed: each of the three reads `~/.agents/skills` of the home folder outside the project, its own account folder notwithstanding: Codex with its `CODEX_HOME` set to an account folder, Copilot with its `COPILOT_HOME` through `COPILOT_SKILLS_DIRS`, OpenCode with `OPENCODE_DISABLE_EXTERNAL_SKILLS` through `skills.paths`; and each follows a link (a junction on Windows) to a skill's folder. Only the project's `.agents/skills` was seen read by all three (2026-10-24, `docs/sessions/protection.md`). If not, an agent's chain sessions miss the user's own skills: its sessions' skill listing has none of them.
 
-Seen on the bench hub on 2026-11-26 (`dev` `1a6e64a4`, [verified/packages.md](../verified/packages.md)): the link laid and removed with the skill, Codex listing and loading it, OpenCode's `opencode debug skill` listing it through `skills.paths`. A Copilot chat listed only the built-in skills, since under `COPILOT_HOME` the CLI does not read `~/.agents/skills`; BTN-1735 passes the folder in `COPILOT_SKILLS_DIRS`, seen only through `copilot skill list` from a terminal (the skill under "Custom skills"). A skill deleted in one place stays half-deleted (BTN-1736).
+Seen on the bench hub on 2026-11-26 (`dev` `1a6e64a4`, [verified/packages.md](../verified/packages.md)): the link laid and removed with the skill, Codex listing and loading it, OpenCode's `opencode debug skill` listing it through `skills.paths`. A Copilot chat listed only the built-in skills, since under `COPILOT_HOME` the CLI does not read `~/.agents/skills`; BTN-1735 passes the folder in `COPILOT_SKILLS_DIRS`, seen only through `copilot skill list` from a terminal (the skill under "Custom skills"). A skill deleted in one place stayed half-deleted: BTN-1736 made a deletion from `~/.claude/skills` the skill's deletion (the entry below).
 
 To check, on the bench hub, with a version that has BTN-1735: with a skill in `~/.claude/skills`, ask a Copilot chat and an OpenCode chat (on a plan with turns left) for the list of their skills and to load the skill, and see it there.
+
+## A skill deleted from ~/.claude/skills (BTN-1736)
+
+`docs/packages/files.md`, "The user's own skills". A skill whose `~/.claude/skills/<name>` link was there at the configuration copy's last pass and is gone now is deleted from the skill store, and with it every link to it: `~/.agents/skills` at once, the account folders' at their next launch, the other machines' after their sync. The pass remembers the links it saw in the store's `.git` (`even-keel-skills`); a skill new in the store is linked, never deleted. Covered by `src/account/agent-skills.test.ts`, `src/account/share.test.ts` and `src/memory/git/config-copy.test.ts` (a deletion on one copy reaching the other through a bare repository).
+
+Assumed: the service's watch of `~/.claude/skills` sees a link deleted there (a `rm` in a terminal, a file manager, a junction removed on Windows) and starts a sync within seconds; and a Windows junction deleted through Explorer leaves no entry behind. If not, the deletion waits for the next sync or restart, or the skill comes back as a link. Not seen on Windows, nor between a hub and a machine elsewhere.
+
+To check, on the bench hub: delete a probe skill's link from `~/.claude/skills` while the service runs; within a minute the store's `skills/<name>` and the `~/.agents/skills` link are gone, the log says `deleted <name> from the store`, and the chat's `/` menu no longer offers it; then the same on a machine, and the hub's store loses it after the machine's sync.
 
 ## A project chat's own packages (BTN-1696)
 

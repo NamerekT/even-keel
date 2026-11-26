@@ -1,4 +1,4 @@
-import { readFileSync, watch as watchFolder } from 'node:fs'
+import { type FSWatcher, readFileSync, watch as watchFolder } from 'node:fs'
 import { join } from 'node:path'
 import { linkAgentSkills } from '../../account/agent-skills.js'
 import { configStore, settleStores } from '../../account/share.js'
@@ -54,7 +54,10 @@ export class ConfigCopy {
       schedule: deps.schedule,
       watch: deps.watch,
       pushed: deps.pushed,
-      beforeCommit: () => files.takeIn(),
+      beforeCommit: () => {
+        files.takeIn()
+        this.linkSkills()
+      },
       afterSync: () => {
         files.giveOut()
         this.linkSkills()
@@ -102,7 +105,10 @@ export class ConfigCopy {
     return this.sync.settle(file, hash, take)
   }
 
-  /** The store's skills for Codex, Copilot and OpenCode, at the start and after every sync (`linkAgentSkills`). */
+  /**
+   * The store's skills laid into `~/.claude/skills` and `~/.agents/skills`, at the start and around every sync
+   * (`linkAgentSkills`): before the commit, so a skill deleted from `~/.claude/skills` leaves the store in it.
+   */
   private linkSkills(): void {
     try {
       linkAgentSkills(this.deps.globalDir, this.deps.log)
@@ -122,12 +128,22 @@ function cut(text: string): string {
   return text.length > CONFIG_CONFLICT_TEXT ? `${text.slice(0, CONFIG_CONFLICT_TEXT)}\n[…]` : text
 }
 
-/** The global folder's own files only: everything else in it is the CLI's. */
+/** The global folder's own files and its `skills` (a skill deleted there, BTN-1736): everything else in it is the CLI's. */
 function watchGlobal(folder: string, changed: () => void): () => void {
   const names = new Set<string>(CONFIG_FILES)
   const watcher = watchFolder(folder, (_event, name) => {
     if (name !== null && names.has(name)) changed()
   })
   watcher.on('error', () => watcher.close())
-  return () => watcher.close()
+  let skills: FSWatcher | undefined
+  try {
+    skills = watchFolder(join(folder, 'skills'), () => changed())
+    skills.on('error', () => skills?.close())
+  } catch {
+    // no skills folder yet: the next sync lays it
+  }
+  return () => {
+    watcher.close()
+    skills?.close()
+  }
 }
