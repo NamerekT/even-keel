@@ -30,7 +30,7 @@ Before each Claude `auth status`, including for a registered `global` folder, `s
 
 An emptying line includes the previous access and refresh expiry, the selected CLI's version, live PIDs from `sessions/*.json` (`liveRecords`, without calling `claude agents`), and other already read folders whose credential mtime is within five seconds in either direction. This identifies correlation, not which process wrote the file or why. Unknown dates, a failed version read or failed session diagnostics say `unknown`; no sessions or peers say `none`. No token values, lengths or prefixes reach the log or the retained shape.
 
-Both token fields must be strings for a valid reading; either nonempty means tokens are present. Missing/unreadable files, malformed or incomplete JSON, absent OAuth objects and files changed during a read are skipped without clearing the last valid reading. macOS Keychain credentials are not observed by this file diagnostic. The page, account status rules, other adapters and running sessions are unchanged. A real CLI emptying still needs the [next natural occurrence](unverified/accounts.md#claude-oauth-token-emptying-diagnostics-btn-763).
+Both token fields must be strings for a valid reading; either nonempty means tokens are present. Missing/unreadable files, malformed or incomplete JSON, absent OAuth objects and files changed during a read are skipped without clearing the last valid reading. macOS Keychain credentials are not observed by this file diagnostic. The page, account status rules, other adapters and running sessions are unchanged. A real CLI emptying was seen and matched against the folder's file and processes on 2026-11-26 ([verified](verified/accounts.md)).
 
 ## API accounts (BTN-99)
 
