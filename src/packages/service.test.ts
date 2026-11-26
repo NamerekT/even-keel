@@ -736,4 +736,21 @@ describe("a machine elsewhere follows the hub's catalog (BTN-1299)", () => {
     expect(loadPackages(fileOf('other'))!.packages['tools@example']!.installs.map((each) => each.id)).toEqual([id])
     await Promise.all([machine.close(), other.close(), hub.close()])
   })
+
+  it('installs a package its project has off too, so a chat that turns it on gets it as on the own machine (BTN-1741)', async () => {
+    const { packages: hub, deps } = fixture()
+    await hub.install('tools@example')
+    hub.choose('project', 'tools@example', 'off')
+    const machine = machineOf(deps)
+    machine.follow(hub.catalogFor(['project'], []))
+    for (let waited = 0; !machine.view().packages.some((each) => each.name === 'tools@example' && each.installed); waited += 10) {
+      if (waited > 3_000) throw new Error('not installed')
+      await new Promise((done) => setTimeout(done, 10))
+    }
+    expect(machine.chatStartOf('project', 'claude').plugins).toEqual([])
+    expect(machine.chatStartOf('project', 'claude', { 'tools@example': true }).plugins?.map((each) => each.package)).toEqual(['tools@example'])
+    expect(machine.unready('project')).toEqual([])
+    expect(machine.reach('project').servers).toEqual([])
+    await Promise.all([machine.close(), hub.close()])
+  })
 })

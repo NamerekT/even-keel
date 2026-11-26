@@ -1,9 +1,10 @@
 import { routeOf } from './launch.js'
-import { current, enabledIn, type PackageInstall, type PackageRecord, type PackagesFile, type ProjectSet } from './model.js'
+import { current, type PackageInstall, type PackageRecord, type PackagesFile, type ProjectSet } from './model.js'
 
 /**
- * The hub's catalog as a machine elsewhere follows it (BTN-1299): the packages the machine's projects get, each with the
- * hub's current install, and those projects' sets. The settings of a package whose servers all run in the hub stay there.
+ * The hub's catalog as a machine elsewhere follows it (BTN-1299): every package of the catalog, each with the hub's
+ * current install, and the machine's projects' sets; none for a machine without projects. One its projects have off is
+ * there too: a project chat may turn it on (BTN-1741). The settings of a package whose servers all run in the hub stay there.
  */
 export interface CatalogBrief {
   packages: Record<string, PackageRecord>
@@ -16,7 +17,7 @@ export function catalogFor(file: PackagesFile, projects: string[], hubRoutes: re
   const packages: Record<string, PackageRecord> = {}
   const onMachine = new Set<string>()
   for (const [name, record] of Object.entries(file.packages)) {
-    if (!projects.some((project) => enabledIn(file, project, name))) continue
+    if (record.removed === true || projects.length === 0) continue
     const install = current(record)
     const servers = Object.keys(install?.servers ?? {})
     const local = install !== undefined && projects.some((project) => servers.some((server) => !hub.has(routeOf(project, name, install.id, server))))
