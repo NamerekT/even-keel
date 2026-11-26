@@ -10,6 +10,7 @@ const texts = { type: 'array', items: text }
 const ref = { ...texts, description: 'task keys, or #N for the N-th task of this call' }
 const change = (what: string) => ({ type: 'object', properties: { add: texts, remove: texts }, additionalProperties: false, description: what })
 const project = { type: 'string', description: 'project key; needed only without a project in the server address' }
+const projectByDefault = { type: 'string', description: "another project by its key; none — this server's project" }
 const estimate = { type: 'integer', minimum: 1, description: 'minutes of your own active work; only where the chain: line says estimate: yes' }
 const field = { type: ['string', 'null'] }
 const run = {
@@ -39,10 +40,11 @@ export const HANDOFF_TOOL = 'handoff_write'
 
 /**
  * The five tools (BTN-768): short enough that an agent loads them at once, with no deferred schemas. Names, never ids;
- * no tool deletes anything. A chain session's address names its task (`withTask`): it gets `handoff_write` too.
+ * no tool deletes anything. A chain session's address names its task (`withTask`): it gets `handoff_write` too, and no
+ * `project`; an address with a project and no task (the page's chat, BTN-1747) takes `project` as an option.
  */
 export function toolSpecs(withProject: boolean, fields: ToolFields = { components: true, attachments: true }, withTask = true): ToolSpec[] {
-  const scoped = (properties: Record<string, unknown>) => (withProject ? properties : { project, ...properties })
+  const scoped = (properties: Record<string, unknown>) => (!withProject ? { project, ...properties } : withTask ? properties : { project: projectByDefault, ...properties })
   const extra = (component: unknown) => ({
     ...(fields.components ? { component } : {}),
     ...(fields.attachments ? { attach } : {}),

@@ -530,32 +530,39 @@ export class TasksTools {
   }
 
   /**
-   * The trackers of the call's project: the address's, or in a hand session the project whose key — its own or a
-   * feed's — `project` gives; `named` — the tracker that key gives.
+   * The trackers of the call's project: a chain session's address's; otherwise the project whose key — its own or a
+   * feed's — `project` gives, by default the address's (the page's chat, BTN-1747); `named` — the tracker that key gives.
    */
   private async projectOf(args: Args, scope: TasksScope): Promise<{ readers: TaskReader[]; named: TaskReader | null }> {
-    if (scope.project !== null) return { readers: this.deps.readers(scope.project), named: null }
-    const key = args.text('project')?.trim().toUpperCase()
-    if (key === undefined || key === '') throw new EditRefused('"project" is required: the key of the project, as in its task keys')
-    const named = this.deps.readerOfPrefix(key)
-    if (named === null) throw new EditRefused(`no project ${key} keeps its tasks where these tools reach`)
-    await this.checkPool(named, scope)
+    const chain = scope.project !== null && scope.task !== null
+    const key = chain ? undefined : args.text('project')?.trim().toUpperCase() || undefined
+    if (scope.project !== null && key === undefined) return { readers: this.deps.readers(scope.project), named: null }
+    if (key === undefined) throw new EditRefused('"project" is required: the key of the project, as in its task keys')
+    const named = await this.anyReader(key, scope)
     return { readers: this.deps.readers(named.project), named }
   }
 
-  /** The tracker of a task by its key's prefix: one of the address's project, or of any project in a hand session. */
+  /**
+   * The tracker of a task by its key's prefix: a chain session's only among its project's (BTN-1127); otherwise the
+   * address's project's first, then any project's.
+   */
   private async readerOfTask(key: string, scope: TasksScope): Promise<TaskReader> {
     const parsed = parseTaskId(key)
     if (parsed === null) throw new EditRefused(`"${key}" is not a task key such as ABC-12`)
-    if (scope.project === null) {
-      const found = this.deps.readerOfPrefix(parsed.project)
-      if (found === null) throw new EditRefused(`no project ${parsed.project} keeps its tasks where these tools reach`)
-      await this.checkPool(found, scope)
-      return found
-    }
-    const readers = this.deps.readers(scope.project)
+    const readers = scope.project === null ? [] : this.deps.readers(scope.project)
     const found = readers.find((each) => each.prefix === parsed.project)
-    if (found === undefined) throw new EditRefused(`${key} is not a task of this project; its trackers give ${readers.map((each) => each.prefix).join(', ')} keys`)
+    if (found !== undefined) return found
+    if (scope.project !== null && scope.task !== null) {
+      throw new EditRefused(`${key} is not a task of this project; its trackers give ${readers.map((each) => each.prefix).join(', ')} keys`)
+    }
+    return this.anyReader(parsed.project, scope)
+  }
+
+  /** The tracker of any project the tools serve whose keys carry this prefix, within a machine's pool. */
+  private async anyReader(prefix: string, scope: TasksScope): Promise<TaskReader> {
+    const found = this.deps.readerOfPrefix(prefix)
+    if (found === null) throw new EditRefused(`no project ${prefix} keeps its tasks where these tools reach`)
+    await this.checkPool(found, scope)
     return found
   }
 
