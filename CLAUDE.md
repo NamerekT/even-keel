@@ -2,7 +2,7 @@
 
 Formerly called Baton (Батон): that is how it is recorded in old commits, tasks and memory; the task key `BTN` and the `btn-*` branches stayed.
 
-A dispatcher of Claude Code session chains. It takes a project's open tasks from the tracker, builds the order from `blocks` relations, starts a session on the first task and, when the task goes to Done, starts the next one. A web page shows the chain and, for each session, the stage, the current action and how full the context is. It runs as a service on the user's workstation: agents are launched only here.
+A dispatcher of Claude Code session chains. It takes a project's open tasks from the tracker, builds the order from `blocks` relations, starts a session on the first task and, when the task goes to Done, starts the next one. A web page shows the chain and, for each session, the stage, the current action and how full the context is.
 
 The global rules from `~/.claude/CLAUDE.md` apply in full. Below is only what is specific to this project.
 
@@ -71,7 +71,7 @@ The public documentation is `README.md`, `docs/guide/` and `LICENSE` (MIT). A ch
 
 ## Hosting
 
-One remote — `origin`, `github.com/NamerekT/even-keel` (public); the self-hosted Forgejo copy is a read-only pull mirror of it (2026-11-23), never pushed to. `main`, `dev` and `release/*` are pushed only by `git sync` (a global alias: fetch, merge, push), never `git push origin <branch>`. Task branches are pushed by Even Keel alone.
+One remote — `origin`, `github.com/NamerekT/even-keel` (public); the self-hosted Forgejo copy is a read-only pull mirror of it, never pushed to. `main`, `dev` and `release/*` are pushed only by `git sync` (a global alias: fetch, merge, push), never `git push origin <branch>`. Task branches are pushed by Even Keel alone.
 
 Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own; the next version is built on `dev` (this checkout, `BTN`), fixes of the released one on `release/v<x.y>` (the clone `even-keel-github`, `EKR`), carried into `dev` by Even Keel. Both folders share one auto-memory: a memory that holds only for one branch or folder names it.
 
