@@ -6,7 +6,7 @@ import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
 import { isOwnName } from '../../../src/chain/fix.js'
 import type { ContextScale, SessionView } from '../../../src/state.js'
-import { formatElapsed, formatLineTime, formatSavedTokens } from '../format.js'
+import { formatElapsed, formatFullTime, formatLineTime, formatSavedTokens } from '../format.js'
 import { formatCombo } from '../hotkeys/combo.js'
 import { useDialogHotkey, useHotkeyLayout } from '../hotkeys/useHotkeys.js'
 import { localized, say, t } from '../i18n/index.js'
@@ -47,8 +47,6 @@ import { useFileDrop } from './useFileDrop.js'
 import { NoticeFixButton } from './FixButtons.js'
 import './transcript.css'
 
-const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
-const FULL_TIME = localized((language) => new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'medium' }))
 const POLL_MS = 5_000
 const TICK_MS = 1_000
 /** A user's message longer than this is folded, like the task prompt a session starts with. */
@@ -661,10 +659,9 @@ function WindowTitle({ sessionId, title }: { sessionId: string; title: string })
 /** Hours and minutes, the date and the seconds in the tip; `hover` shows it only while the line is pointed at. */
 function LineTime({ at, hover = false }: { at: string; hover?: boolean }) {
   if (at === '') return null
-  const date = new Date(at)
   return (
-    <Tipped inline align="start" className={`transcript__time${hover ? ' transcript__time--hover' : ''}`} tip={FULL_TIME().format(date)}>
-      <time dateTime={at}>{LINE_TIME().format(date)}</time>
+    <Tipped inline align="start" className={`transcript__time${hover ? ' transcript__time--hover' : ''}`} tip={formatFullTime(at)}>
+      <time dateTime={at}>{formatLineTime(at)}</time>
     </Tipped>
   )
 }
