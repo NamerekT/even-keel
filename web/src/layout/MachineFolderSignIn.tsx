@@ -4,7 +4,6 @@ import { loginAccess, type FolderWay } from '../machineSignIn.js'
 import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { CloseIcon, KeyIcon } from '../ui/icons.js'
-import { MoreMenu } from '../ui/MoreMenu.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AgentIcon, type Send } from './accountParts.js'
 import { SignIn } from './MachineAccounts.js'
@@ -23,8 +22,6 @@ export interface FolderSignInProps {
   noCli: string | null
   /** The hub's commands: `machines/login`, `machines/account/remove`. */
   send: Send
-  /** A ⋯ with "Remove" beside a key's note: the row has no menu of its own (the machine's page). */
-  menu?: boolean
 }
 
 /**
@@ -32,7 +29,7 @@ export interface FolderSignInProps {
  * long token's folder says so in place of a browser sign-in, which would put some subscription into it, a key's with
  * "Enter key" beside (BTN-1684); one whose way neither the machine nor the hub knows asks it first.
  */
-export function FolderSignIn({ machine, agent, folder, way, busy, noCli, send, menu = false }: FolderSignInProps) {
+export function FolderSignIn({ machine, agent, folder, way, busy, noCli, send }: FolderSignInProps) {
   const view = t.machinePanel.view
   const [asking, setAsking] = useState<'way' | 'key' | 'remove' | null>(null)
   const login = () => void send('machines/login', { machine: machine.id, agent, account: folder })
@@ -62,10 +59,7 @@ export function FolderSignIn({ machine, agent, folder, way, busy, noCli, send, m
       {way === 'key' ? view.keyFolder : view.tokenFolder}
     </Tipped>
     {way === 'key' && (machine.online ? enter : <Tipped tip={view.accountsOffline(machine.name)} align="end">{enter}</Tipped>)}
-    {menu && <MoreMenu label={t.account.more(folder)} disabled={busy}
-      items={[{ label: t.common.remove, danger: true, ...(!machine.online && { problem: view.accountsOffline(machine.name) }), pick: () => setAsking('remove') }]} />}
     {keying}
-    {removal}
   </span>
 }
 

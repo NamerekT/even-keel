@@ -36,7 +36,7 @@ async function render(element: ReturnType<typeof createElement>) {
 
 async function row(way: FolderWay, folder = 'example-api') {
   const send = vi.fn(async (_name: string, _body?: Record<string, unknown>) => true)
-  const host = await render(createElement(FolderSignIn, { machine: MACHINE, agent: 'codex', folder, way, busy: false, noCli: null, send, menu: true }))
+  const host = await render(createElement(FolderSignIn, { machine: MACHINE, agent: 'codex', folder, way, busy: false, noCli: null, send }))
   const button = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('button')].find((each) => each.textContent?.includes(label))
   return { host, send, button }
 }

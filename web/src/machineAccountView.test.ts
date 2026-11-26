@@ -78,6 +78,22 @@ describe('machineAccountView', () => {
     const view = machineAccountView(hub([entry('john')]), card(), undefined)
     expect(view.view.accounts).toEqual([])
   })
+
+  it("marks a folder on a long token with what the hub's snapshot says of its limits (BTN-1266, BTN-1267)", () => {
+    const accounts = [account('alone', { longToken: true }), account('differs', { longToken: true }), account('plain'), account('out', { longToken: true, signedIn: false })]
+    const told = [
+      account('alone', { longToken: true, sessionsOnly: true }),
+      account('differs', { longToken: true, limitsDiffer: true }),
+      account('plain'),
+      account('out', { longToken: true, signedIn: false, sessionsOnly: true }),
+    ]
+    const view = machineAccountView(hub([entry('john')]), card({ accounts }), signIn(told))
+    expect([...view.tokens]).toEqual([
+      ['claude:alone', { email: 'alone@example.com', sessionsOnly: true, limitsDiffer: false }],
+      ['claude:differs', { email: 'differs@example.com', sessionsOnly: false, limitsDiffer: true }],
+      ['claude:out', { email: 'out@example.com', sessionsOnly: false, limitsDiffer: false }],
+    ])
+  })
 })
 
 describe('machineLevels', () => {

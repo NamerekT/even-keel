@@ -154,15 +154,6 @@ export function machineAccountsEmpty(machine: string, signIns: MachineSignIn[] |
   return signIns?.some((each) => each.machine === machine) === true ? 'none' : 'waiting'
 }
 
-/**
- * The machine's accounts signed in by the hub's live state that the machine page's last read does not show signed in
- * (BTN-1520): the live state follows each snapshot of the machine, the page's own read lands a moment later.
- */
-export function machineAccountsChecking(page: MachineSignIn['accounts'], live: MachineSignIn | undefined): MachineSignIn['accounts'] {
-  const shown = new Set(page.filter((each) => each.signedIn).map((each) => `${each.agent} ${each.key}`))
-  return (live?.accounts ?? []).filter((each) => each.signedIn && !shown.has(`${each.agent} ${each.key}`))
-}
-
 /** An agent a new account on a machine is of: those that sign in through a browser, with the method that does. */
 export interface MachineAddChoice {
   agent: string
