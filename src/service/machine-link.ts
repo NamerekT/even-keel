@@ -141,10 +141,6 @@ export interface LinkedMachine {
   memoryFolders: MemoryFolders
   /** The machines asking at that door to join by the address (BTN-1620), waiting for the page. */
   requests: JoinRequests
-  /** Whether a machine on the link polls `/usage` of the claude.ai account ("Account limits"). */
-  polled(account: string): boolean
-  /** The account's long-token windows differ from its full sign-in's poll (BTN-1267). */
-  differs(account: string): boolean
   /**
    * Connects the machine to its hub and waits for its first snapshot. Called once the dispatcher exists: the machine's
    * facts read the chain's state. Until then the mirror is empty and the chains do not step.
@@ -634,8 +630,6 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     network,
     memoryFolders,
     requests,
-    polled: (account) => polls.poller(account) !== undefined,
-    differs: (account) => polls.differs(account),
     start: async () => {
       // Before the own machine's replayed records: the messages kept before rows knew their machine are its own.
       await adoptMail(ctx.db, own)

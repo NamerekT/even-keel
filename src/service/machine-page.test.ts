@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AccountView } from '../account/model.js'
 import type { MachineRecord } from '../link/hub-store.js'
 import { API_VERSION } from '../link/protocol.js'
-import type { MachineAbout } from '../link/view.js'
+import type { MachineAbout, MachineAccount } from '../link/view.js'
 import type { MachineFacts } from '../machine/facts.js'
 import { pageReads } from '../machine/page.js'
 import type { SessionView } from '../state.js'
-import { machinePageControl, type MachinePageDeps } from './machine-page.js'
+import { machineAccountOf, machinePageControl, type MachinePageDeps, type PollsOf } from './machine-page.js'
 
 const ABOUT: MachineAbout = { host: 'example-host', os: 'linux 6.8.0', evenKeel: '0.4.0', node: '24.11.0', git: '2.47.0', agents: { claude: '2.1.0' }, gitUser: true, root: '/home/example/projects' }
 
@@ -53,11 +53,11 @@ function deps(patch: Partial<MachinePageDeps> = {}): MachinePageDeps {
 }
 
 describe('the page of a machine (BTN-1272)', () => {
-  it('shows a machine elsewhere: its report, capacity, colour, pool with its packages, accounts with limits and live sessions', async () => {
+  it('shows a machine elsewhere: its report, capacity, colour, pool with its packages and live sessions, no accounts (BTN-1742)', async () => {
     const page = await machinePageControl(deps()).view('srv')
     expect(page).toMatchObject({ id: 'srv', own: false, online: true, about: ABOUT, capacity: 2, color: '#123456', picked: true, paletteColor: '#a08060', missing: ['codex'] })
     expect(page.projects).toEqual([{ project: 'p1', folder: '/home/example/projects/p1', enabled: true, packagesBlocked: true, packagesPause: null }])
-    expect(page.accounts).toEqual([expect.objectContaining({ key: 'main', email: 'john.doe@example.com', signedIn: true, limits: expect.objectContaining({ fiveHour: expect.objectContaining({ usedPercentage: 40 }) }) })])
+    expect(page).not.toHaveProperty('accounts')
     expect(page.sessions.map((each) => each.task)).toEqual(['ABC-1'])
   })
 
@@ -89,61 +89,6 @@ describe('the page of a machine (BTN-1272)', () => {
     const control = machinePageControl(deps())
     await expect(control.view('gone')).rejects.toMatchObject({ notice: { code: 'machines.unknown' } })
     await expect(control.view('nope')).rejects.toMatchObject({ notice: { code: 'machines.unknown' } })
-  })
-
-  it('marks a long-token folder whose account no machine polls: its limits come only from its sessions (BTN-1266)', async () => {
-    const token = (key: string, longToken: object) => ({ key, agent: 'claude', status: { loggedIn: true, email: null }, needsLogin: false, longToken })
-    const tokens = {
-      ...facts,
-      panel: { accounts: [token('polled', {}), token('alone', {}), token('unknown', {}), token('beside', { sameAs: 'main' }), ...panel.accounts], missing: [] },
-      identities: {
-        polled: { account: 'uuid-polled', email: null, polls: false },
-        alone: { account: 'uuid-alone', email: null, polls: false },
-        main: { account: 'uuid-main', email: 'john.doe@example.com', polls: true },
-      },
-    } as unknown as MachineFacts
-    const page = await machinePageControl(deps({
-      mirror: () => ({ facts: () => tokens, page: pageReads(() => tokens) }),
-      polled: (account) => account === 'uuid-polled' || account === 'uuid-main',
-    })).view('srv')
-    const only = Object.fromEntries(page.accounts.map((each) => [each.key, each.sessionsOnly === true]))
-    expect(only).toEqual({ polled: false, alone: true, unknown: true, beside: false, main: false })
-  })
-
-  it("marks a long-token folder whose sessions tell other windows than its account's poll, not the full sign-in (BTN-1267)", async () => {
-    const tokens = {
-      ...facts,
-      panel: { accounts: [{ key: 'token', agent: 'claude', status: { loggedIn: true, email: null }, needsLogin: false, longToken: {} }, ...panel.accounts], missing: [] },
-      identities: {
-        token: { account: 'uuid-main', email: null, polls: false },
-        main: { account: 'uuid-main', email: 'john.doe@example.com', polls: true },
-      },
-    } as unknown as MachineFacts
-    const page = await machinePageControl(deps({
-      mirror: () => ({ facts: () => tokens, page: pageReads(() => tokens) }),
-      polled: () => true,
-      differs: (account) => account === 'uuid-main',
-    })).view('srv')
-    expect(Object.fromEntries(page.accounts.map((each) => [each.key, each.limitsDiffer === true]))).toEqual({ token: true, main: false })
-  })
-
-  it('marks a folder on a key or a cloud: its sign-in is no browser one (BTN-1585)', async () => {
-    const folders = {
-      ...facts,
-      panel: {
-        accounts: [
-          { key: 'key', agent: 'codex', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: true, keyReplaceable: true },
-          { key: 'cloud', agent: 'claude', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: false, cloud: { cloud: 'bedrock' } },
-          { key: 'bare', agent: 'codex', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: false },
-          ...panel.accounts,
-        ],
-        missing: [],
-      },
-    } as unknown as MachineFacts
-    const page = await machinePageControl(deps({ mirror: () => ({ facts: () => folders, page: pageReads(() => folders) }) })).view('srv')
-    expect(Object.fromEntries(page.accounts.map((each) => [each.key, each.paysPerToken === true]))).toEqual({ key: true, cloud: true, bare: false, main: false })
-    // The key it keeps can be replaced from the hub (BTN-1684); a cloud's credentials cannot.
-    expect(Object.fromEntries(page.accounts.map((each) => [each.key, each.keyReplaceable === true]))).toEqual({ key: true, cloud: false, bare: false, main: false })
   })
 
   it("writes the own machine's capacity into `parallel` and a machine elsewhere's into its row", async () => {
@@ -240,5 +185,54 @@ describe("a machine's folders bound to other projects' memory (BTN-1648)", () =>
     await expect(control.memoryFolders('srv', [{ project: 'p9', folder: '/x' }])).rejects.toMatchObject({ notice: { code: 'machines.unknownProject' } })
     await expect(control.memoryFolders('srv', [{ project: 'p1', folder: '  ' }])).rejects.toMatchObject({ notice: { code: 'request.required', params: { field: 'folder' } } })
     expect(memory.set).not.toHaveBeenCalled()
+  })
+})
+
+describe("a machine's account as the hub names it, for its sign-ins (machineAccountOf)", () => {
+  type Entry = AccountView['accounts'][number]
+  const entries = (list: object[]) => list as unknown as Entry[]
+  const flags = (list: Entry[], flag: keyof MachineAccount, polls?: PollsOf) =>
+    Object.fromEntries(list.map((entry) => [entry.key, machineAccountOf(entry, polls)[flag] === true]))
+
+  it('marks a long-token folder whose account no machine polls: its limits come only from its sessions (BTN-1266)', () => {
+    const token = (key: string, longToken: object) => ({ key, agent: 'claude', status: { loggedIn: true, email: null }, needsLogin: false, longToken })
+    const list = entries([token('polled', {}), token('alone', {}), token('unknown', {}), token('beside', { sameAs: 'main' }), ...panel.accounts])
+    const polls: PollsOf = {
+      panel: list,
+      identities: {
+        polled: { account: 'uuid-polled', email: null, polls: false },
+        alone: { account: 'uuid-alone', email: null, polls: false },
+        main: { account: 'uuid-main', email: 'john.doe@example.com', polls: true },
+      },
+      polled: (account) => account === 'uuid-polled' || account === 'uuid-main',
+    }
+    expect(flags(list, 'sessionsOnly', polls)).toEqual({ polled: false, alone: true, unknown: true, beside: false, main: false })
+    expect(flags(list, 'sessionsOnly')).toEqual({ polled: false, alone: false, unknown: false, beside: false, main: false })
+  })
+
+  it("marks a long-token folder whose sessions tell other windows than its account's poll, not the full sign-in (BTN-1267)", () => {
+    const list = entries([{ key: 'token', agent: 'claude', status: { loggedIn: true, email: null }, needsLogin: false, longToken: {} }, ...panel.accounts])
+    const polls: PollsOf = {
+      panel: list,
+      identities: {
+        token: { account: 'uuid-main', email: null, polls: false },
+        main: { account: 'uuid-main', email: 'john.doe@example.com', polls: true },
+      },
+      polled: () => true,
+      differs: (account) => account === 'uuid-main',
+    }
+    expect(flags(list, 'limitsDiffer', polls)).toEqual({ token: true, main: false })
+  })
+
+  it('marks a folder on a key or a cloud: its sign-in is no browser one (BTN-1585)', () => {
+    const list = entries([
+      { key: 'key', agent: 'codex', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: true, keyReplaceable: true },
+      { key: 'cloud', agent: 'claude', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: false, cloud: { cloud: 'bedrock' } },
+      { key: 'bare', agent: 'codex', status: { loggedIn: false, email: null }, needsLogin: true, apiKey: false },
+      ...panel.accounts,
+    ])
+    expect(flags(list, 'paysPerToken')).toEqual({ key: true, cloud: true, bare: false, main: false })
+    // The key it keeps can be replaced from the hub (BTN-1684); a cloud's credentials cannot.
+    expect(flags(list, 'keyReplaceable')).toEqual({ key: true, cloud: false, bare: false, main: false })
   })
 })

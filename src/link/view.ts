@@ -301,7 +301,6 @@ export interface MachinePage {
   /** How many of the hub's tasks it runs at once. */
   capacity: number
   projects: MachineProject[]
-  accounts: Array<MachineAccount & { limits: import('../limits/model.js').RateLimits | null }>
   /** The agents whose CLI the machine does not find. */
   missing: string[]
   /** Its sessions not finished. */

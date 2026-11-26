@@ -304,8 +304,6 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
     version: installed(root).version,
     hubBuild: ctx.machineLink.hubBuild,
     updates: ctx.machineLink.updates,
-    polled: (account) => ctx.machineLink.polled(account),
-    differs: (account) => ctx.machineLink.differs(account),
     memory: {
       of: (machine) => ctx.machineLink.memoryFolders.of(machine),
       projects: () => Object.keys(ctx.configStore.current.projects),

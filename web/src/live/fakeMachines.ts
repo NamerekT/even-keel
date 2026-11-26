@@ -266,7 +266,7 @@ export class FakeNetwork {
     const told = own ? about('workstation', { os: 'win32 10.0.26200', root: null, agents: { claude: '2.1.322', codex: '0.98.0', opencode: null, copilot: null } }) : (view?.about ?? about(name.toLowerCase().replace(/\W+/g, '-')))
     const set = this.identities.get(id)
     const report = set === undefined ? told : { ...told, gitUser: true, gitName: set.name, gitEmail: set.email }
-    // A machine elsewhere's accounts and missing CLIs are its panel's, as the hub's mirror has them.
+    // A machine elsewhere's missing CLIs are its panel's, as the hub's mirror has them.
     const panel = own ? undefined : state.machineSignIns?.find((each) => each.machine === id)
     const pools = (project: string) => (own || this.pooled ? this.rows(project) : this.pools.get(project))
     const pooled = state.projects.filter((project) => own || pools(project)?.some((row) => row.id === id) || view?.projects.includes(project) || project === state.projects[0])
@@ -295,12 +295,6 @@ export class FakeNetwork {
       paletteColor: machineColors(Object.keys(names).map((each) => ({ id: each })))[id]!,
       capacity: this.capacities.get(id) ?? (own ? state.chain.parallel : 1),
       projects,
-      accounts: own
-        ? state.account.accounts.map((entry) => {
-            const signedIn = entry.status?.loggedIn === true
-            return { key: entry.key, agent: entry.agent, email: entry.status?.email ?? null, signedIn, limits: signedIn ? state.limits : null }
-          })
-        : (panel?.accounts ?? []).map((account) => ({ ...account, limits: account.signedIn ? state.limits : null })),
       missing: own ? [] : [...new Set([...(panel?.missing ?? []), ...Object.keys(report.agents).filter((agent) => report.agents[agent] === null)])],
       sessions: own ? state.sessions.filter((session) => session.lamp !== 'finished').map(({ task, sessionId, agent, model, lamp, cwd }) => ({ task, sessionId, agent, model, lamp, cwd })) : [],
       ...(id === 'machine-1' && this.tooLarge),

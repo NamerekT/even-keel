@@ -86,10 +86,6 @@ export interface MachinePageDeps {
   hubBuild?: HubBuild
   /** The machines' updates to the hub's build; absent — the page offers no "Update". */
   updates?: Pick<MachineUpdates, 'update' | 'moving'>
-  /** Absent — the accounts carry no `sessionsOnly`. */
-  polled?: Polled
-  /** Absent — the accounts carry no `limitsDiffer`. */
-  differs?: Polled
   /** A machine elsewhere's folders bound to projects' memory (BTN-1648); absent — the page has no such card. */
   memory?: {
     of: (machine: string) => MemoryFolderView[]
@@ -154,8 +150,6 @@ export function machinePageControl(deps: MachinePageDeps) {
       const facts = mirror?.facts()
       const panel = mirror?.page.panel()
       const color = deps.colors()[record.id] ?? MACHINE_PALETTE[0]!
-      const entries = panel?.accounts ?? []
-      const polls = deps.polled === undefined ? undefined : { panel: entries, identities: facts?.identities, polled: deps.polled, ...(deps.differs !== undefined && { differs: deps.differs }) }
       const online = own || deps.online(record.id)
       const tooLarge = own ? undefined : deps.tooLarge(record.id)
       const build = own || record.about === null ? undefined : buildOf(deps, record.id, record.about, online)
@@ -177,7 +171,6 @@ export function machinePageControl(deps: MachinePageDeps) {
           packagesBlocked: facts?.projects[row.project]?.packagesBlocked === true,
           packagesPause: facts?.projects[row.project]?.packagesPause ?? null,
         })),
-        accounts: entries.map((entry) => ({ ...machineAccountOf(entry, polls), limits: mirror?.page.limits(entry.key) ?? null })),
         missing: panel?.missing ?? [],
         sessions: (mirror?.page.sessions() ?? [])
           .filter((view) => view.lamp !== 'finished')
