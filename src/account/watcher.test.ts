@@ -267,6 +267,38 @@ describe('AccountWatcher.replaceApiKey (BTN-418)', () => {
     expect(accounts.view.accounts[0]).not.toHaveProperty('keyLimit')
     expect(changes).toBe(2)
   })
+
+  describe('renew of the active folder while a chain runs (BTN-1731)', () => {
+    const busy = { name: 'ABC-2', status: 'busy', waitingFor: null }
+    /** The watcher with the active folder `work` signed in or not; its sign-in throws "started" once it gets that far. */
+    async function held(loggedIn: boolean, block: { chains: string[]; sessions: unknown[] }) {
+      const made = await watcher(() => ({ state: 'ok' }))
+      made.options.loginBlock = (() => block) as never
+      made.options.agentOf = (() => ({
+        authStatus: async () => ({ ...API_STATUS, loggedIn }),
+        login: () => {
+          throw new Error('started')
+        },
+      })) as never
+      await made.accounts.refresh()
+      return made.accounts
+    }
+
+    it('signs a folder with no sign-in in again', async () => {
+      const accounts = await held(false, { chains: ['p-1'], sessions: [] })
+      expect(() => accounts.renew('work')).toThrow('started')
+    })
+
+    it('refuses a signed-in folder with the running chain to stop', async () => {
+      const accounts = await held(true, { chains: ['p-1'], sessions: [] })
+      expect(() => accounts.renew('work')).toThrow(expect.objectContaining({ notice: { code: 'account.renewChainsRunning', params: { projects: ['p-1'] } } }))
+    })
+
+    it('refuses a folder with no sign-in while its session is in the middle of a turn', async () => {
+      const accounts = await held(false, { chains: ['p-1'], sessions: [busy] })
+      expect(() => accounts.renew('work')).toThrow(refusal('account.sessionsBusy'))
+    })
+  })
 })
 
 describe('AccountWatcher.addCloud (BTN-822)', () => {

@@ -13,7 +13,7 @@ type SharedTab = 'chain' | 'trackers' | 'models' | 'sessions' | 'ci' | 'page' | 
  * status moves of the task's source (`source`) or of its tracker profile (`profile`); `packages` — the project's
  * packages, with the add dialog of `plugin` over them while the catalog lacks it; `identity` — a dialog over the page
  * with the setup Git step's name and e-mail fields, so nothing typed on the page is left behind (BTN-1094); `enableProfile` — turns a
- * turned-off tracker profile on, `stopChains` — stops the chains (project ids) that keep a profile from turning off (BTN-830);
+ * turned-off tracker profile on, `stopChains` — stops the chains (project ids) that keep a profile from turning off (BTN-830) or the active account from signing in again (BTN-1731);
  * `milestoneOrder` — the "Milestone order" block of the project's tracker window (BTN-792); `gitOn` — the "Turn on git"
  * dialog of the project it is shown at (BTN-1025); `takeOver` — the project's folder taken over, once confirmed, from
  * the machine `owner` (`name`) whose mark holds it, on `machine` (none — the hub's own) (BTN-1261); `addOn` — the add
@@ -104,6 +104,7 @@ export function noticeFixOf(notice: Notice | null | undefined): NoticeFix | null
   if (notice.code === 'machines.accountAbsent') return notice.params.machine === '' ? null : { to: 'addOn', machine: notice.params.machine }
   if (notice.code === 'profiles.disabled') return { to: 'enableProfile', profile: notice.params.id }
   if (notice.code === 'profiles.chainsRunning') return { to: 'stopChains', projects: notice.params.projects.split(',').filter((each) => each !== '') }
+  if (notice.code === 'account.renewChainsRunning') return { to: 'stopChains', projects: notice.params.projects }
   if (notice.code === 'statusMove.refused' || notice.code === 'statusMove.outside' || notice.code === 'statusMove.notDone') {
     return { to: 'moves', level: notice.params.level, task: notice.params.task }
   }

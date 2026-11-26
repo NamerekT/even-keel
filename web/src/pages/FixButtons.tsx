@@ -18,11 +18,12 @@ import { TakeOverButton } from './TakeOverButton.js'
 
 /**
  * A button under a notice to the place it is fixed at; nothing where the page has none. `project` — the project it is
- * shown at; `onFixed` — what to do again once a fix done in place (a dialog over the page) is saved.
+ * shown at; `onFixed` — what to do again once a fix done in place (a dialog over the page) is saved; `here` — the place
+ * it is shown at, whose fix would lead nowhere.
  */
-export function NoticeFixButton({ project, notice, onFixed }: { project: string | null; notice: Notice | null; onFixed?: () => void }) {
+export function NoticeFixButton({ project, notice, onFixed, here }: { project: string | null; notice: Notice | null; onFixed?: () => void; here?: NoticeFix['to'] }) {
   const fix = noticeFixOf(notice)
-  return fix === null ? null : <FixButton project={project} fix={fix} onFixed={onFixed} />
+  return fix === null || fix.to === here ? null : <FixButton project={project} fix={fix} onFixed={onFixed} />
 }
 
 export function FixButton({ project, fix, className = 'button button--small notice-fix', onFixed }: { project: string | null; fix: NoticeFix; className?: string; onFixed?: () => void }) {

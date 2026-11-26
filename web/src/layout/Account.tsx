@@ -4,6 +4,7 @@ import type { MachineCard } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { MACHINE_PARAM } from '../machineView.js'
+import { NoticeFixButton } from '../pages/FixButtons.js'
 import { CloseIcon } from '../ui/icons.js'
 import { useSpend, useTokens, type Spend, type Tokens } from './accountParts.js'
 import { useMachineRows } from './MachineAccounts.js'
@@ -64,6 +65,6 @@ export function AccountPanel({ account, spend, tokens, onClose, machine }: Panel
       {machine === undefined && <><AccountProblems view={account} now={now} /><AccountSettingsEdits {...props} /></>}
       {account.accounts.length === 0 ? <p className="queue__empty">{t.account.groupEmpty}</p> : <AccountGroups {...props} />}
     </section>
-    {failure !== null && <p className="notice notice--error queue__error">{say(failure)}</p>}
+    {failure !== null && <p className="notice notice--error queue__error">{say(failure)}{machine === undefined && <> <NoticeFixButton project={null} notice={failure} /></>}</p>}
   </aside>
 }

@@ -11,6 +11,7 @@ import { AccountSettingsEdits } from '../layout/accountSettings.js'
 import { useMachineFilter } from '../layout/MachineFilter.js'
 import { useNow } from '../layout/useNow.js'
 import { EmptyState, PageHead } from '../ui/blocks.js'
+import { NoticeFixButton } from './FixButtons.js'
 import { MachineAccountsPage } from './MachineAccountsPage.js'
 import './accounts.css'
 
@@ -37,7 +38,7 @@ function OwnAccounts({ state }: { state: EvenKeelState }) {
   }, [arrived, landing])
   return <div className="page accounts-page">
     <PageHead title={t.account.title} actions={account.accounts.length > 0 ? add : undefined} />
-    {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+    {failure !== null && <p className="notice notice--error">{say(failure)} <NoticeFixButton project={null} notice={failure} here="accounts" /></p>}
     <AccountProblems view={account} now={props.now} page />
     <AccountSettingsEdits {...props} />
     {account.accounts.length === 0 ? <EmptyState action={add}>{t.account.groupEmpty}</EmptyState> : <AccountGroups {...props} marketplace={state.packages.marketplace} page />}

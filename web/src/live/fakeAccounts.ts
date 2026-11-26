@@ -3,6 +3,7 @@ import {
   loginBlockNotice,
   loginCode,
   removeProblem,
+  renewBlock,
   switchProblem,
   type AccountEntry,
   type AccountLogin,
@@ -589,7 +590,8 @@ export function accountCommand(account: AccountView, name: string, body: Record<
   const key = String(body.account)
   if (name === 'account/add' || name === 'account/renew') {
     if (account.login !== null && account.login.error === null) throw fail('login.running', {})
-    if (name === 'account/renew' && key === account.active && account.loginBlock !== null) throw new NoticeError(loginBlockNotice(account.loginBlock))
+    const held = name === 'account/renew' ? renewBlock(account, key) : null
+    if (held !== null) throw new NoticeError(loginBlockNotice(held))
     const target = name === 'account/add' ? null : key
     const agent = name === 'account/add' ? String(body.agent ?? CLAUDE) : (account.accounts.find((entry) => entry.key === key)?.agent ?? CLAUDE)
     const method = typeof body.method === 'string' ? body.method : undefined

@@ -16,6 +16,7 @@ import {
   parseAuthStatus,
   parseCredentialTimes,
   removeProblem,
+  renewBlock,
   secondFreeProblem,
   switchProblem,
   takesShared,
@@ -263,11 +264,37 @@ describe('loginBlock', () => {
   })
 })
 
+describe('renewBlock', () => {
+  const chains = { chains: ['p-1'], sessions: [] }
+  const busy = { chains: ['p-1'], sessions: [{ name: 'ABC-2', status: 'busy' as const, waitingFor: null }] }
+
+  it('lets a folder with no sign-in sign in again while a chain runs (BTN-1731)', () => {
+    const signedOut = view({ loginBlock: chains, accounts: [entry({ status: { ...signedIn(), loggedIn: false } })] })
+    const expired = view({ loginBlock: chains, accounts: [entry({ needsLogin: true })] })
+    expect(renewBlock(signedOut, 'global')).toBeNull()
+    expect(renewBlock(expired, 'global')).toBeNull()
+  })
+
+  it('still waits for the sessions in the middle of a turn in a folder with no sign-in', () => {
+    const signedOut = view({ loginBlock: busy, accounts: [entry({ needsLogin: true })] })
+    expect(renewBlock(signedOut, 'global')).toEqual({ chains: [], sessions: busy.sessions })
+  })
+
+  it('holds the active folder with a live sign-in while a chain runs, and never another folder', () => {
+    const held = view({ loginBlock: chains })
+    expect(renewBlock(held, 'global')).toEqual(chains)
+    expect(renewBlock(held, 'work')).toBeNull()
+    expect(renewBlock(view({}), 'global')).toBeNull()
+  })
+})
+
 describe('loginBlockNotice', () => {
   it('names the running chain first, then the busy sessions', () => {
+    expect(loginBlockNotice({ chains: ['p-1', 'p-2'], sessions: [] })).toEqual({ code: 'account.renewChainsRunning', params: { projects: ['p-1', 'p-2'] } })
     expect(say(loginBlockNotice({ chains: ['ABC'], sessions: [] }))).toBe(
-      'claude: chain ABC is running; stop it before switching the account',
+      'Chain ABC is running: stop it, then sign in again',
     )
+    expect(say(loginBlockNotice({ chains: ['ABC', 'XYZ'], sessions: [] }))).toBe('Chains ABC, XYZ are running: stop them, then sign in again')
     expect(
       say(
         loginBlockNotice({
@@ -278,7 +305,7 @@ describe('loginBlockNotice', () => {
           ],
         }),
       ),
-    ).toBe('claude: sessions are in the middle of a turn (ABC-2, Scratch notes); switch the account once they finish')
+    ).toBe('Sessions are in the middle of a turn (ABC-2, Scratch notes): sign in again once they finish')
   })
 })
 

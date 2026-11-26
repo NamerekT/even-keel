@@ -510,9 +510,12 @@ export const en = {
     'Microsoft Foundry did not answer: check the resource name in the Azure portal, or give its full address',
   'cloud.foundryThrottled': () =>
     'Microsoft Foundry throttles the requests with no known reset time, so the session stopped: answer it later from the chat, or raise the deployment\'s quota',
-  'account.chainRunning': (p: { project: string }) => `claude: chain ${p.project} is running; stop it before switching the account`,
+  'account.renewChainsRunning': (p: { projects: string[] }) =>
+    p.projects.length > 1
+      ? `Chains ${list(p.projects)} are running: stop them, then sign in again`
+      : `Chain ${list(p.projects)} is running: stop it, then sign in again`,
   'account.sessionsBusy': (p: { sessions: string[] }) =>
-    `claude: sessions are in the middle of a turn (${list(p.sessions)}); switch the account once they finish`,
+    `Sessions are in the middle of a turn (${list(p.sessions)}): sign in again once they finish`,
   'account.homeGone': (p: { key: string }) => `claude: the account folder ${p.key} is gone`,
   'account.activeGone': (p: { key: string }) => `claude: the active account folder ${p.key} is gone; switch to another account, then resume`,
   'account.signingIn': () => 'claude: sign-in is in progress; resume once it is done',

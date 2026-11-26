@@ -8,6 +8,9 @@ describe('noticeFixOf', () => {
     const running = notice('profiles.chainsRunning', { profile: 'GitLab · bench', chains: 'GLP, Second', projects: 'id-1,id-2' })
     expect(noticeFixOf(running)).toEqual({ to: 'stopChains', projects: ['id-1', 'id-2'] })
   })
+  it('stops the chains that keep the active account from signing in again (BTN-1731)', () => {
+    expect(noticeFixOf(notice('account.renewChainsRunning', { projects: ['id-1'] }))).toEqual({ to: 'stopChains', projects: ['id-1'] })
+  })
   it('opens the merged task refused by its tracker', () => {
     expect(noticeFixOf(notice('tracker.completeRefused', { task: 'ABC-1' }))).toEqual({ to: 'tracker', task: 'ABC-1' })
   })

@@ -510,8 +510,11 @@ export const noticesRu: NoticeTexts = {
   'cloud.foundryUnreachable': () => 'Microsoft Foundry не ответил: проверьте имя ресурса в портале Azure или укажите его полный адрес',
   'cloud.foundryThrottled': () =>
     'Microsoft Foundry ограничивает частоту запросов без известного времени сброса, поэтому сессия встала: ответьте ей позже из чата или поднимите квоту деплоя',
-  'account.chainRunning': (p) => `цепочка ${p.project} работает — остановите её перед сменой аккаунта`,
-  'account.sessionsBusy': (p) => `сессии посреди хода (${list(p.sessions)}) — смените аккаунт, когда они закончат`,
+  'account.renewChainsRunning': (p) =>
+    p.projects.length > 1
+      ? `Цепочки ${list(p.projects)} работают: остановите их, затем войдите заново`
+      : `Цепочка ${list(p.projects)} работает: остановите её, затем войдите заново`,
+  'account.sessionsBusy': (p) => `Сессии посреди хода (${list(p.sessions)}): войдите заново, когда они закончат`,
   'account.homeGone': (p) => `папки аккаунта ${p.key} больше нет`,
   'account.activeGone': (p) => `папки активного аккаунта ${p.key} больше нет — переключитесь на другой аккаунт и снимите с паузы`,
   'account.signingIn': () => 'идёт вход — снимите с паузы, когда он закончится',

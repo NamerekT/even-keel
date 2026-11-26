@@ -1,6 +1,6 @@
 import { Fold } from '../ui/Fold.js'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
-import { launchBlock, loginBlockNotice, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
+import { launchBlock, loginBlockNotice, renewBlock, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import { COPILOT } from '../../../src/copilot/name.js'
@@ -384,7 +384,7 @@ export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps
 
 /** Greyed while a chain holds the active account, with why on pointing or focus. */
 function RenewButton({ entry, view, sending, send, again: wrong = false }: Omit<NotesProps, 'now' | 'bare'> & { again?: boolean }) {
-  const held = entry.key === view.active && view.loginBlock !== null ? view.loginBlock : null
+  const held = renewBlock(view, entry.key)
   // A folder holding the wrong account signs in again, it renews nothing.
   const again = entry.needsLogin || wrong
   const label = again ? t.account.login : t.account.renew

@@ -23,6 +23,7 @@ import {
   missingNotice,
   needsLogin,
   paysPerToken,
+  renewBlock,
   removeProblem,
   secondFreeProblem,
   switchProblem,
@@ -521,7 +522,9 @@ export class AccountWatcher {
     this.requireIdle()
     const home = this.options.homes.find(key)
     if (home === undefined) throw fail('account.unknown', { key })
-    const blocked = key === this.options.active() ? this.options.loginBlock() : null
+    const status = this.known.find((entry) => entry.home.key === key)?.status ?? null
+    const target = { key, needsLogin: this.needsLogin(key), status }
+    const blocked = key === this.options.active() ? renewBlock({ active: key, accounts: [target], loginBlock: this.options.loginBlock() }, key) : null
     if (blocked !== null) throw new NoticeError(loginBlockNotice(blocked))
     this.begin(home, false)
   }

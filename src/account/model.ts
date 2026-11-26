@@ -363,8 +363,25 @@ export function loginBlock(chains: Pick<ActiveChain, 'project' | 'paused'>[], ag
   return running.length === 0 && busy.length === 0 ? null : { chains: running, sessions: busy }
 }
 
+/**
+ * What keeps the folder `key` from signing in again: only the active folder is held, and a running chain only while it
+ * holds a live sign-in — a folder signed out or with its login run out has no tokens to guard, and no chain session
+ * starts in it until it signs in (BTN-1731). Its sessions in the middle of a turn hold it either way.
+ */
+export function renewBlock(
+  view: { active: string; accounts: readonly Pick<AccountEntry, 'key' | 'needsLogin' | 'status'>[]; loginBlock: LoginBlock | null },
+  key: string,
+): LoginBlock | null {
+  const block = key === view.active ? view.loginBlock : null
+  if (block === null) return null
+  const target = view.accounts.find((entry) => entry.key === key)
+  const signedOut = target !== undefined && (target.needsLogin || target.status?.loggedIn === false)
+  if (!signedOut) return block
+  return block.sessions.length === 0 ? null : { chains: [], sessions: block.sessions }
+}
+
 export function loginBlockNotice(block: LoginBlock): Notice {
-  if (block.chains.length > 0) return notice('account.chainRunning', { project: block.chains.join(', ') })
+  if (block.chains.length > 0) return notice('account.renewChainsRunning', { projects: block.chains })
   return notice('account.sessionsBusy', { sessions: block.sessions.map((session) => session.name) })
 }
 
