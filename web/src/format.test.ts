@@ -134,6 +134,18 @@ describe('formatMoment', () => {
     expect(text).toMatch(/3 окт/)
     expect(text).toMatch(/14:59/)
   })
+
+  it('keeps a 24-hour clock in English, today and on another day', () => {
+    setLanguage('en')
+    try {
+      expect(formatMoment(new Date(2026, 8, 27, 18, 36).toISOString(), today)).toBe('18:36')
+      const text = formatMoment(new Date(2026, 9, 3, 18, 36).toISOString(), today)
+      expect(text).toMatch(/18:36/)
+      expect(text).not.toMatch(/AM|PM/)
+    } finally {
+      setLanguage('ru')
+    }
+  })
 })
 
 describe('formatLineTime', () => {

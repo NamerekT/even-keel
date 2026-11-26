@@ -3,7 +3,7 @@ import type { TrackerUrls } from '../../../src/state.js'
 import { useState, type ReactNode } from 'react'
 import { RULE_PLACES, RULE_PURPOSES, type RulePlace, type RulePurpose } from '../../../src/stats/rule-imports.js'
 import { type CompareQuery, type RuleKind, type RuleMark, type RuleSet, type RuleSetFile, type StatsRules } from '../../../src/stats/rules.js'
-import { formatMoment } from '../format.js'
+import { formatLineTime, formatMoment } from '../format.js'
 import { localized, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type FoldControl, type Loaded } from './common.js'
@@ -15,7 +15,6 @@ import { addDays, type DayRange } from './period.js'
 import './rules.css'
 
 const DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short' }))
-const CLOCK = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
 
 function dayLabel(at: Date, now: Date): string {
   const yesterday = new Date(now)
@@ -29,8 +28,8 @@ function spanText(fromAt: string, toAt: string, now: Date): [string, string] {
   const from = new Date(fromAt)
   const to = new Date(toAt)
   if (from.toDateString() !== to.toDateString()) return [`${dayLabel(from, now)} —`, dayLabel(to, now)]
-  const clock = CLOCK()
-  const time = clock.format(from) === clock.format(to) ? clock.format(to) : `${clock.format(from)}–${clock.format(to)}`
+  const [start, end] = [formatLineTime(fromAt), formatLineTime(toAt)]
+  const time = start === end ? end : `${start}–${end}`
   return [dayLabel(to, now), time]
 }
 
@@ -201,7 +200,7 @@ function SetView({ set, colors, trackerUrls }: { set: RuleSet; colors: Colors; t
   const title = set.task === null ? (set.title ?? setTitle(set)) : set.title !== set.task ? set.title : null
   return (
     <li className="rule-set">
-      <span className="rule-set__at">{CLOCK().format(new Date(set.at))}</span>
+      <span className="rule-set__at">{formatLineTime(set.at)}</span>
       <div className="rule-set__body">
         <div className="rule-set__head">
           {set.task !== null && <TaskKey id={set.task} trackerUrls={trackerUrls} />}

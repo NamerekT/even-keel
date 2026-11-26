@@ -6,6 +6,6 @@ export function localMoment(at: string, now: Date, language: Language): string {
   if (Number.isNaN(moment.getTime())) return at
   return new Intl.DateTimeFormat(language, {
     ...(moment.toDateString() === now.toDateString() ? {} : { day: 'numeric', month: 'short' }),
-    hour: '2-digit', minute: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   }).format(moment)
 }
