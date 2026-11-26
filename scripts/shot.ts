@@ -10,11 +10,8 @@
  */
 import { mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { chromium, type Browser, type Page } from 'playwright'
-import { createServer, type ViteDevServer } from 'vite'
-
-interface Step { kind: 'click' | 'context' | 'hover' | 'press' | 'fill' | 'upload' | 'wait' | 'wheel' | 'drag' | 'drop'; arg: string }
+import { fakeServer, launch } from './shot-browser.ts'
+import { ROOT, runStep, type Step } from './shot-step.ts'
 
 interface Audit { box: string; spill: string[]; cut: string[]; overlap: string[]; double: string[] }
 
@@ -41,7 +38,6 @@ interface Options {
   limit: number
 }
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const STALE_MS = 60 * 60_000
 
 function parse(args: string[]): Options {
@@ -90,55 +86,6 @@ function parse(args: string[]): Options {
 }
 
 const slug = (text: string): string => text.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').slice(0, 60).toLowerCase()
-
-/**
- * Only Playwright's headless shell, never the installed Chrome: on Windows a fresh Chrome profile checks
- * for a blank OS password with LogonUser, so every launch was a failed logon and a few runs locked the account.
- */
-async function launch(): Promise<Browser> {
-  try {
-    // A fake microphone answers getUserMedia without a prompt, so the chat's recording can be shot.
-    return await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] })
-  } catch (error) {
-    throw new Error(`no browser: run \`npx playwright install chromium-headless-shell\`\n${String(error)}`)
-  }
-}
-
-async function fakeServer(): Promise<{ server: ViteDevServer; base: string }> {
-  const server = await createServer({
-    configFile: join(ROOT, 'web/vite.config.ts'),
-    mode: 'fake',
-    logLevel: 'error',
-    server: { port: 0, strictPort: false, hmr: false },
-  })
-  await server.listen()
-  const address = server.httpServer?.address()
-  if (!address || typeof address === 'string') throw new Error('the fake server has no port')
-  return { server, base: `http://localhost:${address.port}` }
-}
-
-async function run(page: Page, step: Step): Promise<void> {
-  if (step.kind === 'click') await page.locator(step.arg).first().click()
-  else if (step.kind === 'context') await page.locator(step.arg).first().click({ button: 'right' })
-  else if (step.kind === 'hover') await page.locator(step.arg).first().hover()
-  else if (step.kind === 'press') await page.keyboard.press(step.arg)
-  else if (step.kind === 'wheel') await page.mouse.wheel(0, Number(step.arg))
-  else if (step.kind === 'fill') {
-    const at = step.arg.indexOf('=')
-    if (at < 0) throw new Error('--fill is SELECTOR=TEXT')
-    await page.locator(step.arg.slice(0, at)).first().fill(step.arg.slice(at + 1))
-  } else if (step.kind === 'upload') {
-    const at = step.arg.indexOf('=')
-    if (at < 0) throw new Error('--upload is SELECTOR=PATH[,PATH…]')
-    const files = step.arg.slice(at + 1).split(',').map((path) => join(ROOT, path))
-    await page.locator(step.arg.slice(0, at)).first().setInputFiles(files)
-  } else if (step.kind === 'drag') {
-    await page.locator(step.arg).first().hover()
-    await page.mouse.down()
-  } else if (step.kind === 'drop') await page.mouse.up()
-  else if (/^\d+$/.test(step.arg)) await page.waitForTimeout(Number(step.arg))
-  else await page.locator(step.arg).first().waitFor()
-}
 
 function print(title: string, lines: string[]): void {
   for (const line of lines) console.log(`  ${title}: ${line}`)
@@ -192,7 +139,7 @@ async function main(): Promise<number> {
 
     const url = (options.url ?? fake!.base) + (options.route.startsWith('/') ? '' : '/') + options.route
     await page.goto(url)
-    for (const step of options.steps) await run(page, step)
+    for (const step of options.steps) await runStep(page, step)
     await page.waitForTimeout(options.settle)
     const theme = options.theme ? ` (page: ${options.theme})` : ''
     console.log(`${url}  ${options.light ? 'light' : 'dark'}${theme} ${options.width}x${options.height}`)
