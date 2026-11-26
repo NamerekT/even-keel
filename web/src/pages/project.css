@@ -80,8 +80,8 @@
 }
 
 /* In the settings the name is a field like its neighbours, the empty one with its placeholder's look. */
-.settings__control > .project__name,
-.settings__control > .project__name-input {
+.settings__stack-control > .project__name,
+.settings__stack-control > .project__name-input {
   width: 100%;
   max-width: none;
   margin-left: 0;
@@ -94,11 +94,11 @@
   text-align: left;
 }
 
-.settings__control > .project__name-input {
+.settings__stack-control > .project__name-input {
   border-color: var(--accent);
 }
 
-.settings__control > .project__name--empty {
+.settings__stack-control > .project__name--empty {
   color: var(--fg-muted);
   opacity: 1;
 }

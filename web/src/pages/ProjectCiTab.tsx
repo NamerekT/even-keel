@@ -8,7 +8,7 @@ import { remoteKey, switchOf } from './projectForm.js'
 import type { PanelFields } from './projectSettingsFields.js'
 import { remoteChoices } from './remoteProfiles.js'
 import type { Value } from './settingsDraft.js'
-import { FieldHead, fieldId, FieldNote, minutesOf, Row, Section, shown, SwitchField } from './settingsParts.js'
+import { Field, FieldHead, fieldId, FieldNote, minutesOf, Section, shown, SwitchField } from './settingsParts.js'
 
 /** The "CI" tab of the project settings panel: the guard of the main branch and pull requests. */
 export function ProjectCiTab({ fields, project, state, shared, plain }: { fields: PanelFields; project: string; state: EvenKeelState | null; shared: SharedForm; plain: boolean }) {
@@ -48,7 +48,7 @@ function GitCiTab({ fields, project, state, shared }: { fields: PanelFields; pro
       <Section title={t.settings.sections.guard}>
         {inheritedSwitch('guard', t.settings.guard, t.settings.guardHint, shared.ci.guard)}
         {/* With the guard off the values stay as they are, only greyed out: turning it back on brings them back. */}
-        <div className={unguarded ? 'settings__guarded settings__guarded--off' : 'settings__guarded'}>
+        <div className={unguarded ? 'settings__nested settings__guarded settings__guarded--off' : 'settings__nested settings__guarded'}>
           {lines('check', t.settings.check, t.settings.checkHint, t.settings.checkPlaceholder, 3, true, unguarded)}
           {lines('afterGreen', t.settings.afterGreen, t.settings.afterGreenHint, t.settings.afterGreenPlaceholder, 3, true, unguarded)}
           <fieldset className={marks.box(['ownKinds', 'kinds'], 'settings__field settings__group')}>
@@ -75,11 +75,12 @@ function GitCiTab({ fields, project, state, shared }: { fields: PanelFields; pro
             </div>
             <FieldNote error={errorOf('ci')} />
           </fieldset>
-          <Row
+          <Field
             className={marks.box(['ownWait', 'wait'])}
             label={t.settings.ciWait}
             hint={t.settings.ciWaitHint}
             htmlFor={fieldId('wait')}
+            width="number"
             inherit={ownInherit('ownWait', { wait: sharedWait }, sharedWait || t.settings.ciWaitPlaceholder, unguarded)}
             mark={flagNote('ownWait', ['wait'], (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
             control={number(
@@ -89,8 +90,7 @@ function GitCiTab({ fields, project, state, shared }: { fields: PanelFields; pro
               (value) => ownEdit('ownWait', { wait: sharedWait })('wait', value),
               { placeholder: t.settings.ciWaitPlaceholder, disabled: unguarded },
             )}
-          >
-          </Row>
+          />
           {inheritedSwitch('recheck', t.settings.recheckMain, t.settings.recheckMainHint, shared.ci.recheckMain, unguarded)}
           {inheritedSwitch('fixTask', t.settings.fixTask, t.settings.fixTaskHint, shared.ci.fixTask, unguarded)}
           {inheritedSwitch('rerun', t.settings.rerunFailed, t.settings.rerunFailedHint, shared.ci.rerunFailed, unguarded)}

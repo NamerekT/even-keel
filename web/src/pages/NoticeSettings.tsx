@@ -5,7 +5,7 @@ import { noticeTexts } from '../i18n/notice-choices.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { Select } from '../ui/Select.js'
-import { FieldNote, Row, Section, Switch } from './settingsParts.js'
+import { Field, FieldNote, Row, Section, Switch } from './settingsParts.js'
 
 // `cli.versions` has no banner since BTN-780, only entries of the event log: the config still takes it, the page offers none.
 const SHARED_KINDS = (Object.keys(NOTICE_KINDS) as NoticeKind[]).filter((kind) => NOTICE_KINDS[kind] === 'global' && kind !== 'cli.versions')
@@ -67,10 +67,11 @@ function ProjectKind({ label, value, sharedOn, disabled, onChange }: { label: st
   const id = useId()
   const texts = noticeTexts()
   return (
-    <Row
+    <Field
       className="settings__field"
       label={label}
       htmlFor={id}
+      width="select"
       control={
         <Select
           id={id}

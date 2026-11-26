@@ -181,13 +181,11 @@ export function ProjectSessionsTab({
             { value: 'false', label: t.settings.off },
           ],
           undefined,
-          {
-            under: state !== null && (
-              <div className="settings__line-extra">
-                <TrackerPackageButton project={project} packages={state.packages} />
-              </div>
-            ),
-          },
+          state !== null && (
+            <div className="settings__line-extra">
+              <TrackerPackageButton project={project} packages={state.packages} />
+            </div>
+          ),
         )}
         {lines('prompt', t.settings.prompt, t.settings.promptHint, t.settings.promptPlaceholder, 5, false)}
         {lines('beforeStart', t.settings.beforeStart, t.settings.beforeStartHint, t.settings.beforeStartPlaceholder, 4)}
@@ -197,7 +195,6 @@ export function ProjectSessionsTab({
           t.settings.promptLanguageHint,
           LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] })),
           { value: shared.promptLanguage, label: t.shared.languages[shared.promptLanguage] },
-          {},
         )}
       </Section>
       <Section title={t.settings.standards.title} hint={t.settings.standards.hint}>
@@ -279,7 +276,6 @@ export function ProjectSessionsTab({
             { value: '1h', label: t.shared.cacheTtl1h },
           ],
           { value: shared.cacheTtl ?? CLI_TTL, label: ttlLabel(shared.cacheTtl) },
-          {},
         )}
       </Section>
     </>

@@ -1,15 +1,8 @@
 {
-  "pages/BadgeDialog.tsx": 3,
   "pages/GitSwitch.tsx": 2,
-  "pages/MoveFields.tsx": 1,
-  "pages/NoticeSettings.tsx": 1,
   "pages/ProjectAdd.tsx": 5,
-  "pages/ProjectCiTab.tsx": 1,
   "pages/ProjectMachineSettings.tsx": 3,
-  "pages/ProjectMachinesTab.tsx": 1,
-  "pages/ProjectRepoTab.tsx": 5,
   "pages/Setup.tsx": 2,
   "pages/SetupGit.tsx": 2,
-  "pages/WizardRepo.tsx": 2,
-  "pages/projectSettingsFields.tsx": 2
+  "pages/WizardRepo.tsx": 2
 }
