@@ -374,10 +374,10 @@ export interface ServerDeps {
   /** The project chats (BTN-1230); without them their calls are refused. */
   chats?: import('./chats/chats.js').ProjectChats
   /**
-   * The `/` menu's entries a Claude session expands itself (BTN-1695); `task` null — a project chat's, `chat` its id for
-   * its own choice of packages (BTN-1716). Without it, none.
+   * The `/` menu's entries a Claude or Codex session (`agent`, BTN-1737; absent — Claude) expands itself (BTN-1695);
+   * `task` null — a project chat's, `chat` its id for its own choice of packages (BTN-1716). Without it, none.
    */
-  chatMenu?: (project: string, task: string | null, chat: string | null) => Promise<import('./sessions/commands.js').MenuEntry[]>
+  chatMenu?: (project: string, task: string | null, chat: string | null, agent?: string) => Promise<import('./sessions/commands.js').MenuEntry[]>
   /** The chat microphone's recordings to text through LiteLLM (BTN-1391); without it `dictation/transcribe` is refused. */
   dictation?: Pick<import('./dictation/transcribe.js').Dictation, 'transcribe'>
   launches: () => unknown

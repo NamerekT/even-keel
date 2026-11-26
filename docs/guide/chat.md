@@ -122,7 +122,9 @@ A command only counts from the chat: the same text in a tracker comment reaches 
 
 In a Claude session the menu also lists, each under its own heading, your own commands and skills from `~/.claude-config` ([your Claude Code configuration](hub-machine.md)) as the hub has them and the skills and commands of the project's [packages](packages.md), named `/plugin:skill`. A row shows the description its file gives. A skill hidden from Claude Code's own `/` menu is hidden here too, and a task's session leaves out the skills "Trim the tools" takes away from it. The menu is read again each time it opens, so a changed configuration or package shows without a restart. Even Keel's own commands win over a skill of the same name.
 
-Such a command or skill goes to the session as you typed it, `/name` and its words, and Claude Code runs it; the chat shows it as typed. Other agents call skills their own way, so their menu has only Even Keel's commands.
+Such a command or skill goes to the session as you typed it, `/name` and its words, and Claude Code runs it; the chat shows it as typed.
+
+A Codex session calls a skill as `$name`, so its menu lists your skills and the packages' skills (`$plugin:skill`, no commands: Codex has none of them) and puts the one you pick in as `$name`; typing `$` at the start of a message opens the same list. The name is the one the skill's own file gives, as Codex calls it. "Trim the tools" does not reach Codex, so nothing is left out for it. Other agents call skills their own way, so their menu has only Even Keel's commands.
 
 ## When something fails
 

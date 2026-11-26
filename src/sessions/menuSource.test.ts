@@ -43,6 +43,15 @@ describe('createMenuSource', () => {
     expect(pluginFolders).toHaveBeenCalledWith('project', null, own)
   })
 
+  it("builds the menu for the session's agent (BTN-1737): Codex gets the skills, an agent that calls none gets nothing", async () => {
+    const { menu } = source({})
+    mkdirSync(join(root, '.claude-config', 'commands'), { recursive: true })
+    writeFileSync(join(root, '.claude-config', 'commands', 'deploy.md'), '---\ndescription: Deploy\n---\n')
+    expect((await menu('project', 'ABC-1', null)).map((entry) => entry.name)).toEqual(['deploy', 'tools:lint'])
+    expect((await menu('project', 'ABC-1', null, 'codex')).map((entry) => entry.name)).toEqual(['tools:lint'])
+    expect(await menu('project', 'ABC-1', null, 'opencode')).toEqual([])
+  })
+
   it("builds a task's menu on the task's set, asking no chat", async () => {
     const { menu, pluginFolders, chatPackages } = source({})
     await menu('project', 'ABC-1', null)

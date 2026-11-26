@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { CODEX } from '../codex/name.js'
 import { chatMenu, frontmatterOf, pluginMenu, userMenu } from './menu.js'
 
 let root: string
@@ -93,5 +94,37 @@ describe('chatMenu', () => {
     put('config/commands/coding.md', '---\ndescription: the command\n---\n')
     const menu = chatMenu({ configFolder: join(root, 'config'), plugins: [] })
     expect(menu.filter((entry) => entry.name === 'coding')).toEqual([{ name: 'coding', kind: 'command', from: 'user', description: 'the command', args: '' }])
+  })
+})
+
+describe("chatMenu for Codex (BTN-1737)", () => {
+  it('lists only skills, named by their frontmatter as Codex calls them, the folder when it has none', () => {
+    put('config/commands/deploy.md', '---\ndescription: Deploy\n---\n')
+    put('config/skills/coding/SKILL.md', '---\nname: coding\ndescription: c\n---\n')
+    put('config/skills/review-folder/SKILL.md', '---\nname: review\ndescription: r\n---\n')
+    put('config/skills/bare/SKILL.md', '---\ndescription: b\n---\n')
+    put('config/skills/hidden/SKILL.md', '---\nname: hidden\nuser-invocable: false\n---\n')
+    put('pkg/commands/sync.md', '---\ndescription: Sync\n---\n')
+    put('pkg/skills/task-folder/SKILL.md', '---\nname: task\ndescription: t\nargument-hint: [key]\n---\n')
+    const menu = chatMenu({ configFolder: join(root, 'config'), plugins: [{ plugin: 'tasks', dir: join(root, 'pkg') }], agent: CODEX })
+    expect(menu).toEqual([
+      { name: 'bare', kind: 'skill', from: 'user', description: 'b', args: '' },
+      { name: 'coding', kind: 'skill', from: 'user', description: 'c', args: '' },
+      { name: 'review', kind: 'skill', from: 'user', description: 'r', args: '' },
+      { name: 'tasks:task', kind: 'skill', from: 'package', description: 't', args: '[key]' },
+    ])
+  })
+
+  it("leaves out the store's own folders that are no skills, and ignores Claude's overrides", () => {
+    put('config/skills/synced/SKILL.md', '---\nname: synced\n---\n')
+    put('config/skills/.trash/SKILL.md', '---\nname: trash\n---\n')
+    put('config/skills/loop/SKILL.md', '---\nname: loop\n---\n')
+    const menu = chatMenu({ configFolder: join(root, 'config'), plugins: [], overrides: { loop: 'off' }, agent: CODEX })
+    expect(menu.map((entry) => entry.name)).toEqual(['loop'])
+  })
+
+  it('gives nothing to an agent that calls no skills by name', () => {
+    put('config/skills/coding/SKILL.md', '---\nname: coding\n---\n')
+    expect(chatMenu({ configFolder: join(root, 'config'), plugins: [], agent: 'opencode' })).toEqual([])
   })
 })

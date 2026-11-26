@@ -25,8 +25,8 @@ describe('menuItems (BTN-1695)', () => {
 
   it('filters by any part of the name, a plugin prefix included', () => {
     const items = menuItems('en', true, ENTRIES)
-    expect(matchingItems('SPL', items).map((item) => item.name)).toEqual(['tasks:split'])
-    expect(matchingItems('tasks:', items).map((item) => item.name)).toEqual(['tasks:split'])
+    expect(matchingItems('SPL', items, '/').map((item) => item.name)).toEqual(['tasks:split'])
+    expect(matchingItems('tasks:', items, '/').map((item) => item.name)).toEqual(['tasks:split'])
   })
 
   it("draws a session's skill as a command, its hint muted, and keeps it one piece", () => {
@@ -39,10 +39,41 @@ describe('menuItems (BTN-1695)', () => {
   })
 })
 
+describe('a Codex session (BTN-1737)', () => {
+  const items = menuItems('en', true, ENTRIES, '$')
+
+  it("marks the session's entries `$`, Even Keel's own `/`", () => {
+    expect(items.map((item) => `${item.sigil}${item.name}`)).toEqual(['/handoff', '$coding', '$tasks:split'])
+  })
+
+  it('offers every item after a slash, only the `$` ones after a dollar', () => {
+    expect(matchingItems('', items, '/').map((item) => item.name)).toEqual(['handoff', 'coding', 'tasks:split'])
+    expect(matchingItems('', items, '$').map((item) => item.name)).toEqual(['coding', 'tasks:split'])
+    expect(matchingItems('', menuItems('en', true, ENTRIES), '$')).toEqual([])
+  })
+
+  it('puts a picked skill in as `$name`, in place of a slash or a dollar', () => {
+    expect(withCommand('/cod', 'coding', '$')).toBe('$coding ')
+    expect(withCommand('  $', 'tasks:split', '$')).toBe('  $tasks:split ')
+  })
+
+  it('draws `$name` as a command, and a `/name` of a `$` item as plain text', () => {
+    expect(ghostOf('$tasks:split', 'en', items)).toEqual({ kind: 'args', text: '[task]', gap: true })
+    expect(ghostOf('$', 'en', items)).toEqual({ kind: 'filter', gap: false })
+    expect(ghostOf('$', 'en', menuItems('en', true, ENTRIES))).toBeNull()
+    expect(ghostOf('/tasks:split', 'en', items)).toBeNull()
+    expect(snappedSelection('$coding now', 3, 3, items)).toEqual([0, 7])
+    expect(tokenCut('$coding now', 7, 'Backspace', items)).toEqual({ text: ' now', caret: 0 })
+    expect(tokenCut('/coding now', 7, 'Backspace', items)).toBeNull()
+    expect(snappedSelection('$handoff now', 3, 3, items)).toBeNull()
+  })
+})
+
 describe('menuQuery', () => {
-  it('opens on a slash at the start of the field, spaces before it allowed', () => {
-    expect(menuQuery('/')).toBe('')
-    expect(menuQuery('  /han')).toBe('han')
+  it('opens on a slash or a dollar at the start of the field, spaces before it allowed', () => {
+    expect(menuQuery('/')).toEqual({ sigil: '/', typed: '' })
+    expect(menuQuery('  /han')).toEqual({ sigil: '/', typed: 'han' })
+    expect(menuQuery('$co')).toEqual({ sigil: '$', typed: 'co' })
   })
 
   it('stays shut once a space follows the name, and for a slash anywhere else', () => {
