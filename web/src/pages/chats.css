@@ -335,10 +335,6 @@
   width: min(720px, calc(100vw - 32px));
 }
 
-.renew-chat__body {
-  gap: var(--space-12);
-}
-
 .renew-chat__why {
   font-size: var(--text-13);
 }
@@ -375,13 +371,6 @@
   -webkit-line-clamp: 5;
 }
 
-.renew-chat__fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-8);
-}
-
 /* The "?" of the main button is part of it: the same fill, a thin line between. */
 .renew-chat .renew-chat__go .button-with-tip__trigger {
   border-color: var(--accent);
@@ -395,17 +384,6 @@
 }
 
 @media (max-width: 760px) {
-  /* A field a line: the effort's five words do not fit beside a list. */
-  .renew-chat__fields {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .renew-chat__fields .segmented > * {
-    flex: 1 1 auto;
-    padding-inline: var(--space-4);
-    white-space: nowrap;
-  }
-
   .renew-chat .add-package__foot > * {
     flex: 1 1 100%;
   }
@@ -445,6 +423,19 @@
 .new-chat__machines {
   flex-shrink: 0;
   margin: var(--space-6) 20px;
+}
+
+/* What a window says above the form, the renewal's why and message (BTN-1711): it stays in view, as the machine does. */
+.new-chat__lead {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: var(--space-12);
+  margin: var(--space-6) 20px;
+}
+
+.new-chat__lead > .notice {
+  margin: 0;
 }
 
 .new-chat__agent {

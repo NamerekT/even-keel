@@ -444,6 +444,88 @@ textarea.settings__text[rows='5'] {
   gap: 8px;
 }
 
+/*
+ * The one-column form (BTN-1717, a trial on the two Sessions screens): every name over its control at one left edge,
+ * a switch alone in its name's line at the column's right edge, fields parted by space instead of lines. It does not
+ * switch by the window: in the side panel the column is the panel's width, on the page at most 680 px.
+ */
+.settings__form.settings--column {
+  max-width: 680px;
+}
+
+.panel.settings .settings__form.settings--column {
+  max-width: none;
+}
+
+.settings--column .settings__section {
+  gap: var(--space-16);
+}
+
+.settings--column .settings__field {
+  gap: var(--space-6);
+}
+
+.settings--column .settings__nested {
+  gap: var(--space-16);
+}
+
+.settings--column .settings__section > :not(.settings__heading) + .settings__field,
+.settings--column .settings__section > :not(.settings__heading) + .settings__guarded,
+.settings--column .settings__nested > .settings__field {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.settings--column .settings__section > :not(.settings__heading) + .settings__field--changed::before {
+  top: 0;
+}
+
+.settings--column .settings__text,
+.settings--column .rows__table {
+  margin-top: 0;
+}
+
+.settings--column .settings__row .settings__number {
+  width: 120px;
+}
+
+.settings--column .settings__stack > .settings__line-extra {
+  justify-content: flex-start;
+}
+
+/* A stacked field's control: a line of text fills the column, a number or a pick is as wide as what it holds. */
+.settings__stack-control {
+  display: flex;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.settings__stack-control--full {
+  width: 100%;
+}
+
+.settings__stack-control--number {
+  width: 120px;
+}
+
+.settings__stack-control--tokens {
+  width: 160px;
+}
+
+.settings__stack-control--select {
+  width: 240px;
+}
+
+.settings__stack-control > .field-strip {
+  width: 100%;
+}
+
+.settings__stack-control > .settings__text,
+.settings__stack-control > .field-strip > .settings__text {
+  width: 100%;
+  min-width: 0;
+}
+
 .switch {
   position: relative;
   flex: none;
@@ -671,6 +753,13 @@ textarea.settings__text[rows='5'] {
   animation: fade-in var(--motion-appear) ease-out;
 }
 
+/* The one-column form is narrow: the groups and the column are centred together, no empty half at the right. */
+.settings-page--column {
+  width: 100%;
+  max-width: calc(200px + 32px + 680px);
+  margin-inline: auto;
+}
+
 .settings-nav {
   position: sticky;
   top: calc(var(--header-height) + 24px);
@@ -813,6 +902,11 @@ textarea.settings__text[rows='5'] {
   .settings-page__body {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
+  }
+
+  /* The groups folded into a button over the form: the column is as wide as that button. */
+  .settings-page__form.settings--column {
+    max-width: none;
   }
 }
 

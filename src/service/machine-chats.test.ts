@@ -1,9 +1,12 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { CLAUDE } from '../claude/name.js'
 import { replyPrompt } from '../sessions/ask.js'
 import { ResumeHolds } from '../sessions/holds.js'
 import { wireAgentStatus } from './accounts.js'
-import { wireMachineChats, type MachineChatsContext } from './machine-chats.js'
+import { transcriptPartOf, wireMachineChats, type MachineChatsContext } from './machine-chats.js'
 
 const chat = 'chat-123456abcdef'
 const session = { sessionId: 'session-1', account: 'global', cwd: '/project' }
@@ -163,5 +166,21 @@ describe('a message to an existing project chat', () => {
     expect(toldInbox).not.toHaveBeenCalled()
     expect(stopIn).toHaveBeenCalled()
     expect(resumeIn).toHaveBeenCalled()
+  })
+})
+
+describe('a part of a chat transcript carried to another machine (BTN-1711)', () => {
+  it('reads the bytes asked for, never past the end, with the file name and whole size', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ek-transcript-'))
+    try {
+      const path = join(dir, 'session-1.jsonl')
+      writeFileSync(path, '0123456789')
+      expect(await transcriptPartOf(path, 0, 0)).toEqual({ name: 'session-1.jsonl', size: 10, data: '' })
+      const part = await transcriptPartOf(path, 6, 100)
+      expect(Buffer.from(part!.data, 'base64').toString()).toBe('6789')
+      expect(await transcriptPartOf(join(dir, 'gone.jsonl'), 0, 10)).toBeNull()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

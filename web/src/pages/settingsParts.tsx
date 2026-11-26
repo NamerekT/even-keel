@@ -201,6 +201,48 @@ export function Row({
   )
 }
 
+/** How wide a stacked field's control is, by what it holds: a line of text fills the column, a number or a pick is as wide as its value. */
+export type FieldWidth = 'full' | 'number' | 'tokens' | 'select'
+
+/**
+ * A setting of the one-column form (BTN-1717): its name, and its control under it at the column's left edge, as wide as
+ * `width` says; `error` goes into a strip under the control, `children` under it all. Only inside `SETTINGS_COLUMN`.
+ */
+export function Field({
+  className,
+  label,
+  hint,
+  htmlFor,
+  inherit,
+  mark,
+  width = 'full',
+  control,
+  error,
+  children,
+}: {
+  className: string
+  label: string
+  hint?: string
+  htmlFor?: string
+  inherit?: Inheritance
+  mark?: ReactNode
+  width?: FieldWidth
+  control: ReactNode
+  error?: Notice | null
+  children?: ReactNode
+}) {
+  return (
+    <div className={`${className} settings__stack`}>
+      <FieldHead label={label} hint={hint} htmlFor={htmlFor} inherit={inherit} mark={mark} />
+      <div className={`settings__stack-control settings__stack-control--${width}`}>{error === undefined ? control : <ErrorStrip error={error} wide>{control}</ErrorStrip>}</div>
+      {children}
+    </div>
+  )
+}
+
+/** The class of a form laid out as one column of stacked fields, switches at its right edge (BTN-1717). */
+export const SETTINGS_COLUMN = 'settings--column'
+
 /** On or off: a switch, never a pick of two. */
 export function Switch({ id, checked, disabled = false, label, onChange }: { id?: string; checked: boolean; disabled?: boolean; label?: string; onChange: (checked: boolean) => void }) {
   return (

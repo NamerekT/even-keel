@@ -302,6 +302,14 @@ describe('launchBlock', () => {
     expect(launchBlock(view({ accounts: [entry({ status: null, error: textNotice('claude: auth status timed out') })] }))).toBeUndefined()
   })
 
+  it('asks for a new key when the provider refused an API folder\'s key, not for a renewed login', () => {
+    const refused = (keyReplaceable: boolean) => launchBlock(view({ accounts: [entry({ needsLogin: true, apiKey: true, keyReplaceable })] }))
+    expect(refused(true)).toEqual({ code: 'account.keyRejected', params: { account: 'john.doe@example.com' } })
+    expect(say(refused(true))).toMatch(/replace it on the Accounts page/)
+    expect(refused(false)).toEqual({ code: 'account.keyRejectedOutside', params: { account: 'john.doe@example.com' } })
+    expect(say(refused(false))).not.toMatch(/Accounts page|login/)
+  })
+
   it('holds sessions back when the active account is signed out or its login ran out', () => {
     expect(say(launchBlock(view({ accounts: [entry({ status: { ...signedIn(), loggedIn: false }, needsLogin: true })] })))).toMatch(
       /not signed in/,

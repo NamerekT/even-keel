@@ -17,7 +17,8 @@ import { checkpointOf, CLI_TTL, compactWindowOf, standardRows, switchOf, WINDOW_
 import type { PanelFields } from './projectSettingsFields.js'
 import { labelOf, standardsShown, ttlLabel } from './projectSettingsDraft.js'
 import { protectionText } from './protectionDraft.js'
-import { ErrorStrip, FieldHead, fieldId, FieldNote, Inherit, ModelStrip, Row, Section, SHARE_KEYS, shareOf, sharesText } from './settingsParts.js'
+import { ErrorStrip, Field, FieldHead, fieldId, FieldNote, Inherit, ModelStrip, Section, SHARE_KEYS, shareOf, sharesText } from './settingsParts.js'
+import { SectionLabel } from '../ui/blocks.js'
 import { accountOptions, accountVendorName, modelKey, providerName, WINDOW_KEYS } from './settingsRun.js'
 import { modelsReading, offersOf, type ModelAnswer } from './useModels.js'
 
@@ -170,15 +171,23 @@ export function ProjectSessionsTab({
         />
       </Section>
       <Section title={t.settings.sections.prompt}>
-        {pick('brief', t.settings.brief, t.settings.briefHint, [
-          { value: '', label: t.settings.briefAuto },
-          { value: 'true', label: t.settings.on },
-          { value: 'false', label: t.settings.off },
-        ])}
-        {state !== null && (
-          <div className="settings__line-extra">
-            <TrackerPackageButton project={project} packages={state.packages} />
-          </div>
+        {pick(
+          'brief',
+          t.settings.brief,
+          t.settings.briefHint,
+          [
+            { value: '', label: t.settings.briefAuto },
+            { value: 'true', label: t.settings.on },
+            { value: 'false', label: t.settings.off },
+          ],
+          undefined,
+          {
+            under: state !== null && (
+              <div className="settings__line-extra">
+                <TrackerPackageButton project={project} packages={state.packages} />
+              </div>
+            ),
+          },
         )}
         {lines('prompt', t.settings.prompt, t.settings.promptHint, t.settings.promptPlaceholder, 5, false)}
         {lines('beforeStart', t.settings.beforeStart, t.settings.beforeStartHint, t.settings.beforeStartPlaceholder, 4)}
@@ -188,6 +197,7 @@ export function ProjectSessionsTab({
           t.settings.promptLanguageHint,
           LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] })),
           { value: shared.promptLanguage, label: t.shared.languages[shared.promptLanguage] },
+          {},
         )}
       </Section>
       <Section title={t.settings.standards.title} hint={t.settings.standards.hint}>
@@ -217,46 +227,48 @@ export function ProjectSessionsTab({
       <ProtectionSettings value={text('protection')} shared={shared.protection ?? DEFAULT_PROTECTION} onChange={value => editInherited('protection', value, protectionText(shared.protection ?? DEFAULT_PROTECTION))} error={errorOf('protection')} mark={marks.note('protection')} />
       <Section title={t.settings.sections.context}>
         {inheritedSwitch('contextHandoffs', t.shared.contextHandoffs, t.shared.contextHandoffsHint, shared.contextHandoffs)}
-        <Row
-          className={marks.box(['ownCheckpoint', 'checkpointTokens'])}
-          label={t.shared.checkpointTokens}
-          hint={t.shared.checkpointTokensHint}
-          htmlFor={fieldId('checkpointTokens')}
-          inherit={ownInherit('ownCheckpoint', { checkpointTokens: sharedCheckpoint }, tokensShown(sharedCheckpoint) || t.shared.checkpointTokensPlaceholder, handoffsOff)}
-          mark={flagNote('ownCheckpoint', ['checkpointTokens'], (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : tokensShown(value as string)))}
-          control={
-            <TokensInput
-              id={fieldId('checkpointTokens')}
-              value={on('ownCheckpoint') ? text('checkpointTokens') : sharedCheckpoint}
-              invalid={on('ownCheckpoint') && checkpointOf(text('checkpointTokens')) === undefined}
-              placeholder={t.shared.checkpointTokensPlaceholder}
-              disabled={handoffsOff}
-              onChange={(value) => ownEdit('ownCheckpoint', { checkpointTokens: sharedCheckpoint })('checkpointTokens', value)}
-            />
-          }
-          error={errorOf('stats.checkpointTokens')}
-        />
-        <div className={marks.box('ownShares')}>
-          <FieldHead
-            label={t.shared.checkpointShares}
-            hint={t.shared.checkpointSharesHint}
-            inherit={ownInherit('ownShares', sharedShares, SHARE_KEYS.map((key) => sharedShares[key]).join(' / '), handoffsOff)}
-            mark={sharesTurned ? flagNote('ownShares', SHARE_KEYS) : null}
+        <div className="settings__nested">
+          <Field
+            className={marks.box(['ownCheckpoint', 'checkpointTokens'])}
+            width="tokens"
+            label={t.shared.checkpointTokens}
+            hint={t.shared.checkpointTokensHint}
+            htmlFor={fieldId('checkpointTokens')}
+            inherit={ownInherit('ownCheckpoint', { checkpointTokens: sharedCheckpoint }, tokensShown(sharedCheckpoint) || t.shared.checkpointTokensPlaceholder, handoffsOff)}
+            mark={flagNote('ownCheckpoint', ['checkpointTokens'], (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : tokensShown(value as string)))}
+            control={
+              <TokensInput
+                id={fieldId('checkpointTokens')}
+                value={on('ownCheckpoint') ? text('checkpointTokens') : sharedCheckpoint}
+                invalid={on('ownCheckpoint') && checkpointOf(text('checkpointTokens')) === undefined}
+                placeholder={t.shared.checkpointTokensPlaceholder}
+                disabled={handoffsOff}
+                onChange={(value) => ownEdit('ownCheckpoint', { checkpointTokens: sharedCheckpoint })('checkpointTokens', value)}
+              />
+            }
+            error={errorOf('stats.checkpointTokens')}
           />
-          <div className="settings__row">
-            {SHARE_KEYS.map((key) => (
-              <div key={key} className={marks.box(key)}>
-                <FieldHead label={t.shared[key]} htmlFor={fieldId(key)} mark={sharesTurned ? null : marks.note(key)} />
-                {number(key, on('ownShares') ? text(key) : sharedShares[key], on('ownShares') && shareOf(text(key)) === undefined, (value) => ownEdit('ownShares', sharedShares)(key, value), {
-                  disabled: handoffsOff,
-                })}
-              </div>
-            ))}
+          <div className={marks.box('ownShares')}>
+            <FieldHead
+              label={t.shared.checkpointShares}
+              hint={t.shared.checkpointSharesHint}
+              inherit={ownInherit('ownShares', sharedShares, SHARE_KEYS.map((key) => sharedShares[key]).join(' / '), handoffsOff)}
+              mark={sharesTurned ? flagNote('ownShares', SHARE_KEYS) : null}
+            />
+            <div className="settings__row">
+              {SHARE_KEYS.map((key) => (
+                <div key={key} className={marks.box(key)}>
+                  <FieldHead label={t.shared[key]} htmlFor={fieldId(key)} mark={sharesTurned ? null : marks.note(key)} />
+                  {number(key, on('ownShares') ? text(key) : sharedShares[key], on('ownShares') && shareOf(text(key)) === undefined, (value) => ownEdit('ownShares', sharedShares)(key, value), {
+                    disabled: handoffsOff,
+                  })}
+                </div>
+              ))}
+            </div>
+            <FieldNote error={errorOf('checkpointShares')} />
           </div>
-          <FieldNote error={errorOf('checkpointShares')} />
         </div>
-      </Section>
-      <Section title={t.shared.claude}>
+        <SectionLabel>{t.shared.claude}</SectionLabel>
         {pick(
           'cacheTtl',
           t.shared.cacheTtl,
@@ -267,6 +279,7 @@ export function ProjectSessionsTab({
             { value: '1h', label: t.shared.cacheTtl1h },
           ],
           { value: shared.cacheTtl ?? CLI_TTL, label: ttlLabel(shared.cacheTtl) },
+          {},
         )}
       </Section>
     </>

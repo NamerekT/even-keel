@@ -2,6 +2,7 @@
   display: flex;
   align-items: stretch;
   min-width: 0;
+  --help-width: 36px;
 }
 
 .button-with-tip > .button {
@@ -10,9 +11,14 @@
   border-radius: var(--radius-control) 0 0 var(--radius-control);
 }
 
+/* The eye reads the action and its "?" as one button: the spinner of a busy action stands in the middle of both (BTN-1711). */
+.button-with-tip > .button[aria-busy='true']::before {
+  right: calc(-1 * var(--help-width));
+}
+
 .button-with-tip__help {
   display: flex;
-  flex: 0 0 36px;
+  flex: 0 0 var(--help-width);
 }
 
 .button-with-tip .button-with-tip__trigger {

@@ -518,6 +518,10 @@ export const en = {
   'account.signingIn': () => 'claude: sign-in is in progress; resume once it is done',
   'account.signedOut': () => 'claude: not signed in; sign in on the Accounts page, then resume',
   'account.loginExpired': (p: { account: string }) => `the login of ${p.account} has run out; renew it on the Accounts page, then resume`,
+  'account.keyRejected': (p: { account: string }) =>
+    `the provider doesn't accept the API key of ${p.account}; replace it on the Accounts page, then resume`,
+  'account.keyRejectedOutside': (p: { account: string }) =>
+    `the provider doesn't accept the API key of ${p.account}; put a working key where the folder takes it from (its settings or the environment), then resume`,
 
   'login.none': () => 'claude: no sign-in is running',
   'login.running': () => 'claude: a sign-in is already running',

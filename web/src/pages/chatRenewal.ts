@@ -38,9 +38,15 @@ export function chatRenewal(chat: ChatCard, session: SessionView | undefined, en
 /**
  * The choice the window offers first: the project's last one; at a limit the next account with room — the last choice
  * when it is another open account, else an open one of the chat's agent, else any open one. The model and the effort
- * stay only on an account of the same agent as where they come from.
+ * stay only on an account of the same agent as where they come from. The machine is the chat's, never the last
+ * choice's (BTN-1711): the user moves it to another by hand.
  */
 export function renewalChoice(chat: ChatCard, renewal: ChatRenewal, last: ChatChoice | null, accounts: AccountEntry[]): ChatChoice {
+  const { machine: _last, ...choice } = accountChoice(chat, renewal, last, accounts)
+  return chat.machine === undefined ? choice : { ...choice, machine: chat.machine }
+}
+
+function accountChoice(chat: ChatCard, renewal: ChatRenewal, last: ChatChoice | null, accounts: AccountEntry[]): ChatChoice {
   const open = accounts.filter(accountOpen)
   const of = (key: string | undefined) => accounts.find((entry) => entry.key === key)
   const fromChat: ChatChoice = { account: chat.account, model: chat.model, effort: chat.effort }

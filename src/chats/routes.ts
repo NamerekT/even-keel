@@ -19,7 +19,7 @@ export const CHATS_QUERIES: Record<string, Query> = {
   'chats/machines': (deps, body) => chats(deps).machines(projectOf(body)),
   'chats/create': (deps, body) => chats(deps).create(projectOf(body), choiceOf(body), optionalText(body.machine, 'machine') ?? undefined),
   'chats/send': (deps, body) => chats(deps).send(idOf(body), messageOf(body)),
-  'chats/renew': (deps, body) => chats(deps).renew(idOf(body), messageOf(body), choiceOf(body)),
+  'chats/renew': (deps, body) => chats(deps).renew(idOf(body), messageOf(body), choiceOf(body), optionalText(body.machine, 'machine') ?? undefined),
   'chats/read': async (deps, body) => {
     chats(deps).read(idOf(body))
     return {}

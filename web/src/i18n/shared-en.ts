@@ -15,6 +15,7 @@ export const sharedEn = {
     prompts: 'Prompts',
     tools: 'Tools',
     context: 'Context',
+    cacheChats: 'Cache and chats',
     interface: 'Interface',
     addresses: 'Page addresses',
     connect: 'Connecting machines',

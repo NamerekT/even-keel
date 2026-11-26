@@ -320,11 +320,14 @@ export function fakeChats(mode: string | null) {
         const agent = state.account.accounts.find((entry) => entry.key === choice.account)?.agent ?? 'claude'
         const text = String(body.text ?? '')
         const at = new Date().toISOString()
+        // The new session may go to another machine (BTN-1711).
+        const machine = typeof body.machine === 'string' ? body.machine : hit.found.machine
         made += 1
         const next = card(state, hit.found.project, {
           id: `${hit.found.project}-new-${made}`,
           agent,
           ...choice,
+          ...(machine !== undefined && { machine }),
           title: hit.found.title,
           state: 'starting',
           context: null,
@@ -334,7 +337,7 @@ export function fakeChats(mode: string | null) {
         })
         hit.list.active = [next, ...hit.list.active.filter((each) => each.id !== hit.found.id)]
         hit.list.archived = [{ ...hit.found, state: 'archived', archivedAt: at, successor: next.id, unread: false }, ...hit.list.archived]
-        hit.list.choice = choice
+        hit.list.choice = machine === undefined ? choice : { ...choice, machine }
         setTimeout(() => replace(next.id, { state: 'working', sessionId: `${next.id}-session` }), ANSWER_MS / 2)
         setTimeout(() => replace(next.id, { state: 'answered', unread: true, last: { from: 'agent', text: 'Picked up where the last chat stopped: the step waits on a port another run holds.', at: new Date().toISOString() } }), ANSWER_MS * 2)
         return next

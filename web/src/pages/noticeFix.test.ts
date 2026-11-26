@@ -63,6 +63,11 @@ describe('noticeFixOf', () => {
     expect(noticeFixOf(notice('copilot.notSignedIn', {}))).toEqual({ to: 'accounts' })
   })
 
+  it('sends a refused key the page holds to the accounts, where its Replace key button is, and one it does not to nowhere', () => {
+    expect(noticeFixOf(notice('account.keyRejected', { account: 'bad-key' }))).toEqual({ to: 'accounts' })
+    expect(noticeFixOf(notice('account.keyRejectedOutside', { account: 'bad-key' }))).toBeNull()
+  })
+
   it('sends a refused or missing token to Trackers and CI', () => {
     expect(noticeFixOf(notice('ci.noToken', { kind: 'forgejo' }))).toEqual({ to: 'shared', tab: 'trackers' })
     expect(noticeFixOf(notice('review.denied', { ci: 'Forgejo', status: 403 }))).toEqual({ to: 'shared', tab: 'trackers' })
