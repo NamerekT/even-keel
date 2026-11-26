@@ -32,7 +32,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { IdentityButton } from './IdentityDialog.js'
 import { MachineMemoryCard } from './MachineMemoryCard.js'
 import { BranchDriftBand } from './BranchField.js'
-import { HelpTip } from './settingsParts.js'
+import { Field } from './settingsParts.js'
 import { TakeOverButton } from './TakeOverButton.js'
 import './settings.css'
 import './machinePage.css'
@@ -250,13 +250,15 @@ function SettingsCard({ page, reload, show }: { page: MachinePageView; reload: (
     show(color === page.color ? null : color)
   }
   return (
-    <Card title={text.settings} titleId="machine-settings">
-      <div className="machine-page__field">
-        <span className="machine-page__label">
-          <label htmlFor="machine-capacity">{page.own ? text.capacityOwn : text.capacity}</label>
-          <HelpTip text={page.own ? text.capacityOwnHint : text.capacityHint} />
-        </span>
-        <span className="machine-page__capacity">
+    <Card title={text.settings} titleId="machine-settings" className="machine-page__settings">
+      <Field
+        className="settings__field"
+        label={page.own ? text.capacityOwn : text.capacity}
+        hint={page.own ? text.capacityOwnHint : text.capacityHint}
+        htmlFor="machine-capacity"
+        width="fit"
+        control={
+          <span className="machine-page__capacity">
           <input
             id="machine-capacity"
             className="settings__text machine-page__number"
@@ -275,15 +277,18 @@ function SettingsCard({ page, reload, show }: { page: MachinePageView; reload: (
           <button type="button" className="button button--small button--primary" disabled={!changed || sending} onClick={() => void save()}>
             {text.save}
           </button>
-        </span>
-        {!valid && <span className="settings__error machine-page__wide">{text.capacityBad}</span>}
-      </div>
-      <div className="machine-page__field">
-        <span className="machine-page__label">
-          <label htmlFor="machine-color">{text.color}</label>
-          <HelpTip text={text.colorHint} />
-        </span>
-        <span className="machine-page__colors">
+          </span>
+        }
+      >
+        {!valid && <span className="settings__error">{text.capacityBad}</span>}
+      </Field>
+      <Field
+        className="settings__field"
+        label={text.color}
+        hint={text.colorHint}
+        htmlFor="machine-color"
+        control={
+          <span className="machine-page__colors">
           {page.palette.map((color) => (
             <button
               key={color}
@@ -314,9 +319,11 @@ function SettingsCard({ page, reload, show }: { page: MachinePageView; reload: (
               </button>
             </Tipped>
           )}
-        </span>
-        {near && <p className="machine-page__state machine-page__wide">{text.colorNear}</p>}
-      </div>
+          </span>
+        }
+      >
+        {near && <p className="machine-page__state">{text.colorNear}</p>}
+      </Field>
       {failure !== null && (
         <p role="alert" className="notice notice--error">
           {say(failure)}

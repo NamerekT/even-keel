@@ -217,8 +217,8 @@
   min-width: 0;
 }
 
-/* A state of a block's head (BTN-1564): a chip at the row's right, as a switch stands in a short row. Two classes, to
-   win over `.chip` of chain.css whichever loads last. */
+/* A state of a setting (BTN-1564): a chip under its name, where a value would stand. Two classes, to win over `.chip`
+   of chain.css whichever loads last. */
 .chip.pool__chip--warn {
   background: var(--warn-bg);
   color: var(--warn-fg);
@@ -237,17 +237,12 @@
   }
 }
 
-/* A row whose value is long (BTN-1564): the name and its chip on one line, the value across the row under them, the
-   buttons at the block's bottom, at its start, in every such row alike. The chip is short: it keeps its line on a phone. */
-.pool__block .settings__line-main {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
+/* A setting's buttons (BTN-1564): under its value, at its start, in every such setting alike. */
 .pool__block-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-8);
-  margin-top: var(--space-12);
+  margin-top: var(--space-6);
 }
 
 .pool__block-actions .tracker-fix {
@@ -258,7 +253,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin-top: var(--space-8);
+  min-width: 0;
   font-size: var(--text-14);
 }
 
@@ -272,7 +267,6 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-6);
-  margin-top: var(--space-8);
   color: var(--fg-muted);
   font-size: var(--text-13);
 }
@@ -285,15 +279,7 @@
   max-width: 100%;
 }
 
-/* A value read whole, a folder's path (BTN-1300): under its name, across the row, wrapping only after a separator. */
-.pool__wide .settings__line-main {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.pool__wide .settings__control {
-  justify-content: flex-start;
-}
-
+/* A value read whole, a folder's path (BTN-1300): under its name, across the column, wrapping only after a separator. */
 .pool__folder--whole {
   overflow: visible;
   white-space: normal;

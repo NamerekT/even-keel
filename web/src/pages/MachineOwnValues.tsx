@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import type { MachineProjectSettings, PoolMachine, ProjectPool } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { FieldHead, Section } from './settingsParts.js'
+import { Field, FieldHead, Row, Section, Switch } from './settingsParts.js'
 
 type Command = 'beforeStart' | 'check' | 'afterGreen'
 const COMMANDS: Command[] = ['beforeStart', 'check', 'afterGreen']
@@ -81,26 +81,32 @@ export function MachineOwnValues({ project, row, pool, onSaved }: { project: str
   return (
     <Section title={own.title} hint={own.hint}>
       {COMMANDS.map((key) => (
-        <div key={key} className="settings__field">
-          <FieldHead label={own.lists[key]} hint={own.listHint} htmlFor={`${id}-${key}`} />
-          <textarea
-            id={`${id}-${key}`}
-            className="settings__text settings__text--mono"
-            rows={3}
-            spellCheck={false}
-            value={draft.lists[key]}
-            placeholder={placeholder(key)}
-            disabled={key === 'afterGreen' && draft.afterGreenOff}
-            onChange={(event) => setDraft({ ...draft, lists: { ...draft.lists, [key]: event.target.value } })}
-          />
-          {key === 'afterGreen' && (
-            <label className="settings__check">
-              <input type="checkbox" checked={draft.afterGreenOff} onChange={(event) => setDraft({ ...draft, afterGreenOff: event.target.checked })} />
-              {own.afterGreenOff}
-            </label>
-          )}
-        </div>
+        <Field
+          key={key}
+          className="settings__field"
+          label={own.lists[key]}
+          hint={own.listHint}
+          htmlFor={`${id}-${key}`}
+          control={
+            <textarea
+              id={`${id}-${key}`}
+              className="settings__text settings__text--mono"
+              rows={3}
+              spellCheck={false}
+              value={draft.lists[key]}
+              placeholder={placeholder(key)}
+              disabled={key === 'afterGreen' && draft.afterGreenOff}
+              onChange={(event) => setDraft({ ...draft, lists: { ...draft.lists, [key]: event.target.value } })}
+            />
+          }
+        />
       ))}
+      <Row
+        className="settings__field"
+        label={own.afterGreenOff}
+        htmlFor={`${id}-afterGreenOff`}
+        control={<Switch id={`${id}-afterGreenOff`} checked={draft.afterGreenOff} onChange={(off) => setDraft({ ...draft, afterGreenOff: off })} />}
+      />
       {pool.servers.length > 0 && (
         <div className="machine-own__servers">
           <FieldHead label={own.servers} hint={own.serversHint} />

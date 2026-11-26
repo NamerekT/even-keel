@@ -131,29 +131,10 @@
   white-space: nowrap;
 }
 
-/* A setting of the card: its name at the left, the control at the right, a note under both. */
-.machine-page__field {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-8) var(--space-16);
-}
-
-.machine-page__field + .machine-page__field {
-  padding-top: var(--space-12);
-  border-top: 1px solid var(--border);
-}
-
-.machine-page__label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-6);
-  font-size: var(--text-14);
-}
-
-.machine-page__wide {
-  flex-basis: 100%;
+/* The card's settings stand as in a settings form (docs/design.md "Settings form"): a name over its control, the
+   fields parted by the form's 16 px — the card's own 12 px and 4 more. */
+.machine-page__settings .settings__field + .settings__field {
+  margin-top: var(--space-4);
 }
 
 /* The agents' fact takes the rest of its row (`--2` two cells, `--1` one), so the folder starts a row of its own. */

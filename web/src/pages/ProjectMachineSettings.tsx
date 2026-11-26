@@ -14,7 +14,7 @@ import { IdentityButton } from './IdentityDialog.js'
 import { JobWindow } from './JobWindow.js'
 import { MachineOwnValues } from './MachineOwnValues.js'
 import { usePool } from './ProjectMachinesTab.js'
-import { Row, Section, Switch } from './settingsParts.js'
+import { Field, Row, Section, Switch } from './settingsParts.js'
 import { TrackerFix } from './TrackerFixButtons.js'
 import './projectMachines.css'
 
@@ -60,21 +60,25 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
           )}
           {row !== undefined && (
             <>
-              <Row
-                className={`${ROW} pool__wide`}
-                label={view.folder}
-                hint={view.folderHint}
-                control={<WholeText text={row.folder} path className="pool__folder pool__folder--whole" />}
-              />
+              <Field className={ROW} label={view.folder} hint={view.folderHint} control={<WholeText text={row.folder} path className="pool__folder pool__folder--whole" />} />
               <Row className={ROW} label={view.pool} hint={view.poolHint} control={<Switch checked={row.enabled} disabled={sending} label={t.pool.enable(card.name)} onChange={(on) => void enable(on)} />} />
               {card.gitUser !== null && (
-                <Row className={`${ROW} pool__block`} label={view.git} hint={view.gitHint} control={card.gitUser ? null : <span className="chip pool__chip pool__chip--warn">{view.gitUnset}</span>}>
-                  {card.gitUser && (
-                    <div className="pool__author">
-                      {card.gitName && <span className="pool__author-name">{card.gitName}</span>}
-                      {card.gitEmail && <WholeText text={card.gitEmail} className="pool__author-email" />}
-                    </div>
-                  )}
+                <Field
+                  className={ROW}
+                  label={view.git}
+                  hint={view.gitHint}
+                  width={card.gitUser ? 'full' : 'fit'}
+                  control={
+                    card.gitUser ? (
+                      <div className="pool__author">
+                        {card.gitName && <span className="pool__author-name">{card.gitName}</span>}
+                        {card.gitEmail && <WholeText text={card.gitEmail} className="pool__author-email" />}
+                      </div>
+                    ) : (
+                      <span className="chip pool__chip pool__chip--warn">{view.gitUnset}</span>
+                    )
+                  }
+                >
                   {card.online && (
                     <div className="pool__block-actions">
                       <IdentityButton
@@ -84,12 +88,13 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
                       />
                     </div>
                   )}
-                </Row>
+                </Field>
               )}
-              <Row
-                className={`${ROW} pool__block`}
+              <Field
+                className={ROW}
                 label={view.packages}
                 hint={view.packagesHint}
+                width="fit"
                 control={<span className={blocked ? 'chip pool__chip pool__chip--warn' : 'chip pool__chip pool__chip--ok'}>{blocked ? view.packagesBlocked : view.packagesReady}</span>}
               >
                 {held !== undefined && <PackagesWhy held={held} />}
@@ -99,7 +104,7 @@ export function ProjectMachineSettings({ project, card, onShared }: { project: s
                   </Link>
                   {held?.trackerMissing != null && state !== null && <TrackerFix state={state} project={project} />}
                 </div>
-              </Row>
+              </Field>
             </>
           )}
         </Loading>
