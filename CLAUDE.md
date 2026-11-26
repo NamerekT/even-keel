@@ -81,7 +81,7 @@ Work is tracked as tasks: `BTN` for the next version, `EKR` for fixes of the rel
 
 - A session started by hand talks things through and files tasks; the chain codes them. A talk that ends in "do it" becomes a task in `BTN` (Backlog) and the session stops: no worktree, no code. Code by hand only when the user says to do it here (this overrides the global "without a task — commit at once"); such work is a commit to the checkout's branch, `dev` or `release/v<x.y>`, never `main`.
 - A bug of the released version goes to `EKR` instead, in its version's milestone, Todo, unless the user says it can wait.
-- Branch: `btn-<number>/short-description`. Commit: `[BTN-<number>] Message`. Task content is in Russian.
+- Branch: `btn-<number>/short-description`. Commit: `[BTN-<number>] Message`.
 - A session merges its task branch itself (`git merge --no-edit` in the main working copy) and reports what was done. A chain session then leaves the worktree, the branch and the push to Even Keel; a hand session cleans up per `tasks:task` and pushes through `git sync`.
 - GitHub issues are taken into `EKR` or `BTN` as `docs/releases.md` ("Trackers") says; decisions come only from our task.
 
