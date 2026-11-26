@@ -54,6 +54,7 @@ export async function wireProjectChats(ctx: ChatsContext): Promise<ProjectChats>
     machines,
     services: (machine) => (machine === link.own() ? link.services : link.mirror(machine)?.services()),
     sessions: (machine) => link.mirror(machine)?.page.sessions() ?? [],
+    machineName: (machine) => link.network.names()[machine] ?? machine,
     accounts: (machine) => link.mirror(machine)?.page.panel()?.accounts.map((entry) => ({ key: entry.key, agent: entry.agent })),
     language: (project) => ctx.promptLanguage(project),
     changed: () => ctx.stateChanged(),

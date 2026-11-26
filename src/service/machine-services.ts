@@ -199,4 +199,5 @@ const noChats: MachineServices['chats'] = {
   stop: async () => {},
   title: async () => null,
   past: async () => null,
+  transcriptPart: async () => null,
 }

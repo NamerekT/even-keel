@@ -361,6 +361,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 338 | [A sent video in the chat on Safari and from a machine](unverified/sessions.md#a-sent-video-in-the-chat-on-safari-and-from-a-machine-btn-1704) | anyone sending a video in a chat and watching it on an iPhone or from a task on a machine | the bubble's thumbnail is empty or the video does not play on Safari; a machine's video stalls | — |
 | 339 | [A project chat's own packages](unverified/packages.md#a-project-chats-own-packages-btn-1696) | anyone setting a chat's packages in "More" of "New session" | the chat gets the project's set as if nothing were chosen, or misses a package it was given; change the project's packages instead | — |
 | 340 | [A skill picked from the chat's `/` menu](unverified/sessions.md#a-skill-picked-from-the-chats--menu-btn-1695) | anyone picking their own or a package's command or skill from a Claude chat's `/` menu | the session reads `/name` as plain text and does not run the skill, mostly mid-turn; other agents' menus lack the user's skills | — |
+| 341 | [A project chat going on at another machine](unverified/machines.md#a-project-chat-going-on-at-another-machine-btn-1711) | hubs with machines elsewhere where a cold or limited chat is renewed onto another machine | the old transcript is not carried: the new session has only the last turns, the prompt says where the transcript stayed | — |
 
 ### Waiting for the event / not checked by choice
 

@@ -1,4 +1,4 @@
-import type { ChatStart, MachineServices } from '../machine/services.js'
+import { TRANSCRIPT_PART_BYTES, type ChatStart, type MachineServices } from '../machine/services.js'
 import { fail } from '../notice/notice.js'
 import { openDatabase, Writes } from '../storage/database.js'
 import type { SessionView } from '../state.js'
@@ -62,16 +62,24 @@ export async function setup(options: SetupOptions = {}) {
   const sessions: SessionView[] = []
   const titles = new Map<string, string>()
   const pasts = new Map<string, ChatPast>()
-  const switches = { offline: options.offline === true, launchFails: options.launchFails === true, stopFails: options.stopFails === true, ceiling: options.ceiling ?? 3 }
+  /** The transcript files of the chats' sessions on the own machine; `size` — told instead of the data's own. */
+  const transcripts = new Map<string, { name: string; data: Buffer; size?: number }>()
+  /** The transcript reads and the inbox saves, with the machine each went to. */
+  const carried: Array<[string, 'part' | 'save', ...unknown[]]> = []
+  /** `down` — the machines off the link besides all of them with `offline`. */
+  const switches = { offline: options.offline === true, down: new Set<string>(), launchFails: options.launchFails === true, stopFails: options.stopFails === true, ceiling: options.ceiling ?? 3 }
   const logged: string[] = []
-  const services: Pick<MachineServices, 'chat' | 'chats'> = {
+  const servicesOf = (machine: string): Pick<MachineServices, 'chat' | 'chats'> => ({
     chat: {
       post: async () => {},
       giveBack: async () => {},
       dismiss: async () => {},
       steer: async () => false,
       tell: async () => false,
-      saveInbox: async (_project, folder, files) => files.map((file) => `${folder}\\.temp\\inbox\\${file.name}`),
+      saveInbox: async (_project, folder, files) => {
+        carried.push([machine, 'save', folder, ...files.map((file) => [file.name, Buffer.from(file.data, 'base64').toString()])])
+        return files.map((file) => `${folder}\\.temp\\inbox\\${file.name}`)
+      },
     },
     chats: {
       launch: async (project: string, folder: string, chat: string, start: ChatStart) => {
@@ -89,8 +97,14 @@ export async function setup(options: SetupOptions = {}) {
       },
       title: async (_account, sessionId) => titles.get(sessionId) ?? null,
       past: async (chat) => pasts.get(chat) ?? null,
+      transcriptPart: async (chat, from, length) => {
+        carried.push([machine, 'part', chat, from, length])
+        const file = transcripts.get(chat)
+        if (file === undefined || machine !== OWN) return null
+        return { name: file.name, size: file.size ?? file.data.length, data: file.data.subarray(from, from + Math.min(length, TRANSCRIPT_PART_BYTES)).toString('base64') }
+      },
     },
-  }
+  })
   const deps: ProjectChatsDeps = {
     store,
     placeOf: async (_project, machine) => {
@@ -99,7 +113,8 @@ export async function setup(options: SetupOptions = {}) {
       throw fail('chats.notInPool', {})
     },
     machines: async () => ({ machines: [], picked: OWN }),
-    services: (machine) => ((machine === OWN || machine === FAR) && !switches.offline ? services : undefined),
+    services: (machine) => ((machine === OWN || machine === FAR) && !switches.offline && !switches.down.has(machine) ? servicesOf(machine) : undefined),
+    machineName: (machine) => (machine === OWN ? 'Workstation' : machine === FAR ? 'Laptop' : machine),
     sessions: () => sessions,
     accounts: () => [{ key: 'global', agent: 'claude' }, { key: 'codex-work', agent: 'codex' }],
     language: () => 'en',
@@ -120,6 +135,8 @@ export async function setup(options: SetupOptions = {}) {
     sessions,
     titles,
     pasts,
+    transcripts,
+    carried,
     switches,
     logged,
     close: async () => {

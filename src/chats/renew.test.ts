@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { USER_MESSAGE_HEAD } from '../chain/user-message.js'
 import { ABC } from '../storage/database.fixture.js'
-import { ProjectChats } from './chats.js'
+import { TRANSCRIPT_PART_BYTES } from '../machine/services.js'
+import { ProjectChats, TRANSCRIPT_COPY_BYTES } from './chats.js'
 import { FAR, FAR_FOLDER, OWN, setup } from './chats.fixture.js'
 
 const at = '2026-11-18T10:00:30.000Z'
@@ -54,6 +55,73 @@ describe('a project chat going on in a new session (BTN-1232)', { timeout: 120_0
       const next = await fixture.chats.renew(id, { text: 'Fix the header', files: [] }, { account: 'global', model: null, effort: null })
       expect(fixture.calls[1]?.slice(0, 3)).toEqual(['launch', ABC, FAR_FOLDER])
       expect(next.machine).toBe(FAR)
+    } finally {
+      await fixture.close()
+    }
+  })
+
+  it('goes on at another machine named, with a copy of the old transcript in its folder there (BTN-1711)', async () => {
+    const fixture = await setup()
+    try {
+      const old = await started(fixture)
+      const body = 'x'.repeat(TRANSCRIPT_PART_BYTES + 10)
+      fixture.transcripts.set(old, { name: 'old.jsonl', data: Buffer.from(body) })
+      const next = await fixture.chats.renew(old, { text: 'Fix the header', files: [] }, { account: 'global', model: null, effort: null }, FAR)
+      expect(fixture.calls.map(([name]) => name)).toEqual(['stop', 'launch'])
+      expect(fixture.calls[1]?.slice(0, 3)).toEqual(['launch', ABC, FAR_FOLDER])
+      expect(fixture.carried.filter(([, kind]) => kind === 'part').map(([machine]) => machine)).toEqual([OWN, OWN, OWN])
+      const saves = fixture.carried.filter(([, kind]) => kind === 'save')
+      expect(saves).toEqual([[FAR, 'save', FAR_FOLDER, ['old.jsonl', body]]])
+      const prompt = (fixture.calls[1]![4] as { prompt: string }).prompt
+      expect(prompt).toContain('- User: Why is the build slow?')
+      expect(prompt).toContain(`${FAR_FOLDER}\\.temp\\inbox\\old.jsonl`)
+      expect(prompt).not.toContain('C:\\claude\\projects\\old.jsonl')
+      expect(next.machine).toBe(FAR)
+      expect(fixture.chats.choice(ABC)).toMatchObject({ machine: FAR })
+    } finally {
+      await fixture.close()
+    }
+  })
+
+  it('leaves a transcript over the limit on the old machine and says so', async () => {
+    const fixture = await setup()
+    try {
+      const old = await started(fixture)
+      fixture.transcripts.set(old, { name: 'old.jsonl', data: Buffer.from('{}'), size: TRANSCRIPT_COPY_BYTES + 1 })
+      await fixture.chats.renew(old, { text: 'Fix the header', files: [] }, { account: 'global', model: null, effort: null }, FAR)
+      expect(fixture.carried.filter(([, kind]) => kind === 'save')).toEqual([])
+      const prompt = (fixture.calls[1]![4] as { prompt: string }).prompt
+      expect(prompt).toContain('Its transcript stayed on the machine "Workstation"')
+      expect(prompt).not.toContain('old.jsonl')
+    } finally {
+      await fixture.close()
+    }
+  })
+
+  it('goes on at another machine while the old one is off the link: no turns, no copy, no stop', async () => {
+    const fixture = await setup()
+    try {
+      const old = await started(fixture)
+      fixture.switches.down.add(OWN)
+      const next = await fixture.chats.renew(old, { text: 'Fix the header', files: [] }, { account: 'global', model: null, effort: null }, FAR)
+      expect(fixture.calls.map(([name]) => name)).toEqual(['launch'])
+      const prompt = (fixture.calls[0]![4] as { prompt: string }).prompt
+      expect(prompt).not.toContain('- User:')
+      expect(prompt).toContain('Its transcript stayed on the machine "Workstation"')
+      expect(await fixture.chats.card(old)).toMatchObject({ state: 'archived', successor: next.id })
+      expect(fixture.logged.some((line) => line.includes('not stopped'))).toBe(true)
+    } finally {
+      await fixture.close()
+    }
+  })
+
+  it('refuses a machine off the link named for the new session', async () => {
+    const fixture = await setup()
+    try {
+      const old = await started(fixture)
+      fixture.switches.down.add(FAR)
+      await expect(fixture.chats.renew(old, { text: 'Fix the header', files: [] }, { account: 'global', model: null, effort: null }, FAR)).rejects.toMatchObject({ notice: { code: 'chats.noMachine' } })
+      expect(fixture.calls).toEqual([])
     } finally {
       await fixture.close()
     }

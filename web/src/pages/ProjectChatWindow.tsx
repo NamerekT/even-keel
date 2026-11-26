@@ -171,7 +171,7 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
     setRenewal(null)
   }
 
-  // The new session stays on the chat's machine, its history is there: that machine's accounts (BTN-1614).
+  // The chat's machine's accounts tell its limit and the account offered first; the window may move the session (BTN-1711).
   const accounts = useChatAccounts(chat, renewal !== null)
   // The window stands beside the field's form, not in it: a form holds no other form.
   return (

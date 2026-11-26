@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import type { Language } from '../language.js'
-import type { ChatStart, MachineServices } from '../machine/services.js'
+import { TRANSCRIPT_PART_BYTES, type ChatStart, type MachineServices } from '../machine/services.js'
 import { englishOf, fail, noticeOf } from '../notice/notice.js'
 import { replyPrompt, type AskAnswers } from '../sessions/ask.js'
 import type { InboxFile } from '../sessions/inbox.js'
@@ -42,6 +42,8 @@ export interface ProjectChatsDeps {
   services: (machine: string) => Pick<MachineServices, 'chat' | 'chats'> | undefined
   /** The machine's sessions as the hub's mirror has them. */
   sessions: (machine: string) => SessionView[]
+  /** The machine's name as the page shows it, for a prompt that says where a transcript stayed. */
+  machineName: (machine: string) => string
   /** The account folders of the machine with their agents; `undefined` — not read yet. */
   accounts: (machine: string) => Array<{ key: string; agent: string }> | undefined
   language: (project: string) => Language
@@ -60,6 +62,9 @@ export interface ChatMessageIn {
 }
 
 const newChatId = (): string => CHAT_PREFIX + randomBytes(6).toString('hex')
+
+/** The largest transcript carried to another machine (BTN-1711), as a message's files may be. */
+export const TRANSCRIPT_COPY_BYTES = 64 * 1024 * 1024
 
 /** The whole choice a call to the machine carries: it keeps nothing of a chat. */
 const startOf = (chat: ChatRecord, prompt: string): Omit<ChatStart, 'account'> => ({
@@ -224,25 +229,38 @@ export class ProjectChats {
    * old chat's last turns, its transcript and the message. The old session is stopped first: a stop that fails refuses
    * it and nothing changes. Then the new chat, its prompt pending, and the old one archived with it as the successor are
    * kept at once, and the new session launched; a restart in between launches it at the next sweep.
+   * It goes on at `named` when the window named a machine (BTN-1711), else at the old chat's. At another machine the old
+   * transcript is carried into the new one's folder (`carryTranscript`); with the old machine off the link there is
+   * nothing to stop, read or carry there, and the prompt says where the transcript stayed.
    */
-  async renew(id: string, message: ChatMessageIn, asked: ChatChoice): Promise<ChatCard> {
+  async renew(id: string, message: ChatMessageIn, asked: ChatChoice, named?: string): Promise<ChatCard> {
     const old = await this.active(id)
     // The renewal window picks no packages: the new chat keeps the old one's own choice (BTN-1696).
     const choice: ChatChoice = asked.packages !== undefined || Object.keys(old.packages).length === 0 ? asked : { ...asked, packages: old.packages }
     if (this.starting.has(id) || this.moving.has(id)) throw fail('chats.starting', {})
     this.moving.add(id)
     try {
-      // The new session stays on the old one's machine: its transcript and `past` are there (BTN-1614).
-      const place = await this.deps.placeOf(old.project, old.machine ?? undefined)
+      const place = await this.deps.placeOf(old.project, named ?? old.machine ?? undefined)
       const account = this.deps.accounts(place.machine)?.find((each) => each.key === choice.account)
       if (account === undefined) throw fail('chats.noAccount', { account: choice.account })
       const services = this.deps.services(place.machine)
       if (services === undefined) throw fail('chats.noMachine', {})
+      const from = old.machine !== null && old.machine !== place.machine ? old.machine : null
+      const gone = from !== null && this.deps.services(from) === undefined
       const past = await this.pastOf(old)
       const files = await this.saveFiles(services, old.project, place.folder, message.files)
       const language = this.deps.language(old.project)
       const said = replyPrompt({ from: 'page', answers: message.answers ?? {}, text: message.text, files }, this.viewOf(old)?.ask ?? null, language)
-      await this.stop(old)
+      if (gone) this.deps.log(`chats: ${id}: the session ${old.sessionId} was not stopped: its machine ${from} is off the link`)
+      else await this.stop(old)
+      let carried = past
+      let stayedOn: string | undefined
+      if (from !== null && old.sessionId !== null) {
+        // The old session is stopped by now: its transcript is whole.
+        const copy = gone ? null : await this.carryTranscript(old, from, services, place.folder)
+        carried = { sessionId: old.sessionId, recent: past?.recent ?? [], transcript: copy }
+        if (copy === null && (gone || past?.transcript != null)) stayedOn = this.deps.machineName(from)
+      }
       const at = this.deps.now().toISOString()
       const text = message.text.trim() === '' ? files.join('\n') : message.text
       const next: ChatRecord = {
@@ -251,7 +269,7 @@ export class ProjectChats {
         said: withSaid('', text),
         last: { from: 'user', text: cut(text), at },
         previous: old.id,
-        pending: renewPrompt(said, past, language),
+        pending: renewPrompt(said, carried, language, stayedOn),
       }
       this.deps.store.setChoice(old.project, { ...choice, machine: place.machine })
       this.deps.store.put(next)
@@ -323,6 +341,38 @@ export class ProjectChats {
       return await services.chat.saveInbox(project, folder, carried)
     } catch (error) {
       throw fail('answer.file', { name: files.map((file) => file.name).join(', ') }, { detail: (error as Error).message }, { cause: error })
+    }
+  }
+
+  /**
+   * The old chat's transcript, read from its machine `from` part by part, saved into `.temp/inbox/` of `folder` at the
+   * machine the chat goes on at (BTN-1711); the copy's path there. `null` — none known, over `TRANSCRIPT_COPY_BYTES`, or
+   * a read or a save failed: a line in the log, and the chat goes on without it.
+   */
+  private async carryTranscript(old: ChatRecord, from: string, to: Pick<MachineServices, 'chat'>, folder: string): Promise<string | null> {
+    const reader = this.deps.services(from)
+    if (reader === undefined) return null
+    try {
+      const head = await reader.chats.transcriptPart(old.id, 0, 0)
+      if (head === null) return null
+      if (head.size > TRANSCRIPT_COPY_BYTES) {
+        this.deps.log(`chats: ${old.id}: its transcript of ${head.size} bytes is over the copy's limit and stays on ${from}`)
+        return null
+      }
+      const parts: Buffer[] = []
+      for (let at = 0; at < head.size; ) {
+        const part = await reader.chats.transcriptPart(old.id, at, TRANSCRIPT_PART_BYTES)
+        const data = part === null ? Buffer.alloc(0) : Buffer.from(part.data, 'base64')
+        if (data.length === 0) throw new Error(`the transcript ended at ${at} of ${head.size} bytes`)
+        parts.push(data)
+        at += data.length
+      }
+      const [path] = await to.chat.saveInbox(old.project, folder, [{ name: head.name, data: Buffer.concat(parts).toString('base64') }])
+      this.deps.log(`chats: ${old.id}: its transcript was carried from ${from} to ${path}`)
+      return path ?? null
+    } catch (error) {
+      this.deps.log(`chats: ${old.id}: its transcript was not carried from ${from}: ${messageOf(error)}`)
+      return null
     }
   }
 

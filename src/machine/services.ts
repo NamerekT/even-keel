@@ -95,7 +95,22 @@ export interface MachineChats {
   title(account: string, sessionId: string, chat: string): Promise<string | null>
   /** The chat's session as the monitor knows it: its id, transcript and recent lines; `null` — none (BTN-1232). */
   past(chat: string): Promise<ChatPast | null>
+  /**
+   * `length` bytes from `from` of the chat's session transcript, at most `TRANSCRIPT_PART_BYTES`, with its whole size:
+   * the hub carries it to the machine the chat goes on at (BTN-1711). `null` — no transcript known or readable.
+   */
+  transcriptPart(chat: string, from: number, length: number): Promise<TranscriptPart | null>
 }
+
+/** A piece of a transcript: the file's name and whole size, and the bytes asked for in base64. */
+export interface TranscriptPart {
+  name: string
+  size: number
+  data: string
+}
+
+/** The most of a transcript one answer carries: in base64 it stays under the link's limit of a machine's post. */
+export const TRANSCRIPT_PART_BYTES = 4 * 1024 * 1024
 
 /**
  * The records the hub keeps for the machine, handed to its own machine's new process before its monitor, hooks and chat
@@ -217,7 +232,7 @@ export const SERVICE_COMMANDS = {
   chat: ['post', 'giveBack', 'dismiss', 'steer', 'tell', 'saveInbox'],
   records: ['restore'],
   folders: ['check', 'clone', 'probe'],
-  chats: ['launch', 'send', 'stop', 'title', 'past'],
+  chats: ['launch', 'send', 'stop', 'title', 'past', 'transcriptPart'],
   git: ['identity'],
   branch: ['move', 'back'],
   update: ['follow'],

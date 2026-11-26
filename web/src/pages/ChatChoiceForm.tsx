@@ -62,9 +62,10 @@ export interface ChatChoiceState {
 /**
  * The choice of a new chat (BTN-1710), offered from the project's last one: its machine while it can take a chat, its
  * account where it is open there, its model and effort. The agent of the account offered first is unfolded; a fold by
- * hand stays over a change of the machine.
+ * hand stays over a change of the machine. `agent` — that of the choice's account where the page's own accounts may not
+ * have it, a chat's on a machine elsewhere (BTN-1711), so its model stays.
  */
-export function useChatChoice(project: string, choice: ChatChoice | null): ChatChoiceState {
+export function useChatChoice(project: string, choice: ChatChoice | null, agent?: string): ChatChoiceState {
   const { state, query } = useLive()
   const now = useNow(30_000)
   const [answer, setAnswer] = useState<ChatMachines | null>(null)
@@ -77,7 +78,7 @@ export function useChatChoice(project: string, choice: ChatChoice | null): ChatC
   // The account follows the machine: one the machine picked has not, or not open, gives way to the first that is (BTN-1614).
   const entry = accountAfter(open, wanted, choice?.account)
   // A model is the CLI's of one agent: it stays while the account picked is of that agent.
-  const [model, setModel] = useState(() => ({ agent: state?.account.accounts.find((each) => each.key === choice?.account)?.agent ?? '', value: choice?.model ?? '' }))
+  const [model, setModel] = useState(() => ({ agent: state?.account.accounts.find((each) => each.key === choice?.account)?.agent ?? agent ?? '', value: choice?.model ?? '' }))
   const shownModel = entry !== undefined && entry.agent === model.agent ? model.value : ''
   const efforts = entry === undefined ? [] : (EFFORTS[entry.agent] ?? [])
   const [effort, setEffort] = useState(choice?.effort ?? 'medium')
@@ -127,15 +128,16 @@ export function useChatChoice(project: string, choice: ChatChoice | null): ChatC
 /**
  * The form of a new chat's choice: the machine above the scrolling body, so a long list of accounts never takes it out
  * of view (BTN-1670); in the body the accounts by agent, each agent folding, with their limits, then the model and the
- * effort.
+ * effort. `lead` — what a window says above it all, the renewal's why and message (BTN-1711).
  */
-export function ChatChoiceForm({ project, state }: { project: string; state: ChatChoiceState }) {
+export function ChatChoiceForm({ project, state, lead }: { project: string; state: ChatChoiceState; lead?: ReactNode }) {
   const { pick, now, groups, open, agents } = state
   const account = pick.account?.key ?? ''
   const offers = offersOf(state.catalog, account)
   const models = [{ value: '', label: t.settings.cliDefault }, ...[...new Set([...offers, ...(pick.model === '' ? [] : [pick.model])])].map((each) => ({ value: each, label: each }))]
   return (
     <>
+      {lead !== undefined && <div className="new-chat__lead">{lead}</div>}
       {state.machines.length > 0 && <MachineSelect machines={state.machines} picked={pick.machine} onPick={state.setMachine} />}
       <div className="add-package__body new-chat__body">
         {state.unread ? (

@@ -41,6 +41,7 @@ const TEXTS = {
     user: 'User',
     agent: 'You',
     transcript: (path: string) => fill`Its transcript: ${path} — do not read it whole; grep it if something is missing.`,
+    stayed: (machine: string) => fill`Its transcript stayed on the machine "${machine}": there is no copy of it here.`,
   },
   ru: {
     lead: 'Этот чат продолжает прежний чат проекта, его сессия остановлена.',
@@ -48,18 +49,21 @@ const TEXTS = {
     user: 'Пользователь',
     agent: 'Ты',
     transcript: (path: string) => fill`Его транскрипт: ${path} — целиком не читай, ищи в нём grep, если чего-то не хватает.`,
+    stayed: (machine: string) => fill`Его транскрипт остался на машине «${machine}»: копии здесь нет.`,
   },
 } satisfies Record<Language, unknown>
 
 /**
  * The first prompt of a chat that goes on from another in a new session (BTN-1232): the old chat's last turns and its
  * transcript, then the user's message under `USER_MESSAGE_HEAD`, last, so the page shows it apart (BTN-1281).
+ * `stayedOn` — the name of the old chat's machine, whose transcript the new one could not get a copy of (BTN-1711).
  */
-export function renewPrompt(message: string, past: ChatPast | null, language: Language): string {
+export function renewPrompt(message: string, past: ChatPast | null, language: Language, stayedOn?: string): string {
   const text = TEXTS[language]
   const lines = [text.lead]
   const turns = past === null ? [] : turnsOf(past.recent)
   if (turns.length > 0) lines.push('', text.turns, ...turns.map((turn) => fill`- ${turn.from === 'user' ? text.user : text.agent}: ${turn.text}`))
   if (past?.transcript != null) lines.push('', text.transcript(past.transcript))
+  else if (stayedOn !== undefined) lines.push('', text.stayed(stayedOn))
   return `${lines.join('\n')}\n\n${USER_MESSAGE_HEAD[language]}\n\n${message.trimEnd()}\n`
 }
