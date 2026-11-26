@@ -947,6 +947,56 @@ describe("the project's feeds (BTN-892)", () => {
   })
 })
 
+describe("a project's address without a task, as the page's chat has (BTN-1747)", () => {
+  const CHAT: TasksScope = { project: ABC, task: null }
+
+  beforeEach(async () => {
+    await store.create({ project: XYZ, title: 'Away' })
+    await store.create({ project: GHI, title: 'Feed task' })
+  })
+
+  it("reaches a task of any project by its key, its own project's trackers first", async () => {
+    expect(await call('task_read', { key: 'XYZ-1' }, CHAT)).toContain('# XYZ-1 Away')
+    expect(await call('task_comment', { key: 'xyz-1', text: 'seen' }, CHAT)).toBe('XYZ-1: comment added')
+    expect(await call('task_update', { key: 'XYZ-1', priority: 'high' }, CHAT)).toBe('XYZ-1: priority → high')
+    expect(await call('task_read', { key: 'GHI-1' }, CHAT)).toContain('# GHI-1 Feed task')
+    expect(refreshed).toEqual([XYZ, XYZ])
+    expect((await call('task_update', { keys: ['ABC-1', 'XYZ-1'], priority: 'low' }, CHAT)).split('\n')).toEqual(['ABC-1: priority → low', 'XYZ-1: priority → low'])
+    expect(await refusal(call('task_read', { key: 'NOPE-1' }, CHAT))).toBe('no project NOPE keeps its tasks where these tools reach')
+  })
+
+  it('lists and creates in its own project by default, in the one project names otherwise', async () => {
+    expect(await call('tasks_list', {}, CHAT)).toBe('ABC-1 · Todo · Parent\nGHI-1 · Todo · Feed task')
+    expect(await call('tasks_list', { project: 'xyz' }, CHAT)).toBe('XYZ-1 · Todo · Away')
+    expect(await call('tasks_create', { tasks: [{ title: 'Here' }] }, CHAT)).toBe('ABC-2 Here')
+    expect(await call('tasks_create', { project: 'XYZ', tasks: [{ title: 'There' }] }, CHAT)).toBe('XYZ-2 There')
+    expect(await call('tasks_create', { project: 'GHI', tasks: [{ title: 'Feed' }] }, CHAT)).toBe('GHI-2 Feed')
+    expect(await refusal(call('tasks_list', { project: 'NOPE' }, CHAT))).toBe('no project NOPE keeps its tasks where these tools reach')
+  })
+
+  it("asks a machine's pool only of another project", async () => {
+    const asked: string[] = []
+    tools = new TasksTools({ ...deps(), inPool: async (machine, project) => (asked.push(`${machine} ${project}`), project === ABC) })
+    const scope = { ...CHAT, machine: 'm-a' }
+    expect(await call('task_read', { key: 'ABC-1' }, scope)).toContain('# ABC-1 Parent')
+    expect(await call('tasks_list', {}, scope)).toContain('ABC-1')
+    expect(asked).toEqual([])
+    expect(await refusal(call('task_read', { key: 'XYZ-1' }, scope))).toMatch(/^the project of XYZ keys is not on this machine/)
+    expect(await refusal(call('tasks_create', { project: 'XYZ', tasks: [{ title: 'There' }] }, scope))).toMatch(/^the project of XYZ keys is not on this machine/)
+    expect(asked).toEqual(['m-a ' + XYZ, 'm-a ' + XYZ])
+  })
+
+  it('offers project as optional in tools/list', async () => {
+    const specs = toolSpecs(true, { components: true, attachments: true }, false)
+    for (const name of ['tasks_list', 'tasks_create']) {
+      const schema = specs.find((tool) => tool.name === name)!.inputSchema as { properties: Record<string, { description?: string }>; required?: string[] }
+      expect(schema.properties.project!.description).toMatch(/this server's project/)
+      expect(schema.required ?? []).not.toContain('project')
+    }
+    expect(toolSpecs(true).find((tool) => tool.name === 'tasks_list')!.inputSchema.properties).not.toHaveProperty('project')
+  })
+})
+
 describe("a hand session on a machine elsewhere, /tasks without a project (BTN-1573)", () => {
   const MACHINE: TasksScope = { ...HAND, machine: 'm-a' }
   const OFF_POOL = /^the project of XYZ keys is not on this machine/

@@ -179,7 +179,7 @@ export class MachineTasks {
       })
     }
     if (method === 'ping') return result({})
-    if (method === 'tools/list') return result(this.lists.get(path) ?? { tools: toolSpecs(scope.project !== null) })
+    if (method === 'tools/list') return result(this.lists.get(path) ?? { tools: toolSpecs(scope.project !== null, undefined, scope.task !== null) })
     if (method !== 'tools/call') return { jsonrpc: '2.0', id, error: { code: -32000, message: AWAY_TEXT } }
     const tool = toolOf(message)!
     if (KEPT_WRITES.has(tool.name)) {
