@@ -34,16 +34,17 @@
   background: linear-gradient(var(--border), var(--border)) left center / 1px 16px no-repeat;
 }
 
-/* The queue popover hangs under the work block: the anchor is outside it, so the block's overflow does not clip the popover. */
+/* The queue popover hangs under the work block: the anchor is outside it, so the block's overflow does not clip the popover.
+   It stands by the block's right edge and grows left, narrowed to the room `usePopoverRoom` measures (BTN-1730). */
 .work-anchor {
   position: relative;
   display: flex;
 }
 
 .work-anchor .queue {
-  left: 0;
-  right: auto;
-  width: min(380px, calc(100vw - 2 * var(--gutter)));
+  left: auto;
+  right: 0;
+  width: min(380px, var(--room, calc(100vw - 2 * var(--gutter))));
 }
 
 .work-block > .queue-menu {

@@ -458,9 +458,12 @@ export function limitsWaitText(wait: LimitsWait, now: Date): string {
   return say(notice('chain.limitsUnread', { account: wait.account, ...(wait.next !== null && { next: formatMoment(wait.next, now) }) }))
 }
 
-/** The task a project shows: the current one, else the next, else the first of the chain when every open one is held. */
-export function cardTask(state: EvenKeelState, project: string): CardTask | null {
-  const current = activeChain(state.chain, project)?.current?.task
+/**
+ * The task a project shows: the current one, else the next, else the first of the chain when every open one is held.
+ * `lane` — the current one of that lane rather than of the project's head.
+ */
+export function cardTask(state: EvenKeelState, project: string, lane?: ActiveChain): CardTask | null {
+  const current = (lane ?? activeChain(state.chain, project))?.current?.task
   const { order = [], waiting = [] } = state.chain.projects[project] ?? {}
   const skipped = state.chain.skipped[project] ?? []
   const next = current ?? nextTask(projectTasks(state, project), order, [...skipped, ...waiting])

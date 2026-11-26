@@ -3,6 +3,7 @@ import { t } from '../i18n/index.js'
 import { AccountName, Ring } from '../layout/AccountBlock.js'
 import { BurgerIcon } from '../layout/Menu.js'
 import { QueueContents } from '../layout/Queue.js'
+import { chainKind } from '../layout/queueRows.js'
 import { GearIcon, WaitingContents } from '../layout/Status.js'
 import { useLive } from '../live/context.js'
 import { isClosedLamp, type ChainBlock } from '../state.js'
@@ -30,7 +31,7 @@ export function HeaderSigns({ narrow }: { narrow: boolean }) {
     <Sign sample={<BurgerIcon />}>{t.help.signs.menu}</Sign>
     <Sign sample={<span className="page-help__bars" />}>{t.help.signs.bars}</Sign>
   </>
-  const kind = state === null || state.chain.active.length === 0 ? 'idle' : state.chain.active.every((chain) => chain.paused) ? 'paused' : 'running'
+  const kind = state === null ? 'idle' : chainKind(state.chain)
   return <>
     {state !== null && <>
       <Sign wide sample={<span className="hblock work-block"><span className={`queue-toggle queue-toggle--${kind}`}><QueueContents state={state} /></span></span>}>{t.help.signs.queue}</Sign>
