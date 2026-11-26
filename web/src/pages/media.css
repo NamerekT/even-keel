@@ -433,6 +433,7 @@ video.viewer__media {
   align-items: center;
   gap: var(--space-12);
   width: 100%;
+  user-select: none;
 }
 
 .viewer__pill {
