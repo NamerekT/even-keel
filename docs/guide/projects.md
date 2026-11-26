@@ -2,9 +2,9 @@
 
 A project is a repository — or a folder without git — with a tracker to take tasks from and an agent to run them. The wizard that adds one checks each of these as you fill it in.
 
-Then the page opens the wizard that adds a project.
+First the wizard asks **How tasks work**: **In a git repository** or **Without git**. It starts on the answer of the setup's [Git step](setup.md#the-git-step), and the choice is made once: a project without git can later only [turn git on](chain.md#turning-git-on). Without git the folder step is called **Folder**, its field may stay blank — Even Keel then makes a folder of its own — and where a task works is one folder for all tasks ([A project without git](chain.md#a-project-without-git)).
 
-You pick the agent of the project (the shared one unless you choose another; the wizard says whether it has a CLI and a signed-in account, and **Add an account** opens a dialog over it), give it the repository's folder or address, pick a tracker profile (or add one right there) and the project in that tracker, which it suggests from the tracker's list and, on GitHub and GitLab, from the repository's remote (on GitLab, a remote on the profile's server).
+You pick the agent of the project (the shared one unless you choose another; the wizard says whether it has a CLI and a signed-in account, and **Add an account** opens a dialog over it), give it the repository's folder or address, pick a tracker profile (**Built-in (no account)**, one you have, or add one right there) and the project in that tracker, which it suggests from the tracker's list and, on GitHub and GitLab, from the repository's remote (on GitLab, a remote on the profile's server).
 
 The wizard checks the repository and its main branch (it suggests the checkout's current branch and offers the others; a branch the repository lacks is created when the project is added, and the checkout switches to the branch you name; a folder that is not a repository yet, or one with no commits, gets a button that runs `git init` and makes an empty first commit on that branch), the project in the tracker (it shows how many open tasks it sees), Claude Code's trust in the folder (a task's own run can give it to Claude Code whatever the project's agent) and where tasks run — **Own folder per task** (a git worktree made for the task and removed after Done) or **Permanent folders** (a few folders a task switches the branch in).
 
@@ -66,7 +66,7 @@ A step that fails says why and offers **Retry**; when only the Git LFS files fai
 
 Each project needs:
 
-- a git repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task;
+- in git, a repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task; [without git](chain.md#a-project-without-git), just a folder;
 - for Claude Code in the background, Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. On Windows it writes the forward-slash path Claude reads, copying an older backslash entry when needed and preserving the original. Its task worktrees inherit that trust. This also enables repository hooks. The Agent SDK and other agents do not write Claude trust;
 - for Codex, Even Keel likewise marks the project's folder as trusted in the account's `config.toml` before each turn, since Codex reads the folder's Protection rules only in a trusted project ([Folder trust](agents.md#folder-trust)).
 

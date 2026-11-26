@@ -4,13 +4,13 @@ The Even Keel image runs on Linux amd64 and arm64. Docker Compose starts the ser
 
 ## First start
 
-Save [compose.yaml](../../compose.yaml) in an empty folder on the Docker host. Run the following commands in that folder. On Linux or macOS, this creates a private `.env` with a fresh page token.
+Save [compose.yaml](../../compose.yaml) in an empty folder on the Docker host. Run the following commands in that folder. On Linux or macOS, this creates a private `.env` with a fresh owner key.
 
 ```sh
 (umask 077 && printf 'EVEN_KEEL_TOKEN=%s\n' "$(openssl rand -hex 32)" > .env)
 ```
 
-Start Even Keel and open `http://localhost:4747` on the host. Enter the token from `.env` when prompted, then follow the [setup wizard](setup.md#the-first-start).
+Start Even Keel and open `http://localhost:4747` on the host. Enter the owner key, `EVEN_KEEL_TOKEN` from `.env`, when prompted, then follow the [setup wizard](setup.md#the-first-start). `even-keel install` and `npx even-keel` inside the container refuse with "Docker manages the service. Run docker compose up -d on the host to start Even Keel."
 
 ```sh
 docker compose up -d

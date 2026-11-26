@@ -10,7 +10,7 @@ A hub running from a checkout can rebuild after a green push. Use `service/rebui
 
 The gear menu in the header ends with the installed version.
 
-Even Keel asks GitHub for its latest release at start and every 12 hours (a request to `api.github.com` without a token; it names only the installed version); a newer one gets a mark next to the version and a notification in the corner of the page.
+Even Keel asks GitHub for its latest release at start and every 12 hours (a request to `api.github.com` without a token; it names only the installed version), though never before the first start's setup is through and only if you allowed it on the setup's step; change that answer in **Settings → Interface**. A newer release gets a mark next to the version and a notification in the corner of the page.
 
 Turn the check off on `/settings` → **Interface** or with `"updates": { "check": false }` in the config.
 

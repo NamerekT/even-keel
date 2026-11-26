@@ -23,7 +23,7 @@ In settings the CLI version is saved with the rest of the form, Execution includ
 
 Blue progress bands under the header and on the agent card show downloaded bytes.
 
-A failed download switches that provider to Yours and offers a retry; without a CLI, the agent shows a copyable installation command and **Check again**. Where installing is impossible, it offers **Switch to checked** and **Download the latest** instead.
+A failed download switches that provider to Yours and offers a retry; without a CLI, the agent shows a copyable installation command, **Install**, which runs it as the user Even Keel runs as and shows its output, and **Check again**. Where installing is impossible, it offers **Switch to checked** and **Download the latest** instead.
 
 See [setup](clis.md#the-clis-it-depends-on).
 

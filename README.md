@@ -111,7 +111,7 @@ The gear menu in the header tells you when a newer release is out: **Update** wa
 
 ## Uninstall
 
-`even-keel uninstall` removes the service and nothing else, then `npm uninstall --global even-keel` the package; delete the data folder yourself. What stays in your repositories and agents' config: [setup](docs/guide/uninstall.md#uninstall).
+`even-keel uninstall` removes the service and the hook it added to the Claude account folders, then `npm uninstall --global even-keel` the package; delete the data folder yourself. What stays in your repositories and agents' config: [setup](docs/guide/uninstall.md#uninstall).
 
 ## Configuration
 
@@ -119,7 +119,7 @@ The settings live in Even Keel's database and are edited on the page, applied at
 
 ## What comes next
 
-Looked at, not promised: several machines taking the tasks of one project, a cap on how much of the usage limit one task may spend.
+Looked at, not promised: a cap on how much of the usage limit one task may spend.
 
 ## Extending
 

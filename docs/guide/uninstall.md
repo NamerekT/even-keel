@@ -38,7 +38,7 @@ npm uninstall --global even-keel
 
 - the worktrees of unfinished tasks in `.claude/worktrees/` with their branches `<key>-<number>/task` (`git worktree list`, then `git worktree remove` and `git branch -d`), and the slots of a project with `slot`;
 - the lines `.claude/worktrees/`, `.temp/` and `/.codex/rules/even-keel.generated.rules` Even Keel added to `.git/info/exclude`, and that rules file itself;
-- with the plugin: `claude plugin uninstall huly@even-keel --scope project` (or `github@…`, `linear@…`, `gitlab@…`, `jira@…`, `forgejo@…`), then commit `.claude/settings.json`.
+- only where an old version, from before sessions got plugins as packages, installed a tracker plugin into the project: `claude plugin uninstall huly@even-keel --scope project` (or `github@…`, `linear@…`, `gitlab@…`, `jira@…`, `forgejo@…`), then commit `.claude/settings.json`.
 
 **In your Claude Code config and the other agents':**
 

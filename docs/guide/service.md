@@ -19,6 +19,8 @@ even-keel install
 even-keel uninstall
 ```
 
+On Windows, `even-keel install --service` installs the Windows service `EvenKeel` instead of the start at sign-in ([Windows: without a sign-in](#windows-without-a-sign-in)).
+
 `even-keel` with no command runs Even Keel in the terminal, on the same data folder.
 
 Once the service is set up, `even-keel install` and `even-keel update` wait up to 30 seconds for the page and print `Open <address>`, the address built from `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT` (the environment, then `.env` of the data folder); a page that does not answer by then gets its address and the log's place. Only the first install from `npx` opens the address in your browser, and only when the page answered: never over SSH, and on Linux only with a display (`DISPLAY` or `WAYLAND_DISPLAY`) and `xdg-open`. On Linux without systemd there is no service, so it prints where the page will be once you run `even-keel`.
@@ -109,13 +111,19 @@ The commands Even Keel itself suggests are written for cmd.
 
 ### Windows: without a sign-in
 
-For a machine where Even Keel must run with nobody signed in, a clone can still be the Windows service `EvenKeel`. From PowerShell 7 as administrator:
+For a machine where Even Keel must run with nobody signed in, Even Keel can be the Windows service `EvenKeel`. From PowerShell 7 as administrator, installed with npm:
+
+```powershell
+even-keel.cmd install --service
+```
+
+From a clone:
 
 ```powershell
 service\install.ps1
 ```
 
-It installs the dependencies, builds the page, compiles the service host the same way and registers the service under your account. The script never asks for your password: enter it in `services.msc` → EvenKeel → Properties → Log On, which also grants the "Log on as a service" right, then start the service.
+From a clone it also installs the dependencies and builds the page; either way it compiles the service host the same way and registers the service under your account. The script never asks for your password: enter it in `services.msc` → EvenKeel → Properties → Log On, which also grants the "Log on as a service" right, then start the service.
 
 One of the two per machine: they would take the same port, so `even-keel install` refuses while the service is installed, and `install.ps1` refuses while the start at sign-in is.
 

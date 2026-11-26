@@ -7,7 +7,7 @@ The [README](../../README.md) has the quick start. This page is the rest, in the
 3. [Projects](projects.md#projects) — the wizard, the repository's folder or address, what a project needs
 4. [Trackers and plugins](tracker-builtin.md#trackers-and-plugins) — the built-in tracker, a profile per tracker, packages for sessions, CI and token permissions
 5. [The page](remote.md#the-page) — answering from the phone, reaching the page from another machine
-6. [As a service](service.md#as-a-service) — npm, a clone, Windows, Linux and macOS, a machine of a hub
+6. [As a service](service.md#as-a-service) — npm, a clone, Windows, Linux and macOS; another computer joins as [a machine of a hub](hub-machine.md#a-machine-of-a-hub-preview)
 7. [Updating](updating.md#updating) — from the page or by hand, plugins, stored state, going back
 8. [Uninstall](uninstall.md#uninstall) — and what stays on the machine
 9. [The CLIs it depends on](clis.md#the-clis-it-depends-on) — what Even Keel relies on in each agent's CLI, and the checked versions
@@ -64,7 +64,7 @@ The projects and the settings live in Even Keel's database and are edited on the
 - the languages of the page and of the session prompts;
 - [phone access](#phone-access) (or later) — the phone comes in by an invitation, with no owner key;
 - git — whether it is installed (Even Keel never installs it and shows the command that does) and the name and e-mail commits are made as, written into git's global config of the user Even Keel runs as;
-- the agent all projects run on by default, its account (sign in, or add one in a dialog over the step) and, for each provider, whether sessions run on the CLI version Even Keel was checked on (downloaded with your consent, about 340 MB for Claude Code) or on the one installed;
+- the agent all projects run on by default, its account (sign in, or add one in a dialog over the step) and, for each provider, whether sessions run on the CLI version Even Keel was checked on (downloaded with your consent, about 340 MB for Claude Code) or on the one installed — without a CLI, the step installs it at a press of a button or takes Even Keel's copy;
 - a tracker profile (or later);
 - whether Even Keel may ask GitHub twice a day for a new release — nothing is asked until you answer;
 - and the [statistics](stats.md#statistics).
@@ -101,9 +101,9 @@ The macOS git stub reporting `xcrun: error: invalid active developer path` is tr
 
 ### The Agent step
 
-The setup's **Agent** step has three parts: the agent cards, each saying only whether its CLI is installed and on which version; "Which version to run" for the chosen agent, **Yours** or **Checked**; and its accounts as a table, the one sessions run on checked, **+ Add** in the heading.
+The setup's **Agent** step has three parts: the agent cards, each saying only whether its CLI is installed and on which version; "Which version to run" for the chosen agent, **Yours** or **Checked** or, where the CLI cannot be installed, **Latest**; and its accounts as a table, the one sessions run on checked, **+ Add** in the heading.
 
-Without your CLI, Yours shows the command that installs it and **Check again**.
+Without your CLI, Yours shows the command that installs it, **Install** and **Check again**. **Install** runs that command itself, as the user Even Keel runs as, and shows its output under it; once it ends, Even Keel looks for the CLI again. You can run the command in a terminal yourself instead and press **Check again**.
 
 Where you cannot install the CLI yourself (in Docker, or when npm's global folder is not writable), there is no command. Instead, a third choice, **Latest**, runs Even Keel's own copy of the agent's newest release, which it keeps up to date by itself ([Agents](agents.md#cli-copies)).
 
@@ -119,9 +119,9 @@ No startup, sign-in or version check downloads a copy by itself, with one except
 
 If downloading fails, **CLI version** switches to **Yours** for that provider and offers **Try downloading again**.
 
-An installed CLI can then run sessions; without one, the block shows an installation command, **Check again**, and Checked to choose again.
+An installed CLI can then run sessions; without one, the block shows an installation command, **Install**, **Check again**, and Checked to choose again.
 
-Even Keel never installs a global CLI.
+Even Keel installs a CLI itself only when you press **Install**, with the agent's official installer; without the press, never.
 
 Old copies are removed, retrying folders still held by a process at startup and each version check.
 
