@@ -1,10 +1,8 @@
-import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState } from './dispatcher.js'
 import type { HandoffSession } from './relay.js'
-import { Writes } from '../storage/database.js'
-import { memoryDatabase } from '../storage/memory.js'
-import { Mailbox } from '../sessions/mailbox.js'
+import { memoryMailbox } from '../sessions/mailbox.fixture.js'
 import { createChat } from '../sessions/chat.js'
 import { settleMail } from '../sessions/mailRelay.js'
 
@@ -51,9 +49,7 @@ describe('answers queued before stopAfter removes the chain', { timeout: 30_000 
   it('returns mailbox messages when transport fails, with or without a chain', async () => {
     for (const stop of [false, true]) {
       const { dispatcher, clock, log } = await running({ reply: async () => { throw new Error('resume failed') } })
-      const writes = new Writes(() => {})
-      const mailbox = await Mailbox.open(await memoryDatabase(), writes, () => clock.now)
-      onTestFinished(() => writes.settled())
+      const mailbox = memoryMailbox(() => clock.now)
       const { mailRelay } = createChat({
         dispatcher, mailbox, configuredProject: () => 'ABC',
         liveView: () => ({ sessionId: session.sessionId, asking: false, ask: null }),
@@ -72,9 +68,7 @@ describe('answers queued before stopAfter removes the chain', { timeout: 30_000 
 
   it('resumes with mailbox messages from the finished turn and leaves the chain stopped', async () => {
     const { dispatcher, busy, clock, relays, launched } = await running({ busy: new Set(['ABC-1']) })
-    const writes = new Writes(() => {})
-    const mailbox = await Mailbox.open(await memoryDatabase(), writes, () => clock.now)
-    onTestFinished(() => writes.settled())
+    const mailbox = memoryMailbox(() => clock.now)
     const { mailRelay } = createChat({
       dispatcher, mailbox, configuredProject: () => 'ABC',
       liveView: () => ({ sessionId: session.sessionId, asking: false, ask: null }),
