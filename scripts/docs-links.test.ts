@@ -1,6 +1,6 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { anchorsOf, brokenLinks, markdownFiles } from './docs-links.ts'
@@ -22,6 +22,22 @@ describe('links between the documents', () => {
       writeFileSync(join(dir, 'a.md'), '# A\r\n\r\nSee [b](b.md#part-two).\r\n')
       writeFileSync(join(dir, 'b.md'), '# B\r\n\r\n## Part two\r\n')
       expect(brokenLinks(dir, markdownFiles(dir))).toEqual([])
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("leaves out the chain's worktrees but keeps the rest of .claude", () => {
+    const dir = mkdtempSync(join(tmpdir(), 'docs-links-'))
+    try {
+      mkdirSync(join(dir, '.claude', 'worktrees', 'x'), { recursive: true })
+      mkdirSync(join(dir, '.claude', 'skills', 'audit'), { recursive: true })
+      mkdirSync(join(dir, 'docs', 'worktrees'), { recursive: true })
+      writeFileSync(join(dir, '.claude', 'worktrees', 'x', 'README.md'), 'See [gone](gone.md).\n')
+      writeFileSync(join(dir, '.claude', 'skills', 'audit', 'SKILL.md'), '# Skill\n')
+      writeFileSync(join(dir, 'docs', 'worktrees', 'notes.md'), '# Notes\n')
+      const found = markdownFiles(dir).map((file) => relative(dir, file).split(sep).join('/')).sort()
+      expect(found).toEqual(['.claude/skills/audit/SKILL.md', 'docs/worktrees/notes.md'])
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

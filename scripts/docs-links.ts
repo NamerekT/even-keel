@@ -28,12 +28,19 @@ export const anchorsOf = (text: string): Set<string> => {
   return found
 }
 
-export const markdownFiles = (root: string, skip: ReadonlySet<string> = new Set(['node_modules', '.git', '.temp', 'dist', 'state'])): string[] => {
+/** Folder names left out at any depth. */
+const SKIP_NAMES: ReadonlySet<string> = new Set(['node_modules', '.git', '.temp', 'dist', 'state'])
+/** Folders left out by their path from the root: the chain's worktrees are other checkouts, not this one's documents. */
+const SKIP_PATHS: ReadonlySet<string> = new Set(['.claude/worktrees'])
+
+/** Every `.md` of a checkout, without the folders of `SKIP_NAMES` and `SKIP_PATHS`. */
+export const markdownFiles = (root: string): string[] => {
   const out: string[] = []
   const walk = (dir: string): void => {
     for (const name of readdirSync(dir)) {
-      if (skip.has(name)) continue
+      if (SKIP_NAMES.has(name)) continue
       const path = join(dir, name)
+      if (SKIP_PATHS.has(relative(root, path).split(sep).join('/'))) continue
       if (statSync(path).isDirectory()) walk(path)
       else if (name.endsWith('.md')) out.push(path)
     }
