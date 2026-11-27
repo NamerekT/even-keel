@@ -455,4 +455,15 @@ export const STEPS: readonly string[] = [
   `
   alter table chats add column name text;
   `,
+  // The prompt version a badge title was translated by (BTN-1784, `docs/badge.md`, "English titles"). Null — the first
+  // prompt, as every row before the step: its titles are asked again, its `NONE` answers are kept.
+  `
+  alter table badge_translations add column prompt integer;
+  `,
+  // The hand-over of a chat continued early from the old one's menu (BTN-1776, `docs/sessions/project-chats.md`): the
+  // head of its first prompt, kept until the user's first message launches its session. Null — nothing waits, as every
+  // chat before the step.
+  `
+  alter table chats add column handover text;
+  `,
 ]

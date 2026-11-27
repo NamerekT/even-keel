@@ -49,6 +49,12 @@ export interface ChatRecord {
    */
   pending: string | null
   /**
+   * The hand-over of a chat continued early from the old one's menu (BTN-1776): the head of its first prompt — the old
+   * chat's last turns and transcript, `handoverOf` — which goes with the user's first message and is cleared once its
+   * session is launched. `null` — nothing waits.
+   */
+  handover: string | null
+  /**
    * Its own choice of packages over the project's set (BTN-1696): `true` on, `false` off, a package not named — as the
    * project has it. Chosen at its creation, like the account.
    */

@@ -80,14 +80,18 @@ describe('the context of a chat', () => {
 })
 
 describe('the ⋯ menu of a chat (BTN-1775)', () => {
-  it('archives a chat with a session in any state, a question and a turn too', () => {
+  it('continues or archives a chat with a session in any state, a question and a turn too', () => {
     for (const state of ['working', 'waiting', 'answered', 'cold', 'error'] as const) {
-      expect(chatActions({ ...card(state), sessionId: 's-1' })).toEqual(['archive'])
+      expect(chatActions({ ...card(state), sessionId: 's-1' })).toEqual(['continue', 'archive'])
     }
   })
 
   it('deletes an empty chat, one with no session yet', () => {
     expect(chatActions(card('new'))).toEqual(['delete'])
+  })
+
+  it('archives a chat continued early before its first message: it carries the old one (BTN-1776)', () => {
+    expect(chatActions({ ...card('new'), previous: 'chat-0' })).toEqual(['archive'])
   })
 
   it('archives a chat whose first session is starting: it has one already', () => {

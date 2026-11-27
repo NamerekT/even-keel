@@ -25,7 +25,7 @@ import {
   type ChatRecord,
 } from './model.js'
 import type { ChatPlace } from './places.js'
-import { renewPrompt, type ChatPast } from './prompt.js'
+import { handoverOf, renewPrompt, withHandover, type ChatPast } from './prompt.js'
 import type { ChatStore } from './store.js'
 
 export type { ChatPlace } from './places.js'
@@ -60,6 +60,13 @@ export interface ChatMessageIn {
   text: string
   answers?: AskAnswers
   files: InboxFile[]
+}
+
+/** The machine, folder, commands and agent of the account a chat goes on at (`renew`, `continueEarly`). */
+interface ChatTarget {
+  place: ChatPlace
+  services: Pick<MachineServices, 'chat' | 'chats'>
+  agent: string
 }
 
 const newChatId = (): string => CHAT_PREFIX + randomBytes(6).toString('hex')
@@ -151,7 +158,10 @@ export class ProjectChats {
     const view = this.viewOf(chat)
     const folder = view?.cwd ?? (await this.deps.placeOf(chat.project, machine)).folder
     const files = await this.saveFiles(services, chat.project, folder, message.files)
-    const prompt = replyPrompt({ from: 'page', answers: message.answers ?? {}, text: message.text, files }, view?.ask ?? null, this.deps.language(chat.project))
+    const language = this.deps.language(chat.project)
+    const said = replyPrompt({ from: 'page', answers: message.answers ?? {}, text: message.text, files }, view?.ask ?? null, language)
+    // A chat continued early sends the old one's hand-over with its first message (BTN-1776).
+    const prompt = chat.sessionId === null && chat.handover !== null ? withHandover(chat.handover, said, language) : said
     if (!this.running(chat)) await this.makeRoom(chat, machine)
     this.idled.delete(id)
     let sessionId: string
@@ -174,6 +184,7 @@ export class ProjectChats {
       ...(this.deps.store.get(id) ?? chat),
       sessionId,
       machine,
+      handover: null,
       first: chat.first ?? cut(text),
       said: withSaid(chat.said, text),
       last: { from: 'user', text: cut(text), at },
@@ -241,12 +252,12 @@ export class ProjectChats {
   }
 
   /**
-   * Deletes an empty chat for good (BTN-1775): one with no session, none being launched and none pending, so nothing
-   * of it runs or is kept anywhere but its record. A chat with a session goes to the archive instead (`archive`).
+   * Deletes an empty chat for good (BTN-1775): one with no session, none being launched, none pending and no hand-over
+   * waiting (BTN-1776), so nothing of it runs or is kept anywhere but its record. Any other goes to the archive instead.
    */
   async remove(id: string): Promise<void> {
     const chat = await this.active(id)
-    if (chat.sessionId !== null || chat.pending !== null || this.starting.has(id) || this.moving.has(id)) throw fail('chats.hasSession', {})
+    if (chat.sessionId !== null || chat.pending !== null || chat.handover !== null || this.starting.has(id) || this.moving.has(id)) throw fail('chats.hasSession', {})
     this.deps.store.remove(id)
     this.deps.log(`chats: ${id} of ${chat.project} deleted, it had no session`)
     this.deps.changed()
@@ -268,31 +279,17 @@ export class ProjectChats {
     if (this.starting.has(id) || this.moving.has(id)) throw fail('chats.starting', {})
     this.moving.add(id)
     try {
-      const place = await this.deps.placeOf(old.project, named ?? old.machine ?? undefined)
-      const account = this.deps.accounts(place.machine)?.find((each) => each.key === choice.account)
-      if (account === undefined) throw fail('chats.noAccount', { account: choice.account })
-      const services = this.deps.services(place.machine)
-      if (services === undefined) throw fail('chats.noMachine', {})
-      const from = old.machine !== null && old.machine !== place.machine ? old.machine : null
-      const gone = from !== null && this.deps.services(from) === undefined
+      const target = await this.targetOf(old, choice, named)
+      const { place, services } = target
       const past = await this.pastOf(old)
       const files = await this.saveFiles(services, old.project, place.folder, message.files)
       const language = this.deps.language(old.project)
       const said = replyPrompt({ from: 'page', answers: message.answers ?? {}, text: message.text, files }, this.viewOf(old)?.ask ?? null, language)
-      if (gone) this.deps.log(`chats: ${id}: the session ${old.sessionId} was not stopped: its machine ${from} is off the link`)
-      else await this.stop(old)
-      let carried = past
-      let stayedOn: string | undefined
-      if (from !== null && old.sessionId !== null) {
-        // The old session is stopped by now: its transcript is whole.
-        const copy = gone ? null : await this.carryTranscript(old, from, services, place.folder)
-        carried = { sessionId: old.sessionId, recent: past?.recent ?? [], transcript: copy }
-        if (copy === null) stayedOn = this.deps.machineName(from)
-      }
+      const { carried, stayedOn } = await this.release(old, target, past)
       const at = this.deps.now().toISOString()
       const text = message.text.trim() === '' ? files.join('\n') : message.text
       const next: ChatRecord = {
-        ...this.newRecord(old.project, account.agent, choice, place.machine, at),
+        ...this.newRecord(old.project, target.agent, choice, place.machine, at),
         name: old.name,
         first: cut(text),
         said: withSaid('', text),
@@ -300,14 +297,75 @@ export class ProjectChats {
         previous: old.id,
         pending: renewPrompt(said, carried, language, stayedOn),
       }
-      this.deps.store.setChoice(old.project, { ...choice, machine: place.machine })
-      this.deps.store.put(next)
-      this.putArchived(this.deps.store.get(id) ?? old, next.id)
-      this.deps.log(`chats: ${id} goes on in ${next.id} on ${choice.account}`)
+      this.passOn(old, next, choice)
       return await this.launchPending(next, services, place.folder)
     } finally {
       this.moving.delete(id)
     }
+  }
+
+  /**
+   * "Continue in new session…" of the chat's ⋯ menu (BTN-1776): `renew` ahead of a cold cache or a limit and without a
+   * message. The old session is stopped and the old chat archived with the new one as its successor at once, a
+   * transcript carried to another machine at once too, while the old one is on the link; the new chat keeps the
+   * hand-over (`handoverOf`) and launches nothing until the user's first message, which `send` sends with it.
+   */
+  async continueEarly(id: string, asked: ChatChoice, named?: string): Promise<ChatCard> {
+    const old = await this.active(id)
+    if (old.sessionId === null) throw fail('chats.noSession', {})
+    const choice: ChatChoice = asked.packages !== undefined || Object.keys(old.packages).length === 0 ? asked : { ...asked, packages: old.packages }
+    if (this.starting.has(id) || this.moving.has(id)) throw fail('chats.starting', {})
+    this.moving.add(id)
+    try {
+      const target = await this.targetOf(old, choice, named)
+      const past = await this.pastOf(old)
+      const { carried, stayedOn } = await this.release(old, target, past)
+      const next: ChatRecord = {
+        ...this.newRecord(old.project, target.agent, choice, target.place.machine, this.deps.now().toISOString()),
+        name: old.name,
+        previous: old.id,
+        handover: handoverOf(carried, this.deps.language(old.project), stayedOn),
+      }
+      this.passOn(old, next, choice)
+      this.deps.changed()
+      return this.cardOf(next)
+    } finally {
+      this.moving.delete(id)
+    }
+  }
+
+  /** Where a chat goes on (BTN-1711): `named` when the window named a machine, else the old chat's; throws a notice. */
+  private async targetOf(old: ChatRecord, choice: ChatChoice, named?: string): Promise<ChatTarget> {
+    const place = await this.deps.placeOf(old.project, named ?? old.machine ?? undefined)
+    const account = this.deps.accounts(place.machine)?.find((each) => each.key === choice.account)
+    if (account === undefined) throw fail('chats.noAccount', { account: choice.account })
+    const services = this.deps.services(place.machine)
+    if (services === undefined) throw fail('chats.noMachine', {})
+    return { place, services, agent: account.agent }
+  }
+
+  /**
+   * Stops the old session (exception 12) and, at another machine, carries its transcript there; the past the new chat's
+   * prompt tells and the machine it stayed on. With the old machine off the link nothing is stopped or carried.
+   */
+  private async release(old: ChatRecord, { place, services }: ChatTarget, past: ChatPast | null): Promise<{ carried: ChatPast | null; stayedOn?: string }> {
+    const from = old.machine !== null && old.machine !== place.machine ? old.machine : null
+    const gone = from !== null && this.deps.services(from) === undefined
+    if (gone) this.deps.log(`chats: ${old.id}: the session ${old.sessionId} was not stopped: its machine ${from} is off the link`)
+    else await this.stop(old)
+    if (from === null || old.sessionId === null) return { carried: past }
+    // The old session is stopped by now: its transcript is whole.
+    const copy = gone ? null : await this.carryTranscript(old, from, services, place.folder)
+    const carried = { sessionId: old.sessionId, recent: past?.recent ?? [], transcript: copy }
+    return copy === null ? { carried, stayedOn: this.deps.machineName(from) } : { carried }
+  }
+
+  /** Keeps the new chat, makes its choice the project's last one and archives the old chat with it as the successor. */
+  private passOn(old: ChatRecord, next: ChatRecord, choice: ChatChoice): void {
+    this.deps.store.setChoice(old.project, { ...choice, machine: next.machine ?? undefined })
+    this.deps.store.put(next)
+    this.putArchived(this.deps.store.get(old.id) ?? old, next.id)
+    this.deps.log(`chats: ${old.id} goes on in ${next.id} on ${choice.account}`)
   }
 
   /**
@@ -360,6 +418,7 @@ export class ProjectChats {
       successor: null,
       previous: null,
       pending: null,
+      handover: null,
       packages: choice.packages ?? {},
     }
   }

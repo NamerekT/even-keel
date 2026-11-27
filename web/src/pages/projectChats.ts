@@ -41,16 +41,21 @@ export function modelText(model: string | null, fallback: string, title?: string
   return model === null ? fallback : shortModel(model, title).name
 }
 
-/** What the ⋯ menu of a chat does: archive one with a session, delete one without (BTN-1775). */
-export type ChatAction = 'archive' | 'delete'
+/**
+ * What the ⋯ menu of a chat does: archive one with a session, delete one without (BTN-1775), continue one with a
+ * session in a new session early (BTN-1776).
+ */
+export type ChatAction = 'continue' | 'archive' | 'delete'
 
 /**
- * The ⋯ menu's actions on a chat, one list for its card and its window's head: an empty chat — no session and none
- * starting — is deleted, any other archived; an archived chat has none.
+ * The ⋯ menu's actions on a chat, one list for its card and its window's head: a chat with a session goes on in a
+ * new one or is archived; an empty chat — no session, none starting and not continued from another — is deleted, any
+ * other archived; an archived chat has none.
  */
 export function chatActions(chat: ChatCard): ChatAction[] {
   if (chat.archivedAt !== null) return []
-  return [chat.sessionId === null && chat.state !== 'starting' ? 'delete' : 'archive']
+  if (chat.sessionId !== null) return ['continue', 'archive']
+  return [chat.state !== 'starting' && chat.previous === null ? 'delete' : 'archive']
 }
 
 /** How full the chat's context is, in whole percent; `null` — no session, no window or nothing read yet. */

@@ -28,9 +28,10 @@ interface ChatRow {
   pending: string | null
   packages: string | null
   name: string | null
+  handover: string | null
 }
 
-const COLUMNS = 'id, project_id, agent, account, model, effort, title, first, said, last, session_id, machine_id, created_at, last_at, read_at, archived_at, successor, previous, pending, packages, name'
+const COLUMNS = 'id, project_id, agent, account, model, effort, title, first, said, last, session_id, machine_id, created_at, last_at, read_at, archived_at, successor, previous, pending, packages, name, handover'
 
 const iso = (ms: string | null): string | null => (ms === null ? null : new Date(Number(ms)).toISOString())
 const ms = (at: string | null): number | null => (at === null ? null : Date.parse(at))
@@ -72,6 +73,7 @@ function recordOf(row: ChatRow): ChatRecord {
     successor: row.successor,
     previous: row.previous,
     pending: row.pending,
+    handover: row.handover,
     packages: packagesOf(row.packages),
   }
 }
@@ -132,14 +134,14 @@ export class ChatStore {
     if (chat.archivedAt === null) this.chats.set(chat.id, chat)
     else this.chats.delete(chat.id)
     this.deps.writes.add(`the chat ${chat.id}`, this.deps.db.query(
-      `insert into chats (${COLUMNS}) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      `insert into chats (${COLUMNS}) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
        on conflict (id) do update set title = excluded.title, name = excluded.name, first = excluded.first, said = excluded.said, last = excluded.last,
          session_id = excluded.session_id, machine_id = excluded.machine_id, last_at = excluded.last_at, read_at = excluded.read_at, archived_at = excluded.archived_at,
-         successor = excluded.successor, previous = excluded.previous, pending = excluded.pending`,
+         successor = excluded.successor, previous = excluded.previous, pending = excluded.pending, handover = excluded.handover`,
       [
         chat.id, chat.project, chat.agent, chat.account, chat.model, chat.effort, chat.title, chat.first, chat.said,
         chat.last === null ? null : JSON.stringify(chat.last), chat.sessionId, chat.machine, ms(chat.createdAt), ms(chat.lastAt), ms(chat.readAt),
-        ms(chat.archivedAt), chat.successor, chat.previous, chat.pending, packagesColumn(chat.packages), chat.name,
+        ms(chat.archivedAt), chat.successor, chat.previous, chat.pending, packagesColumn(chat.packages), chat.name, chat.handover,
       ],
     ))
   }

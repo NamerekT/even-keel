@@ -16,6 +16,11 @@ const command = vi.fn()
 vi.mock('../live/context.js', () => ({
   useLive: () => ({ state: null, command, read: async () => ({ chats: [], more: false }) }),
 }))
+// The window of an early continue as a stub: its button hands over the chat the service made (BTN-1776).
+vi.mock('./ChatContinueDialog.js', () => ({
+  ChatContinueDialog: ({ chat, onContinued }: { chat: ChatCard; onContinued: (next: ChatCard) => void }) =>
+    createElement('dialog', { open: true, className: 'continue-stub' }, createElement('button', { type: 'button', onClick: () => onContinued({ ...chat, id: `${chat.id}-next`, sessionId: null, state: 'new', previous: chat.id }) }, 'go')),
+}))
 
 const chat = (id: string, patch: Partial<ChatCard> = {}): ChatCard => ({
   id, project: 'project', title: id, agent: 'claude', account: 'global', model: null, effort: null, state: 'answered', context: null,
@@ -58,6 +63,17 @@ it("archives a chat from its card's ⋯ without opening it: the card leaves, the
   expect(command).toHaveBeenCalledWith('chats/hide', { id: 'first' })
   expect(item.classList.contains('chats__item--leaving')).toBe(true)
   expect(document.querySelector('dialog')).toBeNull()
+  expect(refresh).toHaveBeenCalledOnce()
+})
+
+it("continues a chat from its card's ⋯ in a window first; once continued the card leaves and the list is read again (BTN-1776)", async () => {
+  await render([chat('first'), chat('second')])
+  const item = await pick('first', t.chats.menu.continue)
+  expect(command).not.toHaveBeenCalled()
+  expect(item.classList.contains('chats__item--leaving')).toBe(false)
+  await act(async () => document.querySelector<HTMLButtonElement>('.continue-stub button')!.click())
+  expect(document.querySelector('.continue-stub')).toBeNull()
+  expect(item.classList.contains('chats__item--leaving')).toBe(true)
   expect(refresh).toHaveBeenCalledOnce()
 })
 

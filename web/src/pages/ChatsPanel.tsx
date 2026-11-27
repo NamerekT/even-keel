@@ -17,6 +17,7 @@ import { EffortBars } from '../ui/RunLabelTag.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { NewChatDialog } from './NewChatDialog.js'
 import { modelTip, shortModel } from '../ui/modelLabel.js'
+import { ChatContinueDialog } from './ChatContinueDialog.js'
 import { ChatMenu } from './ChatMenu.js'
 import { chatChip, chatsBadge, chatTone, contextPercent, modelText, type ChatAction } from './projectChats.js'
 import { GroupTabs } from './settingsParts.js'
@@ -72,7 +73,12 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
   // The cards on their way out (BTN-1775): they slide and fade until the list read again drops them.
   const [leaving, setLeaving] = useState<ReadonlySet<string>>(new Set())
   const [failure, setFailure] = useState<Notice | null>(null)
+  const [continuing, setContinuing] = useState<ChatCard | null>(null)
   const act = (chat: ChatCard, action: ChatAction) => {
+    if (action === 'continue') {
+      setContinuing(chat)
+      return
+    }
     setOpened((now) => (now?.id === chat.id ? null : now))
     setFailure(null)
     setLeaving((now) => new Set(now).add(chat.id))
@@ -158,6 +164,19 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
             }}
             onChanged={chats.refresh}
             onAct={act}
+          />
+        )}
+        {continuing !== null && (
+          <ChatContinueDialog
+            chat={continuing}
+            onClose={() => setContinuing(null)}
+            onContinued={(next) => {
+              const old = continuing.id
+              setContinuing(null)
+              setLeaving((now) => new Set(now).add(old))
+              setOpened((now) => (now?.id === old ? next : now))
+              chats.refresh()
+            }}
           />
         )}
       </Suspense>

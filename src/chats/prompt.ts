@@ -59,11 +59,21 @@ const TEXTS = {
  * `stayedOn` — the name of the old chat's machine, whose transcript the new one could not get a copy of (BTN-1711).
  */
 export function renewPrompt(message: string, past: ChatPast | null, language: Language, stayedOn?: string): string {
+  return withHandover(handoverOf(past, language, stayedOn), message, language)
+}
+
+/** The head of `renewPrompt` without the message: what a chat continued early keeps until its first message (BTN-1776). */
+export function handoverOf(past: ChatPast | null, language: Language, stayedOn?: string): string {
   const text = TEXTS[language]
   const lines = [text.lead]
   const turns = past === null ? [] : turnsOf(past.recent)
   if (turns.length > 0) lines.push('', text.turns, ...turns.map((turn) => fill`- ${turn.from === 'user' ? text.user : text.agent}: ${turn.text}`))
   if (past?.transcript != null) lines.push('', text.transcript(past.transcript))
   else if (stayedOn !== undefined) lines.push('', text.stayed(stayedOn))
-  return `${lines.join('\n')}\n\n${USER_MESSAGE_HEAD[language]}\n\n${message.trimEnd()}\n`
+  return lines.join('\n')
+}
+
+/** A hand-over followed by the user's message under `USER_MESSAGE_HEAD`. */
+export function withHandover(handover: string, message: string, language: Language): string {
+  return `${handover}\n\n${USER_MESSAGE_HEAD[language]}\n\n${message.trimEnd()}\n`
 }

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { memoryDatabase } from '../storage/memory.js'
 import { BadgeTranslations, cleanTitle, TRANSLATION_RETRY_MS } from './translate.js'
@@ -72,6 +73,76 @@ describe('badge title translations', { timeout: 30_000 }, () => {
     await restarted.settle()
     expect(restarted.title(task, true)).toBeUndefined()
     expect(request).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an English title word for word when the model answers KEEP (BTN-1784)', async () => {
+    const db = await memoryDatabase()
+    const request = vi.fn(async () => response(' Keep. '))
+    const translations = new BadgeTranslations(db, { env: () => env, request })
+    const english = { ...task, title: "A merged task's session shows as a question while its merge lands" }
+    translations.title(english, true)
+    await translations.settle()
+    const [, init] = request.mock.calls[0] as unknown as [string, RequestInit]
+    const prompt = JSON.parse(init.body as string).messages[0].content as string
+    expect(prompt).toContain('already in English')
+    expect(prompt).toContain('answer KEEP')
+    expect(prompt).not.toContain('concise')
+    expect(translations.title(english, true)).toBe(english.title)
+    const marked = { ...task, id: 'ABC-2', title: 'Project chat: ··· menu with **Archive** now — `chats.ts`' }
+    translations.title(marked, true)
+    await translations.settle()
+    expect(translations.title(marked, true)).toBe('Project chat: ··· menu with Archive now — chats.ts')
+  })
+
+  it('takes no title from KEEP for a title not in English and asks again after the pause', async () => {
+    const db = await memoryDatabase()
+    let now = 1_800_000
+    const lines: string[] = []
+    const request = vi.fn(async () => response('KEEP'))
+    const translations = new BadgeTranslations(db, { env: () => env, request, now: () => now, log: (line) => lines.push(line) })
+    translations.title(task, true)
+    await translations.settle()
+    expect(translations.title(task, true)).toBeUndefined()
+    expect(lines).toEqual(['badge: English title unavailable (KEEP for a title not in English)'])
+    now += TRANSLATION_RETRY_MS
+    translations.title(task, true)
+    await translations.settle()
+    expect(request).toHaveBeenCalledTimes(2)
+  })
+
+  it('asks again for a title translated by an older prompt, showing the old one until then, but not for NONE', async () => {
+    const db = await memoryDatabase()
+    const old = { ...task, id: 'ABC-2', title: 'Old title' }
+    const none = { ...task, id: 'ABC-3', title: 'Client title' }
+    const hash = (title: string) => createHash('sha256').update(title).digest('hex')
+    await db.query(`insert into badge_translations (tracker, task, title_hash, attempted_at, title_en) values
+      ('example', 'ABC-2', $1, 0, 'Retold title'), ('example', 'ABC-3', $2, 0, '')`, [hash(old.title), hash(none.title)])
+    let fail = true
+    const request = vi.fn(async () => fail ? new Response('', { status: 500 }) : response('KEEP'))
+    let now = 1_800_000
+    const options = { env: () => env, request, now: () => now, log: () => undefined }
+    const translations = new BadgeTranslations(db, options)
+    translations.title(old, true)
+    translations.title(none, true)
+    await translations.settle()
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(translations.title(old, true)).toBe('Retold title')
+    expect(translations.title(none, true)).toBeUndefined()
+    const restarted = new BadgeTranslations(db, options)
+    restarted.title(old, true)
+    await restarted.settle()
+    expect(restarted.title(old, true)).toBe('Retold title')
+    expect(request).toHaveBeenCalledTimes(1)
+    fail = false
+    now += TRANSLATION_RETRY_MS
+    restarted.title(old, true)
+    await restarted.settle()
+    expect(restarted.title(old, true)).toBe('Old title')
+    const again = new BadgeTranslations(db, options)
+    again.title(old, true)
+    await again.settle()
+    expect(again.title(old, true)).toBe('Old title')
+    expect(request).toHaveBeenCalledTimes(2)
   })
 
   it.each(['network', 'empty', 'http', 'json', 'settings'])('keeps %s failures through a restart for 30 minutes and logs each reason once', async (failure) => {

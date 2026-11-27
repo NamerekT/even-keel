@@ -46,6 +46,16 @@ export function renewalChoice(chat: ChatCard, renewal: ChatRenewal, last: ChatCh
   return chat.machine === undefined ? choice : { ...choice, machine: chat.machine }
 }
 
+/**
+ * The window of an early continue (BTN-1776) picks what the chat already runs on: its machine (or the hub's pick),
+ * account, model (`''` — the CLI's) and the effort the form shows for a chat with none of its own (`efforts` — the
+ * agent's). No account open to pick differs: the window says why on its own.
+ */
+export function sameAsChat(chat: ChatCard, pick: { machine: string | null; account: string | undefined; model: string; effort: string }, efforts: readonly string[]): boolean {
+  const effort = chat.effort ?? (efforts.includes('medium') ? 'medium' : (efforts[0] ?? ''))
+  return (pick.machine === null || pick.machine === chat.machine) && pick.account === chat.account && pick.model === (chat.model ?? '') && pick.effort === effort
+}
+
 function accountChoice(chat: ChatCard, renewal: ChatRenewal, last: ChatChoice | null, accounts: AccountEntry[]): ChatChoice {
   const open = accounts.filter(accountOpen)
   const of = (key: string | undefined) => accounts.find((entry) => entry.key === key)

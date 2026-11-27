@@ -275,11 +275,15 @@ task's key is available. The next push follows the usual two-minute minimum gap.
 
 It uses the classifier's live `TALLY_LLM_URL`, `TALLY_LLM_KEY` and `TALLY_LLM_MODEL` (`llmSettings`,
 `tally/src/classify.ts`): `POST <url>/chat/completions`, bearer key, `temperature: 0`, the default model
-`google-gemini-3.1-flash-lite`. LiteLLM owns model fallbacks. The system prompt asks for concise English within 90
-characters and unchanged code and file names, and to replace names of people, companies and clients, addresses and
-e-mails with general words — or to answer `NONE` where the title makes no sense without them (BTN-931). `NONE` is kept
-as an empty title: the badge shows the key alone and the title is not asked again, even after a change of the LLM
-settings. The answer then passes the filter above like any free text. The user message is **only the title**, never the
+`google-gemini-3.1-flash-lite`. LiteLLM owns model fallbacks. The system prompt asks to answer `KEEP` for a title
+already in English, within 90 characters and with no names or addresses (BTN-1784); otherwise to translate it close to
+its words, never retelling it, shortening only past 90 characters, with code and file names unchanged, and to replace
+names of people, companies and clients, addresses and e-mails with general words — or to answer `NONE` where the title
+makes no sense without them (BTN-931). The model is asked for every title, English ones too: it is the layer that keeps
+a client's name off the public picture. `KEEP` takes the original title word for word (through the same cleaning as an
+answer, below); a `KEEP` for a title with letters outside the Latin script is an unusable answer, retried after the
+pause. `NONE` is kept as an empty title: the badge shows the key alone and the title is not asked again, even after a
+change of the LLM settings. The answer then passes the filter above like any free text. The user message is **only the title**, never the
 task's description, comments or question. A release carry is not translated: it has no tracker task, and its title is
 its own (EKR-138), "Carrying release v0.3 into dev" — the version from the release project's `branch` (`release/v0.3`;
 a branch with no version is named whole) and the `branch` of the project it goes into, never a literal. A fix of main is
@@ -289,7 +293,10 @@ only with the `title` field picked. Timeout: three minutes, like the classifier.
 formatting characters, surrounding quotes and extra whitespace, then is cut to 90 Unicode characters.
 
 Database step 45 adds `badge_translations`: a tracker source (kind, profile and tracker project; built-in trackers use
-the project GUID), task id and SHA-256 of the original title. An in-flight request is shared by all badge consumers.
+the project GUID), task id and SHA-256 of the original title. Step 89 adds `prompt`, the version of the prompt a title
+was translated by (`PROMPT_VERSION`, bumped with every change of the prompt; null — the first). A title of another
+version is asked again like a failed one, its old answer shown until the new one replaces it; a failed request leaves
+the old one. A `NONE` of any version is kept. An in-flight request is shared by all badge consumers.
 Success stays cached across restarts and changes of model or credentials; a changed title uses another cache key.
 An attempt is saved **before** the request: missing settings, failure, an empty answer or a restart during a request
 leave no `titleEn` and delay another attempt for at least 30 minutes. Each failure reason is logged once per service
