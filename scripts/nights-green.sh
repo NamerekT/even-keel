@@ -1,5 +1,5 @@
 #!/bin/sh
-# Whether the nightly workflows and the Huly contract let a release out (docs/releases.md, "A release", step 1).
+# Whether the nightly workflows and the Huly contract let a release out (docs/releases.md, "A release", step 3).
 # A night ("Real CLIs", "Tracker contract", "macOS"): its latest finished run of the night or by hand on `dev` must be a success.
 # A red night holds every release until a run is green again: a fix on `dev` and a run by hand
 # (`gh workflow run <file> --ref dev`) lift it. A workflow with no such run yet passes, with a note: GitHub starts a
