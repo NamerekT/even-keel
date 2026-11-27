@@ -355,6 +355,33 @@ export function fakeChats(mode: string | null) {
         setTimeout(() => replace(next.id, { state: 'answered', unread: true, last: { from: 'agent', text: 'Picked up where the last chat stopped: the step waits on a port another run holds.', at: new Date().toISOString() } }), ANSWER_MS * 2)
         return next
       }
+      if (name === 'chats/continue') {
+        // An early continue (BTN-1776): the old chat goes to the archive at once, the new one waits for its first message.
+        const hit = find(String(body.id))
+        if (hit === undefined) return null
+        const choice: ChatChoice = { account: String(body.account), model: (body.model as string | null) ?? null, effort: (body.effort as string | null) ?? null }
+        const agent = state.account.accounts.find((entry) => entry.key === choice.account)?.agent ?? 'claude'
+        const at = new Date().toISOString()
+        const machine = typeof body.machine === 'string' ? body.machine : hit.found.machine
+        made += 1
+        const next = card(state, hit.found.project, {
+          id: `${hit.found.project}-new-${made}`,
+          agent,
+          ...choice,
+          ...(machine !== undefined && { machine }),
+          title: hit.found.title,
+          state: 'new',
+          sessionId: null,
+          context: null,
+          last: null,
+          lastAt: at,
+          previous: hit.found.id,
+        })
+        hit.list.active = [next, ...hit.list.active.filter((each) => each.id !== hit.found.id)]
+        hit.list.archived = [{ ...hit.found, state: 'archived', archivedAt: at, successor: next.id, unread: false }, ...hit.list.archived]
+        hit.list.choice = machine === undefined ? choice : { ...choice, machine }
+        return next
+      }
       if (name === 'chats/rename') {
         // The user's name of the chat (BTN-1774); an empty one brings back the title it had before.
         const id = String(body.id)

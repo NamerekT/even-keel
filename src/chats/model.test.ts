@@ -57,6 +57,7 @@ const chat = (fields: Partial<ChatRecord> = {}): ChatRecord => ({
   successor: null,
   previous: null,
   pending: null,
+  handover: null,
   ...fields,
 })
 

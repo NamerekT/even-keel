@@ -3,7 +3,7 @@ import type { AccountEntry } from '../../../src/account/model.js'
 import type { ChatCard } from '../../../src/chats/model.js'
 import type { RateLimits } from '../../../src/limits/model.js'
 import type { SessionView } from '../../../src/state.js'
-import { chatRenewal, renewalChoice } from './chatRenewal.js'
+import { chatRenewal, renewalChoice, sameAsChat } from './chatRenewal.js'
 
 const now = new Date('2026-11-19T12:00:00.000Z')
 const RESET = '2026-11-19T18:40:00.000Z'
@@ -111,5 +111,36 @@ describe('the choice the window offers first (BTN-1232)', () => {
     const last = { account: 'spare', model: null, effort: 'medium', machine: 'laptop' }
     expect(renewalChoice(chat({ machine: 'pc' }), cold, last, [entry('work'), entry('spare')])).toEqual({ account: 'spare', model: null, effort: 'medium', machine: 'pc' })
     expect(renewalChoice(chat(), cold, last, [entry('work'), entry('spare')])).toEqual({ account: 'spare', model: null, effort: 'medium' })
+  })
+})
+
+describe('the early continue keeps quiet while nothing differs (BTN-1776)', () => {
+  const efforts = ['low', 'medium', 'high']
+  const pick = (patch: Partial<Parameters<typeof sameAsChat>[1]> = {}) => ({ machine: 'pc', account: 'work', model: 'claude-opus-5-5', effort: 'high', ...patch })
+
+  it('is the same on the chat’s own machine, account, model and effort', () => {
+    expect(sameAsChat(chat({ machine: 'pc' }), pick(), efforts)).toBe(true)
+  })
+
+  it('differs on any of the four', () => {
+    const own = chat({ machine: 'pc' })
+    expect(sameAsChat(own, pick({ machine: 'laptop' }), efforts)).toBe(false)
+    expect(sameAsChat(own, pick({ account: 'spare' }), efforts)).toBe(false)
+    expect(sameAsChat(own, pick({ model: '' }), efforts)).toBe(false)
+    expect(sameAsChat(own, pick({ effort: 'low' }), efforts)).toBe(false)
+  })
+
+  it('takes the CLI’s model and the effort the form shows for a chat without its own', () => {
+    const own = chat({ machine: 'pc', model: null, effort: null })
+    expect(sameAsChat(own, pick({ model: '', effort: 'medium' }), efforts)).toBe(true)
+    expect(sameAsChat(own, pick({ model: '', effort: 'high' }), efforts)).toBe(false)
+  })
+
+  it('counts the hub’s pick of a machine as the chat’s own', () => {
+    expect(sameAsChat(chat({ machine: 'pc' }), pick({ machine: null }), efforts)).toBe(true)
+  })
+
+  it('differs while no account is open to pick', () => {
+    expect(sameAsChat(chat({ machine: 'pc' }), pick({ account: undefined }), efforts)).toBe(false)
   })
 })

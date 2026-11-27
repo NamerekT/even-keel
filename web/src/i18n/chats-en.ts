@@ -38,6 +38,7 @@ export const chatsEn: typeof chatsRu = {
   successor: 'Continued in a new session',
   menu: {
     label: 'Chat actions',
+    continue: 'Continue in new session…',
     archive: 'Archive',
     delete: 'Delete',
   },
@@ -102,5 +103,10 @@ export const chatsEn: typeof chatsRu = {
     goTip: 'It gets your message, the last turns of this chat and a link to its transcript. This chat goes to the archive and its session stops.',
     continued: 'Continued from',
     previous: 'an earlier chat',
+    earlyTitle: 'Continue in new session',
+    earlyGo: 'Continue',
+    earlyTip: 'This chat goes to the archive at once and its session stops. The new session starts with your first message and gets the last turns of this chat and a link to its transcript.',
+    same: 'Pick another machine, account, model or effort',
+    sameHere: 'Pick another account, model or effort',
   },
 }

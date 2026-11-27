@@ -421,17 +421,34 @@
   background: color-mix(in srgb, var(--accent) 85%, var(--fg));
 }
 
+/* An early continue that picks what the chat runs on (BTN-1776): the button greyed as a whole, its "?" still open. */
+.renew-chat .renew-chat__go--quiet .button-with-tip__trigger {
+  opacity: 0.5;
+}
+
+.renew-chat .renew-chat__reason {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-right: auto;
+  color: var(--fg-muted);
+  font-size: var(--text-13);
+}
+
 @media (max-width: 760px) {
   .renew-chat .add-package__foot > * {
     flex: 1 1 100%;
   }
 
-  /* The buttons one under another, the primary on top and Cancel last. */
+  /* The why on top, then the buttons one under another, the primary first and Cancel last. */
+  .renew-chat .add-package__foot > .renew-chat__reason {
+    order: -2;
+  }
+
   .renew-chat .add-package__foot > .renew-chat__go {
     order: -1;
   }
 
-  .renew-chat .add-package__foot > :first-child {
+  .renew-chat .add-package__foot > .renew-chat__cancel {
     order: 1;
   }
 }

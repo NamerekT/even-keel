@@ -460,4 +460,10 @@ export const STEPS: readonly string[] = [
   `
   alter table badge_translations add column prompt integer;
   `,
+  // The hand-over of a chat continued early from the old one's menu (BTN-1776, `docs/sessions/project-chats.md`): the
+  // head of its first prompt, kept until the user's first message launches its session. Null — nothing waits, as every
+  // chat before the step.
+  `
+  alter table chats add column handover text;
+  `,
 ]

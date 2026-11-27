@@ -485,25 +485,29 @@ it('shows an archived chat its note and the way on inside the field frame, with 
   expect(onContinue).toHaveBeenCalledOnce()
 })
 
-it("offers Delete in the head's ⋯ of an empty chat and Archive of one with a session, left of the close button (BTN-1775)", async () => {
+it("offers Delete in the head's ⋯ of an empty chat, Continue and Archive of one with a session, left of the close button (BTN-1775, BTN-1776)", async () => {
   const host = document.body.appendChild(document.createElement('div'))
   root = createRoot(host)
   const onAct = vi.fn()
-  const pick = async () => {
+  const pick = async (index: number) => {
     const more = host.querySelector<HTMLButtonElement>('.transcript__more button')!
     expect(more.closest('.panel__head')?.querySelector('.transcript__more + .panel__close')).not.toBeNull()
     await act(async () => more.click())
     const items = [...document.querySelectorAll<HTMLButtonElement>('.more-menu__item')]
-    expect(items.every((item) => item.classList.contains('more-menu__item--danger'))).toBe(true)
-    await act(async () => items[0]!.click())
-    return items.map((item) => item.textContent)
+    const shown = items.map((item) => [item.textContent, item.classList.contains('more-menu__item--danger')])
+    await act(async () => items[index]!.click())
+    return shown
   }
   await render(card, onAct)
-  expect(await pick()).toEqual([t.chats.menu.delete])
+  expect(await pick(0)).toEqual([[t.chats.menu.delete, true]])
   expect(onAct).toHaveBeenLastCalledWith(card, 'delete')
   const used: ChatCard = { ...card, state: 'answered', sessionId: 'first-session' }
   await render(used, onAct)
-  expect(await pick()).toEqual([t.chats.menu.archive])
+  // Going on in a new session opens a window first and is not red; archiving cannot be undone.
+  expect(await pick(1)).toEqual([
+    [t.chats.menu.continue, false],
+    [t.chats.menu.archive, true],
+  ])
   expect(onAct).toHaveBeenLastCalledWith(used, 'archive')
 })
 

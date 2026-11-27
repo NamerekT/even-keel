@@ -29,6 +29,7 @@ const chat = (id: string, fields: Partial<ChatRecord> = {}): ChatRecord => ({
   successor: null,
   previous: null,
   pending: null,
+  handover: null,
   packages: {},
   ...fields,
 })
@@ -44,11 +45,12 @@ describe('step 63: the project chats (BTN-1230)', { timeout: 120_000 }, () => {
       await insertRows(made, await rowsOf(frozen))
       expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
       // The store reads the schema of today: the sample brought to step 64 has nothing pending, to 86 no packages, to 87
-      // no machine of the choice, to 88 no name of the user's.
+      // no machine of the choice, to 88 no name of the user's, to 90 no hand-over.
       await frozen.exec(STEPS[61]!)
       await frozen.exec(STEPS[83]!)
       await frozen.exec(STEPS[84]!)
       await frozen.exec(STEPS[85]!)
+      await frozen.exec(STEPS[87]!)
       const store = await ChatStore.open({ db: frozen, writes: writes() })
       expect(store.active().every((each) => each.pending === null)).toBe(true)
       expect(store.active(ABC).map((each) => [each.id, each.sessionId, each.machine])).toEqual([
@@ -84,6 +86,7 @@ describe('step 64: the pending prompt of a chat going on in a new session (BTN-1
       await frozen.exec(STEPS[83]!)
       await frozen.exec(STEPS[84]!)
       await frozen.exec(STEPS[85]!)
+      await frozen.exec(STEPS[87]!)
       const store = await ChatStore.open({ db: frozen, writes: writes() })
       expect(store.get('chat-dddddddddddd')).toMatchObject({ sessionId: null, previous: 'chat-eeeeeeeeeeee', pending: expect.stringContaining('Fix the header') })
       expect(store.get('chat-aaaaaaaaaaaa')?.pending).toBeNull()
@@ -108,6 +111,7 @@ describe("step 86: a chat's own choice of packages (BTN-1696)", { timeout: 120_0
       const own = { 'lint@example': true, 'huly@even-keel': false }
       await frozen.exec(STEPS[84]!)
       await frozen.exec(STEPS[85]!)
+      await frozen.exec(STEPS[87]!)
       const store = await ChatStore.open({ db: frozen, writes: writes() })
       expect(store.get('chat-aaaaaaaaaaaa')?.packages).toEqual(own)
       expect(store.get('chat-bbbbbbbbbbbb')?.packages).toEqual({})
@@ -117,6 +121,7 @@ describe("step 86: a chat's own choice of packages (BTN-1696)", { timeout: 120_0
       expect(await schemaOf(upgraded)).toEqual(await schemaOf(made))
       await upgraded.exec(STEPS[84]!)
       await upgraded.exec(STEPS[85]!)
+      await upgraded.exec(STEPS[87]!)
       const before = await ChatStore.open({ db: upgraded, writes: writes() })
       expect(before.active().map((each) => each.packages)).toEqual([{}, {}, {}])
       expect(before.choice(ABC)).toEqual({ account: 'global', model: 'opus', effort: 'high' })
@@ -138,12 +143,14 @@ describe('step 87: the machine of the last chat choice (BTN-1710)', { timeout: 1
       await insertRows(made, await rowsOf(frozen))
       expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
       await frozen.exec(STEPS[85]!)
+      await frozen.exec(STEPS[87]!)
       const store = await ChatStore.open({ db: frozen, writes: writes() })
       expect(store.choice(ABC)).toMatchObject({ account: 'global', machine: '88888888-8888-4888-8888-888888888888' })
       await upgraded.exec(fixture(86))
       await upgraded.exec(STEPS[84]!)
       expect(await schemaOf(upgraded)).toEqual(await schemaOf(made))
       await upgraded.exec(STEPS[85]!)
+      await upgraded.exec(STEPS[87]!)
       const before = await ChatStore.open({ db: upgraded, writes: writes() })
       expect(before.choice(ABC)).not.toHaveProperty('machine')
     } finally {
@@ -163,14 +170,42 @@ describe("step 88: the user's name of a chat (BTN-1774)", { timeout: 120_000 }, 
       await readsWhole(frozen, 88, 88)
       await insertRows(made, await rowsOf(frozen))
       expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
+      await frozen.exec(STEPS[87]!)
       const store = await ChatStore.open({ db: frozen, writes: writes() })
       expect(store.get('chat-aaaaaaaaaaaa')).toMatchObject({ name: 'Build speed', title: 'Slow build' })
       expect(store.get('chat-bbbbbbbbbbbb')?.name).toBeNull()
       await upgraded.exec(fixture(87))
       await upgraded.exec(STEPS[85]!)
       expect(await schemaOf(upgraded)).toEqual(await schemaOf(made))
+      await upgraded.exec(STEPS[87]!)
       const before = await ChatStore.open({ db: upgraded, writes: writes() })
       expect(before.active().map((each) => each.name)).toEqual([null, null, null])
+    } finally {
+      await Promise.all([frozen.close(), made.close(), upgraded.close()])
+    }
+  })
+})
+
+describe('step 90: the hand-over of a chat continued early (BTN-1776)', { timeout: 120_000 }, () => {
+  it('adds the column of the frozen sample, reads its rows, and no hand-over for the chats before it', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 88))
+    const upgraded = await PGlite.create()
+    try {
+      await frozen.exec(fixture(90))
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+      await readsWhole(frozen, 90, 90)
+      await insertRows(made, await rowsOf(frozen))
+      expect(await rowsOf(made)).toEqual(await rowsOf(frozen))
+      const store = await ChatStore.open({ db: frozen, writes: writes() })
+      expect(store.get('chat-ffffffffffff')).toMatchObject({ sessionId: null, pending: null, previous: 'chat-999999999999', name: 'Release plan', handover: expect.stringContaining('- You: Three steps.') })
+      expect(store.get('chat-aaaaaaaaaaaa')?.handover).toBeNull()
+      expect((await store.find('chat-999999999999'))?.successor).toBe('chat-ffffffffffff')
+      await upgraded.exec(fixture(89))
+      await upgraded.exec(STEPS[87]!)
+      expect(await schemaOf(upgraded)).toEqual(await schemaOf(made))
+      const before = await ChatStore.open({ db: upgraded, writes: writes() })
+      expect(before.active().map((each) => each.handover)).toEqual([null, null, null])
     } finally {
       await Promise.all([frozen.close(), made.close(), upgraded.close()])
     }
