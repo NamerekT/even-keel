@@ -130,6 +130,39 @@ describe('a machine elsewhere end to end', { timeout: scaled(180_000) }, () => {
     expect(listed).toContain('Work elsewhere')
   })
 
+  it("reads an archived chat's transcript on its machine elsewhere once no mirror holds its session any more (BTN-1794)", async () => {
+    const machine = await connected()
+    const card = await run.answer<{ id: string }>('chats/create', { project: PROJECT_ID, account: ACCOUNT, machine })
+    run.agent.script(card.id, async () => ({ say: 'Hello there.' }))
+    await run.answer('chats/send', { id: card.id, text: 'Hi' })
+    await run.until(() => run.agent.calls.some((call) => call.kind === 'launch' && call.task === card.id), 'the chat launched')
+    const sessionId = run.agent.calls.find((call) => call.kind === 'launch' && call.task === card.id)!.sessionId
+    await run.until(() => run.service.machineLink.network.holderOf(sessionId) === elsewhere.machine, 'the machine holds the chat session')
+    await run.answer('chats/hide', { id: card.id })
+
+    // As after the machine's restart: the archived chat's binding is not handed back, and its session is no one's.
+    vi.spyOn(elsewhere.context.chatSessions, 'chatOf').mockReturnValue(undefined)
+    const holderOf = run.service.machineLink.network.holderOf.bind(run.service.machineLink.network)
+    vi.spyOn(run.service.machineLink.network, 'holderOf').mockImplementation((id) => (id === sessionId ? undefined : holderOf(id)))
+    const homes: string[] = []
+    const record = run.agent.record.bind(run.agent)
+    run.agent.record = async (home, id) => {
+      if (id === sessionId) homes.push(home.dir)
+      return record(home, id)
+    }
+    const { host, port } = run.service.listen
+    const found = await fetch(`http://${host}:${port}/api/sessions/${sessionId}`)
+    expect(found.status).toBe(200)
+    expect(await found.json()).toMatchObject({ sessionId })
+    expect(homes.length).toBeGreaterThan(0)
+    expect(homes.every((dir) => dir.startsWith(elsewhere.dir))).toBe(true)
+
+    elsewhere.offLink()
+    await run.until(() => !run.service.machineLink.network.connected(machine), 'the machine off the link')
+    const offline = await fetch(`http://${host}:${port}/api/sessions/${sessionId}`)
+    expect(JSON.stringify(await offline.json())).toContain('machines.transcriptOffline')
+  })
+
   it("reads the transcript and the checkpoint of a session elsewhere on that machine, not in the hub's own folders (BTN-1574)", async () => {
     const gate = new Gate()
     run.agent.script('ABC-1', async (turn) => {

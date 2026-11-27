@@ -5,6 +5,11 @@ export interface SessionTranscriptsDeps {
   own: () => string
   /** The machine that holds or ran the session; `undefined` — none known, the own machine looks. */
   sessionMachine: (sessionId: string) => string | undefined
+  /**
+   * The machine of the project chat whose session it is, asked when `sessionMachine` knows none (BTN-1794): an archived
+   * chat's session drops out of its machine's mirror, and a chat has no task.
+   */
+  chatMachine: (sessionId: string) => Promise<string | undefined>
   ownReads: TranscriptReads
   /** The reads of a machine elsewhere over the link; `undefined` — it is off the link or has no mirror. */
   elsewhere: (machine: string) => TranscriptReads | undefined
@@ -14,13 +19,14 @@ export interface SessionTranscriptsDeps {
 
 /**
  * The hub's reads of a session's transcript, made on the machine of the session (BTN-1574): the own machine's for its
- * own sessions and the unknown ones, a machine elsewhere's over the link for the sessions it holds — so the own machine
+ * own sessions and the unknown ones, a machine elsewhere's over the link for the sessions it holds or its chats ran
+ * (BTN-1794) — so the own machine
  * never searches its account folders for a session it does not have. A machine off the link answers
  * `machines.transcriptOffline`, not "not found".
  */
 export function sessionTranscripts(deps: SessionTranscriptsDeps): TranscriptReads {
   const readsOf = async (sessionId: string): Promise<TranscriptReads> => {
-    const machine = deps.sessionMachine(sessionId)
+    const machine = deps.sessionMachine(sessionId) ?? (await deps.chatMachine(sessionId))
     if (machine === undefined || machine === deps.own()) return deps.ownReads
     const reads = deps.elsewhere(machine)
     if (reads === undefined) throw fail('machines.transcriptOffline', { name: await deps.nameOf(machine) })

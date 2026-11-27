@@ -191,3 +191,15 @@ export async function loadChatSessions(db: Queryable, machine: string): Promise<
   )
   return rows.map((row) => [row.id, row.session_id])
 }
+
+/**
+ * The machine of the chat whose session `sessionId` is, archived chats too (BTN-1794); `undefined` — no chat's. Read
+ * from the database: an archived chat is there long before its transcript is opened.
+ */
+export async function chatMachineOf(db: Queryable, sessionId: string): Promise<string | undefined> {
+  const { rows } = await db.query<{ machine_id: string }>(
+    'select machine_id from chats where session_id = $1 and machine_id is not null order by created_at desc, id limit 1',
+    [sessionId],
+  )
+  return rows[0]?.machine_id
+}

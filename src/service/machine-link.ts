@@ -60,7 +60,7 @@ import { settleMail } from '../sessions/mailRelay.js'
 import { ADAPTERS } from '../tracker/adapters.js'
 import { servesTasks, TASKS_SERVER } from '../taskmcp/server.js'
 import { samePath } from '../paths.js'
-import { loadChatSessions } from '../chats/store.js'
+import { chatMachineOf, loadChatSessions } from '../chats/store.js'
 import { loadMail } from '../sessions/mailbox.js'
 import { MAX_KEEP_WARM_HOURS } from '../sessions/keepwarm.js'
 import { readWarmPings } from '../sessions/warm-pings.js'
@@ -522,6 +522,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
   const transcripts = sessionTranscripts({
     own: () => own,
     sessionMachine,
+    chatMachine: (sessionId) => chatMachineOf(ctx.db, sessionId),
     ownReads: services.transcript,
     elsewhere: (machine) => (network.connected(machine) ? network.remote(machine)?.services().transcript : undefined),
     nameOf: async (machine) => (await network.record(machine))?.name ?? machine,
