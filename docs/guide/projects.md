@@ -67,8 +67,7 @@ A step that fails says why and offers **Retry**; when only the Git LFS files fai
 Each project needs:
 
 - in git, a repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task; [without git](chain.md#a-project-without-git), just a folder;
-- for Claude Code in the background, Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. On Windows it writes the forward-slash path Claude reads, copying an older backslash entry when needed and preserving the original. Its task worktrees inherit that trust. This also enables repository hooks. The Agent SDK and other agents do not write Claude trust;
-- for Codex, Even Keel likewise marks the project's folder as trusted in the account's `config.toml` before each turn, since Codex reads the folder's Protection rules only in a trusted project ([Folder trust](agents.md#folder-trust)).
+- Claude Code's and Codex's trust in the folder, which Even Keel marks by itself ([Folder trust](agents.md#folder-trust)).
 
 The rule that a session commits and merges its branch into `main` when the task is done comes with the launch and handoff prompts, plugin or not (in PR mode the prompt says to end the turn for a pull request instead).
 

@@ -34,8 +34,8 @@ Everyone else is an outsider:
   member and the text is a description, not an instruction. That is a line of text, not a barrier: the session still
   reads the author's words, which is why the label means you have read them.
 - **Outsiders' comments stay on the card.** A session sees only that a comment was there and who wrote it, not its
-  text or its files. Such a comment never answers a session's question. In PR mode outsiders' reviews and comments on
-  the pull request do not reach the session either.
+  text or its files. Such a comment never answers a session's question and leaves a line in the service log. In PR
+  mode outsiders' reviews and comments on the pull request do not reach the session either.
 - **The tasks server hides outsiders' unlabelled issues**, and those an outsider changed after the label. A session's
   task list counts them without titles, and reading one gives only who opened it, until you put the label on again.
 
@@ -105,7 +105,9 @@ label you put on yourself ([the chain](chain.md#which-tasks-enter-the-chain)).
 
 - **Keep entry on a label.** Set a required label, or leave it to `even-keel: approved`, and keep it out of the issue
   templates. Read an outsider's issue before **Into the chain**, and read it again when it leaves the chain after an
-  edit.
+  edit. Without required labels the members' issues enter at once: the wizard says so for a public repository, and
+  the project page keeps saying it in a band with **Rules** beside it for as long as the repository is public and has
+  none, also when it was made public after the project was added.
 - **Turn on PR mode and protect the main branch.** With `pullRequests` on nothing lands in the main branch until a
   pull request is merged. On the forge require a review before merging, and block force pushes and deleting the
   branch, for administrators too. Even Keel shows a missing protection on GitHub and Forgejo on the project page.

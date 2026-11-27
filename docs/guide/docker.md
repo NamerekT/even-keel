@@ -36,7 +36,7 @@ Mount the whole checkout, including its Git directory and worktrees. Give UID 10
 
 Set the Git author in the setup wizard. For SSH remotes, provision a dedicated key and verified `known_hosts` in a private host directory and mount it read-only at `/home/node/.ssh` (for example `/srv/even-keel/ssh:/home/node/.ssh:ro`). The key must be readable by UID 1000 with mode 0600.
 
-For HTTPS remotes on GitHub, GitLab or Forgejo, no credential file is needed: enter the forge's token as a profile in **Settings → Trackers and CI**, and Even Keel gives it to its own git for each push, fetch and clone of that remote, the same profile its CI and pull requests use. The token never lands in git's config, a file or a session's environment. To push task branches it needs write access to the repository's contents (GitHub **Contents: Read and write**, GitLab `write_repository` or `api`, Forgejo `write:repository`); with a read-only token the push fails (unless a helper of your own can push), and the page names the profile with a button to it. This needs git 2.31 or newer, which the image has.
+For HTTPS remotes on GitHub, GitLab or Forgejo, no credential file is needed: the forge's profile in **Settings → Trackers and CI** is enough, as [Token permissions](tracker-several.md#token-permissions) describes. The token never lands in git's config, a file or a session's environment, and the image's git is new enough for it.
 
 A remote with no such profile (another host, or one you would rather keep apart) still works with a Git credential helper of your own in the container. For example, with a dedicated Git credential file mounted read-only at `/run/secrets/git-credentials`, run:
 
@@ -48,12 +48,7 @@ Keep these files on the host, outside the repository and image. The token in Com
 
 ## The agents' CLIs
 
-The image carries no agent CLI, and `npm install -g` cannot install one inside it: the container runs as `node`, and npm's global folder belongs to root. So in Docker the page never offers an installation command. Under **Settings → Providers and models → CLI version** (also in the setup's Agent step and in an agent's window on the accounts page), pick one of Even Keel's own copies:
-
-- **Checked** runs the version Even Keel was checked against. It changes only with an Even Keel update.
-- **Latest** runs the agent's newest release. Even Keel downloads it from the same place as the checked copy, looks for a newer release every 15 minutes and downloads it next to the current copy. Sessions switch to the new copy once it is complete. Nothing has to be run in the container.
-
-Both copies live in the `home` volume and survive an update. A copy is roughly 80–340 MB per agent, and the old version is removed once the new one is in place. Consent is asked once per agent, before the first download. See [Agents](agents.md#cli-copies).
+The image carries no agent CLI, and `npm install -g` cannot install one inside it: the container runs as `node`, and npm's global folder belongs to root. So in Docker the page never offers an installation command. Under **Settings → Providers and models → CLI version** (also in the setup's Agent step and in an agent's window on the accounts page), pick one of Even Keel's own copies, **Checked** or **Latest** ([CLI copies](agents.md#cli-copies)); nothing has to be run in the container. The copies live in the `home` volume and survive an update, roughly 80–340 MB per agent.
 
 An `EVEN_KEEL_<PROVIDER>_BIN` variable in `compose.yaml` overrides this choice, which then has no effect. Remove the variable to go back to the page's choice. A CLI built into [your own image](#your-own-tools) and set as **Yours** works as well.
 

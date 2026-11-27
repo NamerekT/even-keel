@@ -15,17 +15,17 @@ Each agent's sessions run either on the CLI you installed or on Even Keel's own 
 
 **CLI version → Yours**, the default, uses the CLI you manage; nothing is downloaded.
 
-**Checked** runs sessions on Even Keel's own copy of the version it was checked against: choosing it in the setup or in settings (the log's entry of an unchecked version opens them) asks for consent with the version and approximate size, and the chain waits for the copy. Consent is asked once per provider: once a copy has been downloaded, a newer checked version (after an Even Keel update) downloads by itself while the provider stays on Checked, and the chain waits only for the download.
+**Checked** runs sessions on Even Keel's own copy of the version it was checked against: choosing it in the setup or in settings (the log's entry of an unchecked version opens them) asks for consent with the version and approximate size — Cancel keeps Yours — and the chain waits for the copy. A provider already on Checked whose copy is missing asks the same when you select it or add its account; closing the dialog keeps the choice and leaves the chain waiting. Consent is asked once per provider: once a copy has been downloaded, a newer checked version (after an Even Keel update) downloads by itself while the provider stays on Checked, and the chain waits only for the download. Apart from that and Latest below, no startup, sign-in or version check downloads a copy by itself.
 
 **Latest** appears only where you cannot install the CLI yourself: in [Docker](docker.md#the-agents-clis), or when `npm install -g` cannot write npm's global folder (Claude Code installs into your home folder, so on a host it is always Yours or Checked). It runs sessions on Even Keel's own copy of the agent's newest release, downloaded from the same place as the checked one. Choosing it asks for consent once. After that, Even Keel looks for a newer release every 15 minutes and downloads it next to the current copy. Sessions keep running on the old copy until the new one is complete. A Claude account on Latest runs on `claude --bg`, since the Agent SDK needs the checked CLI.
 
 In settings the CLI version is saved with the rest of the form, Execution included, and the consent comes after the save.
 
-Blue progress bands under the header and on the agent card show downloaded bytes.
+Blue progress bands under the header and on the agent card show downloaded bytes; in the setup, adding an account opens by itself once the download ends, since the sign-in goes through the CLI. Old copies are removed after a download and at each version check, retrying folders still held by a process.
 
-A failed download switches that provider to Yours and offers a retry; without a CLI, the agent shows a copyable installation command, **Install**, which runs it as the user Even Keel runs as and shows its output, and **Check again**. Where installing is impossible, it offers **Switch to checked** and **Download the latest** instead.
+A failed download switches that provider to Yours and offers **Try downloading again**, except Claude under the `Agent SDK` way of running, which needs the checked CLI and stays on Checked until the retry. Without a CLI, the agent shows a copyable installation command, **Install**, which runs it with the agent's official installer as the user Even Keel runs as and shows its output, and **Check again**, which looks for a CLI you installed in a terminal yourself. Even Keel never installs a CLI without that press. Where installing is impossible, it offers **Switch to checked** and **Download the latest** instead.
 
-See [setup](clis.md#the-clis-it-depends-on).
+What each CLI's copy is and where it is downloaded from is in [The CLIs it depends on](clis.md#the-clis-it-depends-on).
 
 During first-run setup, CLI downloads and sign-in state appear on the agent cards. Usage limit warnings appear after setup; a CLI on a version Even Keel was not checked against is an entry of the event log (**Log** in the header), not a banner.
 
@@ -63,7 +63,7 @@ Anthropic asks products built on the Agent SDK to sign in with an API key rather
 
 It also costs more of the subscription's limits: for the same work the SDK spends the 5-hour limit about twice as fast as `--bg` and the weekly one about a quarter faster, measured by Even Keel over several days of the chain on both ways ([anthropics/claude-code#97074](https://github.com/anthropics/claude-code/issues/97074) is open); an API key account has no such penalty ([docs/sessions/sdk.md](../sessions/sdk.md#agent-sdk-against---bg-measured-btn-286-btn-388)).
 
-The SDK needs the checked CLI (the "CLI version" next to it). Even Keel downloads the SDK alongside that CLI only after you approve the download; Checked sessions wait until both copies are ready.
+The SDK needs the checked CLI (the "CLI version" next to it): picking `Agent SDK` switches the CLI version to Checked and locks it there, and with `EVEN_KEEL_CLAUDE_BIN` set sessions go on `--bg`. Even Keel downloads the SDK alongside that CLI only after you approve the download; Checked sessions wait until both copies are ready.
 
 A change applies to new sessions, running ones keep their way ([docs/sessions/sdk.md](../sessions/sdk.md#the-agent-sdk-transport-btn-239-srcclaudesdk)).
 
@@ -85,7 +85,7 @@ Removing Even Keel removes its hook and keeps your settings and hooks. [Real CLI
 
 ### Folder trust
 
-Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. This also enables repository hooks; the chain disables repository MCP servers. The Agent SDK and other agents do not write Claude trust.
+Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. On Windows it writes the forward-slash path Claude reads, copying an older backslash entry when needed and preserving the original. Its task worktrees inherit that trust. This also enables repository hooks; the chain disables repository MCP servers. The Agent SDK and other agents do not write Claude trust.
 
 If saving trust fails, the chain pauses without replacing a damaged configuration file; the pause names the file. Fix it or its write access, then press **Check again and resume**.
 
@@ -149,7 +149,7 @@ It was checked as a chain under the Windows service on the free models only; a G
 
 For ChatGPT sign-ins, the offered OpenAI models are also checked against the subscription's visible model list. Models absent from OpenCode stay unavailable even if ChatGPT lists them. If that check cannot be read, the ordinary OpenCode catalogue remains available.
 
-A later ChatGPT model refusal pauses the chain with a button to the session settings: choose another **Model** or **Account**, change the model on the task's card if it set one, use **New session**, then resume the chain. Other providers and API-key accounts keep their ordinary lists.
+A later ChatGPT model refusal pauses the chain as it does [on Codex](#codex-preview). Other providers and API-key accounts keep their ordinary lists.
 
 Pictures returned by OpenCode tools, including images read from a file, appear as thumbnails beside the tool call in the session's chat and whole transcript. Click one to browse the transcript's pictures. They are read from OpenCode's database and remain available after the original files or worktree are removed.
 

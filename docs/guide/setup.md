@@ -75,9 +75,7 @@ If you leave the setup unfinished, **Add project** (or **Connect your own** in t
 
 ### Phone access
 
-The second step lets your phone in without looking for the owner key in `.env`. Press **Invite the phone**: the window shows a QR and a link. Scan the QR with the phone, check that both screens show the same two digits and press **Let in**; the phone signs in and offers to add a passkey. The step is checked once the first device is in, and from then the page asks every browser that comes by the proxy's name to sign in ([Signing in on a new device](remote.md#signing-in-on-a-new-device)).
-
-The phone reaches the page by the name of a proxy on this machine, such as a Tailscale Service ([Reaching the page from another machine](remote.md#reaching-the-page-from-another-machine)), never by `localhost`. Opened by `localhost`, the window's link goes to the address the page was last opened by from outside; when there was none yet, the window asks for it — the proxy's address with its port, such as `https://my-pc.example.ts.net:8443` ([Signing in on a new device](remote.md#signing-in-on-a-new-device)). No proxy yet? Press **Skip for now**: the same invitation is under Settings → **Sign-in and devices**.
+The second step lets your phone in without looking for the owner key in `.env`: **Invite the phone** opens the invitation's QR and link ([Signing in on a new device](remote.md#signing-in-on-a-new-device)). The step is checked once the first device is in. The phone reaches the page by the name of a proxy on this machine, such as a Tailscale Service ([Reaching the page from another machine](remote.md#reaching-the-page-from-another-machine)). No proxy yet? Press **Skip for now**: the same invitation is under Settings → **Sign-in and devices**.
 
 ### The Git step
 
@@ -103,45 +101,13 @@ The macOS git stub reporting `xcrun: error: invalid active developer path` is tr
 
 The setup's **Agent** step has three parts: the agent cards, each saying only whether its CLI is installed and on which version; "Which version to run" for the chosen agent, **Yours** or **Checked** or, where the CLI cannot be installed, **Latest**; and its accounts as a table, the one sessions run on checked, **+ Add** in the heading.
 
-Without your CLI, Yours shows the command that installs it, **Install** and **Check again**. **Install** runs that command itself, as the user Even Keel runs as, and shows its output under it; once it ends, Even Keel looks for the CLI again. You can run the command in a terminal yourself instead and press **Check again**.
-
-Where you cannot install the CLI yourself (in Docker, or when npm's global folder is not writable), there is no command. Instead, a third choice, **Latest**, runs Even Keel's own copy of the agent's newest release, which it keeps up to date by itself ([Agents](agents.md#cli-copies)).
-
-Choosing **Checked** there or in Settings → Providers and models asks before downloading: the dialog shows the version and approximate size, and Cancel keeps Yours.
-
-Blue bands under the header and in the agent's block show downloaded bytes while it runs; in the setup, adding an account opens by itself once the download ends, since the sign-in goes through the CLI.
+Without your CLI, Yours shows the command that installs it with **Install** and **Check again**; choosing Checked asks before downloading. What each version choice does, the download and what happens when it fails are in [CLI copies](agents.md#cli-copies).
 
 **Next** waits until the agent has something to run on (your CLI, or the copy, even still downloading) and an account.
 
-A provider already on Checked whose copy is missing asks the same when you select it or add its account; closing the dialog keeps the choice and leaves the chain waiting.
-
-No startup, sign-in or version check downloads a copy by itself, with one exception: a provider on Checked whose copy you have downloaded before fetches each newer checked version without asking again, and one on Latest each newer release.
-
-If downloading fails, **CLI version** switches to **Yours** for that provider and offers **Try downloading again**.
-
-An installed CLI can then run sessions; without one, the block shows an installation command, **Install**, **Check again**, and Checked to choose again.
-
-Even Keel installs a CLI itself only when you press **Install**, with the agent's official installer; without the press, never.
-
-Old copies are removed, retrying folders still held by a process at startup and each version check.
-
 ### Accounts
 
-Installing a CLI or signing into it does not add an Even Keel account.
-
-Use **Add account** on the setup's Agent step, the Accounts page or the project wizard.
-
-If a global Claude Code or Codex folder is already signed in, choose **Use this sign-in** to add it or **Sign in with another account** to keep a separate folder.
-
-Without an existing sign-in the normal choices open directly.
-
-The first account you add for a provider becomes its shared account.
-
-Claude Code on Amazon Bedrock needs no sign-in, only AWS credentials the user Even Keel runs as can read: with the Windows service under another user, sign in to AWS (`aws sso login`, `aws configure`) as that user, or give the keys in the dialog ([Bedrock accounts](accounts.md#amazon-bedrock)).
-
-Google Vertex AI is the same: run `gcloud auth application-default login` as that user, or give a service account key file the user can read ([Vertex accounts](accounts.md#google-vertex-ai)).
-
-Microsoft Foundry's Entra ID way needs `az login` as that user, or give the resource's API key ([Foundry accounts](accounts.md#microsoft-foundry)).
+Installing a CLI or signing in to it does not add an Even Keel account: use **Add account** on the Agent step ([Adding an account](accounts.md#adding-an-account); a cloud's credentials, in [Claude on a cloud](accounts.md#claude-on-a-cloud)).
 
 ### The demo
 

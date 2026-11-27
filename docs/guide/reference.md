@@ -22,7 +22,7 @@ A variable a session needs, such as the credentials of a cloud account's "enviro
 
 A Claude account folder's background daemon started before this rule keeps handing the old environment to its sessions until it restarts.
 
-The trackers' and the CIs' credentials are not here but in the profiles (see [Trackers and plugins](tracker-builtin.md#trackers-and-plugins)); a profile's change applies at once too.
+The trackers' and the CIs' credentials are not here but in the profiles (see [Connecting a tracker](tracker-connect.md)); a profile's change applies at once too.
 
 On the first start Even Keel turns the tracker variables it finds in `.env` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_TOKEN`; `LINEAR_TOKEN`; `GITLAB_TOKEN` and optional `GITLAB_URL` (default `https://gitlab.com`, the web address without `/api/v4`); `JIRA_URL`, `JIRA_EMAIL` and `JIRA_TOKEN`, with the optional `JIRA_MCP_TOKEN` of the Jira plugin; `FORGEJO_TOKEN` and optional `FORGEJO_URL`, a profile per Forgejo host) into the default profile of each tracker, once, and says so in the log; after that it no longer reads them.
 
