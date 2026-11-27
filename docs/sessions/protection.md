@@ -2,122 +2,38 @@
 
 ## Protection
 
-`src/sessions/protection.ts` defines thirteen default deny groups. `protection` has `disabled` (group ids), `claude`
-(permission strings), `codex` (arrays of literal command-prefix arguments), `copilot` (tool rules), and `opencode`
-(bash command glob patterns). Fields inherit
-from the shared level; a project's field replaces the shared one, including an empty list. Group ids are `forcePush`,
-`mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`, `deleteParent`, `ownAddress` ("Even Keel's address" below),
-and one per tracker (`TRACKER_GROUPS`):
-`deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`, `deleteForgejo` (BTN-476; a new group needs
-no migration: `disabled` names only the groups turned off). Sessions → Protection
-edits them. New launches read current values; running processes are left alone. These are pattern guardrails, not an
-OS sandbox or a guarantee against equivalent commands.
+`src/sessions/protection.ts` defines thirteen default deny groups. `protection` has `disabled` (group ids), `claude` (permission strings), `codex` (arrays of literal command-prefix arguments), `copilot` (tool rules), and `opencode` (bash command glob patterns). Fields inherit from the shared level; a project's field replaces the shared one, including an empty list. Group ids are `forcePush`, `mirrorPush`, `deleteRemote`, `deleteRoot`, `deleteHome`, `deleteParent`, `ownAddress` ("Even Keel's address" below), and one per tracker (`TRACKER_GROUPS`): `deleteHuly`, `deleteGithub`, `deleteGitlab`, `deleteLinear`, `deleteJira`, `deleteForgejo` (BTN-476; a new group needs no migration: `disabled` names only the groups turned off). These are pattern guardrails, not an OS sandbox or a guarantee against equivalent commands.
 
-The tracker groups (BTN-541) are enforced in the MCP gateway, not by the agents: it refuses a tracker server's
-deleting `tools/call` for every agent, Codex included, also one nested in a dispatcher such as Huly's `invoke_tool`
-(BTN-641; `docs/packages.md`, "The gateway"). Native rules match tool names only and miss such a call. `deleteHuly` also keeps
-Huly's native deny rules for Claude, Copilot and OpenCode; the other trackers have none (native lists per tracker are
-an idea for 0.3). The page shows "Deleting tracker records" over the six tracker switches; it stores nothing: it is on
-while all six are, and turning it on or off turns them all. A project's "Use shared protection" does not lock the
-fields: on means the project has no `protection` of its own; changing a field copies the shared values with the change
-and turns it off; turning it on drops the project's values.
+**The page.** Sessions → Protection edits them; new launches read current values, running processes are left alone. Each group's hint names what it denies, and each agent's field of additional rules has its own hint and an example placeholder. An agent without a sandbox and without Even Keel rules gets a warning linking to the project's session settings. "Deleting tracker records" over the six tracker switches stores nothing: it is on while all six are, and turning it on or off turns them all. A project's "Use shared protection" does not lock the fields: on means the project has no `protection` of its own; changing a field copies the shared values with the change and turns it off; turning it on drops the project's values.
 
-Claude receives `permissions.deny` in its chain `--settings`, with trimming on or off, including SDK transport. The
-harness refusing a shared and a project rule in a `--bg` chain session, the project's saved on the running service,
-is in [`verified.md`](../verified.md) (Sessions); the SDK transport is not checked live.
-Copilot receives `--deny-tool` alongside `--allow-all-tools`. Its `shell(...)` rules are the same literal prefixes as
-Codex's, written `shell(<prefix>:*)` with the folder's remotes (`git remote` before each turn): Copilot matches a
-command's leading words and treats a `*` anywhere but a trailing `:*` as no wildcard, so the earlier
-`shell(git push * --force*)` forms let `git push -f origin main` through (BTN-463). A flag after the branch still
-escapes these prefixes. Copilot also receives the five literal force-refspecs of the project's main branch listed
-below, with `mainBranch` passed on launch and resume (EKR-74). Huly deletion rules
-name the plugin gateway and standalone server; the server names Copilot sees for them were not checked live. Codex cannot deny MCP calls through execpolicy. Each group's hint names what it denies, and
-each agent's field of additional rules has its own hint and an example placeholder. An agent without a sandbox and without Even Keel rules gets a warning linking
-to the project's session settings.
+**The tracker groups** (BTN-541) are enforced in the MCP gateway, not by the agents: it refuses a tracker server's deleting `tools/call` for every agent, Codex included, also one nested in a dispatcher such as Huly's `invoke_tool` (BTN-641; `docs/packages.md`, "The gateway"). Native rules match tool names only and miss such a call. `deleteHuly` also keeps Huly's native deny rules for Claude, Copilot and OpenCode; the other trackers have none. Codex cannot deny MCP calls through execpolicy.
 
-Git's global options before `push` (`-C <dir>`, `-c <k=v>`, `--git-dir=…`, `--no-pager`) shift a command past the
-`git push` patterns (BTN-642). Claude and OpenCode get every push pattern a second time as `git -* push …`: any run
-of options starting with `-` between `git` and `push`, so `git commit -m "push --force"` stays allowed; with a global
-option before the subcommand the `*` runs on into the message, and `git -c <k=v> commit -m "push --force"` is refused
-(seen live on Claude, BTN-1159). Codex and
-Copilot have no wildcard inside a prefix and get only `git -C . push …` and `git --no-pager push …`. Not caught there:
-`-C` with any other folder (the worktree's absolute path included), `-c`, `--git-dir`, `--work-tree`, several global
-options together. Not caught anywhere: an alias (`git config alias.p push`), a `+` refspec in the remote's
-`remote.<name>.push` config, a push hidden in a script or shell wrapper. Claude's `git -* push …` spellings were
-seen refused live on Windows ([verified](../verified/opencode.md),
-[unverified.md](../unverified/opencode.md#opencode-protection-btn-486)).
+### Per agent
 
-Claude reads a rule ending in `:*` as its legacy prefix syntax: the words before it literally, `*` included, followed
-by nothing or a space. So `Bash(git push * :*)` and `Bash(rm -rf C:*)` matched no command (BTN-1173; the CLI warns
-about such a deny rule at start). `claudeBash` doubles that trailing `*` for Claude (`git push * :**`, `rm -rf C:**`),
-which the CLI reads as an ordinary glob; OpenCode keeps the single `*`. A test holds that no generated Claude rule ends
-in `:*` and matches commands the way the CLI does.
+- **Claude** receives `permissions.deny` in its chain `--settings`, whether "Trim the tools" is on or off (`tools.md`), the SDK transport included. The harness refusing a shared and a project rule in a `--bg` chain session, the project's saved on the running service, is [verified](../verified/sessions.md); the SDK transport is not checked live.
+  - Claude reads a rule ending in `:*` as its legacy prefix syntax: the words before it literally, `*` included, followed by nothing or a space. So `Bash(git push * :*)` and `Bash(rm -rf C:*)` matched no command (BTN-1173; the CLI warns about such a deny rule at start). `claudeBash` doubles that trailing `*` for Claude (`git push * :**`, `rm -rf C:**`), which the CLI reads as an ordinary glob; OpenCode keeps the single `*`. A test holds that no generated Claude rule ends in `:*` and matches commands the way the CLI does.
+- **Copilot** receives `--deny-tool` alongside `--allow-all-tools`. Its `shell(...)` rules are the same literal prefixes as Codex's, written `shell(<prefix>:*)` with the folder's remotes (`git remote` before each turn): Copilot matches a command's leading words and treats a `*` anywhere but a trailing `:*` as no wildcard, so a glob like `shell(git push * --force*)` let `git push -f origin main` through (BTN-463). A flag after the branch still escapes these prefixes. It also gets the force-refspecs of the main branch (the list under Codex). Huly deletion rules name the plugin gateway and standalone server; the server names Copilot sees for them were not checked live.
+- **OpenCode** receives the native groups through `OPENCODE_CONFIG_CONTENT` (`sessionConfig`): command patterns as `permission.bash[pattern]: "deny"`, and Huly deletion tools as `permission[<gatewayName>_<tool>]: "deny"`. Plugin and standalone Huly servers use their actual gateway names; without a package list, the conventional `plugin_huly_huly` and `huly` names cover the account's own servers. Reading and updating tracker records stay allowed. `external_directory: "allow"` still permits the merge into the main checkout. Additional `protection.opencode` rules are command patterns, one per line in the editor (for example, `git reset --hard*`); no tool-name wrapper is needed. They share the command patterns of Claude's groups, including `+` and `:` push refspecs and paths starting with the recursive-delete targets. They do not cover every equivalent spelling or shell wrapper.
+  - **The protection plugin.** When any Protection rule is active, `sessionConfig` also loads Even Keel's built-in `protection-plugin` last, after the package plugins. Its config hook runs after OpenCode has merged the account, project and inline configuration. It appends the active native denies to both the top-level permissions and every configured agent's permissions, including `build`. Existing matching keys are removed before reinsertion: assigning an existing key would keep its position before a later wildcard allow. Scalar permissions become a `*` entry; unrelated rules keep their order. Account and project files are untouched. With every group off and no custom rules, no overlay is loaded.
+  - **Matching.** The [OpenCode permissions documentation](https://opencode.ai/docs/permissions/) and the 1.18.25 source (`permission/index.ts`, `core/src/util/wildcard.ts`) agree: `*` matches any text, `?` one character, and the last matching permission wins. Backslashes normalize to slashes and matching ignores case on Windows. Agent-specific permissions can override the config's permissions; that is what the plugin is for (BTN-501: scalar, broad, explicit MCP-tool and late wildcard allows from either layer leave Protection denies effective).
+  - Checked live on Windows (BTN-500, BTN-501: every group switch of the time, push flags in both orders, refspecs, delete targets, custom patterns, Huly deletion tools through the real gateway, rules saved on the running service; [verified](../verified/sessions.md)); remaining platforms and subagents are [unverified](../unverified/opencode.md#opencode-protection-btn-486).
+- **Codex** receives `.codex/rules/even-keel.generated.rules` in the working folder.
+  - **The file.** Added to git's local exclude; account folders and existing rule files are untouched, and a collision with a file without the generated header fails the launch. The file is refreshed before a CLI turn (including resume) and loaded at startup. Slot reuse replaces only this file.
+  - **Trust** (BTN-1160, BTN-1174). Codex reads a project's `.codex/rules` only in a folder its account trusts (0.167.0): untrusted, the rules silently do nothing, and the folder of a project without git or a clone new to the account is trusted by nobody. So before the same turns `trustProject` (`src/codex/trust.ts`) adds `[projects.'<folder>'] trust_level = "trusted"` for the project's folder (`projects[].repo`, as Claude's `.claude.json` gets) to the account's `config.toml`, under the key Codex writes itself: the real path, on Windows in lower case with backslashes; an entry under another spelling counts. Worktrees and slots inside the checkout take its trust. The account layer cannot hold the rules instead: execpolicy has no condition on the folder, so one project's git ban would hold in every session of the account, and `codex exec` takes no rules file and ignores `-c projects…`. The trust also turns on the rest of the project's layer (its `.codex/config.toml`, its hooks), which the turn's `-c` flags outrank. A folder the user marked `untrusted`, or a `config.toml` whose `projects` are not `[projects.'…']` tables (no TOML parser edits it), is left with a line in the log, the `agent-bridge` hook alone guarding git; a file that cannot be read or written fails the launch with `codex.trustWriteFailed`.
+  - **What the rules cover.** [Codex rules](https://developers.openai.com/codex/rules/) match literal argv prefixes: defaults cover push flags right after `git push` or after a configured remote, and literal dangerous `rm` targets. For each remote and the project's main branch (`mainBranch` of `SessionStart`, passed on launch and resume, EKR-74), Codex and Copilot get five force-refspecs: `+<branch>`, `+HEAD:<branch>`, `+<branch>:<branch>`, `+<branch>:refs/heads/<branch>` and `+HEAD:refs/heads/<branch>`. Only Codex gets deletion refspecs (`:<branch>`, `:refs/heads/<branch>`) and the additional rm targets `C:\`, `D:\`, `~/`, `$HOME/`, `../`, `/*` (BTN-462). Missing branch or remotes produce no refspec rules; disabling `forcePush` removes the five force forms. A `forbidden` prefix was seen rejected under bypass in the account and project layers (Codex 0.164.0, a local Responses server sending a harmless call).
+  - **What they miss:** other argument orders, refspecs of other branches, expanded paths, shell variants and MCP. Additional prefixes can cover a project's commands. Remaining live checks are in `docs/unverified.md`.
 
-OpenCode receives the native groups through `OPENCODE_CONFIG_CONTENT` (`sessionConfig`): command patterns as
-`permission.bash[pattern]: "deny"`, and Huly deletion tools as `permission[<gatewayName>_<tool>]: "deny"`.
-Plugin and standalone Huly servers use their actual gateway names; without a package list, the conventional
-`plugin_huly_huly` and `huly` names cover the account's own servers. Reading and updating tracker records stay allowed.
-`external_directory: "allow"` still permits the merge into the main checkout. Additional `protection.opencode` rules
-are command patterns, one per line in the editor (for example, `git reset --hard*`); no tool-name wrapper is needed.
-They share the command patterns of Claude's groups, including `+` and `:` push refspecs and paths starting with the
-recursive-delete targets. They do not cover every equivalent spelling or shell wrapper.
+### Git's global options before `push` (BTN-642)
 
-When any Protection rule is active, `sessionConfig` also loads Even Keel's built-in `protection-plugin` last, after
-the package plugins. Its config hook runs after OpenCode has merged the account, project and inline configuration.
-It appends the active native denies to both the top-level permissions and every configured agent's permissions,
-including `build`. Existing matching keys are removed before reinsertion: assigning an existing key would retain
-its position before a later wildcard allow. Scalar permissions become a `*` entry; unrelated rules keep their
-order. Account and project files are untouched. With every group off and no custom rules, no overlay is loaded.
+`-C <dir>`, `-c <k=v>`, `--git-dir=…`, `--no-pager` before `push` shift a command past the `git push` patterns.
 
-The [OpenCode permissions documentation](https://opencode.ai/docs/permissions/) and the installed 1.18.25 source
-(`permission/index.ts`, `core/src/util/wildcard.ts`) agree: `*` matches any text, `?` one character, and the last
-matching permission wins. Backslashes normalize to slashes and matching ignores case on Windows. Agent-specific
-permissions can override the config's permissions; these are native guardrails, not a sandbox. Checked live on
-Windows with OpenCode 1.18.25 (BTN-500): all seven group switches, push flags in both common orders, force/delete
-refspecs, recursive-delete targets, custom `*`/`?` patterns, and Huly deletion tools through the real gateway. The
-provider emitted tool calls against a local bare remote and safe recording stubs. Deletion tools are removed from
-the offered tool set; forced calls become unavailable-tool results, while reads and updates reach the MCP stub.
-Top-level account/project broad allows leave the denies effective. Shared and project rules saved through the
-running service's page reached new chain sessions without a restart; a project's rule list replaced the shared one.
-The build-agent override found there was corrected in BTN-501: scalar, broad, explicit MCP-tool and late wildcard
-allows from either layer leave Protection denies effective. The source and compiled transport were checked live;
-neither the `rm` stub nor the deletion MCP stubs received the denied calls. Results are in
-[verified.md](../verified.md); remaining platforms and subagents are in
-[unverified.md](../unverified/opencode.md#opencode-protection-btn-486). No separately installed package is needed. The retained
-**OpenCode Protection** test project and `.temp/btn-500/README.md` and `.temp/btn-501/README.md` in the main checkout
-describe how to repeat the safe checks.
-
-Codex receives `.codex/rules/even-keel.generated.rules` in the working folder, added to git's local exclude. Account
-folders and existing rule files are untouched; a collision with a file without the generated header fails the launch.
-The file is refreshed before a CLI turn (including resume) and loaded at startup. Slot reuse replaces only this file.
-Codex reads a project's `.codex/rules` only in a folder its account trusts (0.167.0, BTN-1160): untrusted, the rules
-silently do nothing, and the folder of a project without git or a clone new to the account is trusted by nobody. So
-before the same turns `trustProject` (`src/codex/trust.ts`, BTN-1174) adds `[projects.'<folder>'] trust_level =
-"trusted"` for the project's folder (`projects[].repo`, as Claude's `.claude.json` gets) to the account's
-`config.toml`, under the key Codex writes itself: the real path, on Windows in lower case with backslashes; an entry
-under another spelling counts. Worktrees and slots inside the checkout take its trust. The account layer cannot hold
-the rules instead: execpolicy has no condition on the folder, so one project's git ban would hold in every session of
-the account, and `codex exec` takes no rules file and ignores `-c projects…`. The trust also turns on the rest of the
-project's layer (its `.codex/config.toml`, its hooks), which the turn's `-c` flags outrank. A folder the user marked
-`untrusted`, or a `config.toml` whose `projects` are not `[projects.'…']` tables (no TOML parser edits it), is left
-with a line in the log, the `agent-bridge` hook alone guarding git; a file that cannot be read or written fails the
-launch with `codex.trustWriteFailed`. Checked on Codex 0.164.0 with a local
-Responses server sending a harmless `echo` tool call: a `forbidden` prefix was rejected under bypass in the account
-and project config layers. [Codex rules](https://developers.openai.com/codex/rules/) match literal argv prefixes:
-defaults cover push flags immediately after `git push` or after a configured remote, and literal dangerous `rm`
-targets. For each remote and the project's main branch (`mainBranch` of `SessionStart`), Codex and Copilot get
-`+<branch>`, `+HEAD:<branch>`, `+<branch>:<branch>`, `+<branch>:refs/heads/<branch>` and `+HEAD:refs/heads/<branch>`.
-Only Codex gets deletion refspecs (`:<branch>`, `:refs/heads/<branch>`) and the additional rm targets `C:\`, `D:\`, `~/`, `$HOME/`,
-`../`, `/*` (BTN-462). Missing branch or remotes produce no refspec rules; disabling `forcePush` removes the five
-force forms. Other argument orders, refspecs of other branches, expanded paths, shell variants and MCP are not covered.
-Additional prefixes can cover a project's commands. Remaining live checks are in `docs/unverified.md`.
+- Claude and OpenCode get every push pattern a second time as `git -* push …`: any run of options starting with `-` between `git` and `push`, so `git commit -m "push --force"` stays allowed; with a global option before the subcommand the `*` runs on into the message, and `git -c <k=v> commit -m "push --force"` is refused (seen live on Claude, BTN-1159). Claude's spellings were seen refused live on Windows; the row is in the OpenCode journal ([verified](../verified/opencode.md), [unverified](../unverified/opencode.md#opencode-protection-btn-486)).
+- Codex and Copilot have no wildcard inside a prefix and get only `git -C . push …` and `git --no-pager push …`. Not caught there: `-C` with any other folder (the worktree's absolute path included), `-c`, `--git-dir`, `--work-tree`, several global options together.
+- Not caught anywhere: an alias (`git config alias.p push`), a `+` refspec in the remote's `remote.<name>.push` config, a push hidden in a script or shell wrapper.
 
 ### Git off (BTN-1052)
 
-A session of a project without git (`docs/chain/worktrees.md`) is forbidden git itself. `protectionRules` takes
-`noGit` and adds one more set of rules (`gitBan`) beside the groups: it is no group, so `disabled` does not lift it,
-the page does not show it, and a project with git never has it. `createSessionSettings` passes `isPlain` for Claude;
-the other agents read `SessionStart.outsideRepo`.
+A session of a project without git (`docs/chain/worktrees.md`) is forbidden git itself. `protectionRules` takes `noGit` and adds one more set of rules (`gitBan`) beside the groups: it is no group, so `disabled` does not lift it, the page does not show it, and a project with git never has it. `createSessionSettings` passes `isPlain` for Claude; the other agents read `SessionStart.outsideRepo`.
 
 | Agent | Native rule | What it misses |
 | --- | --- | --- |
@@ -126,41 +42,19 @@ the other agents read `SessionStart.outsideRepo`.
 | Copilot | `shell(git:*)`, `shell(git.exe:*)` | the same |
 | OpenCode | `permission.bash`: `git`, `git *`, `git.exe`, `git.exe *`, reapplied by the protection plugin | a wrapper, another shell, a path |
 
-What a rule misses the `agent-bridge` plugin refuses, from 1.1.0: `git-ban.mjs` on `PreToolUse` of the shell tools
-(`Bash`, `PowerShell`, and the lowercase names) and the same check on `tool.execute.before` of OpenCode's plugin.
-`callsGit` (`hooks/gitban.mjs`) finds git in the place of a command in any part of a compound command (`&&`, `||`,
-`;`, `|`, `&`, a new line, `$(…)`, backticks, brackets), after variable assignments and `env`, `sudo`, `command`,
-`exec`, `time`, `nohup`, `xargs`, by any path and as `git.exe`, and at the start of the text given to `bash -c`,
-`sh -c`, `cmd /c`, `pwsh -Command`. A command that only names git (`grep git`, `cat .git/config`, `echo "git status"`)
-is not a call. Only for a command that calls git the hook asks `GET /api/sessions/<id>/check`, whose answer has
-`git: false` for such a project, and denies with a reason (`permissionDecision: deny`; OpenCode — a thrown error).
-Even Keel not answering leaves the call to the native rule. Not caught anywhere: git run by a script or a program the
-session wrote, a shell alias or function, a renamed copy of the binary, `eval` of a built string. Unit tests only
-([unverified.md](../unverified/sessions.md#git-refused-in-a-project-without-git-btn-1052)).
+What a rule misses the `agent-bridge` plugin refuses: `git-ban.mjs` on `PreToolUse` of the shell tools (`Bash`, `PowerShell`, and the lowercase names) and the same check on `tool.execute.before` of OpenCode's plugin. `callsGit` (`hooks/gitban.mjs`) finds git in the place of a command in any part of a compound command (`&&`, `||`, `;`, `|`, `&`, a new line, `$(…)`, backticks, brackets), after variable assignments and `env`, `sudo`, `command`, `exec`, `time`, `nohup`, `xargs`, by any path and as `git.exe`, and at the start of the text given to `bash -c`, `sh -c`, `cmd /c`, `pwsh -Command`. A command that only names git (`grep git`, `cat .git/config`, `echo "git status"`) is not a call. Only for a command that calls git the hook asks `GET /api/sessions/<id>/check`, whose answer has `git: false` for such a project, and denies with a reason (`permissionDecision: deny`; OpenCode — a thrown error). Even Keel not answering leaves the call to the native rule. Not caught anywhere: git run by a script or a program the session wrote, a shell alias or function, a renamed copy of the binary, `eval` of a built string. Unit tests only ([unverified](../unverified/sessions.md#git-refused-in-a-project-without-git-btn-1052)).
 
 ### Even Keel's address (BTN-1127)
 
-`guard` (`src/guard.ts`) lets a request from this machine without `Origin` through without the page's token: the hooks
-and hand sessions go that way. A chain session is such a process too, so under someone else's text it could change
-Protection or `execution.codex`, answer a question or approve a tool call, start a chain, or create a task of another
-project through `/tasks`. The group `ownAddress` (on by default, like every new group) has no native rule: Codex's and
-Copilot's prefixes cannot see an address in the middle of a command. The `agent-bridge` hook does it for every agent,
-from 1.2.0: `git-ban.mjs` (and OpenCode's plugin) runs `addressRefusal` (`hooks/addressban.mjs`) after the git ban.
-`reachesService` wants both the address and a network tool: the address is `localhost`, `127.x.x.x`, `[::1]`,
-`0.0.0.0` or the host of the hook's `EVEN_KEEL_URL`, with its port, or the variable `EVEN_KEEL_URL` itself; the tool
-is a word `curl`, `wget`, `Invoke-WebRequest`/`iwr`, `Invoke-RestMethod`/`irm`, `http`/`https`/`xh`, `nc`, `ncat`,
-`telnet`, `node`, `python`, `py`, `deno`, `bun` anywhere in the command, or `fetch(`, `WebClient`, `HttpClient`,
-`urllib`, `requests.`, `http.get`/`http.request`, `socket`. `grep 127.0.0.1:4747` alone goes through. Only then the
-hook asks `/check`, whose answer has `ownAddress: true` while the project's group is on (`guardsOwnAddress`), and
-denies. The hooks' own requests run in their process, not through the session's shell, and are not touched. Not
-caught: a script or program the session wrote, an address built in a string, the machine's own network address, the
-Tailscale or other proxy name, `npm run` of a script that sends the request. The real fence is a separate OS account
-or machine (`docs/guide/security.md`); a session key on the API is BTN-1117's follow-up. Unit tests only
-([unverified.md](../unverified/sessions.md#even-keels-address-refused-btn-1127)).
+`guard` (`src/guard.ts`) lets a request from this machine without `Origin` through without the page's token: the hooks and hand sessions go that way. A chain session is such a process too, so under someone else's text it could change Protection or `execution.codex`, answer a question or approve a tool call, start a chain, or create a task of another project through `/tasks`. The group `ownAddress` (on by default, like every new group) has no native rule: Codex's and Copilot's prefixes cannot see an address in the middle of a command. The `agent-bridge` hook does it for every agent: `git-ban.mjs` (and OpenCode's plugin) runs `addressRefusal` (`hooks/addressban.mjs`) after the git ban.
+
+- `reachesService` wants both the address and a network tool. The address is `localhost`, `127.x.x.x`, `[::1]`, `0.0.0.0` or the host of the hook's `EVEN_KEEL_URL`, with its port, or the variable `EVEN_KEEL_URL` itself. The tool is a word `curl`, `wget`, `Invoke-WebRequest`/`iwr`, `Invoke-RestMethod`/`irm`, `http`/`https`/`xh`, `nc`, `ncat`, `telnet`, `node`, `python`, `py`, `deno`, `bun` anywhere in the command, or `fetch(`, `WebClient`, `HttpClient`, `urllib`, `requests.`, `http.get`/`http.request`, `socket`. `grep 127.0.0.1:4747` alone goes through.
+- Only then the hook asks `/check`, whose answer has `ownAddress: true` while the project's group is on (`guardsOwnAddress`), and denies. The hooks' own requests run in their process, not through the session's shell, and are not touched.
+- Not caught: a script or program the session wrote, an address built in a string, the machine's own network address, the Tailscale or other proxy name, `npm run` of a script that sends the request. The real fence is a separate OS account or machine (`docs/guide/security.md`); a session key on the API is BTN-1117's follow-up. Unit tests only ([unverified](../unverified/sessions.md#even-keels-address-refused-btn-1127)).
 
 ## Project rules for every agent (BTN-340, `src/agent/projectRules.ts`)
 
-A project set up for one agent keeps its rules when a run profile switches to another. The table of what each agent reads is `READS` in `src/agent/projectRules.ts`, shared by the adapters, the packages check (`pluginReach`) and the page's "What the session gets" (`docs/web.md`). Checked live on 2026-10-24 on Windows, with a scratch repository per case (only `CLAUDE.md`, only `AGENTS.md`, both; each file with its own secret word, a skill in each of `.claude/skills`, `.agents/skills`, `.codex/skills`, `.github/skills`, `.opencode/skills`), asking the session for the words and the skills in its context: Claude Code 2.1.309 (`claude -p` and `--bg`, Haiku), codex-cli 0.164.0 (`gpt-5.6-luna`), OpenCode 1.18.25 (`big-pickle`, with the account folder and flags of a chain session), Copilot CLI 1.0.103 (`copilot instruction list`, `copilot skill list`). Claude Code's row was checked again on 2026-11-08 (CLI 2.1.309–2.1.319, the bullet below).
+A project set up for one agent keeps its rules when a run profile switches to another. The table of what each agent reads is `READS` in `src/agent/projectRules.ts`, shared by the adapters, the packages check (`pluginReach`) and the "What the session gets" card on the project's settings (`docs/web/project-settings.md`). Checked live on Windows with a scratch repository per case, a secret word in each file and a skill in each folder ([verified](../verified/sessions.md); Claude Code again on 2026-11-08, the bullet below).
 
 | Agent | Only `CLAUDE.md` | Only `AGENTS.md` | Both | Skill folders |
 | --- | --- | --- | --- | --- |
@@ -169,27 +63,29 @@ A project set up for one agent keeps its rules when a run profile switches to an
 | OpenCode | `CLAUDE.md` | `AGENTS.md` | `AGENTS.md` | `.opencode/skills`; `.claude/skills`, `.agents/skills` passed by Even Keel |
 | Copilot | `CLAUDE.md` | `AGENTS.md` | both | `.github/skills`, `.agents/skills`, `.claude/skills` |
 
-- **Claude Code reads a lone `AGENTS.md` by itself.** The CLI's own log says "no CLAUDE.md found; AGENTS.md loaded" — the built-in `cc-plugin-agents-md` plugin, whose `instructionFiles` option is `claude-md-or-agents-md` by default (`claude-md` and `claude-md-and-agents-md` are the other values, `managed-only` drops the project's files). Checked live on 2026-11-08 with CLI 2.1.309, 2.1.310 and 2.1.319 (Haiku, `--tools ""`, a file holding a secret word): a session in a folder with a lone `AGENTS.md` knew the word; with a `CLAUDE.md` beside it, the session knew the `CLAUDE.md`'s word and not the `AGENTS.md`'s; the search stops at the project's own root, so a chain worktree reads its own `AGENTS.md` and not the `CLAUDE.md` of the main checkout above it. The same 2.1.309 binary that did not read the file on 2026-10-24 read it on 2026-11-08, so what decides it is the CLI's remote default, not its version. A `CLAUDE.md` or `.claude/CLAUDE.md` in a folder above the checkout keeps the CLI from the file — on Windows `~/.claude/CLAUDE.md` too, once the account is another folder (CLI 2.1.319, BTN-869); the folders of the main checkout a chain worktree sits in do not count. Only then Even Keel passes the file itself: `agentsFallback` (`src/claude/instructions.ts`, with `claudeRulesAbove`) gives it to the `--append-system-prompt-file` of the launch, every resume and the keep-warm ping, and to the SDK transport's `systemPrompt.append`. Everywhere else it passes nothing, so the file is not in the context twice (BTN-833).
+- **Claude Code reads a lone `AGENTS.md` by itself**, through the built-in `cc-plugin-agents-md` plugin (its `instructionFiles` option is `claude-md-or-agents-md` by default; `claude-md` and `claude-md-and-agents-md` are the other values, `managed-only` drops the project's files). With a `CLAUDE.md` beside it, the session reads only the `CLAUDE.md`; the search stops at the project's own root, so a chain worktree reads its own `AGENTS.md` and not the `CLAUDE.md` of the main checkout above it. Whether the CLI does it is its remote default, not its version: the same 2.1.309 binary did not read the file on 2026-10-24 and read it on 2026-11-08.
+  - A `CLAUDE.md` or `.claude/CLAUDE.md` in a folder above the checkout keeps the CLI from the file — on Windows `~/.claude/CLAUDE.md` too, once the account is another folder (CLI 2.1.319, BTN-869); the folders of the main checkout a chain worktree sits in do not count.
+  - Only then Even Keel passes the file itself: `agentsFallback` (`src/claude/instructions.ts`, with `claudeRulesAbove`) gives it to the `--append-system-prompt-file` of the launch, every resume and the keep-warm ping, and to the SDK transport's `systemPrompt.append`. Everywhere else it passes nothing, so the file is not in the context twice (BTN-833).
 - **Codex reads `CLAUDE.md` only when told.** Without an `AGENTS.md` it knew no word; `turnArgs` passes `-c project_doc_fallback_filenames=["CLAUDE.md"]` on every turn, and with both files Codex still takes only `AGENTS.md`.
 - **Codex has no way to `.claude/skills`.** It lists `.agents/skills` and `.codex/skills` only; a `skills.config` entry with the path of a `.claude/skills/<name>/SKILL.md` adds nothing (0.164.0). A project that wants its skills in Codex sessions keeps them in `.agents/skills`, which Claude Code in turn does not read.
 - **OpenCode** reads `AGENTS.md`, else `CLAUDE.md`, by itself (`OPENCODE_DISABLE_CLAUDE_CODE` would drop the latter). Of the skill folders, `OPENCODE_DISABLE_EXTERNAL_SKILLS` drops the project's `.claude/skills` and `.agents/skills` with the home folder's, and `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` the `.claude/skills` ones; `.opencode/skills` stays. With both flags on, the two project folders passed in `skills.paths` came back (`skillDirs` in `src/opencode/cli.ts`).
 - **Copilot** reads both files when both are there, and three skill folders, all without any help.
 - What a session gets is what is committed on the project's branch: a worktree is checked out from it, so an uncommitted `CLAUDE.md` or skill of the main checkout reaches no chain session. The page reads the same through `git ls-tree -r --name-only <branch>` (`readRepoRules` in `src/tools/panel.ts`, `ToolsView.rules`); only a skill's `SKILL.md` one level under a folder counts (`repoRulesOf`).
 
-## The check before the merge
+## The merge check on Codex
 
-The merge guard (`merge-check.mjs`) returns `hookSpecificOutput.permissionDecision: deny` on a failed check. On Codex 0.164.0, a command hook's exit code 2 alone did not block a code-mode `exec_command`; the explicit denial did. The nested call's hook input is `tool_name: Bash`, `tool_input: { command }`, with the session's `cwd`: the command's `workdir` is absent even when it differs. The guard checks the branch and runs the check in the session's worktree, so a merge command running in the main checkout still checks the task. Checked live on Windows on 2026-10-25: a red check held main unchanged, a green check allowed the merge, and a shell-written note was already in the rollout when `checkpoint-mark` asked, so its Stop block made Codex add the mark.
+The project's check commands run before a session's merge (`merge-check.mjs` of the `agent-bridge` package, the merge guard; `docs/chain.md`). On Codex the guard returns `hookSpecificOutput.permissionDecision: deny` on a failed check: on Codex 0.164.0 a command hook's exit code 2 alone did not block a code-mode `exec_command`, the explicit denial did. The nested call's hook input is `tool_name: Bash`, `tool_input: { command }`, with the session's `cwd`: the command's `workdir` is absent even when it differs. The guard checks the branch and runs the check in the session's worktree, so a merge command running in the main checkout still checks the task. Checked live on Windows ([verified](../verified/codex.md)).
 
 ## Project standards (BTN-359)
 
-A standard is a document of the project's repository and the files it guards: the project setting `standards`, a list of `{ doc, files, except, shots }` (`Standard` in `src/state/settings.ts`, checked by `standardsOf` in `src/projects/standards.ts`; `docs/settings.md`). The masks are globs from the repository's root: `**/` any folders, `*` and `?` within one path part, an exception wins. The page edits it in the project's Sessions tab (`ProjectStandards.tsx`), the document picked from the Markdown files committed on the project's branch (`ToolsView.docs`, `readBranchDocs` in `src/tools/panel.ts`), one the branch lacks is warned about; "Add "Interface"" adds `INTERFACE_FILES` with `DEFAULT_EXCEPT` and the merge's check on, `docs/design.md` when the branch has it. "What the session gets" lists the documents.
+A standard is a document of the project's repository and the files it guards: the project setting `standards`, a list of `{ doc, files, except, shots }` (`Standard` in `src/state/settings.ts`, checked by `standardsOf` in `src/projects/standards.ts`; `docs/settings.md`). The masks are globs from the repository's root: `**/` any folders, `*` and `?` within one path part, an exception wins. The page edits it in the project's Sessions tab (`ProjectStandards.tsx`), the document picked from the Markdown files committed on the project's branch (`ToolsView.docs`, `readBranchDocs` in `src/tools/panel.ts`), one the branch lacks is warned about; the button "Add Interface" adds `INTERFACE_FILES` with `DEFAULT_EXCEPT` and the merge's check on, `docs/design.md` when the branch has it. The "What the session gets" card lists the documents.
 
-The `agent-bridge` plugin holds them, from 0.12.0 (`plugins/agent-bridge/hooks/standards.mjs`, the hook command `standard-gate.mjs`). The hook asks `GET /api/sessions/<id>/standards` (`{ standards }`, the same answer as `/check` has; 404 for a session the chain did not start, and then it says nothing):
+The `agent-bridge` plugin holds them (`plugins/agent-bridge/hooks/standards.mjs`, the hook command `standard-gate.mjs`). The hook asks `GET /api/sessions/<id>/standards` (`{ standards }`, the same answer as `/check` has; 404 for a session the chain did not start, and then it says nothing):
 
-- `PostToolUse` of a read (`Read`, Copilot's `view`, `read_file`) of a guarded file adds the document, whole, in `additionalContext` inside `<standard path="…">`, with a line on what the merge will want when `shots` is on.
-- `PreToolUse` of an edit (`Edit`, `Write`, `MultiEdit`, `NotebookEdit`, Codex's `apply_patch` — its paths from the patch's `*** Update File:` lines —, Copilot's `edit`/`create`/`str_replace`; Copilot 1.0.98 sends its `apply_patch` as `Edit` with the patch as a bare string `tool_input`, whose paths `callOf` takes from the same lines, BTN-640) of a guarded file whose document the session has not had is denied with the document as the reason; the edit after it goes through.
-- What was given is kept per session (and per subagent: `agent_id`) in `<session>.standards.json` of the temp folder's `claude-context-checkpoint/`, beside the threshold's marks; `SessionStart` with `compact` or `clear` drops the session's own, so the document comes again after a compaction.
-- The merge: `mergeRefusal` (`hooks/merges.mjs`, shared by `merge-check.mjs` and the OpenCode plugin) runs `standardsRefusal` before the project's check commands. For each standard with `shots` whose files `git diff --name-only <main>...HEAD` names, it wants pictures in `.temp/shot/` (any depth) newer than the newest mtime of those files, then `.temp/<document's name>-check.md` newer than the pictures, holding each question of the document's section "The check" (its list items ending with "?", up to the next heading of the same level) with words after it before the next question. Committed changes only: the diff is of the branch, not of the worktree. A git that cannot tell lets the merge go.
-- PR mode has no merge: the `Stop` hook refuses a turn whose last line is the `PULL REQUEST` mark with the same text (`decision: block`), once — a turn already stopped by a hook (`stop_hook_active`) goes.
+- **A read.** `PostToolUse` of a read (`Read`, Copilot's `view`, `read_file`) of a guarded file adds the document, whole, in `additionalContext` inside `<standard path="…">`, with a line on what the merge will want when `shots` is on.
+- **An edit.** `PreToolUse` of an edit of a guarded file whose document the session has not had is denied with the document as the reason; the edit after it goes through. The edit tools: `Edit`, `Write`, `MultiEdit`, `NotebookEdit`; Codex's `apply_patch`, its paths from the patch's `*** Update File:` lines; Copilot's `edit`/`create`/`str_replace`, and its `apply_patch`, which Copilot 1.0.98 sends as `Edit` with the patch as a bare string `tool_input` and whose paths `callOf` takes from the same lines (BTN-640).
+- **Memory of what was given** is kept per session (and per subagent: `agent_id`) in `<session>.standards.json` of the temp folder's `claude-context-checkpoint/`, beside the checkpoint threshold's files (`checkpoint.md`); `SessionStart` with `compact` or `clear` drops the session's own, so the document comes again after a compaction.
+- **The merge.** `mergeRefusal` (`hooks/merges.mjs`, shared by `merge-check.mjs` and the OpenCode plugin) runs `standardsRefusal` before the project's check commands. For each standard with `shots` whose files `git diff --name-only <main>...HEAD` names, it wants pictures in `.temp/shot/` (any depth) newer than the newest mtime of those files, then `.temp/<document's name>-check.md` newer than the pictures, holding each question of the document's section "The check" (its list items ending with "?", up to the next heading of the same level) with words after it before the next question. Committed changes only: the diff is of the branch, not of the worktree. A git that cannot tell lets the merge go.
+- **PR mode** (the project opens a pull request instead of merging, `docs/chain/pr-mode.md`) has no merge: the `Stop` hook refuses a turn whose last line is `PULL REQUEST` with the same text (`decision: block`), once — a turn already stopped by a hook (`stop_hook_active`) goes.
 
-OpenCode gets the same from `opencode/agent-bridge.mjs`: the read on `tool.execute.after` (appended to the output), the edit on `tool.execute.before` (thrown), the marks dropped on the `session.compacted` event, the merge with the merge check. Its turn's end cannot be blocked, so PR mode's mark is not held there.
+OpenCode gets the same from `opencode/agent-bridge.mjs`: the read on `tool.execute.after` (appended to the output), the edit on `tool.execute.before` (thrown), the memory dropped on the `session.compacted` event, the merge with the merge check. Its turn's end cannot be blocked, so PR mode's line is not held there.
