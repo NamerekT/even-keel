@@ -112,7 +112,7 @@ All four agents can keep a live working process with no error and no completed t
 
 ### Temporary model errors (BTN-498, `src/sessions/transient.ts`)
 
-`apiError.kind: transient`: `at capacity`, `overloaded`/`overloaded_error`, Codex's `server_is_overloaded`, and `service unavailable`/`service_unavailable`. A bare HTTP 503/529 without such a message is not enough. Claude's synthetic API error, Codex's error event or failed `task_complete` (with `codex_error_info`), OpenCode's step or turn error and Copilot's `session.error` keep the kind. An idle live session shows a waiting lamp; while the CLI retries mid-turn it stays working. Provider variants and recovery through a real outage are [unverified](../unverified/sessions.md#temporary-model-errors-btn-498); the chain's resume schedule is in [chain/exceptions.md](../chain/exceptions.md#the-exceptions-to-invariant-1-in-detail).
+`apiError.kind: transient`: `at capacity`, `overloaded`/`overloaded_error`, Codex's `server_is_overloaded`, and `service unavailable`/`service_unavailable`. A bare HTTP 503/529 without such a message is not enough. Claude's synthetic API error, Codex's error event or failed `task_complete` (with `codex_error_info`), OpenCode's step or turn error and Copilot's `session.error` keep the kind. An idle live session shows a waiting lamp; while the CLI retries mid-turn it stays working. Provider variants and recovery through a real outage are [unverified](../unverified/sessions.md#temporary-model-errors-btn-498); the chain's resume schedule is in [chain/exceptions.md](../chain/exceptions.md), exception 1.
 
 ### The feed
 
