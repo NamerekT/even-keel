@@ -47,5 +47,17 @@ describe('taskLamp', () => {
 
   it('keeps the tracker status first', () => {
     expect(taskLamp(done, session('finished'), false, true)).toBe('done')
+    expect(taskLamp(done, session('waiting'), false, false, true)).toBe('done')
+  })
+
+  it('lights a session whose merge is being landed as at work, not as a question or stopped (BTN-1779)', () => {
+    expect(taskLamp(open, session('waiting'), false, false, true)).toBe('working')
+    expect(taskLamp(open, session('finished'), false, false, true)).toBe('working')
+    expect(taskLamp(open, session('waiting'))).toBe('waiting')
+  })
+
+  it('keeps a real question of a session whose merge is being landed', () => {
+    expect(taskLamp(open, { ...session('waiting'), asking: true }, false, false, true)).toBe('waiting')
+    expect(taskLamp(open, { ...session('waiting'), waitingFor: 'permission' } as SessionView, false, false, true)).toBe('waiting')
   })
 })

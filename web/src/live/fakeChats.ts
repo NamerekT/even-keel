@@ -238,6 +238,9 @@ export function fakeChats(mode: string | null) {
     return list
   }
 
+  /** A renamed chat's title before its first rename. */
+  const automatic = new Map<string, string | null>()
+
   const find = (id: string) => {
     for (const list of lists.values()) {
       const found = list.active.find((each) => each.id === id)
@@ -347,9 +350,19 @@ export function fakeChats(mode: string | null) {
         hit.list.active = [next, ...hit.list.active.filter((each) => each.id !== hit.found.id)]
         hit.list.archived = [{ ...hit.found, state: 'archived', archivedAt: at, successor: next.id, unread: false }, ...hit.list.archived]
         hit.list.choice = machine === undefined ? choice : { ...choice, machine }
+        if (automatic.has(hit.found.id)) automatic.set(next.id, automatic.get(hit.found.id)!)
         setTimeout(() => replace(next.id, { state: 'working', sessionId: `${next.id}-session` }), ANSWER_MS / 2)
         setTimeout(() => replace(next.id, { state: 'answered', unread: true, last: { from: 'agent', text: 'Picked up where the last chat stopped: the step waits on a port another run holds.', at: new Date().toISOString() } }), ANSWER_MS * 2)
         return next
+      }
+      if (name === 'chats/rename') {
+        // The user's name of the chat (BTN-1774); an empty one brings back the title it had before.
+        const id = String(body.id)
+        const hit = find(id)
+        if (hit === undefined) return null
+        if (!automatic.has(id)) automatic.set(id, hit.found.title)
+        const named = String(body.name ?? '').trim()
+        return replace(id, { title: named === '' ? automatic.get(id)! : named })
       }
       return undefined
     },

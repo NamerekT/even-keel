@@ -7,7 +7,7 @@ import type { SessionView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { projectPath, taskProject, waitingSessions } from '../state.js'
-import { completionTasks } from '../completion.js'
+import { quietTasks } from '../completion.js'
 import { QuestionIcon } from '../ui/icons.js'
 import { ThemeSwitch } from '../ui/ThemeSwitch.js'
 import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
@@ -18,7 +18,7 @@ import { usePopover } from './usePopover.js'
 /** The header's questions block; `row` is the burger's row: the word at the left, the sign and the count at the right (BTN-1162). */
 export function Waiting({ sessions, tasks, row = false }: { sessions: SessionView[]; tasks: Task[]; row?: boolean }) {
   const { state } = useLive()
-  const waiting = waitingSessions(sessions, tasks, completionTasks(state))
+  const waiting = waitingSessions(sessions, tasks, quietTasks(state))
   const first = waiting[0]
   if (first === undefined) return null
 

@@ -29,6 +29,7 @@ import { LaunchPauses } from './pauses.js'
 import { LanePlacement } from './placement.js'
 import type { HandoffSession } from './relay.js'
 import { quietTooLong } from './quiet.js'
+import type { LandingFacts } from './landing-hold.js'
 import { Landings } from './landings.js'
 import { Reviews } from './reviews.js'
 import { excludes, isDone, isTerminal } from './rules.js'
@@ -498,6 +499,11 @@ export class Dispatcher {
 
   orders(): Record<string, ProjectOrder> {
     return this.lists.orders()
+  }
+
+  /** The page's `chain.landings`: each project's landings, those under way included (BTN-1779). */
+  landingFacts(): Record<string, LandingFacts[]> {
+    return this.landings.facts()
   }
 
   view(project: string): ChainView {

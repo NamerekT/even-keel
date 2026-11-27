@@ -1,5 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { ChatCard, ChatChoice } from '../../../src/chats/model.js'
+import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { SessionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
@@ -48,9 +49,21 @@ interface Props {
  * to go on in a new session (BTN-1232).
  */
 export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged, onOpen, onAct }: Props) {
-  const { state } = useLive()
+  const { state, query } = useLive()
   const { send } = useCommand()
+  const [renameFailure, setRenameFailure] = useState<Notice | null>(null)
   const archived = chat.archivedAt !== null
+  const rename = async (name: string) => {
+    setRenameFailure(null)
+    try {
+      const card = await query<ChatCard>('chats/rename', { id: chat.id, name })
+      onChanged()
+      return card.title
+    } catch (error) {
+      setRenameFailure(noticeOf(error))
+      throw error
+    }
+  }
   const project = state?.config.projects[chat.project]
   const branch = state?.branchDrift[chat.project]
   const session = chat.sessionId === null ? undefined : state?.sessions.find((each) => each.sessionId === chat.sessionId)
@@ -63,13 +76,19 @@ export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged
       sessionId={chat.sessionId}
       account={chat.account}
       live={!archived && chat.sessionId !== null}
-      task={{ key: t.chats.window.key, title: chat.title ?? t.chats.untitled }}
+      task={{ key: t.chats.window.key, title: chat.title }}
       known={{ agent: chat.agent, model: chat.model, ...(chat.modelTitle === undefined ? {} : { modelTitle: chat.modelTitle }), effort: chat.effort, branch: project?.git ? (branch === undefined ? project.branch : branch.current) : null }}
       blank={chat.sessionId === null ? t.chats.window.blank : undefined}
       initialPrompt={(chat.state === 'starting' || chat.state === 'working') && chat.last?.from === 'user' ?
         { kind: 'prompt', at: chat.last.at, text: chat.last.text } : undefined}
-      lead={chat.previous === null ? undefined : <Continued previous={chat.previous} onOpen={onOpen} />}
+      rename={rename}
       headMenu={<ChatMenu chat={chat} className="transcript__more" onAct={onAct} />}
+      lead={
+        <>
+          {renameFailure !== null && <p className="notice notice--error">{say(renameFailure)}</p>}
+          {chat.previous !== null && <Continued previous={chat.previous} onOpen={onOpen} />}
+        </>
+      }
       mail={archived || chat.sessionId === null ? undefined : (state?.mailbox[chat.sessionId] ?? NO_MAIL)}
       session={archived ? undefined : session}
       onClose={onClose}

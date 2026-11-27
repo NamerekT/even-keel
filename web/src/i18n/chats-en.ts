@@ -47,6 +47,9 @@ export const chatsEn: typeof chatsRu = {
     starting: 'The session is starting…',
     archived: 'The chat is in the archive: read only',
     continue: 'Continue in a new session',
+    rename: 'Press to rename the chat',
+    name: 'Chat name',
+    automatic: 'Empty — the automatic title',
   },
   dialog: {
     title: 'New session',

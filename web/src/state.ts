@@ -23,7 +23,7 @@ import { formatMoment } from './format.js'
 import { say, t } from './i18n/index.js'
 import { shownWork } from '../../src/shown-work.js'
 import { limitHeld, taskLamp } from './taskLamp.js'
-import { completionTasks, needsReply } from './completion.js'
+import { completionTasks, landingTasks, needsReply } from './completion.js'
 import { laneOfTask, lanesOf, pinnedMachines, taskMachines, type TaskMachine } from './lanes.js'
 
 type CiWait = NonNullable<ActiveChain['ciWait']>
@@ -102,6 +102,8 @@ export interface ChainBlock {
    * it is not under way, and stands under the running group.
    */
   halted?: true
+  /** The dispatcher lands the session's merge, or it landed and the task is not closed yet (BTN-1779). */
+  landing?: true
   /** The fix of a red main leads the chain and this task is next: its live session takes no answer from the chat until the fix lands. */
   aside?: true
   /** The chain is stopped and the task's session lives on: the chat still answers it. */
@@ -131,12 +133,13 @@ export function projectTasks(state: Pick<EvenKeelState, 'tasks'>, project: strin
   return state.tasks.filter((task) => task.project === project)
 }
 
-export function waitingSessions(sessions: SessionView[], tasks: Task[], refused: ReadonlySet<string> = new Set(), now = new Date()): SessionView[] {
+/** `quiet` — tasks whose session asks nothing but a real question (`quietTasks`). */
+export function waitingSessions(sessions: SessionView[], tasks: Task[], quiet: ReadonlySet<string> = new Set(), now = new Date()): SessionView[] {
   const open = new Set(tasks.filter((task) => isOpen(task.status)).map((task) => task.id))
   const since = (view: SessionView) => Date.parse(view.lastActivityAt ?? view.startedAt)
   return sessions
     .filter((view) => view.lamp === 'waiting' && !idleBeforePrompt(view, now) && view.apiErrorKind !== 'transient' && !view.checkpoint && (open.has(view.task) || isOwnName(view.task)))
-    .filter((view) => !refused.has(view.task) || needsReply(view))
+    .filter((view) => !quiet.has(view.task) || needsReply(view))
     .sort((a, b) => since(a) - since(b))
 }
 
@@ -473,7 +476,7 @@ export function cardTask(state: EvenKeelState, project: string, lane?: ActiveCha
   return {
     id,
     title: isFixName(id) ? t.chain.fix : isCarryName(id) ? t.chain.carry(carryLabel(state, id)) : (task?.title ?? null),
-    lamp: taskLamp(task, taskSession(state.sessions, id) ?? null, completionTasks(state).has(id), limitHeld(lanesOf(state.chain, project), id)),
+    lamp: taskLamp(task, taskSession(state.sessions, id) ?? null, completionTasks(state).has(id), limitHeld(lanesOf(state.chain, project), id), landingTasks(state).has(id)),
     next: current === undefined && next !== undefined,
     ...(next === undefined && { held: skipped.includes(id) ? 'skipped' : 'blocked' }),
   }
@@ -524,6 +527,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   // A task waiting on its pull request is out of the chain: its row stands between the closed tasks and the open ones.
   const pulls = [...reviews.keys()].filter((id) => !shut.includes(id) && !open.includes(id)).sort(byNumber)
   const refused = completionTasks(state)
+  const landing = landingTasks(state)
 
   const blocks = [...shut, ...pulls, ...open].map((id): ChainBlock => {
     const episode = ended.get(id)
@@ -553,7 +557,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     const pinned = machines === undefined ? pinnedMachines(state, pins) : undefined
     const pinWait = state.pinWaits?.[project]?.[id]
     const stranded = lane === undefined ? state.stranded?.[project]?.[id] : undefined
-    const lamp = taskLamp(task, session, refused.has(id), limitHeld(lanes, id))
+    const lamp = taskLamp(task, session, refused.has(id), limitHeld(lanes, id), landing.has(id))
     const left = (state.chain.leftovers[project] ?? []).filter((each) => each.task === id)
     const work = shownWork(state, project, id)
     return {
@@ -588,6 +592,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       ...(stranded !== undefined && { stranded: { machine: state.machineNames?.[stranded.machine] ?? stranded.machine, pushed: stranded.pushed } }),
       ...(id === active?.interrupted?.task && { interrupted: true as const }),
       ...(lane?.paused === true && lamp === 'stopped' && { halted: true as const }),
+      ...(landing.has(id) && { landing: true as const }),
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
       ...(active === undefined && session !== null && session.lamp !== 'finished' && { loose: true as const }),
       ...(reviews.has(id) && { review: reviews.get(id)! }),

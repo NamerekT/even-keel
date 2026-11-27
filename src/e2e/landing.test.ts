@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { commitAndMerge, type Turn } from './agent.fixture.js'
 import { Harness, PROJECT_ID } from './service.fixture.js'
 import { scaled } from '../../test/slow-runner.js'
+import { chainBlocks } from '../../web/src/state.js'
 
 const nodeCommand = (script: string) => [process.execPath, script].map((path) => `"${path.replaceAll('\\', '/')}"`).join(' ')
 const IDENTITY = ['-c', 'user.name=John Doe', '-c', 'user.email=john@example.com']
@@ -121,6 +122,32 @@ describe('the landing of a merge into the remote main end to end (BTN-1581)', { 
     expect(calls('resume', 'ABC-1')).toHaveLength(1)
     expect(remoteLog()).toEqual(expect.arrayContaining(['[ABC-1] Work', 'Elsewhere 1']))
     expect(run.service.dispatcher.state.leftovers[PROJECT_ID] ?? []).toEqual([])
+  })
+
+  it('shows the merged task at work, not waiting for an answer, while a long commands.check holds its landing (BTN-1779)', async () => {
+    const gate = join(run.dir, 'gate.txt')
+    const script = join(run.dir, 'check.js')
+    await writeFile(
+      script,
+      `const fs = require('fs')\nconst end = Date.now() + 60000\nconst wait = () => fs.existsSync(${JSON.stringify(gate)}) || Date.now() > end ? process.exit(0) : setTimeout(wait, 50)\nwait()\n`,
+    )
+    run.project.commands = { check: [nodeCommand(script)] }
+    // The check runs only on a merge with a remote main that moved meanwhile.
+    run.agent.script('ABC-1', mergeWith('one.txt', 'ABC-1\n', () => pushedElsewhere('elsewhere.txt', 'elsewhere\n')))
+    await run.start()
+    await run.startChain(PROJECT_ID)
+
+    const row = () => chainBlocks(run.service.getState(), PROJECT_ID).find((block) => block.id === 'ABC-1')
+    const session = () => run.service.getState().sessions.find((each) => each.task === 'ABC-1')
+    // A step waits up to 10 s of real time for the running check; a long one passes the landing's wait at once.
+    await run.until(() => session()?.lamp === 'waiting' && row()?.landing === true, 'ABC-1 ended its turn with the landing underway', { step: 5_000 })
+    expect(row()?.lamp).toBe('working')
+    expect(run.board.status('ABC-1')).not.toBe('Done')
+
+    await writeFile(gate, 'go\n')
+    await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done once the check passes')
+    await run.until(() => calls('launch', 'ABC-2').length === 1, 'ABC-2 launched')
+    expect(run.service.dispatcher.landingFacts()[PROJECT_ID] ?? []).toEqual([])
   })
 
   it('keeps the task open while the remote is out of reach, telling the session nothing, and lands it once it is back', async () => {

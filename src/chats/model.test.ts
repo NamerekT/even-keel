@@ -44,6 +44,7 @@ const chat = (fields: Partial<ChatRecord> = {}): ChatRecord => ({
   model: 'opus',
   effort: 'high',
   title: null,
+  name: null,
   first: 'Why is the build slow?',
   said: 'Why is the build slow?',
   last: null,
@@ -162,6 +163,11 @@ describe('the card', () => {
     expect(card).toMatchObject({ title: 'Why is the build slow?', state: 'answered', unread: true, context: { tokens: 42_000, window: 200_000 } })
     expect(cardOf(chat({ title: 'Slow build' }), undefined, false, NOW).title).toBe('Slow build')
     expect(cardOf(chat({ title: 'chat-0123456789ab' }), undefined, false, NOW).title).toBe('Why is the build slow?')
+  })
+
+  it("puts the user's name of the chat over the transcript's title and the first message (BTN-1774)", () => {
+    expect(cardOf(chat({ name: 'Build speed', title: 'Slow build' }), undefined, false, NOW).title).toBe('Build speed')
+    expect(cardOf(chat({ name: 'Build speed' }), undefined, false, NOW).title).toBe('Build speed')
   })
 
   it("names the chat's model as its session's catalogue does, only while the session answers with it", () => {

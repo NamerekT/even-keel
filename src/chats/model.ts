@@ -18,6 +18,11 @@ export interface ChatRecord {
   effort: string | null
   /** The title the CLI gave the session (`custom-title`, `ai-title`); `null` — none yet. */
   title: string | null
+  /**
+   * The name the user gave the chat in its window (BTN-1774), over `title`: the sweep rewrites `title` from the
+   * transcript and never this. `null` — none, the title is the automatic one.
+   */
+  name: string | null
   /** The user's first message: the title until the CLI gives one. */
   first: string | null
   /** What the user wrote through Even Keel, newest last, for the archive's search; cut from the head at `SAID_CHARS`. */
@@ -139,6 +144,8 @@ export const ARCHIVE_PAGE = 20
 export const SAID_CHARS = 20_000
 /** The longest message text a card keeps. */
 export const LAST_CHARS = 1_000
+/** The longest name the user gives a chat (BTN-1774). */
+export const NAME_CHARS = 200
 /** A turn ended with no cache window known is taken as cold after Claude's shortest cache. */
 const COLD_AFTER_MS = 5 * 60 * 1000
 /** States whose session works or waits for the user: never stopped to make room (BTN-1653). */
@@ -249,7 +256,7 @@ export function cardOf(chat: ChatRecord, view: SessionView | undefined, starting
   return {
     id: chat.id,
     project: chat.project,
-    title: keptTitleOf(chat) ?? chat.first,
+    title: chat.name ?? keptTitleOf(chat) ?? chat.first,
     agent: chat.agent,
     account: chat.account,
     model: chat.model,

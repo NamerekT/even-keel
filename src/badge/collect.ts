@@ -1,6 +1,7 @@
 import type { EvenKeelState, SessionView } from '../state.js'
 import type { Task } from '../tracker/model.js'
 import { isCarryName, isFixName, isOwnName, projectOfFix, releaseOfCarry } from '../chain/fix.js'
+import { needsReply } from '../sessions/needs-reply.js'
 import { localStamp } from './dates.js'
 import { STATUS_FRESH_MS } from './status.js'
 import { BADGE_FIELDS, BADGE_VERSION, type BadgeAction, type BadgeChain, type BadgeField, type BadgeState, type BadgeStats, type BadgeTask } from './model.js'
@@ -72,7 +73,9 @@ function taskOf(state: EvenKeelState, project: string, current: Current, on: Set
   const session = current.sessionId === null ? state.sessions.find((each) => each.task === id) : state.sessions.find((each) => each.sessionId === current.sessionId)
   const hold = current.limit !== undefined && current.limit.acted === null && current.limit.transient !== true ? current.limit : undefined
   const limited = hold !== undefined || session?.lamp === 'limit'
-  const waiting = session !== undefined && (session.asking || session.lamp === 'waiting')
+  // A session whose merge the dispatcher lands waits for nobody unless it asks (BTN-1779).
+  const landing = state.chain.landings?.[project]?.some((each) => each.task === id && each.underway === true) === true
+  const waiting = session !== undefined && (session.asking || (session.lamp === 'waiting' && (!landing || needsReply(session))))
   const task: BadgeTask = { key: id, state: limited ? 'limit' : waiting ? 'waiting' : 'working' }
   if (hold !== undefined && hold.resetsAt !== null) task.until = hold.resetsAt
   const title = on.has('title') ? (isCarryName(id) ? carryTitle(state, project, id) : isFixName(id) ? fixTitle(state, project, id) : titleEn?.(id)) : undefined

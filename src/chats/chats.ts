@@ -13,6 +13,7 @@ import {
   keptTitleOf,
   lastAtOf,
   lastMessageOf,
+  NAME_CHARS,
   roomFor,
   sortActive,
   stateOf,
@@ -199,6 +200,19 @@ export class ProjectChats {
     return true
   }
 
+  /**
+   * The user's name of the chat from its window's head (BTN-1774), active or archived; an empty one brings back the
+   * automatic title. Kept by Even Keel only: nothing goes to the session.
+   */
+  async rename(id: string, name: string): Promise<ChatCard> {
+    const chat = await this.deps.store.find(id)
+    if (chat === undefined) throw fail('chats.unknown', {})
+    const next: ChatRecord = { ...chat, name: name.trim() === '' ? null : cut(name, NAME_CHARS) }
+    this.deps.store.put(next)
+    this.deps.changed()
+    return this.cardOf(next)
+  }
+
   /** The user opened the chat: what it said so far is read. */
   read(id: string): void {
     const chat = this.deps.store.get(id)
@@ -279,6 +293,7 @@ export class ProjectChats {
       const text = message.text.trim() === '' ? files.join('\n') : message.text
       const next: ChatRecord = {
         ...this.newRecord(old.project, account.agent, choice, place.machine, at),
+        name: old.name,
         first: cut(text),
         said: withSaid('', text),
         last: { from: 'user', text: cut(text), at },
@@ -332,6 +347,7 @@ export class ProjectChats {
       model: choice.model,
       effort: choice.effort,
       title: null,
+      name: null,
       first: null,
       said: '',
       last: null,

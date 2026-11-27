@@ -3,7 +3,7 @@ import type { LimitHold } from '../../../src/chain/relay.js'
 import { setLanguage, t } from '../i18n/index.js'
 import { fakeAccount, FAKE_LIMITS } from '../live/fakeAccounts.js'
 import { session } from '../live/fakeSessions.js'
-import { backgroundTip, cardAction, limitPlan, sessionStatus } from './sessionStatus.js'
+import { backgroundTip, cardAction, lampLabel, limitPlan, sessionStatus } from './sessionStatus.js'
 import { formatMoment } from '../format.js'
 
 const now = new Date('2026-01-01T12:00:00Z')
@@ -27,6 +27,15 @@ describe('session limit text', () => {
     const view = { ...session('ABC-5', 0, 'waiting'), asking: false, ask: null }
     expect(sessionStatus(view, true)).toBe(language === 'en' ? 'tracker refused closure' : 'трекер не даёт закрыть')
     expect(sessionStatus({ ...view, asking: true }, true)).toBe(t.lamp.waiting)
+  })
+  it.each(['en', 'ru'] as const)('tells a session whose merge is being landed apart from one that asks (%s, BTN-1779)', (language) => {
+    setLanguage(language)
+    const view = { ...session('ABC-5', 0, 'waiting'), asking: false, ask: null }
+    const text = language === 'en' ? 'merging into the main branch' : 'вливается в основную ветку'
+    expect(sessionStatus(view, false, true)).toBe(text)
+    expect(lampLabel('working', view, now, true)).toBe(text)
+    expect(sessionStatus({ ...view, asking: true }, false, true)).toBe(t.lamp.waiting)
+    expect(lampLabel('working', { ...view, lamp: 'working' }, now, true)).toBeUndefined()
   })
   it.each(['claude', 'codex', 'opencode', 'copilot'])('uses the %s session account to recognize a key without Remote Control', (agent) => {
     const view = { ...session('ABC-5', 0, 'limit'), agent, account: 'ci-key', remoteOff: null }

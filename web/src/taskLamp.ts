@@ -13,14 +13,16 @@ export function limitHeld(lanes: readonly Pick<ActiveChainView, 'current'>[], ta
 
 /**
  * The tracker's status first: a finished session lights a task done only when the task is done. A session ended on a
- * limit the chain waits out (`held`) lights the limit, not a stopped session.
+ * limit the chain waits out (`held`) lights the limit, not a stopped session. A session whose merge the dispatcher lands
+ * (`landing`, BTN-1779) is at work until the task is done, unless it asks something.
  */
-export function taskLamp(task: Task | undefined, session: SessionView | null, refused = false, held = false): BlockLamp {
+export function taskLamp(task: Task | undefined, session: SessionView | null, refused = false, held = false, landing = false): BlockLamp {
   if (task?.status.category === 'Won') return 'done'
   if (task?.status.category === 'Lost') return 'canceled'
   if (refused && (session === null || !needsReply(session))) return 'error'
   if (held && (session === null || !needsReply(session))) return 'limit'
   if (session === null) return task?.status.category === 'UnStarted' ? 'backlog' : 'ahead'
+  if (landing && (session.lamp === 'waiting' || session.lamp === 'finished') && !needsReply(session)) return 'working'
   if (session.checkpoint && (session.lamp === 'waiting' || session.lamp === 'finished')) return 'handoff'
   return session.lamp === 'finished' ? 'stopped' : session.lamp
 }

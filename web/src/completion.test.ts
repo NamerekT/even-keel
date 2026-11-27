@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { notice } from '../../src/notice/notice.js'
 import { createFakeSource } from './live/fake.js'
 import { cardTask, chainBlocks, waitingSessions } from './state.js'
-import { completionNotices, completionTasks, moveNotices } from './completion.js'
+import { completionNotices, completionTasks, landingTasks, moveNotices, quietTasks } from './completion.js'
 
 afterEach(() => vi.useRealTimers())
 
@@ -50,6 +50,38 @@ describe('refused merged-task completion', () => {
     tracker.completionFailures = { ABC: [notice('statusMove.notDone', { task: 'ABC-5', status: 'Closed', level: 'profile' })] }
     expect(completionNotices(state, 'ABC').map((each) => each.code)).toEqual(['statusMove.notDone'])
     expect(completionTasks(state).has('ABC-5')).toBe(true)
+  })
+})
+
+describe('a landing under way (BTN-1779)', () => {
+  function landing() {
+    const made = fixture()
+    made.tracker.completionFailures = {}
+    made.state.chain.landings = { ABC: [{ task: 'ABC-5', underway: true }] }
+    return made
+  }
+
+  it('shows the merged task at work, not waiting for an answer, on the card, the row and the header', () => {
+    const { state } = landing()
+    expect(landingTasks(state)).toEqual(new Set(['ABC-5']))
+    expect(cardTask(state, 'ABC')?.lamp).toBe('working')
+    const row = chainBlocks(state, 'ABC').find((each) => each.id === 'ABC-5')
+    expect(row).toMatchObject({ lamp: 'working', landing: true })
+    expect(waitingSessions(state.sessions, state.tasks, quietTasks(state))).toEqual([])
+  })
+
+  it('keeps a real session question visible', () => {
+    const { state, session } = landing()
+    session.asking = true
+    expect(cardTask(state, 'ABC')?.lamp).toBe('waiting')
+    expect(waitingSessions(state.sessions, state.tasks, quietTasks(state))).toEqual([session])
+  })
+
+  it('does not take a landing that went back to its session for one under way', () => {
+    const { state } = landing()
+    state.chain.landings = { ABC: [{ task: 'ABC-5', resolving: true }] }
+    expect(landingTasks(state).size).toBe(0)
+    expect(cardTask(state, 'ABC')?.lamp).toBe('waiting')
   })
 })
 

@@ -27,9 +27,10 @@ interface ChatRow {
   previous: string | null
   pending: string | null
   packages: string | null
+  name: string | null
 }
 
-const COLUMNS = 'id, project_id, agent, account, model, effort, title, first, said, last, session_id, machine_id, created_at, last_at, read_at, archived_at, successor, previous, pending, packages'
+const COLUMNS = 'id, project_id, agent, account, model, effort, title, first, said, last, session_id, machine_id, created_at, last_at, read_at, archived_at, successor, previous, pending, packages, name'
 
 const iso = (ms: string | null): string | null => (ms === null ? null : new Date(Number(ms)).toISOString())
 const ms = (at: string | null): number | null => (at === null ? null : Date.parse(at))
@@ -58,6 +59,7 @@ function recordOf(row: ChatRow): ChatRecord {
     model: row.model,
     effort: row.effort,
     title: row.title,
+    name: row.name,
     first: row.first,
     said: row.said,
     last: row.last === null ? null : (JSON.parse(row.last) as ChatMessage),
@@ -130,14 +132,14 @@ export class ChatStore {
     if (chat.archivedAt === null) this.chats.set(chat.id, chat)
     else this.chats.delete(chat.id)
     this.deps.writes.add(`the chat ${chat.id}`, this.deps.db.query(
-      `insert into chats (${COLUMNS}) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-       on conflict (id) do update set title = excluded.title, first = excluded.first, said = excluded.said, last = excluded.last,
+      `insert into chats (${COLUMNS}) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+       on conflict (id) do update set title = excluded.title, name = excluded.name, first = excluded.first, said = excluded.said, last = excluded.last,
          session_id = excluded.session_id, machine_id = excluded.machine_id, last_at = excluded.last_at, read_at = excluded.read_at, archived_at = excluded.archived_at,
          successor = excluded.successor, previous = excluded.previous, pending = excluded.pending`,
       [
         chat.id, chat.project, chat.agent, chat.account, chat.model, chat.effort, chat.title, chat.first, chat.said,
         chat.last === null ? null : JSON.stringify(chat.last), chat.sessionId, chat.machine, ms(chat.createdAt), ms(chat.lastAt), ms(chat.readAt),
-        ms(chat.archivedAt), chat.successor, chat.previous, chat.pending, packagesColumn(chat.packages),
+        ms(chat.archivedAt), chat.successor, chat.previous, chat.pending, packagesColumn(chat.packages), chat.name,
       ],
     ))
   }
@@ -169,7 +171,7 @@ export class ChatStore {
   async archived(project: string, words: string, page: number): Promise<{ chats: ChatRecord[]; more: boolean }> {
     await this.deps.writes.settled()
     const search = words.trim()
-    const filter = search === '' ? '' : `and (coalesce(title, '') ilike $4 or coalesce(first, '') ilike $4 or said ilike $4 or coalesce(last, '') ilike $4)`
+    const filter = search === '' ? '' : `and (coalesce(name, '') ilike $4 or coalesce(title, '') ilike $4 or coalesce(first, '') ilike $4 or said ilike $4 or coalesce(last, '') ilike $4)`
     const params: unknown[] = [project, ARCHIVE_PAGE + 1, page * ARCHIVE_PAGE, ...(search === '' ? [] : [likeOf(search)])]
     const { rows } = await this.deps.db.query<ChatRow>(
       `select ${COLUMNS} from chats where project_id = $1 and archived_at is not null ${filter} order by archived_at desc, id limit $2 offset $3`,
