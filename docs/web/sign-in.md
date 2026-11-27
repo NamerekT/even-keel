@@ -91,6 +91,8 @@ The page and its sign-in screen cannot be embedded in a frame, even on the same 
 
 Its content security policy permits scripts and connections only from its own origin, with inline styles and local/data/blob images and media. The page sends no referrer. A reverse proxy must preserve these response headers. An already open tab receives a new policy when reloaded.
 
+How it is built: HTML documents (`/stats` and direct `.html` files included) and access refusals get `frame-ancestors 'none'`, `X-Frame-Options: DENY` and `Referrer-Policy: no-referrer`; `src/server-security.ts` supplies the CSP (no objects or base URL). OAuth keeps a stricter CSP with the hash of its return script, tracker downloads their sandbox policy. `guardedServer` sets `X-Content-Type-Options: nosniff` before routing, JSON, SSE, redirects and errors included. There is no switch for any of it.
+
 Each sign-in gives the browser a token of its own in an `HttpOnly`, `SameSite=Strict` cookie. Starting MCP OAuth also sets a separate ten-minute `HttpOnly`, `SameSite=Lax` cookie for the callback alone, so the browser can return from the provider. The page's access cookie stays `SameSite=Strict`; the callback cookie cannot open other pages or API routes.
 
 ## dev:fake

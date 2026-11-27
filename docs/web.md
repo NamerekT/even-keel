@@ -8,7 +8,9 @@ The area is split by subtopic, a file each in `docs/web/`: read this table, then
 
 | File | What is in it |
 | --- | --- |
-| [`interface.md`](web/interface.md) | The stack, the state stream, routes, the header, the home page and the theme |
+| [`interface.md`](web/interface.md) | The stack, the state stream and what it holds, routes and project names, busy marks, the app, the theme |
+| [`header.md`](web/header.md) | The header and its account chip, the burger, the banners and "Got it", the tab badge, `/status`, updates |
+| [`home.md`](web/home.md) | The home page: card order and grouping, test projects, empty projects, memes; the basement and the 404 |
 | [`project-page.md`](web/project-page.md) | The project page |
 | [`session-panel.md`](web/session-panel.md) | The session panel and the chat |
 | [`event-log.md`](web/event-log.md) | The event log: what the service writes, toasts, unread, `/log` |
