@@ -4,12 +4,12 @@ The collector of session stats: it reads the transcripts of every account (Claud
 
 | Section of `docs/tally/` | Area |
 | --- | --- |
-| Running, What is read | the service's runs, a run by hand, the sources of every agent, incremental loading |
-| Schema version and migrations, Schema | `schema_version`, the steps so far, every table and view, a response's task |
+| Running, What is read, The database's owner | the service's runs, a run by hand, the sources of every agent, incremental loading, who holds the database |
+| Schema version and migrations, Schema | `schema_version`, the steps so far (`migrations.md`), every table and view, a response's task |
 | Machines elsewhere | a machine's collector, `POST /link/tally`, the machine mark, `/stats` by machine |
 | Compressing raw rows, Cost, Limit share | what `line_raws.raw` keeps, prices and `longPrompt`, limit windows and shares |
-| Signs, Task time, Steps, Classifier | stuck spans, turns and waiting, long commands, the span reasons from LiteLLM |
-| Tasks from Huly | task fields, follow-ups, where a task lives, the time reports |
+| Signs, Task time, Time reports, Long commands, The classifier | stuck spans, turns and waiting, the trackers' time reports, long commands, the span reasons from LiteLLM |
+| Tasks from the trackers | task fields, follow-ups, where a task lives |
 | Rule versions | rule files and keys, snapshots, history, the edit log `ruleHistory` and its hook |
 | Session audit, Tests | the `tally:session-audit` skill, `sql.mjs`, what is tested and what is checked live |
 

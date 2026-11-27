@@ -148,4 +148,4 @@ Sessions edit its tasks through Even Keel's own tasks server ([`tasks-server.md`
 
 ## Tally
 
-Tally reads the tasks from the state database each run and counts a rework by `Rework` as well as `Переделка`, on `/stats` and in its own views (`docs/tally/cost.md`, "Tasks from Huly").
+Tally reads the tasks from the state database each run and counts a rework by `Rework` as well as `Переделка`, on `/stats` and in its own views (`docs/tally/cost.md`, "Tasks from the trackers").

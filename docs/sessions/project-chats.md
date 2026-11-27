@@ -141,7 +141,7 @@ The Chats tab of the project page (BTN-1231) polls `list` every 4 s while the pa
 
 ## In the stats
 
-Tally reads each chat's session from the `chats` table and keeps it in `chat_sessions` (BTN-1233): such a session belongs to no task, even when its title names one, and `/stats` shows the chats' count and spend per project under the task table (`docs/tally.md` step 18, `docs/stats.md`).
+Tally reads each chat's session from the `chats` table and keeps it in `chat_sessions` (BTN-1233): such a session belongs to no task, even when its title names one, and `/stats` shows the chats' count and spend per project under the task table (`docs/tally/migrations.md` step 18, `docs/stats.md`).
 
 ## Not covered
 

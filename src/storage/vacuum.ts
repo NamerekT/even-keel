@@ -1,7 +1,7 @@
 import type { PGlite } from '@electric-sql/pglite'
 
 // PGlite is one session without autovacuum workers: nothing reclaims the rows an update or a delete leaves dead
-// unless the owner asks (BTN-952, `docs/storage.md`, "Vacuum").
+// unless the owner asks (BTN-952, `docs/storage/database.md`, "Vacuum").
 
 /** How often the running service vacuums the state database. */
 export const VACUUM_EVERY_MS = 60 * 60_000

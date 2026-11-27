@@ -179,7 +179,7 @@ Checked live on all three ([verified](../verified/trackers.md)).
 
 ## `logTime`
 
-`logTime(id, entry: TimeEntry)` with the adapter's `logsTime` (EKR-35) writes the agent's active time on a done task into the tracker's time tracking. Tally calls it once per task (`docs/tally.md`, "Task time"), through the profile of the task's project as `timeTrackers` gives it. `entryMinutes` makes whole minutes, at least one. `false` — the tracker refuses time in the project and the task needs no report; any other failure throws.
+`logTime(id, entry: TimeEntry)` with the adapter's `logsTime` (EKR-35) writes the agent's active time on a done task into the tracker's time tracking. Tally calls it once per task (`docs/tally/time.md`, "Time reports"), through the profile of the task's project as `timeTrackers` gives it. `entryMinutes` makes whole minutes, at least one. `false` — the tracker refuses time in the project and the task needs no report; any other failure throws.
 
 Only GitLab and Jira have it. Huly's report is Tally's own `TimeSpendReport`, not this operation; GitHub, Linear and Forgejo have no time tracking; the built-in tracker keeps no time spent: it stays the sessions' active time.
 

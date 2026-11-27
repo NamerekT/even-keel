@@ -75,7 +75,7 @@ interface Meter {
 }
 
 /**
- * The real spend of the sessions on a key that tells it (BTN-860, `docs/tally/cost.md`, "Cost"): the key is read before each
+ * The real spend of the sessions on a key that tells it (BTN-860, `docs/tally/cost.md`, "Real spend on a key"): the key is read before each
  * turn, at each turn's end and during a tail after the last turn, and the growth between two reads goes to the session
  * that ran in between, or to the last one while its tail lasts. Two sessions in one interval, or busy at once, cannot
  * be told apart: both are marked shared and keep only the estimate by price.
