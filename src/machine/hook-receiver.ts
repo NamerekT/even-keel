@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net'
 import { hookRouteOf } from '../link/hooks.js'
 import type { HookAnswer, HookRequest } from '../link/protocol.js'
+import type { ApprovalDecision } from '../sessions/approvals.js'
 
 /** A hook's body is a tool call's input at most; the hub's page takes 64 KiB of it. */
 const MAX_BODY_BYTES = 1024 * 1024
@@ -22,10 +23,17 @@ export interface HookReceiverOptions {
    * asking, by this and not by the hub's own inboxes.
    */
   inboxWanted?(sessionId: string): boolean
+  /**
+   * The permission hook's poll (BTN-1769), answered on this machine by its own `Approvals`, which its monitor puts to
+   * the user: the hub's would hold the call where no view of the session reads it. `undefined` — no session the
+   * machine serves, or a call closed since the hook began (404); absent — the poll goes to the hub as any route.
+   */
+  permission?(sessionId: string, tool: string, input: Record<string, unknown>, since: number): ApprovalDecision | null | undefined
   log(line: string): void
 }
 
 const INBOX_ROUTE = /^\/api\/sessions\/([^/]+)\/inbox$/
+const PERMISSION_ROUTE = /^\/api\/sessions\/([^/]+)\/permission$/
 const MAIL_ROUTE = /^\/api\/sessions\/([^/]+)\/mail$/
 
 /**
@@ -90,6 +98,8 @@ export class HookReceiver {
     if (method === 'GET' && path.split('?')[0] === '/api/state') return json(response, 200, JSON.stringify({ account: this.options.account() }))
     const inbox = method === 'POST' ? INBOX_ROUTE.exec(path.split('?')[0]!) : null
     if (inbox !== null) return this.inbox(request, response, inbox[1]!)
+    const permission = method === 'POST' && this.options.permission !== undefined ? PERMISSION_ROUTE.exec(path.split('?')[0]!) : null
+    if (permission !== null) return this.permission(request, response, permission[1]!)
     const route = hookRouteOf(method, path)
     if (route === undefined) return void response.writeHead(404).end()
     const body = await bodyOf(request)
@@ -127,6 +137,24 @@ export class HookReceiver {
     const { socket, token } = fields ?? {}
     const known = typeof socket === 'string' && typeof token === 'string' && this.options.inbox(sessionId, socket, token)
     response.writeHead(known ? 204 : 400).end()
+  }
+
+  private async permission(request: IncomingMessage, response: ServerResponse, encoded: string): Promise<void> {
+    const body = await bodyOf(request)
+    if (body === null) return void response.writeHead(413).end()
+    let fields: { tool?: unknown; input?: unknown; since?: unknown }
+    let sessionId: string
+    try {
+      fields = (JSON.parse(body) as typeof fields) ?? {}
+      sessionId = decodeURIComponent(encoded)
+    } catch {
+      return void response.writeHead(400).end()
+    }
+    const { tool, input, since } = fields
+    if (typeof tool !== 'string' || typeof since !== 'number' || typeof input !== 'object' || input === null || Array.isArray(input)) return void response.writeHead(400).end()
+    const decision = this.options.permission!(sessionId, tool, input as Record<string, unknown>, since)
+    if (decision === undefined) response.writeHead(404).end()
+    else json(response, 200, JSON.stringify({ decision }))
   }
 }
 

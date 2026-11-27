@@ -7,7 +7,9 @@ import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { FoldPresence } from '../ui/Fold.js'
 import { AskPanel } from './AskPanel.js'
-import { askAnswers, NO_PICK, pickAnswer, type Pick } from './askPick.js'
+import type { AskAnswers } from '../../../src/sessions/ask.js'
+import { askAnswers, NO_PICK, permissionAnswer, pickAnswer, type Pick } from './askPick.js'
+import { PermissionBanner } from './PermissionBanner.js'
 import { encoded, sentLine } from './ChatComposer.js'
 import { chatRenewal, renewalChoice, type ChatRenewal } from './chatRenewal.js'
 import { ChatRenewDialog } from './ChatRenewDialog.js'
@@ -145,8 +147,8 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
   const ready = text.trim() !== '' || files.length > 0 || (ask !== null && left < ask.questions.length)
   const off = locked !== null || sending || !ready
 
-  const submit = async () => {
-    const answers = ask === null ? {} : askAnswers(ask, picks)
+  const submit = async (given?: AskAnswers) => {
+    const answers = given ?? (ask === null ? {} : askAnswers(ask, picks))
     const retract = parts.onSent(sentLine(ask?.id ?? null, answers, text, files), files, midTurn)
     if (ask !== null) setPending(ask.id)
     const ok = await send(async (message) => deliver('chats/send', { id: chat.id, text: message.text, answers, files: await Promise.all(message.files.map(encoded)) }), mailing)
@@ -204,7 +206,11 @@ function ChatField({ chat, choice, session, parts, onChanged, onRenewed }: Field
         }}
       >
       <FoldPresence className="chat__ask">
-        {ask !== null && (
+        {ask !== null && ask.permission !== undefined && (
+          // The call waits mid-turn: the answer starts no new session, so the renewal window is not asked first.
+          <PermissionBanner ask={ask} disabled={locked !== null || sending} onDecide={(label) => void submit(permissionAnswer(ask, label))} />
+        )}
+        {ask !== null && ask.permission === undefined && (
           <AskPanel
             ask={ask}
             picks={picks}

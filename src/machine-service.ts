@@ -26,10 +26,11 @@ import { CLI_CHECK_TICK_MS } from './service/cli-check.js'
 import { SHUTDOWN_MS, WORK_TICK_MS } from './service/defaults.js'
 import { assemblePollWorks } from './service/hub-bootstrap.js'
 import { laterTell } from './service/machine-context.js'
-import { assembleMachineHost } from './service/machine-host.js'
+import { assembleMachineHost, type MachineHost } from './service/machine-host.js'
 import { CONTACT_EVERY_MS, contactKeeper, holdInstallation } from './service/machine-process.js'
 import { wireMachineSide } from './service/machine-side.js'
 import type { Inboxes } from './sessions/inboxes.js'
+import { machinePermission } from './sessions/served.js'
 
 // A machine of a hub elsewhere (`docs/machines/elsewhere.md`, "Machines elsewhere", BTN-1247): the machine's assembly and its end
 // of the link over HTTPS, nothing of the hub — no state database, no page, no trackers, no Tally database: its Tally
@@ -64,11 +65,13 @@ const tell = laterTell()
 let linked: { end: MachineEnd } | undefined
 let accounts: (() => unknown) | undefined
 let inboxes: Inboxes | undefined
+let served: MachineHost | undefined
 const receiver = new HookReceiver({
   forward: async (request) => linked?.end.hook(request),
   account: () => accounts?.() ?? null,
   inbox: (sessionId, socket, token) => inboxes?.remember(sessionId, socket, token) ?? false,
   inboxWanted: (sessionId) => inboxes !== undefined && !inboxes.knows(sessionId),
+  permission: machinePermission(() => served),
   log,
 })
 await receiver.start(listenOf(process.env).port)
@@ -84,6 +87,7 @@ const { host, machine } = await assembleMachineHost({
   planFirst: true,
 })
 inboxes = machine.inboxes
+served = host
 // The hub's last brief: a machine without its hub moves the tasks it was given on it (BTN-1226).
 const keptBrief = (await machineValue(machineDb, 'brief.kept')) as HubBrief | undefined
 if (keptBrief !== undefined) machine.brief.keep(keptBrief)

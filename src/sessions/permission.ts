@@ -70,11 +70,13 @@ export function permissionAsk(id: string, tool: string, input: Record<string, un
   const isCommand = typeof command === 'string'
   const shown = isCommand ? command : JSON.stringify(said === null ? input : { command, ...rest }, null, 2)
   const preview = said === null ? cut(shown, text) : `${cut(shown, text)}\n\n${text.says}: ${said}`
+  const several = isCommand && SEVERAL_COMMANDS.test(command.trim())
   return {
     id,
+    permission: { tool, several },
     questions: [
       {
-        question: text.question(tool, isCommand && SEVERAL_COMMANDS.test(command.trim())),
+        question: text.question(tool, several),
         header: text.header,
         multiSelect: false,
         options: [

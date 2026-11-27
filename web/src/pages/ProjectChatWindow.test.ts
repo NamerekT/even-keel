@@ -8,6 +8,7 @@ import type { Mail, SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import { t } from '../i18n/index.js'
 import type { Draft } from './chatDraft.js'
+import { permissionAsk } from '../../../src/sessions/permission.js'
 import { ProjectChatWindow } from './ProjectChatWindow.js'
 
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
@@ -480,4 +481,50 @@ it('shows an archived chat its note and the way on inside the field frame, with 
   expect(button.textContent).toBe(t.chats.window.continue)
   await act(async () => button.click())
   expect(onContinue).toHaveBeenCalledOnce()
+})
+
+async function permission(text?: string) {
+  const ask = permissionAsk('tool-1', 'Bash', { command: 'cp a b && rm a' }, 'en')
+  const session = { sessionId: 'first-session', ask, asking: true, lamp: 'waiting', waitingFor: 'permission prompt', feed: [] }
+  live = { config: { projects: {} }, branchDrift: {}, sessions: [session], account: { accounts: [] }, mailbox: {} }
+  transcript.mockResolvedValue({ lines: [{ kind: 'prompt', at: card.lastAt, text: 'Move the file' }], turn: null })
+  const host = document.body.appendChild(document.createElement('div'))
+  root = createRoot(host)
+  const waiting = { ...card, sessionId: 'first-session', state: 'waiting' as const }
+  await render(waiting)
+  await vi.waitFor(() => expect(host.querySelector('.permission')).toBeTruthy())
+  if (text !== undefined) await type(host.querySelector('textarea')!, text)
+  return { host, ask, session, rerender: () => render(waiting) }
+}
+
+const button = (host: HTMLElement, label: string) => [...host.querySelectorAll<HTMLButtonElement>('.permission button')].find((each) => each.textContent === label)!
+
+it('puts a waiting tool call over the field as Allow and Deny, with no question panel (BTN-1769)', async () => {
+  const { host } = await permission()
+  expect(host.querySelector('.permission__head')?.textContent).toBe(t.session.chat.permission.title('Bash', true))
+  expect(host.querySelector('.permission__call')?.textContent).toBe('cp a b && rm a')
+  expect(host.querySelector('.ask')).toBeNull()
+  expect([...host.querySelectorAll('.permission button')].map((each) => each.textContent)).toEqual([t.session.chat.permission.deny, t.session.chat.permission.allow])
+})
+
+it('allows the call by its button with the words typed in the field, and the banner goes once the call is closed', async () => {
+  const { host, ask, session, rerender } = await permission('then list the folder')
+  command.mockResolvedValueOnce(undefined)
+  await act(async () => button(host, t.session.chat.permission.allow).click())
+  await vi.waitFor(() => expect(command).toHaveBeenCalledWith('chats/send', expect.objectContaining({
+    id: card.id, text: 'then list the folder', answers: { [ask.questions[0]!.question]: ask.questions[0]!.options[0]!.label },
+  })))
+  expect(host.querySelector('.permission')).toBeNull()
+  Object.assign(session, { ask: null, asking: false, lamp: 'working', waitingFor: null })
+  await rerender()
+  expect(host.querySelector('.permission')).toBeNull()
+})
+
+it('denies the call by its button', async () => {
+  const { host, ask } = await permission()
+  command.mockResolvedValueOnce(undefined)
+  await act(async () => button(host, t.session.chat.permission.deny).click())
+  await vi.waitFor(() => expect(command).toHaveBeenCalledWith('chats/send', expect.objectContaining({
+    answers: { [ask.questions[0]!.question]: ask.questions[0]!.options[1]!.label },
+  })))
 })

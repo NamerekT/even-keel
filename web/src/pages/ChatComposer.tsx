@@ -9,7 +9,9 @@ import { useLive } from '../live/context.js'
 import { FoldPresence } from '../ui/Fold.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AskPanel } from './AskPanel.js'
-import { askAnswers, NO_PICK, pickAnswer, type Pick } from './askPick.js'
+import type { AskAnswers } from '../../../src/sessions/ask.js'
+import { askAnswers, NO_PICK, permissionAnswer, pickAnswer, type Pick } from './askPick.js'
+import { PermissionBanner } from './PermissionBanner.js'
 import { holdKey, sendAhead, shownAsk } from './composerHold.js'
 import { lockReason } from './composerLock.js'
 import { useAcceptClosed } from './acceptClosed.js'
@@ -128,8 +130,8 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
   const reason = locked ?? (sending ? t.session.chat.sending : sent.on ? t.session.chat.sent : null)
   const sendTip = mailing ? t.session.chat.mailbox : steering ? t.session.chat.steers : session.lamp === 'error' ? t.session.chat.error : undefined
 
-  const submit = async (renew = false) => {
-    const answers = ask === null ? {} : askAnswers(ask, picks)
+  const submit = async (renew = false, given?: AskAnswers) => {
+    const answers = given ?? (ask === null ? {} : askAnswers(ask, picks))
     // The reply's card stands in the feed before the server answers, so the question's panel and card never come back
     // in between; on `renew` the window shows the handover with the message instead (BTN-1281).
     const show = () => {
@@ -177,7 +179,13 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
         />
       )}
       <FoldPresence className="chat__ask">
-        {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
+        {ask !== null &&
+          (ask.permission === undefined ? (
+            <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />
+          ) : (
+            // The call waits mid-turn: the answer resumes nothing, so a cold cache asks nothing first.
+            <PermissionBanner ask={ask} disabled={disabled} onDecide={(label) => void submit(false, permissionAnswer(ask, label))} />
+          ))}
       </FoldPresence>
       <FoldPresence className="chat__banner">
         {failure !== null && (

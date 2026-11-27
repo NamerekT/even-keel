@@ -2,6 +2,7 @@ import type { ChatCard, ChatChoice, ChatMachine, ChatMachines, ChatPage } from '
 import { fail } from '../../../src/notice/notice.js'
 import type { Mail, SessionMail } from '../../../src/sessions/mail.js'
 import type { EvenKeelState, SessionView } from '../../../src/state.js'
+import { FAKE_PERMISSION } from './fakeChat.js'
 import { session } from './fakeSessions.js'
 
 /** The archive's page, as the server's (BTN-1231). */
@@ -272,11 +273,16 @@ export function fakeChats(mode: string | null) {
     sessions(): { ids: Set<string>; views: SessionView[] } {
       const cards = [...lists.values()].flatMap((list) => list.active)
       const ids = new Set(cards.flatMap((card) => (card.sessionId === null ? [] : [card.sessionId])))
-      const views = cards.flatMap((card) =>
-        card.sessionId === null || card.state !== 'working'
-          ? []
-          : [{ ...session(card.id, card.context?.tokens ?? 0, 'working'), sessionId: card.sessionId, agent: card.agent, account: card.account, model: card.model, effort: card.effort, branch: null }],
-      )
+      const views = cards.flatMap((card): SessionView[] => {
+        if (card.sessionId === null) return []
+        const own = { sessionId: card.sessionId, agent: card.agent, account: card.account, model: card.model, effort: card.effort, branch: null }
+        if (card.state === 'working') return [{ ...session(card.id, card.context?.tokens ?? 0, 'working'), ...own }]
+        // `?chats=permission`: the first chat's session waits on a tool call to approve (BTN-1769).
+        if (mode === 'permission' && card.state === 'waiting' && card.id.endsWith('-chat-1')) {
+          return [{ ...session(card.id, card.context?.tokens ?? 0, 'waiting'), ...own, waitingFor: 'permission prompt', asking: true, ask: FAKE_PERMISSION }]
+        }
+        return []
+      })
       return { ids, views }
     },
     /** The answer to a chats query; `undefined` — not one of them. */

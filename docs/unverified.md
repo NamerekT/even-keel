@@ -353,6 +353,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 338 | [A sent video in the chat on Safari and from a machine](unverified/sessions.md#a-sent-video-in-the-chat-on-safari-and-from-a-machine-btn-1704) | anyone sending a video in a chat and watching it on an iPhone or from a task on a machine | the bubble's thumbnail is empty or the video does not play on Safari; a machine's video stalls | — |
 | 342 | [A skill picked from a Codex chat's menu](unverified/sessions.md#a-skill-picked-from-a-codex-chats-menu-btn-1737) | anyone picking a skill in a Codex chat | a package's `$plugin:skill` or a skill named apart from its folder arrives as plain text and the model reads the skill itself, or the menu lists a skill Codex does not have | — |
 | 343 | [A skill deleted from ~/.claude/skills](unverified/packages.md#a-skill-deleted-from-claudeskills-btn-1736) | anyone on Windows deleting a skill of their own while the service runs | the skill stays in the store and in the other agents' folders until the next restart, or its link comes back; delete it from `~/.claude-config/skills` instead | — |
+| 344 | [A permission dialog answered from a chat](unverified/sessions.md#a-permission-dialog-answered-from-a-chat-btn-1769) | anyone whose Claude chat — a project's, or a task's on a machine elsewhere — stops on a permission dialog | the chat shows no Allow/Deny banner and the field says "Answer it through Remote Control", or a press leaves the session waiting; answer through Remote Control | — |
 
 ### Waiting for the event / not checked by choice
 

@@ -25,6 +25,11 @@ export interface Ask {
    * transcript once it is answered, and stopping the session before that loses the message.
    */
   unsaved?: true
+  /**
+   * A tool call the CLI waits to have approved (`permissionAsk`, BTN-1769): one question, "Allow" its first option and
+   * the call both options' preview. The page shows it as Allow / Deny over the chat's field, not as a question.
+   */
+  permission?: { tool: string; several: boolean }
 }
 
 /** Answers by question text: the chosen labels joined with ", ", or the user's own text. */

@@ -20,6 +20,11 @@ export function askAnswers(ask: Ask, picks: Pick[]): AskAnswers {
   return Object.fromEntries(ask.questions.map((question, index) => [question.question, pickAnswer(question, picks[index] ?? NO_PICK)]))
 }
 
+/** A permission ask answered by one of its buttons: its only question gets the option's label. */
+export function permissionAnswer(ask: Ask, label: string): AskAnswers {
+  return { [ask.questions[0]!.question]: label }
+}
+
 /**
  * What the preview column shows: `undefined` — no column, as no option has a preview; `null` — the column stays, empty,
  * for an option without one, so pointing at it never reflows the options under the pointer (EKR-139). The pointed

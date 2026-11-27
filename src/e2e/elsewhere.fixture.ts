@@ -74,6 +74,7 @@ export class Elsewhere {
     const { wireMachineSide } = await import('../service/machine-side.js')
     const { assemblePollWorks } = await import('../service/hub-bootstrap.js')
     const { WORK_TICK_MS } = await import('../service/defaults.js')
+    const { machinePermission } = await import('../sessions/served.js')
 
     const log = (line: string) => void this.log.push(line)
     const invite = await this.run.answer<{ line: string }>('machines/invite', { name: 'Elsewhere', address: '127.0.0.1' })
@@ -103,11 +104,13 @@ export class Elsewhere {
     const tell = laterTell()
     let side: MachineSide | undefined
     let context: MachineContext | undefined
-    const receiver = new HookReceiver({ forward: async (request) => side?.end.hook(request), account: () => context?.account.view ?? null, log })
+    let served: MachineHost | undefined
+    const receiver = new HookReceiver({ forward: async (request) => side?.end.hook(request), account: () => context?.account.view ?? null, permission: machinePermission(() => served), log })
     await receiver.start(await freePort())
     const mcpPort = await freePort()
     const { host, machine } = await assembleMachineHost({ machineDb: db, stateDir, writes, env, envFile: loadEnv(), listen: () => receiver.address, mcpPort: () => mcpPort, tell, planFirst: true })
     context = machine
+    served = host
     side = wireMachineSide(machine, { transport: httpsTransport(joined, { log }), store: new DatabaseMachineStore(db), about: async () => about, alone: true, log })
     const pollWorks = assemblePollWorks(machine)
     this.parts = { db, writes, receiver, host, context: machine, side, pollWorks }
