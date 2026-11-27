@@ -388,7 +388,10 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
   })
 
   // BTN-1699: a machine elsewhere restarted with an empty mailbox, and its next letter took a number the session had seen.
-  it("hands a machine elsewhere the messages and chats' sessions the hub keeps for it at each connection, never those of another machine", async () => {
+  // BTN-1803: and its launch journal, which its restart emptied.
+  it("hands a machine elsewhere the messages, chats' sessions and launches the hub keeps for it at each connection, never those of another machine", async () => {
+    const launch = { at: '2026-11-25T15:00:00.000Z', project: ABC, task: 'ABC-1', sessionId: 's-1', machine: '' }
+    const asked: string[] = []
     const peers: NetworkPeers = {
       remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} }),
       brief: () => ({ config: { projects: {} } }) as unknown as HubBrief,
@@ -397,6 +400,10 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
       mcp: () => Promise.resolve({ status: 200, headers: {}, body: '' }),
       hook: () => Promise.resolve({ status: 200, body: '' }),
       write: async () => {},
+      launches: (machine) => {
+        asked.push(machine)
+        return [{ ...launch, machine }]
+      },
     }
     const { db, network, settings } = await started(peers)
     settings.address = '127.0.0.1'
@@ -428,9 +435,18 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await end.start()
 
     await until(() => ran.some((command) => command.type === 'records.restore'), 'the mail handed back')
+    expect(asked).toEqual([joined.machine])
     expect(ran.find((command) => command.type === 'records.restore')?.payload).toEqual({
-      args: [{ mail: [mail(1, 'Why the loader?'), mail(3, 'And the chat?')], chats: [['chat-000000000001', 's-1']] }],
+      args: [{ launches: [{ ...launch, machine: joined.machine }], mail: [mail(1, 'Why the loader?'), mail(3, 'And the chat?')], chats: [['chat-000000000001', 's-1']] }],
     })
+
+    // A launch the hub's chain made there reaches the machine's journal at once, not at its next connection.
+    const next = { ...launch, sessionId: 's-2', at: '2026-11-25T16:00:00.000Z', machine: joined.machine }
+    network.launched(joined.machine, next)
+    await until(() => ran.some((command) => command.type === 'records.launched'), 'the launch handed over')
+    expect(ran.find((command) => command.type === 'records.launched')?.payload).toEqual({ args: [next] })
+    // A machine never connected learns of it at its connection.
+    network.launched('machine-unknown', { ...next, machine: 'machine-unknown' })
   })
 
   it("puts a machine into a project's pool turned off in a folder of its own, checks it there and turns it on", async () => {

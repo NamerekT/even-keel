@@ -468,3 +468,11 @@ To check, on the benches: on the bench hub's `/accounts?machine=machine-1`, remo
 Assumed: `auth status` of a folder not added answers on the machine within the watcher's round, its e-mail is the one the hub's folder reports, and the machine's `account.useGlobal` adds it as the hub's `account/global` does. If not, the row keeps "Sign in" for an account the machine is signed in to, or "Use it" fails with "account unknown"; add the folder with "Add account" on the machine's accounts page instead.
 
 To check, on the benches: a machine whose `~/.claude` is signed in as an account of the bench hub and not added shows that account's row "signed in here, not added" within 10 minutes of its start; "Use it" makes it a signed-in row of the machine with its limits and no new sign-in; a `~/.claude` of another account offers nothing.
+
+## A machine elsewhere's launch journal (BTN-1803)
+
+`docs/machines/seam.md`, "The order at the start". The hub hands a machine elsewhere its launches of recent and held tasks at each connection (`handMail`, `machineJournal`) and each launch its chain makes there at once (`records.launched`). Covered by `src/machine/records.test.ts`, `src/machine/services.test.ts` and `src/service/machine-network.test.ts` over a real HTTPS door on loopback; no real machine has restarted with a task of the hub's chain running.
+
+Assumed: the command reaches the machine before its next snapshot reads the journal, and the machine's restart takes the journal back before its first launch. If not, the page shows no account for the task's session after the restart, or a launch into a slot leaves another task's idle session there running; the hub's log has `machines: machine … did not take the launch of …`.
+
+To check, on the benches: run a bench task on machine-1, see its session's account on the page; restart machine-1's service and see the account stay with no `history/task` asked; launch another task into the same slot and see the earlier idle session stopped.

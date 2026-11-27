@@ -1,3 +1,4 @@
+import type { LaunchEntry } from '../chain/model.js'
 import { fail } from '../notice/notice.js'
 import { colorOf, machineColors } from '../link/colors.js'
 import { kindOf } from '../link/kinds.js'
@@ -323,6 +324,10 @@ export class MachineNetwork {
   // The hub's handlers and the briefs: `machine-network-briefs.ts`.
   catchUp() {
     return briefing.catchUp(this.host)
+  }
+
+  launched(machine: string, entry: LaunchEntry) {
+    briefing.launched(this.host, machine, entry)
   }
 
   /**

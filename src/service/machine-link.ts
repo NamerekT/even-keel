@@ -55,7 +55,7 @@ import { PROMPTS } from '../chain/prompts.js'
 import { Reassigner } from './reassign.js'
 import type { ChainMachines } from '../chain/model.js'
 import type { AssignedTask } from '../tracker/source.js'
-import { LAUNCH_EVENT, type MachineRecords, saveMachineRecord } from '../machine/records.js'
+import { LAUNCH_EVENT, MACHINE_JOURNAL_DAYS, machineJournal, type MachineRecords, saveMachineRecord } from '../machine/records.js'
 import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
 import { settleMail } from '../sessions/mailRelay.js'
 import { ADAPTERS } from '../tracker/adapters.js'
@@ -456,6 +456,8 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
         log,
       }),
       write: (machine, write) => hubMcp.write(machine, write),
+      launches: (machine) =>
+        machineJournal(ctx.launches, machine, new Date(Date.now() - MACHINE_JOURNAL_DAYS * 24 * 60 * 60_000), (project, task) => assignments.machineOf(project, task) === machine),
     },
     takeOverOwn: async (project, owner) => {
       takeOvers.set(project, owner)

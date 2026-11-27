@@ -198,6 +198,8 @@ export async function wireDispatcher(ctx: ChainContext, machine: MachinePort): P
       const machine = link.assignments.machineOf(launched.project, launched.task) ?? link.machines.own()
       const entry = ctx.withSource(machine === '' ? launched : { ...launched, machine })
       ctx.writes.add(`the launch of ${entry.task}`, ctx.machineLink.records.launch(entry))
+      // The hub's record goes through its own machine's outbox; the machine the session runs on learns of it (BTN-1803).
+      if (machine !== '' && machine !== link.own()) link.network.launched(machine, entry)
     },
     moveStatus: (project, task, when) => ctx.statusMover.move(project, task, when),
     now: () => new Date(),

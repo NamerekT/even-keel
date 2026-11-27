@@ -35,7 +35,8 @@ One installation is a hub and a machine in one process, and there is one code pa
 - Before the monitor, hooks and chat start, the link drains the retained outbox, and the hub reads its own `launches`, `session_windows` and `mailbox` and hands them to the machine by the command `records.restore`. Records replayed from the previous process must be included in their initial state, including the mailbox's next id.
 - The mailbox gets only the machine's own messages (`loadMail(db, machine)`): its settling (`settleMail`) would otherwise give back to the chat another machine's waiting messages, whose sessions it does not have.
 - With them go the sessions of the machine's active project chats (`loadChatSessions`, into `ChatSessions`): a Claude chat's session has no name to be found by (BTN-1772, `docs/sessions/project-chats.md`). A machine elsewhere gets them, with its mail, at each connection (`handMail`).
-- The machine never reads the hub's database: its mailbox is made empty (`Mailbox.detached`) and filled by that command, and its launch journal (`MachineRecords.journal`, read by the slots' occupants and the stops) keeps the launches made before it, each once.
+- The machine never reads the hub's database: its mailbox is made empty (`Mailbox.detached`) and filled by that command, and its launch journal (`MachineRecords.journal`, read by the slots' occupants, the stops, the accounts of its sessions and what it tells the hub) keeps the launches made before it, each once.
+- A machine elsewhere's journal (BTN-1803): at each connection `handMail` hands it the hub's entries naming it (`machineJournal`, `src/machine/records.ts`): every entry of each task it ran in the last `MACHINE_JOURNAL_DAYS` (14) or holds now, not the whole archive. A launch the hub's chain makes there is the hub's record, kept through the hub's own machine's outbox; the machine gets it at once by `records.launched` (`MachineNetwork.launched`), never sent back. One offline then gets it with the journal at its connection.
 
 ## The machine's context
 
@@ -92,7 +93,7 @@ The machine's own database is `state/machine/` (`MACHINE_STEPS`, the tables of t
 
 ### The services
 
-BTN-1241: every member of `MachineServices` is the command `<group>.<member>` — `account.*` (the page's `AccountControl`), `transcript.*`, `chat.*`, `records.restore`, `git.identity` (BTN-1503, the machine page's commit author), `history.task` (BTN-1561, "What a machine elsewhere tells", `elsewhere.md`) — with `{args}` and its value in `command.done`, as for `port.*`. A member left out of `SERVICE_COMMANDS` fails the build.
+BTN-1241: every member of `MachineServices` is the command `<group>.<member>` — `account.*` (the page's `AccountControl`), `transcript.*`, `chat.*`, `records.restore`, `records.launched` (BTN-1803), `git.identity` (BTN-1503, the machine page's commit author), `history.task` (BTN-1561, "What a machine elsewhere tells", `elsewhere.md`) — with `{args}` and its value in `command.done`, as for `port.*`. A member left out of `SERVICE_COMMANDS` fails the build.
 
 - `chat.steer` carries the session's project and folder, `chat.saveInbox` the project and the working folder: the machine refuses them outside its consents.
 - A file goes whole as base64 inside the JSON (`CarriedFile`), both ways: a picture or a file of the transcript to the page, a reply's files into the session's `.temp/inbox/`.
