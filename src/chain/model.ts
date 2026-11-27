@@ -276,7 +276,8 @@ export interface LaunchEntry {
   title?: string
   /**
    * The machine the task ran on (BTN-993): its `machine_tasks` row, the own machine for a task without one. Set by the
-   * service; absent in an entry from before machines, which ran on the own one.
+   * service — a machine's move as the machine that sent it (BTN-1800); absent in an entry from before machines, which ran
+   * on the own one, and in a move's entry from before BTN-1800 (`sessionLaunchMachine`).
    */
   machine?: string
 }

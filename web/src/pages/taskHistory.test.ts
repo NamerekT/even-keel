@@ -4,7 +4,7 @@ import type { EventEntry } from '../../../src/event-log/model.js'
 import type { SessionView } from '../../../src/state.js'
 import type { ChainBlock } from '../state.js'
 import { withOlder } from './EventLogPage.js'
-import { withHistory } from './taskHistory.js'
+import { asksHistory, withHistory } from './taskHistory.js'
 
 const run = (sessionId: string, at: string): TaskSession => ({ sessionId, at, how: 'launch', resumed: 0, answers: 0 })
 const block = (over: Partial<ChainBlock>) => ({ id: 'ABC-1', session: null, sessions: [], ...over }) as ChainBlock
@@ -30,6 +30,29 @@ describe('withHistory', () => {
     const shown = withHistory(block({ sessions: runs }), { runs: [run('s3', '2026-11-16T00:00:00Z'), run('s1', '2026-11-01T00:00:00Z')], sessions: [newest] })
     expect(shown.sessions).toBe(runs)
     expect(shown.session).toBe(newest)
+  })
+
+  it('gives the runs the state gave without an account the account, agent and compactions the history found (BTN-1800)', () => {
+    const newest = { task: 'ABC-1', sessionId: 's3' } as SessionView
+    const given = block({ sessions: [{ ...run('s3', '2026-11-16T02:00:00Z'), account: 'a@example.com' }, run('s2', '2026-11-16T01:00:00Z')], session: newest })
+    const found = [run('s3', '2026-11-16T02:00:00Z'), { ...run('s2', '2026-11-16T01:00:00Z'), account: 'b@example.com', agent: 'claude', compactions: 2 }]
+    const shown = withHistory(given, { runs: found, sessions: [] })
+    expect(shown.session).toBe(newest)
+    expect(shown.sessions).toEqual([given.sessions[0], { ...given.sessions[1], account: 'b@example.com', agent: 'claude', compactions: 2 }])
+  })
+})
+
+describe('asksHistory', () => {
+  it('asks for a task with a run whose account the state does not know (BTN-1800)', () => {
+    const session = { task: 'ABC-1', sessionId: 's3' } as SessionView
+    expect(asksHistory(block({ sessions: [{ ...run('s3', '2026-11-16T00:00:00Z'), account: 'a@example.com' }], session }), undefined)).toBe(false)
+    expect(asksHistory(block({ sessions: [run('s3', '2026-11-16T00:00:00Z')], session }), undefined)).toBe(true)
+  })
+
+  it('asks for a task named in ranAt and for one with runs and no session', () => {
+    expect(asksHistory(block({}), '2026-11-01T00:00:00Z')).toBe(true)
+    expect(asksHistory(block({}), undefined)).toBe(false)
+    expect(asksHistory(block({ sessions: [{ ...run('s3', '2026-11-16T00:00:00Z'), account: 'a@example.com' }] }), undefined)).toBe(true)
   })
 })
 
