@@ -49,7 +49,7 @@ BTN-1250 moves the account watcher, monitor, approvals, packages and CLI selecti
 
 ## One account's limits across machines (BTN-991)
 
-The hub picks one machine to poll `/usage` per claude.ai account and hands the newest limits to the others (`docs/machines/landings.md`, "Account limits"). `src/limits/polls.test.ts`, `src/limits/watcher-plan.test.ts` and `src/machine/remote.test.ts` cover the choice, the plan and its command over the wire in memory. With one machine nothing is sent, so a live installation runs none of it yet.
+The hub picks one machine to poll `/usage` per claude.ai account and hands the newest limits to the others (`docs/machines/limits.md`). `src/limits/polls.test.ts`, `src/limits/watcher-plan.test.ts` and `src/machine/remote.test.ts` cover the choice, the plan and its command over the wire in memory. With one machine nothing is sent, so a live installation runs none of it yet.
 
 Assumed: `oauthAccount.accountUuid` of `.claude.json` is the same for one account on every machine and every folder, and it changes in the file when another account signs in to the folder; the 30 s between reads of the file is soon enough after a sign-in. If the id differs per machine, both machines poll the account as before and may meet the 429; if it is stale after a switch, a folder skips polling an account it no longer has until the next read.
 
@@ -209,7 +209,7 @@ To check, on the benches: a Huly project of width 2 with two machines (or `paral
 
 ## A machine catching up with its hub's commit (BTN-1275)
 
-`docs/machines.md`, "Catching up with the hub"; `docs/guide/page.md`, "Updating from the page". `src/updates/follow.test.ts` covers the choice (a target failed before, a dirty checkout, no service manager, a local package, a hub without a commit), `src/updates/steps.test.ts` the steps of mode `follow`, `src/link/link.test.ts` the refusal's body and `versionRefused` on a fake hub.
+`docs/machines/elsewhere.md`, "Catching up after a refusal"; `docs/guide/page.md`, "Updating from the page". `src/updates/follow.test.ts` covers the choice (a target failed before, a dirty checkout, no service manager, a local package, a hub without a commit), `src/updates/steps.test.ts` the steps of mode `follow`, `src/link/link.test.ts` the refusal's body and `versionRefused` on a fake hub.
 
 Assumed: the detached update process outlives the machine service's stop under each service manager as the page's update does; `git fetch --all --tags` reaches the hub's commit through the machine's remotes (the chain pushed it before the hub rebuilt); `npm run build:machine` is enough for the machine service to start; the machine's first contact after the start writes `contactAt` within the answer's 2 min; the global npm install runs as the page's does. If not, the machine stays refused with `stuck: failed` on its page, or is left on the old commit after a rollback.
 
@@ -315,7 +315,7 @@ To check, on the benches (entry 181): connect a machine elsewhere to a project, 
 
 ## Installing an agent's CLI from the page (BTN-1502)
 
-`docs/machines.md`, "On the machine" and "Installing a CLI from the page". "Install" runs the agent's official installer as the service's user, on the hub or over the link on a machine elsewhere, and the CLI's version reaches the machine's page without a restart or a new handshake: the panel carries it live, and `VersionWatcher.noticeInstalls` looks every minute whether a CLI appeared. Covered by `src/agent/cli-installer.test.ts`, `src/agent/versions.test.ts`, `src/machine/cli-report.test.ts`, `src/service/machine-page.test.ts` and `src/account/watcher.test.ts`, with a fake child process; no installer has run from the service.
+`docs/machines/page.md`, "On the machine"; `docs/machines/machine-side.md`, "Installing a CLI from the page". "Install" runs the agent's official installer as the service's user, on the hub or over the link on a machine elsewhere, and the CLI's version reaches the machine's page without a restart or a new handshake: the panel carries it live, and `VersionWatcher.noticeInstalls` looks every minute whether a CLI appeared. Covered by `src/agent/cli-installer.test.ts`, `src/agent/versions.test.ts`, `src/machine/cli-report.test.ts`, `src/service/machine-page.test.ts` and `src/account/watcher.test.ts`, with a fake child process; no installer has run from the service.
 
 Assumed: Claude Code's `install.sh`/`install.ps1` and a global npm install finish without a terminal as the service's user — under the Windows service in session 0 too, into that user's profile — and put the binary where a launch finds it (`~/.local/bin`, npm's global folder). If not, the output under the button shows the installer's error and the CLI stays missing; run the command in a terminal as that user.
 
