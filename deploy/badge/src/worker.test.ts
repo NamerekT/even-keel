@@ -196,6 +196,52 @@ describe('GET /<slug>.svg', () => {
   })
 })
 
+describe('GET /<slug>.json', () => {
+  const read = (env: Env, path = '/example.json', headers: Record<string, string> = {}) => show(env, path, headers)
+
+  it('answers only the stats and the push time, never cached', async () => {
+    const env = envOf()
+    env.BADGE.data.set('example', JSON.stringify(state))
+    const response = await read(env)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8')
+    expect(response.headers.get('cache-control')).toBe('no-cache, max-age=0')
+    expect(response.headers.get('etag')).toMatch(/^"[0-9a-f]{64}"$/)
+    expect(response.headers.get('access-control-allow-origin')).toBeNull()
+    expect(await response.json()).toEqual({ at: state.at, stats: { sessions: 12, medianCost: 1.2, medianMinutes: 18 } })
+  })
+
+  it('leaves out the numbers the push did not carry, and keys the state does not know', async () => {
+    const env = envOf()
+    env.BADGE.data.set('example', JSON.stringify({ ...state, stats: { sessions: 7, extra: 1 } }))
+    expect(await (await read(env)).json()).toEqual({ at: state.at, stats: { sessions: 7 } })
+    env.BADGE.data.set('example', JSON.stringify({ ...state, stats: undefined }))
+    expect(await (await read(env)).json()).toEqual({ at: state.at, stats: {} })
+  })
+
+  it('is 404 for a slug without a state or with a stored value it cannot read', async () => {
+    expect((await read(envOf(), '/nobody.json')).status).toBe(404)
+    const env = envOf()
+    env.BADGE.data.set('example', '{')
+    expect((await read(env)).status).toBe(404)
+    env.BADGE.data.set('example', JSON.stringify({ ...state, v: 2 }))
+    expect((await read(env)).status).toBe(404)
+  })
+
+  it('answers 304 to the same ETag and 200 once the stats change', async () => {
+    const env = envOf()
+    env.BADGE.data.set('example', JSON.stringify(state))
+    const etag = (await read(env)).headers.get('etag')!
+    const again = await read(env, '/example.json', { 'if-none-match': etag })
+    expect(again.status).toBe(304)
+    expect(again.headers.get('etag')).toBe(etag)
+    expect(again.headers.get('cache-control')).toBe('no-cache, max-age=0')
+    expect(await again.text()).toBe('')
+    env.BADGE.data.set('example', JSON.stringify({ ...state, stats: { ...state.stats, sessions: 13 } }))
+    expect((await read(env, '/example.json', { 'if-none-match': etag })).status).toBe(200)
+  })
+})
+
 describe('other requests', () => {
   it.each([
     ['GET', '/'],
@@ -204,6 +250,8 @@ describe('other requests', () => {
     ['GET', '/a/example.svg'],
     ['PUT', '/push/example'],
     ['POST', '/example.svg'],
+    ['POST', '/example.json'],
+    ['GET', '/Bad_Slug.json'],
   ])('%s %s is 404', async (method, path) => {
     const env = envOf()
     const response = await handle(new Request(`https://badge.example.com${path}`, { method, headers: { authorization: `Bearer ${SECRET}` }, body: method === 'GET' ? null : JSON.stringify(state) }), env, now)

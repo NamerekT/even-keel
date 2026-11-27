@@ -17,6 +17,8 @@ export interface Env {
 const SLUG = '[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?'
 const PUSH = new RegExp(`^/push/(${SLUG})$`)
 const IMAGE = new RegExp(`^/(${SLUG})\\.svg$`)
+const NUMBERS = new RegExp(`^/(${SLUG})\\.json$`)
+const STATS = ['sessions', 'medianCost', 'medianMinutes'] as const
 /** A state is a few KB; anything far bigger is no state. */
 const MAX_BODY = 64 * 1024
 const NO_CACHE = 'no-cache, max-age=0'
@@ -24,16 +26,22 @@ const NO_CACHE = 'no-cache, max-age=0'
 /**
  * The README badge's Worker (BTN-916): `POST /push/<slug>` stores the state the service pushes, `GET /<slug>.svg` draws
  * it with the request's time, so the age, the grey dot and OFFLINE are counted when the picture is shown. KV is written
- * only by a push; the Worker calls nothing else.
+ * only by a push; the Worker calls nothing else. `GET /<slug>.json` gives the stats' tiles and the push time to a build
+ * that wants the numbers, not the picture (BTN-1785).
  */
 export async function handle(request: Request, env: Env, now: Date): Promise<Response> {
   const { pathname, searchParams } = new URL(request.url)
   const push = PUSH.exec(pathname)
   if (push !== null && request.method === 'POST') return store(request, env, push[1]!)
+  if (request.method !== 'GET') return notFound()
   const image = IMAGE.exec(pathname)
-  if (image !== null && request.method === 'GET') return draw(request, env, image[1]!, searchParams.get('theme') === 'light' ? 'light' : 'dark', now)
-  return new Response('Not found', { status: 404 })
+  if (image !== null) return draw(request, env, image[1]!, searchParams.get('theme') === 'light' ? 'light' : 'dark', now)
+  const numbers = NUMBERS.exec(pathname)
+  if (numbers !== null) return tell(request, env, numbers[1]!)
+  return notFound()
 }
+
+const notFound = () => new Response('Not found', { status: 404 })
 
 async function store(request: Request, env: Env, slug: string): Promise<Response> {
   if (!(await authorized(request.headers.get('authorization'), env.BADGE_SECRET))) return new Response('Unauthorized', { status: 401 })
@@ -46,11 +54,27 @@ async function store(request: Request, env: Env, slug: string): Promise<Response
 
 async function draw(request: Request, env: Env, slug: string, theme: 'dark' | 'light', now: Date): Promise<Response> {
   const stored = await env.BADGE.get(slug)
-  const svg = renderBadge(stored === null ? null : parseBadgeState(stored), { theme, now })
-  const etag = `"${await sha256(svg)}"`
+  return answer(request, renderBadge(stored === null ? null : parseBadgeState(stored), { theme, now }), 'image/svg+xml; charset=utf-8')
+}
+
+/** Only what the badge's stats tiles show and the push time its "updated" counts from; no state — 404, never `{}`. */
+async function tell(request: Request, env: Env, slug: string): Promise<Response> {
+  const stored = await env.BADGE.get(slug)
+  const state = stored === null ? null : parseBadgeState(stored)
+  if (state === null) return notFound()
+  const stats: Record<string, number> = {}
+  for (const key of STATS) {
+    const value = state.stats?.[key]
+    if (value !== undefined) stats[key] = value
+  }
+  return answer(request, JSON.stringify({ at: state.at, stats }), 'application/json; charset=utf-8')
+}
+
+async function answer(request: Request, body: string, type: string): Promise<Response> {
+  const etag = `"${await sha256(body)}"`
   const headers = { 'cache-control': NO_CACHE, etag }
   if (matches(request.headers.get('if-none-match'), etag)) return new Response(null, { status: 304, headers })
-  return new Response(svg, { headers: { ...headers, 'content-type': 'image/svg+xml; charset=utf-8' } })
+  return new Response(body, { headers: { ...headers, 'content-type': type } })
 }
 
 async function authorized(header: string | null, secret: string | undefined): Promise<boolean> {
