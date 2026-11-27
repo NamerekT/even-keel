@@ -59,9 +59,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
-  margin: 0;
-  padding: 0;
+  /* A leaving card slides right past the list: clipped, not scrolled to (BTN-1795).
+     The padding, taken back by the margin, keeps a card's focus ring inside the clip. */
+  margin: 0 calc(-1 * var(--space-4));
+  padding: 0 var(--space-4);
   list-style: none;
+  overflow-x: clip;
 }
 
 /* A card and its ⋯, which stands over the card's top right corner, right of the time (BTN-1775). */
