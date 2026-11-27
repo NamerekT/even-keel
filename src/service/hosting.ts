@@ -74,7 +74,7 @@ import { BuiltinImports } from '../builtin/import.js'
 import { connectImportSource } from '../tracker/import-source.js'
 import { attachmentsDirOf } from '../builtin/files.js'
 import { BUILTIN } from '../builtin/model.js'
-import { isChatSession } from '../chats/model.js'
+import { servedSession } from '../sessions/served.js'
 import { runOf } from './demo.js'
 import { checkWidth } from './width-cap.js'
 
@@ -620,12 +620,13 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
       return { ...run, ...threshold, ...(off ? { source: 'off' as const } : {}), context, note }
     },
     handoffNote: async (sessionId) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : transcripts.note(sessionId)),
-    mail: (sessionId, event) => (handoffsOf(ctx.launches, sessionId) === undefined && !isChatSession(ctx.machineLink.sessions.sessions(), sessionId) ? undefined : mailFor(ctx.mailRelay, sessionId, event)),
+    mail: (sessionId, event) => (servedSession(ctx.launches, ctx.machineLink.sessions.sessions(), sessionId) ? mailFor(ctx.mailRelay, sessionId, event) : undefined),
     mailContext: (sessionId, event) => (event === 'PreToolUse' || event === 'PostToolUse' ? ctx.badges.statusAsk(sessionId) : null),
     // The hub's own machine's inboxes: a machine elsewhere answers for its own on the way back (`HookReceiver`).
     inboxWanted: (sessionId) => !ctx.inboxes.knows(sessionId),
     inbox: (sessionId, socket, token) => ctx.inboxes.remember(sessionId, socket, token),
-    permission: (sessionId, tool, input, since) => (handoffsOf(ctx.launches, sessionId) === undefined ? undefined : ctx.approvals.poll(sessionId, tool, input, since)),
+    // The hub's own machine's sessions: a machine elsewhere answers for its own (`HookReceiver`, BTN-1769).
+    permission: (sessionId, tool, input, since) => (servedSession(ctx.launches, ctx.machineLink.sessions.sessions(), sessionId) ? ctx.approvals.poll(sessionId, tool, input, since) : undefined),
     mergeCheck: (sessionId) => {
       const run = handoffsOf(ctx.launches, sessionId)
       if (run === undefined) return undefined

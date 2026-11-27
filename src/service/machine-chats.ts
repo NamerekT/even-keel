@@ -12,6 +12,7 @@ import type { MachineContext } from './machine-context.js'
 export type MachineChatsContext = Pick<MachineContext,
   | 'agentOf'
   | 'agentStatus'
+  | 'approved'
   | 'branchOf'
   | 'chatSettingsFor'
   | 'chatTitles'
@@ -65,6 +66,8 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
     },
     send: async (project, chat, start) => {
       const session = sessionOf(chat)
+      // A call the session waits to have approved takes the reply as its decision; the turn goes on (BTN-1769).
+      if (ctx.approved(chat, session, start.prompt)) return session.sessionId
       const home = ctx.homeOf(session.account)
       const next = startOf(project, chat, session.cwd, start, home.agent)
       const hung = ctx.liveView(chat)?.hungSince != null
