@@ -3,7 +3,7 @@ import type { ChainBlock } from '../state.js'
 import { inOrder, pinnedHead, withOrder } from '../ui/chainOrder.js'
 import { moveItem } from '../ui/drag.js'
 import { stillMotion } from '../ui/landing.js'
-import { clampDrop, clampShift, dropBounds, nearestIndex, relatives, stackedTops, type Bounds, type Box, type Point } from '../ui/reorder.js'
+import { clampDrop, clampShift, dragOffsets, dropBounds, nearestIndex, relatives, type Bounds, type Box, type Point } from '../ui/reorder.js'
 
 const LONG_PRESS_MS = 350
 const MOUSE_SLOP = 4
@@ -156,17 +156,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
     const render = (state: Active) => {
       const { dx, dy, target } = measure(state)
       const preview = withOrder(state.blocks, moveItem(state.order, state.from, target)).map((block) => block.id)
-      const tops = stackedTops(
-        state.boxes,
-        preview.map((id) => state.rows.indexOf(id)),
-      )
-      const offsets = new Map<string, Point>()
-      for (const [index, id] of state.rows.entries()) {
-        const slot = state.boxes[preview.indexOf(id)]!
-        const own = state.boxes[index]!
-        if (id !== state.id && tops[index] !== own.top) offsets.set(id, { x: slot.left - own.left, y: tops[index]! - own.top })
-      }
-      offsets.set(state.id, { x: dx, y: dy })
+      const offsets = dragOffsets(state.boxes, state.rows, preview, state.id, { x: dx, y: dy })
       const related = relatives(state.rows, blockersOf(state.blocks), state.id)
       setDrag({ id: state.id, target, offsets, blockers: new Set(related.blockers), dependents: new Set(related.dependents) })
     }

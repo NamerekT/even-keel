@@ -65,6 +65,24 @@ export function stackedTops(boxes: Box[], order: number[]): number[] {
   return tops
 }
 
+/**
+ * How far each row stands from its own place while `dragged` is held `shift` away and the rows preview `preview`
+ * (`rows` — their order before the drag, `boxes` — their boxes in it). The other rows move only up or down: a locked
+ * row keeps its indent wherever it goes (BTN-1767). Rows that stay put are left out.
+ */
+export function dragOffsets(boxes: Box[], rows: string[], preview: string[], dragged: string, shift: Point): Map<string, Point> {
+  const tops = stackedTops(
+    boxes,
+    preview.map((id) => rows.indexOf(id)),
+  )
+  const offsets = new Map<string, Point>()
+  for (const [index, id] of rows.entries()) {
+    if (id !== dragged && tops[index] !== boxes[index]!.top) offsets.set(id, { x: 0, y: tops[index]! - boxes[index]!.top })
+  }
+  offsets.set(dragged, shift)
+  return offsets
+}
+
 /** A row of the list and its top in the list's layout. */
 export interface Row {
   id: string

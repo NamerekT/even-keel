@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampDrop, clampShift, dropBounds, nearestIndex, relatives, reorderShifts, stackedTops, type Row } from './reorder.js'
+import { clampDrop, clampShift, dragOffsets, dropBounds, nearestIndex, relatives, reorderShifts, stackedTops, type Row } from './reorder.js'
 
 const blockers = new Map<string, string[]>([
   ['A', []],
@@ -95,6 +95,28 @@ describe('stackedTops', () => {
   it('keeps a milestone divider between the same places', () => {
     const boxes = [box(0, 70), box(78, 70), box(190, 34)]
     expect(stackedTops(boxes, [0, 2, 1])).toEqual([0, 154, 78])
+  })
+})
+
+describe('dragOffsets', () => {
+  const box = (left: number, top: number) => ({ left, top, width: 200 - left, height: 34 })
+  // A, a locked B standing in from the rows, C; C is dragged above B and carries nothing.
+  const boxes = [box(0, 0), box(18, 42), box(0, 84)]
+
+  it('moves the rows that make room only up or down, each keeping its own indent', () => {
+    const offsets = dragOffsets(boxes, ['A', 'B', 'C'], ['A', 'C', 'B'], 'C', { x: 3, y: -40 })
+    expect(offsets.get('B')).toEqual({ x: 0, y: 42 })
+  })
+
+  it('keeps a carried blocker in its own column when it moves into an unindented row', () => {
+    const offsets = dragOffsets(boxes, ['A', 'B', 'C'], ['B', 'C', 'A'], 'C', { x: 0, y: -80 })
+    expect(offsets.get('B')).toEqual({ x: 0, y: -42 })
+    expect(offsets.get('A')).toEqual({ x: 0, y: 84 })
+  })
+
+  it('leaves the rows in place untouched and moves the dragged one by the pointer', () => {
+    const offsets = dragOffsets(boxes, ['A', 'B', 'C'], ['A', 'B', 'C'], 'B', { x: 5, y: 7 })
+    expect([...offsets]).toEqual([['B', { x: 5, y: 7 }]])
   })
 })
 
