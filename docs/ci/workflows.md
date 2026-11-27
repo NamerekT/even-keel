@@ -12,7 +12,15 @@ Since 2026-11-02 pushes and pull requests are checked on GitHub only: a run ther
 
 `.github/workflows/cli-latest.yml` ("Latest CLIs", BTN-888) runs the same scenarios on the latest Claude Code, Codex and OpenCode at 03:30 UTC on `dev` and by hand on the selected branch (`docs/chain/e2e-cli.md`). Equal latest and checked versions skip successfully; discovery errors fail. It excludes SDK sessions, which always use checked, and does not join `nights-green.sh`: a red night is a prompt to check a CLI version, not a release gate. Like the checked workflow, a scheduled run is listed under `main` rather than `dev`.
 
-`.github/workflows/trackers-e2e.yml` ("Tracker contract", BTN-470) runs the tracker adapters' contract on live trackers every night at 03:00 UTC on `dev` and by hand (`docs/trackers.md`, "Contract tests on live trackers"), its stands from the secret `TRACKER_STANDS`, joining the tailnet first when the Tailscale secrets are set. Its runs are read like those of "Real CLIs" above — a run by hand on `dev` is in `dev`'s verdict — and a red night holds releases the same way: `publish.yml` runs `scripts/nights-green.sh` before `npm publish`. The night skips the Huly stand, up only on demand; its run by hand with `on_demand` ("Huly contract", `scripts/huly-contract.sh`, BTN-1489) holds releases until its latest on `dev` is green.
+`.github/workflows/trackers-e2e.yml` ("Tracker contract", BTN-470) runs the tracker adapters' contract on live trackers every night at 03:00 UTC on `dev` and by hand ([`docs/trackers/link.md`](../trackers/link.md#contract-tests-on-live-trackers-btn-470-srce2e-trackers)), its stands from the secret `TRACKER_STANDS`, joining the tailnet first when the Tailscale secrets are set. Its runs are read like those of "Real CLIs" above — a run by hand on `dev` is in `dev`'s verdict — and a red night holds releases the same way: `publish.yml` runs `scripts/nights-green.sh` before `npm publish`. The night skips the Huly stand, up only on demand; its run by hand with `on_demand` ("Huly contract", `scripts/huly-contract.sh`, BTN-1489) holds releases until its latest on `dev` is green.
+
+### The release gate of the nights
+
+`scripts/nights-green.sh` (BTN-470) holds every release on a red night. It takes the latest finished run of each nightly workflow — "Tracker contract", "Real CLIs" and "macOS" — of the night or by hand on `dev` ("Tracker contract" not titled "Huly contract"), and fails unless it is a success. It takes the latest "Huly contract" on `dev` the same way and fails with none yet, since nothing starts that run by itself. `publish.yml` runs it before `npm publish`, and a release's first step names it (`docs/releases.md`, "A release").
+
+- A nightly workflow with no run yet passes with a note: GitHub starts a schedule only once the workflow is on the default branch. "macOS" is the exception: it left the push check of `dev` for its night, so with no run on `dev` it holds the release ("macOS" below).
+- A red night is lifted by a fix on `dev` and a green run by hand (`gh workflow run <workflow> --ref dev`); a red or missing Huly contract by a green `sh scripts/huly-contract.sh`.
+- GitHub mails the failure of a scheduled run to whoever last changed its schedule.
 
 ### Action dependencies
 
