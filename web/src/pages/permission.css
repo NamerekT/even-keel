@@ -1,0 +1,52 @@
+/* A tool call waiting for approval, over the chat's field (BTN-1769): a card as the open question's, the call scrolling inside. */
+.permission {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.permission--off {
+  opacity: 0.55;
+}
+
+.permission__head {
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+  font-size: var(--text-15);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Low enough for the card, the field and a phone's keyboard to share the chat window. */
+.permission__call {
+  max-height: 30dvh;
+  margin: var(--space-8) var(--space-12) 0;
+  padding: var(--space-8) var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--bg);
+  font: var(--text-13)/1.4 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.permission__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+}
+
+@media (max-width: 760px) {
+  .permission__call {
+    max-height: 24dvh;
+  }
+}
