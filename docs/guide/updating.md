@@ -6,7 +6,7 @@ From the page, by hand, trying the next version, plugins, stored state, going ba
 
 Docker installations update by [pulling the image](docker.md#updating).
 
-A hub running from a checkout can rebuild after a green push. Use `service/rebuild.sh <green-sha>` for the systemd user service or macOS launch agent, or `service/rebuild.ps1 -Commit <green-sha>` on Windows. The checkout must already be at that commit. If the rebuilt service cannot start or answer, Even Keel rebuilds the previous running commit and shows both commits on the page. The next green push can try again. See [Rebuild mode](../service/updates.md#updating-from-the-page-btn-163-srcupdates) for setup and the update log.
+A hub running from a checkout can rebuild after a green push. Use `service/rebuild.sh <green-sha>` for the systemd user service or macOS launch agent, or `service/rebuild.ps1 -Commit <green-sha>` on Windows. The checkout must already be at that commit. If the rebuilt service cannot start or answer, Even Keel rebuilds the previous running commit and shows both commits on the page. The next green push can try again. The setup is in [Rebuild after a green push](../service/platforms.md#rebuild-after-a-green-push), the steps and the update log in [Rebuild mode](../service/updates.md#rebuild-mode).
 
 The gear menu in the header ends with the installed version.
 

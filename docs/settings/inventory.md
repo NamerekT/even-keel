@@ -107,7 +107,7 @@ schema version of a file of the format.
   `EVEN_KEEL_STATE_DIR`, `EVEN_KEEL_ACCOUNTS_DIR`,
   `EVEN_KEEL_CODEX_ACCOUNTS_DIR`, `EVEN_KEEL_CLAUDE_BIN`, `EVEN_KEEL_CODEX_BIN`: needed before the storage is open (the
   database lives in the state folder), so they stay in the environment. So does `EVEN_KEEL_CPU_PROFILE`, a diagnostic
-  of the start (`docs/service.md`, "A slow start"), and `EVEN_KEEL_MACHINE=1`, set by the Compose templates' `machine`
+  of the start (`docs/service/start.md`, "Diagnostics"), and `EVEN_KEEL_MACHINE=1`, set by the Compose templates' `machine`
   service: an installation that joined no hub waits for the join instead of starting a hub (BTN-1440,
   `docs/machines/elsewhere.md`, "Machines elsewhere").
 - **Tally's connection** — `TALLY_DB_*`, `TALLY_*_USER`, `TALLY_LLM_URL`, `TALLY_LLM_MODEL`, `TALLY_CONFIG`,

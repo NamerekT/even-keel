@@ -42,7 +42,7 @@ The pictures of `docs/guide/` are shot, never drawn by hand: each is a frame of 
 - A run without interface changes rewrites no file: the line says `same`, `changed` or `new` per frame. For that the frame is shot at a fixed moment (`page.clock.setFixedTime`), in UTC and `en-US`, with `Math.random` seeded, every animation and transition run to its end at once, subpixel text off (`--disable-lcd-text`: its fringes followed the page's layers, one run in a few differed), and only once two shots 300 ms apart match (late panels such as the milestone's stats). A frame whose page logs an error is not saved and the run exits 1.
 - Only `dev:fake` data, so no real names reach a picture; its task titles are Russian, as the rest of the fake.
 - `scripts/guide-shots-manifest.test.ts` holds the manifest and the guide together: every picture a guide page links under `images/` is a frame, every frame is linked from a page and has its file, and `docs/guide/images/` holds nothing else. A new frame is a manifest entry, a run with its id and a link in the same commit.
-- The frames are shot again before each release (`docs/releases.md`, step 2).
+- The frames are shot again before each release (`docs/releases.md`, step 5).
 
 ## Motion frame sheets (BTN-95)
 

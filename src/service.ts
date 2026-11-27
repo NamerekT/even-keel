@@ -733,7 +733,7 @@ function projectsChanged(before: EvenKeelConfig): void { return trackersService.
 // or no Claude one left out; the file drops them once the setting is written.
 lifecycleService.start(context)
 
-/** `.env` changed: whoever reads the changed variables takes them now (`docs/service.md`). */
+/** `.env` changed: whoever reads the changed variables takes them now (`docs/service/start.md`). */
 function envChanged(changed: string[]): Promise<void> { return statsService.envChanged(context, changed) }
 
 /** Tally's mode or its database changed: the collector and the reader start anew on them; nothing when neither did. */
