@@ -15,7 +15,7 @@ The page translates its own chrome (`web/src/i18n/`, `ru.ts` is the source of th
 ## Errors in the page's words (BTN-297)
 
 - A message a person reads names a setting by its label on the page, says what to do and, where the page has a place for it, gives a button there; paths of the config (`projects[0].branch`, `ABC.chain.active`) stay in the log and `config-import`. A test keeps paths out of them and out of the `wizard.*` texts.
-- A setting refused at its field (an `ErrorStrip` under one field, `FieldNote` under a setting of several controls; `docs/design.md`, "Field strip") is said by `sayAtField`: the texts of `web/src/i18n/fields-en.ts`/`fields-ru.ts`, by the value; a code they lack falls back to `say()`. In `dev:fake` a project saved with an empty repository path is refused at that field (`config.repoEmpty`).
+- A setting refused at its field (an `ErrorStrip` under one field, `FieldNote` under a setting of several controls; `docs/design/fields.md`, "Field strip") is said by `sayAtField`: the texts of `web/src/i18n/fields-en.ts`/`fields-ru.ts`, by the value; a code they lack falls back to `say()`. In `dev:fake` a project saved with an empty repository path is refused at that field (`config.repoEmpty`).
 
 ## Short messages (EKR-87)
 

@@ -1,5 +1,5 @@
 /**
- * The guard of "An explanation is a "?", not a line under the field" (docs/design.md, BTN-1590): every element of `web/src`
+ * The guard of "An explanation is a "?", not a line under the field" (docs/design/fields.md, BTN-1590): every element of `web/src`
  * whose class is a note or a hint (`add-package__note`, `settings__hint`, `add-package__kind-hint`, `task-card__run-note`)
  * as a spot with its line. A class is read from any string or template of the code, so one kept in a variable or picked
  * by a condition counts too; a literal counts once however many such classes it names. Used by

@@ -1,6 +1,6 @@
 # Page: the stack, the state stream, routes and the theme
 
-The header, the banners and `/status` are in [`header.md`](header.md); the home page in [`home.md`](home.md). How the page looks — tokens, blocks, plaques, tips, motion, modals and the check before a merge — is `docs/design.md`.
+The header, the banners and `/status` are in [`header.md`](header.md); the home page in [`home.md`](home.md). How the page looks — tokens, blocks, plaques, tips, motion, modals and the check before a merge — is `docs/design.md` and its subtopics in `docs/design/`.
 
 ## The stack
 
@@ -37,7 +37,7 @@ The header, the banners and `/status` are in [`header.md`](header.md); the home 
 
 - **Closing from the backdrop.** A modal closes from its backdrop only when the left button went both down and up on it (`useBackdropClose`, `web/src/ui/backdrop.ts`): a `click` goes to the common ancestor of the press and the release, the `<dialog>` itself, so a text selection dragged out of the window used to close it. A press on the backdrop starts no selection. Every modal uses it but the sign-in, which never closes from its backdrop; the media viewer counts its stage as backdrop.
 - **The activity bar** (`ActivityBar`) at the top of the window is only for what a person did and waits on: commands, a session's read, the task card, `checkProject`, `query` (the whole `/log`, a closed task's runs) and `attach` go through `activity.track` (`web/src/live/activity.ts`).
-- **Background reads** stay off the bar and show where they land: Tally's answers (`useStatsAnswer` — the strip under the chain keeps its skeleton, the header says "today: …"/"Tokens: …"), the tools' views (`useToolsViews`), the tracker's vocabulary (`useVocabularies`, its `reading` passed down through `VocabularyReading`) and the untracked `read` of `useLive` (an account's models, a repository's branches, the hub's addresses, a profile's statuses). A field fed by one shows a small loader in its list while it reads (`loading` of `SuggestField` and `Select`, `docs/design.md`).
+- **Background reads** stay off the bar and show where they land: Tally's answers (`useStatsAnswer` — the strip under the chain keeps its skeleton, the header says "today: …"/"Tokens: …"), the tools' views (`useToolsViews`), the tracker's vocabulary (`useVocabularies`, its `reading` passed down through `VocabularyReading`) and the untracked `read` of `useLive` (an account's models, a repository's branches, the hub's addresses, a profile's statuses). A field fed by one shows a small loader in its list while it reads (`loading` of `SuggestField` and `Select`, `docs/design/fields.md`).
 - **Buttons.** `useCommand` marks the pressed button `aria-busy` while its command runs, so a new command button needs nothing for its spinner. A command the service carries out later (`chain/restart`) keeps the button busy with `useHold` until the state changes.
 - **`useLanding`** (a command "landing" in the state, not a merge's landing): for a command whose result only the next state or a read shows — a settings save, the card's "Into the chain"/"To the backlog". Its control stays off from the press until the watched value changes, so the gap between the answer and the new state neither lets a second press through nor flashes the button. The time limit counts from the answer; past it the control is on again with `late` set.
 - A block that reloads with its previous data on screen sets `aria-busy` on itself and is dimmed.
@@ -53,7 +53,7 @@ The page installs as an app (`web/public/manifest.webmanifest`). The `icon-*.png
 ## Theme
 
 - The choice is System (the default), Light or Dark, kept per browser in `localStorage` under `even-keel.theme` (`web/src/theme.ts`): no config key, so a phone and a desktop may differ. It is picked in Settings → Interface, in the gear menu and in the burger's sheet (`ThemeSwitch`, `web/src/ui/ThemeSwitch.tsx`).
-- The page's theme is `<html data-theme="light|dark">`, always resolved, never `system`; the dark tokens are one `:root[data-theme='dark']` block in `web/src/styles.css`, and no stylesheet asks `prefers-color-scheme` (`docs/design.md`).
+- The page's theme is `<html data-theme="light|dark">`, always resolved, never `system`; the dark tokens are one `:root[data-theme='dark']` block in `web/src/styles.css`, and no stylesheet asks `prefers-color-scheme` (`docs/design/tokens.md`).
 - `web/public/theme.js` sets the attribute before the first paint, loaded blocking from the head of `web/index.html`, so a dark choice never flashes light. It is a file, not an inline script, because the CSP refuses inline code. It repeats `themeOf` in plain JS; `web/src/theme.test.ts` runs it against `themeOf` for every stored value and system theme.
 - `watchTheme()` (in `web/src/main.tsx` before the render) follows `prefers-color-scheme` while the choice is System, takes a choice made in another tab through the `storage` event and sets the `media` of the two `theme-color` metas (`themeColorMedia`), so a phone's browser bar follows a manual choice.
 - `npm run shot -- --theme <system|light|dark>` writes the choice before the page loads (`screenshots.md`).

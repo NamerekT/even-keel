@@ -65,7 +65,7 @@ function insideMap(source: string, at: number): boolean {
   return false
 }
 
-describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
+describe('the design rules over web/src (docs/design/tokens.md, "Guards")', () => {
   it('in-flow disclosures use Fold rather than native details', () => {
     expect(Object.keys(sources).filter((path) => /<details\b/.test(sources[path]!))).toEqual([])
   })
@@ -73,7 +73,7 @@ describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
     const inside = Object.entries(sources).flatMap(([path, source]) =>
       dialogBodies(source).filter(({ text }) => /\bnotice--error\b/.test(text)).map(({ line }) => `${path}:${line}`),
     )
-    expect(inside, 'Put the refusal between add-package__body and the footer with class add-package__failure (docs/design.md)').toEqual([])
+    expect(inside, 'Put the refusal between add-package__body and the footer with class add-package__failure (docs/design/fields.md, "The error of a whole form")').toEqual([])
   })
   it('a checkbox only picks items of a list; a single on/off option is a switch', () => {
     const single = Object.entries(sources).flatMap(([path, source]) =>
@@ -81,13 +81,13 @@ describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
         .filter((found) => !insideMap(source, found.index))
         .map((found) => `${path}:${source.slice(0, found.index).split('\n').length}`),
     )
-    expect(single, 'Use Switch or SwitchField of pages/settingsParts.tsx for one option (docs/design.md, "Switch")').toEqual([])
+    expect(single, 'Use Switch or SwitchField of pages/settingsParts.tsx for one option (docs/design/fields.md, "Switch")').toEqual([])
   })
   it('a button closes or removes with CloseIcon, never the "×" glyph that sits off its line box\'s middle', () => {
     const glyphs = Object.entries(sources).flatMap(([path, source]) =>
       [...source.matchAll(/>\s*(?:×|\{(['"`])×\1\})\s*<\/button>/g)].map((found) => `${path}:${source.slice(0, found.index).split('\n').length}`),
     )
-    expect(glyphs, 'Put <CloseIcon /> of ui/icons.tsx into the button (docs/design.md, "Close")').toEqual([])
+    expect(glyphs, 'Put <CloseIcon /> of ui/icons.tsx into the button (docs/design/blocks.md, "Close")').toEqual([])
   })
   it('no stylesheet has more violations than the baseline, and the baseline is not above what is left', () => {
     const baseline = JSON.parse(baselineText) as Record<string, number>
@@ -116,7 +116,7 @@ describe('the design rules over web/src (docs/design.md, "Tokens")', () => {
       const lines = noteSpots(file, codeFiles[file] ?? '').map((spot) => `  ${file}:${spot.line} ${spot.className}`)
       return `${file}: ${lines.length} notes, the baseline allows ${baseline[file] ?? 0}\n${lines.join('\n')}`
     })
-    expect(added, 'An explanation under a field: put it into the "?" of its heading, a state into its FieldStrip (docs/design.md, "Tip")').toEqual([])
+    expect(added, 'An explanation under a field: put it into the "?" of its heading, a state into its FieldStrip (docs/design/fields.md, "An explanation is a \"?\"")').toEqual([])
     expect(fewer, 'Fewer notes than the baseline: run `npm run design-baseline` and commit web/src/note-baseline.json').toEqual([])
   })
   it('no settings screen puts more controls at the right of their names than the baseline, and the baseline is not above what is left', () => {

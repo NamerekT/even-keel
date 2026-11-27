@@ -1,4 +1,4 @@
-/** The token rules of `docs/design.md` that a stylesheet can be checked against: a colour only through a variable
+/** The token rules of `docs/design/tokens.md` that a stylesheet can be checked against: a colour only through a variable
  * (a literal only in `:root` or the dark theme's `:root[data-theme='dark']`), a font size only from the scale, two
  * weights, a radius only from the tokens. */
 export type CssRule = 'colour' | 'font-size' | 'font-weight' | 'radius'

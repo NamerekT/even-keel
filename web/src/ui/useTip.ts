@@ -22,6 +22,8 @@ export type TipAlign = 'start' | 'end'
 
 /**
  * A tip in the top layer under its anchor, closed by Escape, a press elsewhere, outside scrolling or window resizing.
+ * A scroll is caught by a capture listener on `document` while the tip is shown, so a scroll of any box outside the tip
+ * closes it and one inside the tip or its descendants does not; both listeners are removed when it closes.
  * `point` opens it after the pointer rests on the anchor (`OPEN_DELAY_MS`), `show` — at once, for focus and a press; `toggle` — for a tip opened only by pressing.
  */
 export function useTip<Anchor extends HTMLElement, Tip extends HTMLElement>(enabled = true, align: TipAlign = 'end') {
