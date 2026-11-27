@@ -24,6 +24,7 @@ import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
+import { ChatKey, ChatTitle } from './ChatHead.js'
 import { useChatViewport } from './useChatViewport.js'
 import { useFeedPin } from './feedPin.js'
 import { ShutComposer } from './ComposerBox.js'
@@ -127,10 +128,15 @@ interface Props {
   mail?: SessionMail
   /** A project chat's session: its turn line shows over the foot, as a task chat's does (BTN-1427). */
   session?: SessionView
+  /**
+   * A project chat's rename (BTN-1774): the head's title is edited in place and its key copies the session's id; it
+   * answers with the title shown now.
+   */
+  rename?: (name: string) => Promise<string | null>
 }
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
-export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead, initialPrompt, mail: ownMail, session: ownSession }: Props) {
+export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead, initialPrompt, mail: ownMail, session: ownSession, rename }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
   const mail = chat?.mail ?? ownMail ?? (task?.project && session ? state?.mailbox[session] : undefined)
   const sessionId = session ?? ''
@@ -376,10 +382,16 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 <button type="button" className="panel__key chat__task-key" aria-expanded={narrow ? undefined : panel} onClick={toggleTask}>
                   {cardTask}
                 </button>
+              ) : rename !== undefined ? (
+                <ChatKey label={task?.key ?? ''} sessionId={sessionId} />
               ) : (
                 <span className="panel__key">{task?.key ?? chat?.task ?? sessionId.slice(0, 8)}</span>
               )}
-              <WindowTitle sessionId={sessionId} title={(awaitingFirstPrompt ? openingTitle : task?.title) ?? (chat === undefined ? t.session.transcriptTitle : t.session.chat.title)} />
+              {rename !== undefined ? (
+                <ChatTitle title={(awaitingFirstPrompt ? openingTitle : task?.title) ?? null} rename={rename} />
+              ) : (
+                <WindowTitle sessionId={sessionId} title={(awaitingFirstPrompt ? openingTitle : task?.title) ?? (chat === undefined ? t.session.transcriptTitle : t.session.chat.title)} />
+              )}
             </h2>
             {chat?.review !== undefined && <PullButton review={chat.review} compact />}
             {remoteUrl != null && (

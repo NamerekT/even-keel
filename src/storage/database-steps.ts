@@ -450,4 +450,9 @@ export const STEPS: readonly string[] = [
   `
   alter table chat_choices add column machine_id text;
   `,
+  // The name the user gave a chat in its window's head (BTN-1774, `docs/sessions/project-chats.md`), over the title its
+  // transcript gives. Null — none, as every chat before the step.
+  `
+  alter table chats add column name text;
+  `,
 ]

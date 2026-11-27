@@ -140,6 +140,31 @@ describe('ProjectChats', { timeout: 120_000 }, () => {
     }
   })
 
+  it("keeps the user's name over a newer title of the session, writes nothing to it, and an empty name brings the title back (BTN-1774)", async () => {
+    const { chats, calls, store, titles, close, tick } = await setup()
+    try {
+      const { id } = await chats.create(ABC, { account: 'global', model: null, effort: null })
+      expect((await chats.rename(id, '  Build speed ')).title).toBe('Build speed')
+      await chats.send(id, { text: 'Why is the build slow?', files: [] })
+      const sent = calls.length
+      tick(60_000)
+      titles.set(`session-${id}`, 'Slow build')
+      await chats.sweep()
+      expect(store.get(id)).toMatchObject({ name: 'Build speed', title: 'Slow build' })
+      expect(chats.list(ABC)[0]?.title).toBe('Build speed')
+      expect(calls).toHaveLength(sent)
+      const next = await chats.renew(id, { text: 'Go on', files: [] }, { account: 'global', model: null, effort: null })
+      expect(next.title).toBe('Build speed')
+      expect((await chats.rename(next.id, '')).title).toBe('Go on')
+      expect(store.get(next.id)?.name).toBeNull()
+      expect((await chats.rename(id, 'Old build talk')).title).toBe('Old build talk')
+      expect((await chats.archived(ABC, 'old build', 0)).chats.map((each) => each.id)).toEqual([id])
+      await expect(chats.rename('chat-ffffffffffff', 'Nothing')).rejects.toMatchObject({ notice: { code: 'chats.unknown' } })
+    } finally {
+      await close()
+    }
+  })
+
   it('archives a chat a day after its last event, stopping its session, and keeps what it said', async () => {
     const { chats, calls, close, tick } = await setup({ stopFails: true })
     try {

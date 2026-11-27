@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { TaskCard as Card, SubtaskRef } from '../../../src/tracker/card.js'
 import { PRIORITIES, type TaskPriority, type TaskStatus } from '../../../src/tracker/model.js'
@@ -13,7 +13,7 @@ import { Remove } from './CardLinks.js'
 import { StatusDot } from './StatusDot.js'
 import type { CardEditor, EditOptions } from './useCardEdit.js'
 import { useHeld } from './useHeld.js'
-import { useLeaving } from './useLeaving.js'
+import { usePlaceEdit } from './usePlaceEdit.js'
 
 export const DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', year: 'numeric' }))
 
@@ -25,13 +25,6 @@ type Editable = Card & { edit: NonNullable<Card['edit']> }
  * What was sent stands in the field until the card is read anew; only a refusal brings the old title back (BTN-1111).
  */
 export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) {
-  const [draft, setDraft] = useState<string | null>(null)
-  // The draft as of now: a blur after Enter or a closing tab must not send it twice.
-  const typed = useRef<string | null>(null)
-  const show = (text: string | null) => {
-    typed.current = text
-    setDraft(text)
-  }
   const held = useHeld(card.title)
   const send = async (from: string, to: string, options: EditOptions) => {
     held.hold(to)
@@ -39,13 +32,13 @@ export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) 
     if (outcome !== 'landed') held.release()
     return outcome
   }
-  const save = async () => {
-    const to = typed.current?.trim() ?? ''
-    show(null)
-    // A conflict keeps the draft in its own dialog; any other refusal is the card's band.
-    if (to !== '' && to !== held.shown) await send(held.shown, to, { keepalive: true })
-  }
-  useLeaving(() => void save())
+  // A conflict keeps the draft in its own dialog; any other refusal is the card's band.
+  const { draft, show, input } = usePlaceEdit(
+    async (to) => {
+      if (to !== '' && to !== held.shown) await send(held.shown, to, { keepalive: true })
+    },
+    () => dropDraft(editor.project, card.id, 'title'),
+  )
   // The leftover is sent once per mount: React's strict mode runs a mount effect twice.
   const resent = useRef(false)
   useEffect(() => {
@@ -55,17 +48,6 @@ export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) 
     if (left === null) return dropDraft(editor.project, card.id, 'title')
     void send(left.from, left.to, {}).then((outcome) => outcome === 'refused' && show(left.to))
   }, [])
-  const keys = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      void save()
-    } else if (event.key === 'Escape') {
-      event.preventDefault()
-      event.stopPropagation()
-      dropDraft(editor.project, card.id, 'title')
-      show(null)
-    }
-  }
 
   if (draft === null) {
     return (
@@ -85,9 +67,7 @@ export function TitleEdit({ card, editor }: { card: Card; editor: CardEditor }) 
         value={draft}
         autoFocus
         disabled={editor.busy}
-        onChange={(event) => show(event.target.value)}
-        onKeyDown={keys}
-        onBlur={() => void save()}
+        {...input}
       />
     </h2>
   )
