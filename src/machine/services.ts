@@ -114,8 +114,8 @@ export const TRANSCRIPT_PART_BYTES = 4 * 1024 * 1024
 
 /**
  * The records the hub keeps for the machine, handed to its own machine's new process before its monitor, hooks and chat
- * start. A machine elsewhere gets only its `mail`, at each connection (BTN-1699); absent `launches` and `windows` leave
- * the machine's as they are.
+ * start. A machine elsewhere gets its `mail`, `chats` and its own `launches` of recent tasks (`machineJournal`) at each
+ * connection (BTN-1699, BTN-1803); absent `launches` and `windows` leave the machine's as they are.
  */
 export interface RetainedRecords {
   launches?: LaunchEntry[]
@@ -125,6 +125,13 @@ export interface RetainedRecords {
   warm?: WarmPing[]
   /** The machine's active project chats with a session, `[chat, sessionId]` (`ChatSessions`, BTN-1772); absent — none handed. */
   chats?: [string, string][]
+}
+
+/** The hub's records of the machine: its kept ones handed back, and a launch the hub's chain made there. */
+export interface MachineRecordsService {
+  restore(records: RetainedRecords): Promise<void>
+  /** Into the machine's journal at once, so its facts and slots know the session before its next connection (BTN-1803). */
+  launched(entry: LaunchEntry): Promise<void>
 }
 
 /**
@@ -215,7 +222,7 @@ export interface MachineServices {
   account: AccountControl
   transcript: TranscriptReads
   chat: MachineChat
-  records: { restore(records: RetainedRecords): Promise<void> }
+  records: MachineRecordsService
   folders: MachineFolders
   chats: MachineChats
   git: MachineGit
@@ -232,7 +239,7 @@ export const SERVICE_COMMANDS = {
   ],
   transcript: ['record', 'feed', 'image', 'inboxFile', 'sharedFile', 'note', 'context'],
   chat: ['post', 'giveBack', 'dismiss', 'steer', 'tell', 'saveInbox'],
-  records: ['restore'],
+  records: ['restore', 'launched'],
   folders: ['check', 'clone', 'probe'],
   chats: ['launch', 'send', 'stop', 'title', 'past', 'transcriptPart'],
   git: ['identity'],

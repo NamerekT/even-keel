@@ -1,3 +1,4 @@
+import type { LaunchEntry } from '../chain/model.js'
 import type { HubHandlers } from '../link/hub.js'
 import { ASSIGN_COMMAND, SNAPSHOT_TOO_LARGE_EVENT, TAKEN_EVENT, megabytes, type AssignPayload, type FolderTaken, type SnapshotTooLarge } from '../link/protocol.js'
 import type { MachineProjectSettings } from '../link/view.js'
@@ -104,15 +105,33 @@ async function stateOverLimit(host: NetworkHost, machine: string, told: Snapshot
 /**
  * The machine's messages the hub keeps, handed back at each connection, which may be a new process with an empty
  * mailbox (BTN-1699): the waiting ones and the last delivered stay in its chat. The machine keeps what it already has.
- * Its active chats' sessions go with them, for a Claude chat's session has no name to be found by (BTN-1772).
+ * Its active chats' sessions go with them, for a Claude chat's session has no name to be found by (BTN-1772), and its
+ * launch journal, which its slots, the account of its sessions and what it tells the hub read (BTN-1803).
  */
 async function handMail(host: NetworkHost, machine: string, peer: Peer): Promise<void> {
   try {
-    const { db } = host.options
-    await peer.remote.services().records.restore({ mail: await loadMail(db, machine), chats: await loadChatSessions(db, machine) })
+    const { db, peers } = host.options
+    const launches = peers?.launches?.(machine)
+    await peer.remote.services().records.restore({
+      ...(launches !== undefined && { launches }),
+      mail: await loadMail(db, machine),
+      chats: await loadChatSessions(db, machine),
+    })
   } catch (error) {
     host.options.log(`machines: machine ${machine} did not take back its messages: ${error instanceof Error ? error.message : String(error)}`)
   }
+}
+
+/**
+ * A launch the hub's chain made on a machine elsewhere goes into the machine's journal at once (BTN-1803). One offline
+ * or not seen since the hub started gets it with its journal at its connection.
+ */
+export function launched(host: NetworkHost, machine: string, entry: LaunchEntry): void {
+  const peer = host.peers.get(machine)
+  if (peer === undefined || !host.hub.connected(machine)) return
+  void peer.remote.services().records.launched(entry).catch((error: unknown) => {
+    host.options.log(`machines: machine ${machine} did not take the launch of ${entry.task}: ${error instanceof Error ? error.message : String(error)}`)
+  })
 }
 
 function peerOf(host: NetworkHost, machine: string, peers: NetworkPeers): Peer {

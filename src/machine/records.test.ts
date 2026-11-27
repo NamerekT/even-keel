@@ -13,7 +13,7 @@ import { Writes } from '../storage/database.js'
 import { loadSessionWindows } from '../storage/context-windows.js'
 import { memoryDatabase } from '../storage/memory.js'
 import { readWarmPings } from '../sessions/warm-pings.js'
-import { MachineRecords, MAILBOX_EVENT, saveMachineRecord, WARM_EVENT } from './records.js'
+import { machineJournal, MachineRecords, MAILBOX_EVENT, saveMachineRecord, WARM_EVENT } from './records.js'
 import { RemoteMachine } from './remote.js'
 
 const entry = { at: '2026-11-16T10:00:00.000Z', project: 'example-project', task: 'ABC-1', sessionId: 'session-1' }
@@ -290,5 +290,26 @@ describe('mailbox records of several machines', { timeout: 30_000 }, () => {
     await send(a, { mails: [{ ...returned, fate: 'dismissed' }] })
     await send(a, { mails: [returned] })
     expect((await loadMail(db)).map((mail) => mail.fate)).toEqual(['dismissed'])
+  })
+})
+
+describe("a machine elsewhere's journal handed back", () => {
+  const launch = (task: string, sessionId: string, at: string, machine?: string) => ({ at, project: 'example-project', task, sessionId, ...(machine !== undefined && { machine }) })
+  const since = new Date('2026-11-10T00:00:00.000Z')
+
+  it("keeps only the machine's own launches", () => {
+    const own = launch('ABC-1', 'session-1', '2026-11-16T10:00:00.000Z', 'machine-1')
+    const other = launch('ABC-2', 'session-2', '2026-11-16T10:00:00.000Z', 'machine-2')
+    const hub = launch('ABC-3', 'session-3', '2026-11-16T10:00:00.000Z')
+    expect(machineJournal([own, other, hub], 'machine-1', since, () => false)).toEqual([own])
+  })
+
+  it('keeps every launch of a task with one in the window or one the machine holds, and drops the tasks gone quiet', () => {
+    const early = launch('ABC-1', 'session-1', '2026-11-01T10:00:00.000Z', 'machine-1')
+    const late = launch('ABC-1', 'session-2', '2026-11-16T10:00:00.000Z', 'machine-1')
+    const quiet = launch('ABC-2', 'session-3', '2026-11-02T10:00:00.000Z', 'machine-1')
+    const held = launch('ABC-3', 'session-4', '2026-10-20T10:00:00.000Z', 'machine-1')
+    const holds = (project: string, task: string) => project === 'example-project' && task === 'ABC-3'
+    expect(machineJournal([held, early, quiet, late], 'machine-1', since, holds)).toEqual([held, early, late])
   })
 })

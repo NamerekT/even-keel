@@ -46,6 +46,8 @@ export type MachineServicesContext = Pick<MachineContext,
 export interface MachineServicesDeps {
   steer: (task: string, session: HandoffSession, prompt: string) => Promise<boolean>
   restore: MachineServices['records']['restore']
+  /** A launch of the hub's chain into the machine's journal; absent — no journal (tests). */
+  launched?: MachineServices['records']['launched']
   /** A clone's progress, told to the hub (`CLONE_PROGRESS_EVENT`). */
   cloneProgress: (project: string, folder: string, progress: CloneProgress) => void
   /** The project chats' sessions (`wireMachineChats`); absent — none run here (tests). */
@@ -138,7 +140,7 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
       tell: (task, sessionId, text, files) => tellMail(inboxMailOf(ctx), task, sessionId, text, files),
       saveInbox: (_project, workdir, files) => saveInbox(workdir, files.map((file) => ({ name: file.name, data: fromCarried(file) }))),
     },
-    records: { restore: deps.restore },
+    records: { restore: deps.restore, launched: deps.launched ?? (async () => {}) },
     folders: {
       check: (step, spec) => {
         // The right to push is checked with the token the chain's pushes get (BTN-1541).

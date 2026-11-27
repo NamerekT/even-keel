@@ -231,6 +231,7 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
         if (windows !== undefined) machine.monitor.restoreWindows(windows)
         machine.keepWarm.restore(warm ?? [])
       },
+      launched: async (entry) => records.launched(entry),
       cloneProgress: cloneTold((payload) => void end.emit(CLONE_PROGRESS_EVENT, payload).catch(() => {})),
       chats: wireMachineChats(machine),
       checkouts: () => void checkouts.check(),

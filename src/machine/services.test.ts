@@ -128,6 +128,17 @@ describe('the services of the machine over the link', () => {
     expect(records.journal).toEqual([kept, taken, fresh])
   })
 
+  // BTN-1803: the hub's launch on a machine elsewhere is the hub's record; the machine only learns of it.
+  it("takes the hub's launch into the journal once, never sending it back", async () => {
+    const sent: unknown[] = []
+    const records = new MachineRecords(async (type, payload) => void sent.push([type, payload]))
+    const launch = { at: '2026-11-16T10:00:00.000Z', project: PROJECT, task: 'ABC-1', sessionId: 'session-1', machine: 'machine-1' }
+    records.launched(launch)
+    records.launched(launch)
+    expect(records.journal).toEqual([launch])
+    expect(sent).toEqual([])
+  })
+
   it('refuses a service the machine does not serve', async () => {
     const made = await bench()
     const booted = made.boot('first')

@@ -1,5 +1,6 @@
 import { basename, posix, win32 } from 'node:path'
 import type { HubLongToken } from '../account/longToken.js'
+import type { LaunchEntry } from '../chain/model.js'
 import type { TokenAccountOf } from '../account/model.js'
 import type { HubCertificate } from '../link/cert.js'
 import type { CloneProgress } from '../git/clone-progress.js'
@@ -40,6 +41,8 @@ export interface NetworkPeers {
   /** One git request of the machine to a project's memory repository (BTN-1648). Absent — 404. */
   git?: (machine: string, project: string, request: GitRequest) => Promise<GitAnswer>
   write: (machine: string, write: KeptWrite) => Promise<void>
+  /** The hub's journal entries of the machine, handed back at its connection (`machineJournal`, BTN-1803); absent — none. */
+  launches?: (machine: string) => LaunchEntry[]
 }
 
 export interface Peer {
