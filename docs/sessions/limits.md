@@ -73,6 +73,21 @@ Polled every 5 minutes like `/usage`, through the adapters' `usage`; the page sh
 
 **Extra usage** of a subscription is kept apart from the included windows (`RateLimits.overage`): Claude SDK rate-limit events, ChatGPT API/rollout credits and Copilot quota/billing data. It feeds the display only; exhausted windows still hold the next launch. Sources, units, freshness and the evidence needed for an **on credits** chip are in [accounts.md](../accounts/page.md#subscription-credits-and-extra-usage-btn-532).
 
+## Stopping paid subscription usage (BTN-577)
+
+Fresh evidence that a chain session spends money beyond its subscription's included allowance stops that session and holds the task as on a limit (`docs/chain/exceptions.md`, exception 1, "Paid usage"). What the page shows meanwhile: [`docs/accounts/page.md`](../accounts/page.md#how-the-page-shows-it).
+
+- **The signals** (`overageLimit`). Evidence counts at most ten minutes old, the boundary included, and never from the future; the window and credit times are checked apart. For a live, busy session of the chain's current task:
+  - Claude SDK: `isUsingOverage: true` — direct evidence;
+  - Claude on `--bg`: a spent `/usage` window with a reset ahead;
+  - Codex and OpenCode on ChatGPT: a spent included window and available credits;
+  - Copilot and OpenCode on Copilot: a spent monthly quota and `overage_permitted`.
+  Past counts and bills alone never stop a session, nor does a positive balance without a spent window. Missing evidence is no proof that spending stopped. Zen has no balance source to invent. Keys keep their own recovery; a Copilot token with a subscription quota keeps the quota rule.
+- **What the dispatcher does.** Only the session of the chain's current task is stopped, on a paused chain too; a person's own session of the account is not. The dispatcher saves the handoff snapshot and the limit hold, then calls its own `Agent.stop` and records that it went through. The hold outlives the session's disappearance from the monitor and a service restart, and a successful stop is never repeated.
+- **Recovery.** The hold waits for a known reset, or for the task's account to change to another ready account with allowance left. A poll that shows the window open before the named reset ends it as on any limit (`Handovers.reopenEarly`, EKR-125; a spent spending cap still waits). A warm recovery resumes the session; a cold one hands off in the same worktree and branch. An unknown reset stays unknown, with no guessed retry timer. `LimitsWatcher.limits` joins the newest windows and credit facts of one `chatgpt:` pool, after each folder's sign-in boundary, so moving between Codex and OpenCode does not get round a spent pool. The poll frequency is unchanged.
+- **The log** tells the signal: Claude SDK, ChatGPT credits and a permitted Copilot overage say `paid usage detected`; Claude's spent `/usage` window says `included allowance exhausted; paid usage possible, not confirmed` (BTN-937). The source goes with the current evidence and is not saved in the hold, so a pending stop retried without fresh evidence uses the cautious wording too. The hold's internal text `OVERAGE_LIMIT_TEXT` stays as it was, old holds included; the page never shows it.
+- Real paid usage is [unverified](../unverified/accounts.md#paid-subscription-usage-stops) (BTN-531, only with separate consent).
+
 ## Answers of plans we have no account for (BTN-609)
 
 The author has Claude Pro and ChatGPT Plus; no plans are bought for checks. The limit answers of the other plans (Claude Max, Ultra, Team; ChatGPT Pro; paid Copilot; OpenCode Go) come from public GitHub issues and the MIT code of tools that show subscription limits: their users paste the raw answer with the plan named, and a new shape shows up there within days of a provider's change. Every release starts with a search since the last one (`docs/releases.md`, "A release"); the last was on 2026-11-20 (EKR-152: the per-seat credit limit of a ChatGPT business seat in `wham/usage`); the one before on 2026-11-17 (EKR-131, EKR-132, EKR-133). Searches that found them on 2026-11-02:
