@@ -147,7 +147,8 @@ describe('the landing of a merge into the remote main end to end (BTN-1581)', { 
     await writeFile(gate, 'go\n')
     await run.until(() => run.board.status('ABC-1') === 'Done', 'ABC-1 done once the check passes')
     await run.until(() => calls('launch', 'ABC-2').length === 1, 'ABC-2 launched')
-    expect(run.service.dispatcher.landingFacts()[PROJECT_ID] ?? []).toEqual([])
+    // ABC-2's own merge may already be landing on a slow runner: only ABC-1's facts must be gone.
+    expect((run.service.dispatcher.landingFacts()[PROJECT_ID] ?? []).filter((each) => each.task === 'ABC-1')).toEqual([])
   })
 
   it('keeps the task open while the remote is out of reach, telling the session nothing, and lands it once it is back', async () => {

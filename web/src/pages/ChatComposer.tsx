@@ -9,8 +9,8 @@ import { useLive } from '../live/context.js'
 import { FoldPresence } from '../ui/Fold.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AskPanel } from './AskPanel.js'
-import type { AskAnswers } from '../../../src/sessions/ask.js'
-import { askAnswers, NO_PICK, permissionAnswer, pickAnswer, type Pick } from './askPick.js'
+import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
+import { askAnswers, carriedPicks, NO_PICK, permissionAnswer, pickAnswer, questionsKey, type Pick } from './askPick.js'
 import { PermissionBanner } from './PermissionBanner.js'
 import { holdKey, sendAhead, shownAsk } from './composerHold.js'
 import { lockReason } from './composerLock.js'
@@ -99,11 +99,12 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
     setCold(null)
   }
   const ask = shownAsk(session.ask, pending === null ? answered : new Set([...answered, pending]))
-  const [asked, setAsked] = useState(session.ask?.id ?? null)
+  // The last question the session had: a moment without one (a restart) keeps the picks, an answered one passes none on.
+  const [asked, setAsked] = useState<Ask | null>(session.ask)
   const [picks, setPicks] = useState<Pick[]>(() => session.ask?.questions.map(() => NO_PICK) ?? [])
-  if ((session.ask?.id ?? null) !== asked) {
-    setAsked(session.ask?.id ?? null)
-    setPicks(session.ask?.questions.map(() => NO_PICK) ?? [])
+  if (session.ask !== null && session.ask.id !== asked?.id) {
+    setAsked(session.ask)
+    setPicks(carriedPicks(asked !== null && !answered.has(asked.id) ? asked : null, picks, session.ask))
   }
   const restored = useRef<string | null>(null)
   useEffect(() => {
@@ -147,6 +148,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
       text: message.text, files: await Promise.all(message.files.map(encoded)),
     }), mailing))
     if (!ok) return
+    setPicks((now) => now.map(() => NO_PICK))
     command.current?.sent()
     if (!midTurn && !renew) sent.begin()
   }
@@ -181,7 +183,7 @@ export function ChatComposer({ project, task, owner, closed, session, aside, ren
       <FoldPresence className="chat__ask">
         {ask !== null &&
           (ask.permission === undefined ? (
-            <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />
+            <AskPanel key={questionsKey(ask)} ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />
           ) : (
             // The call waits mid-turn: the answer resumes nothing, so a cold cache asks nothing first.
             <PermissionBanner ask={ask} disabled={disabled} onDecide={(label) => void submit(false, permissionAnswer(ask, label))} />

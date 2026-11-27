@@ -70,6 +70,17 @@ describe('replyPrompt', () => {
     expect(answersIn(prompt, ONE)).toEqual({ 'Which color?': 'my own' })
   })
 
+  it('names a question left without an answer, so the session sees it was not answered (BTN-1778)', () => {
+    const prompt = replyPrompt({ from: 'page', answers: { 'Which color?': ' ', 'Which sizes?': 'S' }, text: '', files: [] }, ASK, 'en')
+
+    expect(prompt).toBe('- "Which color?"\n- "Which sizes?" → S\n')
+    expect(replyParts(prompt, ASK)).toEqual({ answers: { 'Which sizes?': 'S' }, text: '', files: [] })
+  })
+
+  it('names no question for a reply in words alone', () => {
+    expect(replyPrompt({ from: 'page', answers: {}, text: 'Go', files: [] }, ASK, 'en')).toBe('Go\n')
+  })
+
   it('refuses an empty reply', () => {
     expect(() => replyPrompt({ from: 'page', answers: { 'Which color?': ' ' }, text: ' ', files: [] }, ONE, 'en')).toThrow()
   })

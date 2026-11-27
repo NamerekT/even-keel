@@ -20,6 +20,23 @@ export function askAnswers(ask: Ask, picks: Pick[]): AskAnswers {
   return Object.fromEntries(ask.questions.map((question, index) => [question.question, pickAnswer(question, picks[index] ?? NO_PICK)]))
 }
 
+/**
+ * The picks for the session's question `next` after `shown`: the same question text keeps its pick. A restart may bring
+ * the open call back under another id, from the transcript instead of the job file, or drop it for a moment; resetting
+ * then sent a partial answer from the panel left on a later question (BTN-1778).
+ */
+export function carriedPicks(shown: Ask | null, picks: Pick[], next: Ask): Pick[] {
+  return next.questions.map((question) => {
+    const at = shown?.questions.findIndex((each) => each.question === question.question) ?? -1
+    return at < 0 ? NO_PICK : (picks[at] ?? NO_PICK)
+  })
+}
+
+/** The panel's identity: the texts of its questions, which a new id of the same call keeps. */
+export function questionsKey(ask: Ask): string {
+  return JSON.stringify(ask.questions.map((question) => question.question))
+}
+
 /** A permission ask answered by one of its buttons: its only question gets the option's label. */
 export function permissionAnswer(ask: Ask, label: string): AskAnswers {
   return { [ask.questions[0]!.question]: label }
