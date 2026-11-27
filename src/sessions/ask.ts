@@ -140,8 +140,8 @@ export function joinLabels(labels: string[]): string {
 }
 
 /**
- * The prompt that resumes a stopped session with the user's reply: the `- "question" → answer` lines, the user's own
- * words and the files. A question the CLI never saved is repeated, since the session no longer sees it. A chat command
+ * The prompt that resumes a stopped session with the user's reply: the `- "question" → answer` lines (a bare
+ * `- "question"` for one left unanswered), the user's own words and the files. A question the CLI never saved is repeated, since the session no longer sees it. A chat command
  * from the page goes in expanded (`commandPrompt`), `note` — its task's handoff note. Throws on an empty reply.
  */
 export function replyPrompt(reply: Reply, ask: Ask | null, language: Language, note?: string): string {
@@ -152,7 +152,8 @@ export function replyPrompt(reply: Reply, ask: Ask | null, language: Language, n
   if (answered.length === 0 && comment === '' && reply.files.length === 0) throw fail('answer.empty', {})
   const blocks: string[] = []
   if (ask?.unsaved) blocks.push([text.lost, ...ask.questions.flatMap((question) => lostLines(question, answerOf(question)))].join('\n'))
-  else if (answered.length > 0) blocks.push(answered.map((question) => answerLine(question.question, answerOf(question))).join('\n'))
+  // A question left unanswered stays as its bare line, so the session knows it was skipped, not lost (BTN-1778).
+  else if (answered.length > 0) blocks.push(ask!.questions.map((question) => givenLine(question, answerOf(question))).join('\n'))
   if (comment !== '') blocks.push(comment)
   if (reply.files.length > 0) blocks.push([text.files, ...reply.files.map((file) => `- ${file}`)].join('\n'))
   return blocks.join('\n\n') + '\n'
@@ -160,9 +161,14 @@ export function replyPrompt(reply: Reply, ask: Ask | null, language: Language, n
 
 /** A lost question: its answer line and the descriptions of the options it chose, or the question alone when unanswered. */
 function lostLines(question: AskQuestion, answer: string): string[] {
-  if (answer === '') return [`- "${oneLine(question.question)}"`]
+  if (answer === '') return [givenLine(question, answer)]
   const chosen = question.options.filter((option) => option.description !== '' && chosenLabels(question, answer).includes(option.label))
   return [answerLine(question.question, answer), ...chosen.map((option) => `  ${option.label} — ${oneLine(option.description)}`)]
+}
+
+/** The question's answer line, or the question alone when it has no answer. */
+function givenLine(question: AskQuestion, answer: string): string {
+  return answer === '' ? `- "${oneLine(question.question)}"` : answerLine(question.question, answer)
 }
 
 function optionLine(option: AskOption): string {
