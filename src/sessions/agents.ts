@@ -247,16 +247,21 @@ function isAgentEntry(value: unknown): value is AgentEntry {
   )
 }
 
+/**
+ * `chatOf` — the chat a session is bound to (`ChatSessions`): a Claude chat's session starts without a name (BTN-1772),
+ * and the one the CLI lists it under — its prompt, then its title — is no one's to read.
+ */
 export function sessionsByTask(
   agents: AgentEntry[],
   projectKeys: string[],
   branchOf: (agent: AgentEntry) => string | null = () => null,
+  chatOf: (sessionId: string) => string | undefined = () => undefined,
 ): Map<string, AgentEntry> {
   const keys = new Set(projectKeys)
   const byTask = new Map<string, Candidate>()
   for (const agent of agents) {
-    // A project chat's session (BTN-1230) is followed under its own name, which no project key or branch gives.
-    const named = taskOfName(agent.name) ?? (isChatName(agent.name) ? agent.name : undefined)
+    // A project chat's session (BTN-1230) is followed under its chat, by the binding or, launched before it, by its own name.
+    const named = chatOf(agent.sessionId) ?? taskOfName(agent.name) ?? (isChatName(agent.name) ? agent.name : undefined)
     const task = named ?? taskOfBranch(branchOf(agent))
     if (task === undefined || (!isChatName(task) && !keys.has(task.replace(/-(\d+|FIX|CARRY)$/, '')))) continue
     const candidate = { agent, named: named !== undefined }

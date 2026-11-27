@@ -24,6 +24,8 @@ export interface SessionMonitorOptions {
   /** Optional. A key account with a usage window (Copilot's token, BTN-341): it waits out a spent quota as well as spent credit. */
   keyLimits?: (account: string) => boolean
   projectKeys: () => string[]
+  /** Optional. The project chat a session is bound to (`ChatSessions`, BTN-1772). */
+  chatOf?: (sessionId: string) => string | undefined
   /** Optional. The window the agent itself gives for a task's session of the account on the model; `null` — not known yet. */
   contextWindow?: (account: string, model: string, task: string, settings?: string) => number | null
   /** Optional. The sessions' windows kept before this start, oldest first (BTN-946). */
@@ -211,7 +213,7 @@ export class SessionMonitor {
         this.remoteEnabled.set(home.key, remote === undefined ? null : await remote.enabled(home))
       }
       const branchOf = (agent: AgentEntry) => this.tails.get(agent.sessionId)?.summary().gitBranch ?? null
-      const byTask = sessionsByTask(dated, this.options.projectKeys(), branchOf)
+      const byTask = sessionsByTask(dated, this.options.projectKeys(), branchOf, this.options.chatOf)
       for (const [task, agent] of byTask) {
         const home = homeOf.get(agent.account ?? GLOBAL_ACCOUNT)!
         const { remote, warmMs } = this.options.agentOf(home)

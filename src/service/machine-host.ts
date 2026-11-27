@@ -21,6 +21,7 @@ import type { KeepWarm } from '../sessions/keepwarm.js'
 import { Lingering } from '../sessions/lingering.js'
 import { Inboxes } from '../sessions/inboxes.js'
 import { Mailbox } from '../sessions/mailbox.js'
+import { ChatSessions } from '../sessions/chat-sessions.js'
 import { ChatTitles } from '../sessions/title.js'
 import type { SessionView } from '../state.js'
 import { loadContextWindows } from '../storage/context-windows.js'
@@ -117,6 +118,8 @@ export interface MachineHost {
   daemons: ReturnType<typeof accounts.wireDaemons>
   cliCopies: Awaited<ReturnType<typeof bootstrap.assembleCliCopies>>
   chatTitles: ChatTitles
+  /** The project chats' sessions by their chat (BTN-1772). */
+  chatSessions: ChatSessions
   vscode: ReturnType<typeof accounts.wireVscode>
   account: ReturnType<typeof accounts.wireAccount>
   owners: ReturnType<typeof accounts.wireOwners>
@@ -234,6 +237,7 @@ export async function assembleMachineHost(inputs: MachineHostInputs): Promise<As
     get daemons() { return daemons },
     get cliCopies() { return cliCopies },
     get chatTitles() { return chatTitles },
+    get chatSessions() { return chatSessions },
     get vscode() { return vscode },
     get account() { return account },
     get owners() { return owners },
@@ -340,6 +344,7 @@ export async function assembleMachineHost(inputs: MachineHostInputs): Promise<As
   const daemons = accounts.wireDaemons(machine)
   const cliCopies = await bootstrap.assembleCliCopies(machine)
   const chatTitles = new ChatTitles()
+  const chatSessions = new ChatSessions()
   const vscode = accounts.wireVscode(machine)
   const account = accounts.wireAccount(machine)
   const owners = accounts.wireOwners(machine)

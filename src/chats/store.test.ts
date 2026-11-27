@@ -4,7 +4,7 @@ import { insertRows, rowsOf } from '../storage/copy.js'
 import { ABC, fixture, readsWhole, schemaOf } from '../storage/database.fixture.js'
 import { openDatabase, STEPS, Writes } from '../storage/database.js'
 import type { ChatRecord } from './model.js'
-import { ChatStore } from './store.js'
+import { ChatStore, loadChatSessions } from './store.js'
 
 const writes = () => new Writes((line) => { throw new Error(line) })
 
@@ -162,6 +162,22 @@ describe('the chat store', { timeout: 120_000 }, () => {
       expect(again.get('chat-000000000003')?.packages).toEqual({ 'lint@example': true })
       expect(again.choice(ABC)).toEqual({ account: 'work', model: 'sonnet', effort: null, packages: { 'lint@example': false }, machine: 'machine-1' })
       expect((await again.find('chat-000000000002'))?.successor).toBe('chat-000000000001')
+    } finally {
+      await db.close()
+    }
+  })
+
+  it("hands a machine its active chats' sessions, none archived or of another machine (BTN-1772)", async () => {
+    const db = await openDatabase(undefined)
+    try {
+      const kept = writes()
+      const store = await ChatStore.open({ db, writes: kept })
+      store.put(chat('chat-000000000001', { sessionId: 'session-1', machine: 'machine-1' }))
+      store.put(chat('chat-000000000002', { sessionId: 'session-2', machine: 'machine-1', archivedAt: '2026-11-18T11:00:00.000Z' }))
+      store.put(chat('chat-000000000003', { sessionId: 'session-3', machine: 'machine-2' }))
+      store.put(chat('chat-000000000004', { machine: 'machine-1', pending: 'Hello\n' }))
+      await kept.settled()
+      expect(await loadChatSessions(db, 'machine-1')).toEqual([['chat-000000000001', 'session-1']])
     } finally {
       await db.close()
     }

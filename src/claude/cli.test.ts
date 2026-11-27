@@ -7,7 +7,7 @@ import type { AgentEntry } from '../sessions/agents.js'
 import { CallTimeout, FolderCalls, type CallOptions, type CallOutput } from './calls.js'
 import { NoticeError } from '../notice/notice.js'
 import { expandPromptFile } from '../sessions/prompt-file.js'
-import { callFailure, ClaudeCli, fittedArgs, parseWarmAnswer, parseWriteAnswer, promptArg, resolveClaudeBinary, resumeArgs, resumedAs, sessionArgs, warmArgs, writeArgs } from './cli.js'
+import { callFailure, ClaudeCli, fittedArgs, launchedJob, parseWarmAnswer, parseWriteAnswer, promptArg, resolveClaudeBinary, resumeArgs, resumedAs, sessionArgs, warmArgs, writeArgs } from './cli.js'
 
 // EKR-102: at the service's start the chain's `claude agents` timed out behind the /context probes and paused the chain.
 describe('ClaudeCli.stop in a clogged folder queue', () => {
@@ -180,6 +180,11 @@ describe('sessionArgs', () => {
 
   it('passes no --model without a chosen model, so the CLI takes its configured one', () => {
     expect(sessionArgs('ABC-1', null)).toEqual(['--bg', '--permission-mode', 'auto', '-n', 'ABC-1'])
+  })
+
+  it('passes no name to a session the CLI titles itself, a project chat (BTN-1772)', () => {
+    expect(sessionArgs('chat-0123456789ab', 'haiku', { autoTitle: true })).toEqual(['--bg', '--permission-mode', 'auto', '--model', 'haiku'])
+    expect(resumeArgs('s-1', 'next', false, 'chat-0123456789ab', null, { autoTitle: true })).not.toContain('-n')
   })
 
   it("appends the project's lone AGENTS.md to the system prompt", () => {
@@ -357,6 +362,34 @@ describe('resumedAs', () => {
     expect(match(agent({ sessionId: 'earlier', startedAt: since - 3_600_000 }))).toBe(false)
     expect(match(agent({ sessionId: 'new', name: 'ABC-2' }))).toBe(false)
     expect(match(agent({ sessionId: 'new', cwd: '/repo' }))).toBe(false)
+  })
+
+  // BTN-1772: a chat's session has no name of ours, and the one the CLI lists floats (the prompt, then its title).
+  describe('of a session started without a name', () => {
+    const chat = (fields: Partial<AgentEntry>) => agent({ cwd: '/repo', name: 'explain cherry-pick', ...fields })
+
+    it('takes the copy by the job the CLI printed, whatever its listed name', () => {
+      const printed = resumedAs('job-old', 'old', 'chat-0123456789ab', '/repo', since, 'job-new')
+      expect(printed(chat({ id: 'job-new', sessionId: 'new' }))).toBe(true)
+      expect(printed(chat({ id: 'job-other', sessionId: 'other' }))).toBe(false)
+      expect(printed(chat({}))).toBe(true)
+      expect(printed(chat({ sessionId: 'fresh' }))).toBe(false)
+    })
+
+    it('takes a new job of the folder when the CLI printed none', () => {
+      const unprinted = resumedAs('job-old', 'old', 'chat-0123456789ab', '/repo', since, null)
+      expect(unprinted(chat({ id: 'job-new', sessionId: 'new' }))).toBe(true)
+      expect(unprinted(chat({ id: 'job-new', sessionId: 'new', cwd: '/elsewhere' }))).toBe(false)
+      expect(unprinted(chat({ id: 'job-new', sessionId: 'new', startedAt: since - 3_600_000 }))).toBe(false)
+    })
+  })
+})
+
+describe('launchedJob', () => {
+  it('reads the job id `claude --bg` prints, with or without a name after it', () => {
+    expect(launchedJob('backgrounded · 45bc7845\n')).toBe('45bc7845')
+    expect(launchedJob('backgrounded · 45bc7845 · probe-title-a\n')).toBe('45bc7845')
+    expect(launchedJob('something else')).toBeNull()
   })
 })
 

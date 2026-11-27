@@ -224,8 +224,9 @@ export function wireMachineSide(machine: MachineContext, options: MachineSideOpt
     moves,
     services: wireMachineServices(machine, {
       steer: (task, session, prompt) => steer(machine, task, session, prompt),
-      restore: async ({ launches, windows, mail, warm }) => {
+      restore: async ({ launches, windows, mail, warm, chats }) => {
         if (launches !== undefined) records.restore(launches)
+        machine.chatSessions.restore(chats ?? [])
         machine.mailbox.restore(mail)
         if (windows !== undefined) machine.monitor.restoreWindows(windows)
         machine.keepWarm.restore(warm ?? [])

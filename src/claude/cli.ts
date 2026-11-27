@@ -192,8 +192,8 @@ export class ClaudeCli {
 
   async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: string | null, extras: SessionExtras = {}): Promise<AgentEntry> {
     const launchedAt = Date.now()
-    await this.start(home, [...sessionArgs(task, model, extras), promptArg(prompt)], [], cwd, notice('claude.startFailed', { task, cwd }))
-    return this.appear(home, launchedAs(task, cwd, launchedAt), notice('claude.notShown', { task }))
+    const printed = await this.start(home, [...sessionArgs(task, model, extras), promptArg(prompt)], [], cwd, notice('claude.startFailed', { task, cwd }))
+    return this.appear(home, launchedAs(task, cwd, launchedAt, jobOf(extras, printed)), notice('claude.notShown', { task }))
   }
 
   async resume(
@@ -211,8 +211,8 @@ export class ClaudeCli {
     const args = resumeArgs(sessionId, prompt, kept, task, model, extras)
     // A kept job's saved options are put on its line by the daemon itself.
     const saved = kept ? sessionArgs(task, model, extras) : []
-    await this.start(home, args, saved, cwd, notice('claude.resumeFailed', { task, cwd }))
-    const found = await this.appear(home, resumedAs(agentId, sessionId, task, cwd, resumedAt), notice('claude.resumedNotShown', { task }))
+    const printed = await this.start(home, args, saved, cwd, notice('claude.resumeFailed', { task, cwd }))
+    const found = await this.appear(home, resumedAs(agentId, sessionId, task, cwd, resumedAt, jobOf(extras, printed)), notice('claude.resumedNotShown', { task }))
     if (found.sessionId !== sessionId) rareEvents.copy(sessionId, { ...found, task }, resumedAt,
       await new TranscriptTail(join(home.dir, 'projects'), found).exists())
     return found
@@ -271,15 +271,15 @@ export class ClaudeCli {
     }
   }
 
-  /** `args` ends with the prompt; `saved` — the flags the daemon adds to the line it spawns the session with. */
-  private async start(home: AccountHome, args: string[], saved: string[], cwd: string, failure: Notice): Promise<void> {
+  /** `args` ends with the prompt; `saved` — the flags the daemon adds to the line it spawns the session with. Its output. */
+  private async start(home: AccountHome, args: string[], saved: string[], cwd: string, failure: Notice): Promise<string> {
     const env = { ...this.envOf(home) }
     const selected = this.bin()
     const binary = binaryPath(selected, env, cwd) ?? selected
     const override = env.CLAUDE_CONFIG_DIR
     const recovery = { binary, configDir: override ? (isAbsolute(override) ? override : resolve(cwd, override)) : null }
     try {
-      await run(binary, await fittedArgs(binary, args, saved, cwd), { cwd, env, timeout: this.timeoutMs, windowsHide: true })
+      return (await run(binary, await fittedArgs(binary, args, saved, cwd), { cwd, env, timeout: this.timeoutMs, windowsHide: true })).stdout
     } catch (error) {
       if (failure.code === 'claude.startFailed' || failure.code === 'claude.resumeFailed') {
         failure = { ...failure, params: { ...failure.params, recovery } }
@@ -302,7 +302,7 @@ export class ClaudeCli {
 export const SESSION_MODE = 'auto'
 
 /** What a chain session gets besides its name, model and prompt. */
-export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins' | 'effort'> & {
+export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins' | 'effort' | 'autoTitle'> & {
   /** A file appended to the system prompt: the project's lone `AGENTS.md` (`agentsFallback`). */
   instructions?: string
 }
@@ -359,7 +359,8 @@ export function parseWriteAnswer(stdout: string): OneTurnAnswer {
 
 /**
  * `--mcp-config` takes several values, so it goes first, closed by `--strict-mcp-config`: right before the prompt it
- * would swallow it. A server goes under its `gatewayName`.
+ * would swallow it. A server goes under its `gatewayName`. Under `-n` the CLI generates no `ai-title`, so a session
+ * that `autoTitle`s goes without it (BTN-1772).
  */
 export function sessionArgs(task: string, model: string | null, extras: SessionExtras = {}): string[] {
   const { settings, instructions } = extras
@@ -368,8 +369,7 @@ export function sessionArgs(task: string, model: string | null, extras: SessionE
     ...packageArgs(extras),
     '--permission-mode',
     SESSION_MODE,
-    '-n',
-    task,
+    ...(extras.autoTitle === true ? [] : ['-n', task]),
     ...(model === null ? [] : ['--model', model]),
     ...(extras.effort === undefined ? [] : ['--effort', extras.effort]),
     ...(settings === undefined ? [] : ['--settings', settings]),
@@ -493,8 +493,27 @@ export async function fittedArgs(binary: string, args: string[], saved: string[]
   return [...args.slice(0, -1), promptPointer(await writePromptFile(cwd, prompt))]
 }
 
-function launchedAs(task: string, cwd: string, since: number): (agent: AgentEntry) => boolean {
-  return (agent) => agent.name === task && samePath(agent.cwd, cwd) && agent.startedAt >= since - CLOCK_SKEW_MS
+/**
+ * The job `claude --bg` printed, `backgrounded · <job id>[ · <name>]`; its id is the first 8 characters of the
+ * session's (CLI 2.1.332). `null` — none.
+ */
+export function launchedJob(stdout: string): string | null {
+  return /backgrounded\s*·\s*([\w-]+)/.exec(stdout)?.[1] ?? null
+}
+
+/** The job a session started without a name is found by (`launchedAs`); `undefined` — it is found by its name. */
+function jobOf(extras: SessionExtras, printed: string): string | null | undefined {
+  return extras.autoTitle === true ? launchedJob(printed) : undefined
+}
+
+/**
+ * A named session by its name; one started without a name (`job` given) by the job the CLI printed, as the name it is
+ * listed under floats — the prompt, then its title (BTN-1772); with none printed, any job of the folder since.
+ */
+function launchedAs(task: string, cwd: string, since: number, job?: string | null): (agent: AgentEntry) => boolean {
+  const own = (agent: AgentEntry) =>
+    job === undefined ? agent.name === task : job === null || agent.id === job || agent.sessionId.startsWith(job)
+  return (agent) => own(agent) && samePath(agent.cwd, cwd) && agent.startedAt >= since - CLOCK_SKEW_MS
 }
 
 /**
@@ -502,8 +521,8 @@ function launchedAs(task: string, cwd: string, since: number): (agent: AgentEntr
  * recognised the way a launch is. The resumed job itself is taken only under its own session id: its respawned
  * process first shows a fresh id for under a second, until it loads the session (CLI 2.1.302).
  */
-export function resumedAs(agentId: string, sessionId: string, task: string, cwd: string, since: number): (agent: AgentEntry) => boolean {
-  const launched = launchedAs(task, cwd, since)
+export function resumedAs(agentId: string, sessionId: string, task: string, cwd: string, since: number, job?: string | null): (agent: AgentEntry) => boolean {
+  const launched = launchedAs(task, cwd, since, job)
   return (agent) => !isOver(agent) && (agent.sessionId === sessionId || (agent.id !== agentId && launched(agent)))
 }
 

@@ -388,7 +388,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
   })
 
   // BTN-1699: a machine elsewhere restarted with an empty mailbox, and its next letter took a number the session had seen.
-  it('hands a machine elsewhere the messages the hub keeps for it at each connection, never those of another machine', async () => {
+  it("hands a machine elsewhere the messages and chats' sessions the hub keeps for it at each connection, never those of another machine", async () => {
     const peers: NetworkPeers = {
       remote: () => ({ projectOf: () => undefined, projectOfSession: () => undefined, lastSession: () => undefined, saveSnapshot: () => {}, log: () => {} }),
       brief: () => ({ config: { projects: {} } }) as unknown as HubBrief,
@@ -408,6 +408,10 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     })
     await saveMailboxChange(db, { mails: [mail(1, 'Why the loader?'), mail(3, 'And the chat?')] }, joined.machine)
     await saveMailboxChange(db, { mails: [mail(2, "The own machine's")] }, OWN)
+    const chat = (id: string, sessionId: string, machine: string) =>
+      db.query("insert into chats (id, project_id, agent, account, session_id, machine_id, created_at, last_at) values ($1, $2, 'claude', 'global', $3, $4, 1, 1)", [id, ABC, sessionId, machine])
+    await chat('chat-000000000001', 's-1', joined.machine)
+    await chat('chat-000000000002', 's-2', OWN)
 
     const ran: NumberedCommand[] = []
     const end: MachineEnd = new MachineEnd({
@@ -424,7 +428,9 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     await end.start()
 
     await until(() => ran.some((command) => command.type === 'records.restore'), 'the mail handed back')
-    expect(ran.find((command) => command.type === 'records.restore')?.payload).toEqual({ args: [{ mail: [mail(1, 'Why the loader?'), mail(3, 'And the chat?')] }] })
+    expect(ran.find((command) => command.type === 'records.restore')?.payload).toEqual({
+      args: [{ mail: [mail(1, 'Why the loader?'), mail(3, 'And the chat?')], chats: [['chat-000000000001', 's-1']] }],
+    })
   })
 
   it("puts a machine into a project's pool turned off in a folder of its own, checks it there and turns it on", async () => {
