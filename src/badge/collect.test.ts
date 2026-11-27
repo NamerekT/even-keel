@@ -157,6 +157,18 @@ describe('badgeStateOf', () => {
     expect(state.chain.tasks).toContainEqual({ key: 'ABC-4', state: 'waiting' })
   })
 
+  it('does not mark a session whose merge is being landed as waiting, unless it asks (BTN-1779)', () => {
+    const landing = (asking: boolean) => {
+      const state = stateWith({ lamp: 'waiting', asking })
+      Object.assign(state.sessions[0]!, { ask: null, waitingFor: null, startupDialog: null })
+      state.chain.landings = { [ABC]: [{ task: 'ABC-4', underway: true }] }
+      return badgeStateOf(state, ABC, { now, fields: ['chain'], stats: null })
+    }
+    expect(landing(false).active[0]?.state).toBe('working')
+    expect(landing(false).chain.tasks).toContainEqual({ key: 'ABC-4', state: 'working' })
+    expect(landing(true).active[0]?.state).toBe('waiting')
+  })
+
   describe('a session on a spent limit (BTN-969)', () => {
     const hold = { at: '2026-11-09T11:50:00Z', account: 'john.doe@example.com', resetsAt: '2026-11-09T14:00:00Z', lastReplyAt: null, then: 'resume', acted: null }
     const limited = (limit: Record<string, unknown> | undefined, lamp = 'limit') => {

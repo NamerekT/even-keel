@@ -165,6 +165,7 @@ export const sessionEn = {
   limitEvent: 'Open the session to see the affected account and how to change its project pool.',
   creditEmpty: 'out of credit',
   spendEmpty: 'spending limit',
+  landing: 'merging into the main branch',
   spendUntil: (at: string | null) => at === null ? 'API spending limit reached' : `API spending limit until ${at}`,
   spendWait: (at: string | null) =>
     `${at === null ? 'The API spending limit reset time is unknown.' : `The API spending limit resets at ${at}.`} The dispatcher checks the key every 5 minutes and continues sooner if the limit is raised.`,

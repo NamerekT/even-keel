@@ -4,7 +4,11 @@
  */
 import type { Landing } from './model.js'
 
-export type LandingFacts = Pick<Landing, 'task' | 'resolving' | 'waitingRemote'>
+/**
+ * `underway` (BTN-1779) — the session's merge is being landed: a landing goes on behind the chain, waits to try the remote
+ * again or holds a message for the session not delivered yet, or it went through and the tracker has not closed the task.
+ */
+export type LandingFacts = Pick<Landing, 'task' | 'resolving' | 'waitingRemote'> & { underway?: true }
 
 /** What a lane is seen by here: its current task, if any. */
 export interface LaneFacts {

@@ -4,6 +4,7 @@ import type { ForwardOutcome, TransientFailure } from '../git/sync.js'
 import type { TaskMoves } from '../machine/tasks.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, Landing } from './model.js'
 import { isOwnName } from './fix.js'
+import type { LandingFacts } from './landing-hold.js'
 import { LANDING_ROUNDS, landingPrompt, PROMPTS } from './prompts.js'
 import { warmSince } from './relay.js'
 
@@ -40,6 +41,8 @@ interface Flight {
   /** The machine that lands it: the task's. */
   machine: string
   settled?: { outcome: LandOutcome } | { error: unknown }
+  /** It outlasted the step's wait and goes on behind the chain. */
+  behind?: true
 }
 
 export function landingOf(state: ChainState, project: string, task: string): Landing | undefined {
@@ -93,6 +96,8 @@ export class Landings {
   private readonly flights = new Map<string, Flight[]>()
   /** By task: the task whose landing it waits for, told in the log once. */
   private readonly waits = new Map<string, string>()
+  /** By project, task: the session whose merge landed, until the task leaves its lane or another session takes it. */
+  private readonly landed = new Map<string, Map<string, string>>()
 
   constructor(
     private readonly state: ChainState,
@@ -134,11 +139,43 @@ export class Landings {
     this.flights.set(project, [...(this.flights.get(project) ?? []), flight])
     if (!(await this.quickly(flight, land(project, task, commit)))) {
       this.deps.log(`chain: ${task}: its landing goes on behind the chain, the other tasks of ${project} wait to land`)
+      flight.behind = true
+      // Nothing of the chain state changed, but the page shows the landing under way from now on.
+      this.deps.save(this.state)
       return true
     }
     this.take(project, flight)
     if (chain.current !== current) return true
     return this.settle(chain, current, flight.settled!)
+  }
+
+  /** What the page reads of each project's landings (BTN-1779): the records, without the message, and those under way. */
+  facts(): Record<string, LandingFacts[]> {
+    const facts: Record<string, LandingFacts[]> = {}
+    const projects = new Set([...Object.keys(this.state.landings), ...this.flights.keys(), ...this.landed.keys()])
+    for (const project of projects) {
+      const records = this.state.landings[project] ?? []
+      const behind = (this.flights.get(project) ?? []).filter((flight) => flight.behind === true).map((flight) => flight.task)
+      const tasks = new Set([...records.map((record) => record.task), ...behind, ...this.landedOf(project)])
+      const of = [...tasks].map((task): LandingFacts => {
+        const record = records.find((each) => each.task === task)
+        const underway = behind.includes(task) || this.landed.get(project)?.has(task) === true || record?.message !== undefined || record?.retryAt !== undefined
+        return { task, ...(record?.resolving && { resolving: true }), ...(record?.waitingRemote && { waitingRemote: true }), ...(underway && { underway: true as const }) }
+      })
+      if (of.length > 0) facts[project] = of
+    }
+    return facts
+  }
+
+  /** The tasks of the project whose merge landed, while the session that merged is still their lane's current one. */
+  private landedOf(project: string): string[] {
+    const landed = this.landed.get(project)
+    if (landed === undefined) return []
+    for (const [task, sessionId] of landed) {
+      if (!this.state.active.some((chain) => chain.project === project && chain.current?.task === task && chain.current.sessionId === sessionId)) landed.delete(task)
+    }
+    if (landed.size === 0) this.landed.delete(project)
+    return [...landed.keys()]
   }
 
   private flightOf(project: string, task: string): Flight | undefined {
@@ -226,12 +263,17 @@ export class Landings {
     }
     if (outcome.state === 'landed') {
       this.deps.log(`chain: ${task} landed in ${main} of the remote`)
+      if (current.sessionId !== null) {
+        const landed = this.landed.get(project) ?? new Map<string, string>()
+        this.landed.set(project, landed.set(task, current.sessionId))
+      }
       dropLanding(this.state, project, task)
       this.deps.save(this.state)
       this.spread(project, task, outcome.commit)
       void this.deps.refresh(project).catch(() => undefined)
       return false
     }
+    this.landed.get(project)?.delete(task)
     if (outcome.state === 'failed') {
       const record = recordOf(this.state, project, task)
       if (outcome.transient !== null) {

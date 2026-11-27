@@ -1,6 +1,7 @@
 import type { Notice } from '../../src/notice/notice.js'
-import type { EvenKeelState, SessionView } from '../../src/state.js'
+import type { EvenKeelState } from '../../src/state.js'
 import { isOpen } from '../../src/tracker/model.js'
+import { needsReply } from '../../src/sessions/needs-reply.js'
 
 type CompletionNotice = Extract<Notice, { code: 'tracker.completeRefused' | 'statusMove.notDone' }>
 type MoveNotice = Extract<Notice, { code: 'statusMove.refused' | 'statusMove.outside' }>
@@ -37,7 +38,22 @@ export function completionTasks(state: EvenKeelState | null): ReadonlySet<string
   return new Set(completionNotices(state).map((failure) => failure.params.task))
 }
 
-/** A real question or permission still needs an answer even if the merged task cannot close. */
-export function needsReply(session: SessionView): boolean {
-  return session.asking || session.ask !== null || session.waitingFor !== null || session.startupDialog !== null
+/** The tasks whose session's merge the dispatcher lands, or landed with the task not closed yet (BTN-1779). */
+export function landingTasks(state: Pick<EvenKeelState, 'chain'> | null): ReadonlySet<string> {
+  const landings = Object.values(state?.chain.landings ?? {}).flat()
+  return new Set(landings.filter((landing) => landing.underway === true).map((landing) => landing.task))
 }
+
+/** The tasks whose ended session asks nothing unless `needsReply`: a refused close of the merged task, or its landing. */
+export function quietTasks(state: EvenKeelState | null): ReadonlySet<string> {
+  return new Set([...completionTasks(state), ...landingTasks(state)])
+}
+
+/** The ids of the ended sessions whose merge is being landed and which ask nothing: the lists that show a bare session lamp. */
+export function landingSessions(state: EvenKeelState | null): ReadonlySet<string> {
+  const tasks = landingTasks(state)
+  const ended = (state?.sessions ?? []).filter((each) => tasks.has(each.task) && (each.lamp === 'waiting' || each.lamp === 'finished') && !needsReply(each))
+  return new Set(ended.map((each) => each.sessionId))
+}
+
+export { needsReply }

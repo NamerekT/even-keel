@@ -19,8 +19,10 @@ export function limitPlan(hold: LimitHold, now: Date, session: SessionView, acco
   return hold.then === 'resume' ? t.session.limitResume(at) : t.session.limitRelay(at)
 }
 
-export function sessionStatus(session: SessionView, refused = false): string {
+/** `landing` — the dispatcher lands the session's merge (BTN-1779). */
+export function sessionStatus(session: SessionView, refused = false, landing = false): string {
   if (refused && !needsReply(session)) return say(notice('tracker.closePending', {}))
+  if (landing && !needsReply(session)) return t.session.landing
   if (session.lamp === 'working' && session.background != null) return t.session.background.status
   if (session.lamp === 'waiting' && session.apiErrorKind === 'transient') return say(notice('session.transient', {}))
   if (session.lamp === 'limit' && session.apiErrorKind === 'spend') return t.session.spendEmpty
@@ -28,8 +30,9 @@ export function sessionStatus(session: SessionView, refused = false): string {
 }
 
 /** The tip of a card's lamp where the lamp's own word says too little; `undefined` — its own word. */
-export function lampLabel(lamp: BlockLamp, session: SessionView | null | undefined, now: Date): string | undefined {
+export function lampLabel(lamp: BlockLamp, session: SessionView | null | undefined, now: Date, landing = false): string | undefined {
   if (session == null) return undefined
+  if (lamp === 'working' && landing && session.lamp !== 'working') return t.session.landing
   if (lamp === 'waiting' && session.apiErrorKind === 'transient') return sessionStatus(session)
   if (lamp === 'working' && session.background != null) return `${t.session.background.status}\n${backgroundTip(session.background, now)}`
   return undefined

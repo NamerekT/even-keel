@@ -8,6 +8,7 @@ import { useNow } from '../layout/useNow.js'
 import { usePaintMachineStrip } from '../layout/MachineFilter.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
+import { landingSessions } from '../completion.js'
 import { accountColors, nearAccountColor } from '../machineColor.js'
 import { machineAgents, machineChecks, osLabel } from '../machineAdd.js'
 import { projectPath } from '../state.js'
@@ -170,7 +171,7 @@ function MachineView({ state, page, reload }: { state: EvenKeelState; page: Mach
         <div className="machine-page__column">
           <ProjectsCard page={page} />
           {!page.own && <MachineMemoryCard state={state} page={page} reload={reload} />}
-          <SessionsCard page={page} />
+          <SessionsCard page={page} landing={landingSessions(state)} />
         </div>
       </div>
       {revoking && (
@@ -503,8 +504,8 @@ function ProjectsCard({ page }: { page: MachinePageView }) {
   )
 }
 
-/** The machine's sessions not finished: the lamp, the task, the agent and model as the model's tag. */
-export function SessionsCard({ page }: { page: Pick<MachinePageView, 'sessions'> }) {
+/** The machine's sessions not finished: the lamp, the task, the agent and model as the model's tag; `landing` — `landingSessions`. */
+export function SessionsCard({ page, landing = new Set() }: { page: Pick<MachinePageView, 'sessions'>; landing?: ReadonlySet<string> }) {
   const text = t.machinePage
   return (
     <Card title={text.sessions} titleId="machine-sessions">
@@ -514,7 +515,7 @@ export function SessionsCard({ page }: { page: Pick<MachinePageView, 'sessions'>
         <ul className="machine-page__list">
           {page.sessions.map((session) => (
             <li key={session.sessionId} className="machine-page__row">
-              <Lamp lamp={session.lamp === 'finished' ? 'done' : session.lamp} />
+              {landing.has(session.sessionId) ? <Lamp lamp="working" label={t.session.landing} /> : <Lamp lamp={session.lamp === 'finished' ? 'done' : session.lamp} />}
               <span className="machine-page__main">
                 <span className="machine-page__name">{session.task ?? session.sessionId}</span>
                 <bdi className="machine-page__path" dir="ltr">

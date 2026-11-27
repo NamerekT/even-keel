@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useLive } from '../live/context.js'
 import { waitingSessions } from '../state.js'
+import { quietTasks } from '../completion.js'
 import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
 
 export type Dot = 'waiting' | 'error'
@@ -45,7 +46,7 @@ async function loadIcon(): Promise<string | null> {
 export function useTabBadge(now: Date): void {
   const { state, link } = useLive()
   const level = worstLevel(systemChecks(systemInput(state, link), now))
-  const { dot, title } = tabBadge(level, state === null ? 0 : waitingSessions(state.sessions, state.tasks).length)
+  const { dot, title } = tabBadge(level, state === null ? 0 : waitingSessions(state.sessions, state.tasks, quietTasks(state)).length)
 
   useEffect(() => {
     document.title = title

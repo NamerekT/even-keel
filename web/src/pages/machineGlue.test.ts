@@ -39,6 +39,14 @@ describe('the machine screens glue no facts with a dot (BTN-1381)', () => {
     expect(markup).toContain('Claude')
   })
 
+  it('lights a session whose merge is being landed as at work, not as a question (BTN-1779)', () => {
+    const page = { sessions: [{ sessionId: 's-1', task: 'ABC-7', agent: 'claude', model: null, lamp: 'waiting', cwd: '/srv/example' }] } as unknown as MachinePage
+    expect(html(createElement(SessionsCard, { page }))).toContain('lamp--waiting')
+    const markup = html(createElement(SessionsCard, { page, landing: new Set(['s-1']) }))
+    expect(markup).toContain('lamp--working')
+    expect(markup).toContain(t.session.landing)
+  })
+
   it("shows a machine's own commands after green as a command block each, never a tag (BTN-1553)", () => {
     const markup = html(createElement(AfterGreen, { commands: ['npm run build', 'npm run deploy'], own: true }))
     expect(markup).not.toContain('·')

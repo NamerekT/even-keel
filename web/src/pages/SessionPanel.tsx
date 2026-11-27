@@ -9,7 +9,7 @@ import type { ContextScale, SessionRecord, SessionView } from '../../../src/stat
 import type { Notice } from '../../../src/notice/notice.js'
 import { formatClock, formatFullTime, formatLineTime, formatMoment, formatQuiet, formatStamp, minuteMarks } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
-import { completionTasks, needsReply } from '../completion.js'
+import { completionTasks, landingTasks, needsReply, quietTasks } from '../completion.js'
 import { accountOf } from '../accountName.js'
 import { useNow } from '../layout/useNow.js'
 import { useNarrow } from '../layout/useNarrow.js'
@@ -235,7 +235,7 @@ function Actions({ block, task, scale, ci, chatting, onChat: setChatting, onCard
   const offersRemote = !remoteOnNow && session?.remoteOff === 'disabled' && remoteAccount?.remoteOff === true
   const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
   const starting = replacing.on || (block.current && block.start !== null)
-  const waiting = !aside && talking?.lamp === 'waiting' && (!completionTasks(state).has(talking.task) || needsReply(talking))
+  const waiting = !aside && talking?.lamp === 'waiting' && (!quietTasks(state).has(talking.task) || needsReply(talking))
   // Why "New session" and "Skip" cannot be pressed now and when they can, for their tips.
   const wait =
     replacing.on || block.start?.phase === 'handover'
@@ -398,6 +398,7 @@ function SessionBody({ session, limit, refusal = null, scale, task, onChat }: Se
   const narrow = useNarrow()
   const chainShowsRefusal = !narrow && session.apiErrorNotice?.code === 'chain.modelUnavailable' && state?.chain.active.some(chain => chain.current?.sessionId === session.sessionId && chain.error?.code === 'chain.modelUnavailable')
   const refused = completionTasks(state).has(session.task) && !needsReply(session)
+  const landing = !refused && landingTasks(state).has(session.task) && (session.lamp === 'waiting' || session.lamp === 'finished') && !needsReply(session)
   // A plain AskUserQuestion is not an alarm: the chat window shows it and the lamp says the session waits for a reply.
   const waits = session.waitingFor !== null && !session.asking
   const limited = limit !== null || refusal !== null || ['limit', 'credit', 'spend'].includes(session.apiErrorKind ?? '')
@@ -425,7 +426,7 @@ function SessionBody({ session, limit, refusal = null, scale, task, onChat }: Se
               {backgroundTip(session.background, now).split('\n').map((line) => <span key={line} className="panel__tip-note">{line}</span>)}
             </TipValue>
           ) : (
-            <dd className={`panel__state panel__state--${refused ? 'error' : session.lamp}`}>{sessionStatus(session, refused)}</dd>
+            <dd className={`panel__state panel__state--${refused ? 'error' : landing ? 'working' : session.lamp}`}>{sessionStatus(session, refused, landing)}</dd>
           )}
         </Fact>
         <Fact label={t.session.time}>

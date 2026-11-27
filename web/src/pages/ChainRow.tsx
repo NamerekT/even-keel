@@ -173,7 +173,7 @@ export function Block(props: BlockProps) {
       )}
       <div className="block__head">
         {marks.has('finish') && <CheckIcon />}
-        {block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} label={lampLabel(block.lamp, block.session, new Date())} />}
+        {block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} label={lampLabel(block.lamp, block.session, new Date(), block.landing === true)} />}
         {block.locked ? (
           // A blocker outside the chain has no session to show: a press anywhere on its row opens its card, which links to the tracker.
           <button type="button" className="block__key" draggable={false} title={t.chain.openCard} onClick={() => onCard(block.id)}>
