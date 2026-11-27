@@ -64,6 +64,7 @@ Even Keel then pushes the project's state, and the picture is at `<the Worker's 
 | --- | --- |
 | `POST /push/<slug>` with `Authorization: Bearer <secret>` and the state as JSON | `204`, the state is stored; a wrong or missing secret (or no `BADGE_SECRET` on the Worker) — `401`; a body that is no state of version 1 — `400` |
 | `GET /<slug>.svg[?theme=light]` | the badge drawn at the moment of the request: "updated N min ago", the grey dot after 5 minutes and OFFLINE after an hour are counted then; a slug without a state draws "NOT PUBLISHED YET". `Cache-Control: no-cache, max-age=0`, an `ETag`, and `304` to a matching `If-None-Match` |
+| `GET /<slug>.json` | the stats' numbers and the last push's time, for a site's build that shows them in its own way: `{ "at": "2026-11-09T12:00:00.000Z", "stats": { "sessions": 12, "medianCost": 1.2, "medianMinutes": 18 } }`. A number not picked in **What to show** is absent; a slug without a state — `404`. The same caching headers as the SVG |
 | anything else | `404` |
 
 ## Updating

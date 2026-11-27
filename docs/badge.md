@@ -380,6 +380,13 @@ as `BADGE`, the secret `BADGE_SECRET`. How to deploy and connect it is its own `
 - `GET /<slug>.svg?theme=light` — `renderBadge` with `now` taken at the request, so the age and the modes are counted
   when the picture is shown; a missing or unreadable stored value draws the `unpublished` placeholder.
   `Cache-Control: no-cache, max-age=0`, a strong `ETag` of the SVG's SHA-256, 304 on a match (`W/` and `*` too).
+- `GET /<slug>.json` (BTN-1785) — the numbers for the docs site's build (`even-keel-docs`, which reads it about once a
+  day in GitHub Actions; no visitor's browser calls the Worker, so no CORS): `{ "at": <the push time>, "stats": {
+  "sessions", "medianCost", "medianMinutes" } }`, `at` being the time "updated N min ago" counts from. Nothing else of
+  the state — no tasks, titles, chain or milestone. A missing or unreadable stored value is 404, never `{}`, so the
+  build tells "no data" from zero. A number the project did not pick on the badge ("What to show") is never pushed
+  (`statsOf` in `collect.ts`), so its key is absent here too, and `stats` is `{}` with no stats tile picked or no stats
+  read; the site keeps its fallback numbers for a missing key. The same headers as the SVG, `application/json`.
 - The slug follows the service's rule (`src/badge/settings.ts`); any other path or method is 404.
 
 ### Kept apart from the package
