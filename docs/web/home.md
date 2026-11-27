@@ -33,6 +33,8 @@ The same three kinds add a call to file tasks or ready them in the tracker (`emp
 - **The line under the title** (`harborMemes`) is built from the user's own numbers — the busiest of the 14 days from 50 launches, a project with ¾ of at least 50 launches, 3+ open questions, the five-hour limit from 50 % — plus a line about Even Keel itself. One draw per visit picks among them; the numbers follow the state. Launches are counted by project id and the favourite is named by its label.
 - **Typing.** The line is an array of parts typed by `Typed` (`web/src/ui/Typed.tsx`) with a 3 s hold between parts: once per mount, a changed number taken over without retyping, shown whole with reduced motion. Lines queue up like the chains do (`Typists`, `book`): as many type at once as `parallel`.
 - **A card's line** stands still, so several cards do not type at once: a quote in the project's colour, the setup muted and the punchline in full ink.
+- **The line about questions** links through `questionPath` (`web/src/state.ts`) to `/p/<id>#<ID>` of the first open question with a session, in project and chain order. A task that has run or is starting qualifies while it is free to run (`hasSession`). When none qualifies, the link opens `/p/<id>` of the first project with an open question.
+- The project page's own meme is in `docs/web/project-page/side-column.md`.
 
 ## The basement and the 404
 
