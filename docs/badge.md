@@ -2,8 +2,8 @@
 
 A project can show its chain in its README the way a CI badge shows a build: an SVG with the tasks being worked on,
 the chain's queue, the milestone and a few numbers from the stats. The service builds the state and pushes it to a
-Cloudflare Worker (BTN-916), the Worker stores the last state and draws it on every request. Nothing reaches the PC from
-outside: the README's `<img>` hits the Worker, never the service.
+Cloudflare Worker (BTN-916), the Worker stores the last state and draws it on every request. Nothing reaches the
+machine running the service from outside: the README's `<img>` hits the Worker, never the service.
 
 The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wireBadges`); the Worker is
 `deploy/badge/` ("The Worker" below).
@@ -11,6 +11,15 @@ The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wi
 ## The state: contract v1
 
 `BadgeState` in `src/badge/model.ts` is what the service pushes and what `renderBadge` draws; `BADGE_VERSION` is `1`.
+
+Later keys were added to v1 without a new `BADGE_VERSION`. A Worker deployed before a key reads it as follows
+until it is updated ("The Worker" below); a state without the key, from an older service, is drawn the old way too:
+
+| Key | Task | A Worker deployed earlier |
+| --- | --- | --- |
+| `chain.tasks[].doneAt`, `milestone.queued` | BTN-970 | ignores them: no times under the chips, the milestone as done and "to go" |
+| `chain.queued` | EKR-149 | ignores it: "+N" counts only the sent chips that did not fit |
+| `active[].state: 'limit'`, `until` | BTN-969 | refuses the whole push (added before the first release with the badge) |
 
 - `v`, `at` (ISO time of the push), `project` (`key`, `name`).
 - `active` — the tasks with a live session: `key`, `titleEn`, `agent`, `model`, `startedAt`, `state` (`working` |
@@ -22,57 +31,54 @@ The code is in `src/badge/`; the service's wiring is `src/service/badge.ts` (`wi
   `tasks` (chips: the last 5 done ones, the working, the waiting, the ones on a limit and the first 12 of the queue; a
   done chip may carry `doneAt`), `queued` (the length of the whole queue, below).
 - `milestone` — `{ name, done, left, queued? }` or `null`: `left` is every open task of the milestone, `queued` those
-  of them the chain takes. A fix of main or a release carry in work (`ABC-FIX`, `EKR-CARRY` and their episodes) has no
-  tracker task, so its milestone is the next task's (EKR-138), and its `titleEn` is its own, not a translation
-  (EKR-137, "English titles").
-- `stats` — `sessions`, `medianCost`, `medianMinutes`.
+  of them the chain takes (below).
+- `stats` — `sessions`, `medianCost`, `medianMinutes` ("Stats" below).
 
 The project picks its fields (`BADGE_FIELDS`); a field not picked leaves **no key**, never `null`
 (`badgeStateOf` in `src/badge/collect.ts`). A task's tracker title never reaches the Worker: only `titleEn`, the English
-title (`translate.ts`); without it the badge shows the key alone.
+title ("English titles" below); without it the badge shows the key alone.
+
+A fix of main (`ABC-FIX`, `docs/chain/main-ci.md`) and a release carry (`EKR-CARRY`, the session that merges a release
+project into the project it goes on in, `docs/chain/projects.md`) run under a name of their own, with no tracker task;
+each run is an episode, `ABC-FIX.3`. Their title is their own ("English titles") and their milestone the next task's
+(below).
 
 ### Close times and the milestone's split (BTN-970)
 
-The keys `doneAt` and `queued` (BTN-970) only add to v1: a Worker of an older `even-keel-badge` does
-not read them and draws the old picture, and a state without them is drawn as before (the milestone as done and "to
-go"). Their times are the service's local clock with its offset (`2026-11-10T03:40:00+01:00`), never a zone's name:
+Both come with fields already there, not a new choice of `BADGE_FIELDS`: `doneAt` with `chain`, `queued` with
+`milestone`. Times are the service's local clock with its offset (`2026-11-10T03:40:00+01:00`), never a zone's name:
 the picture prints the digits as written, so the night shows by the maintainer's hours (`src/badge/dates.ts`).
 
 - `doneAt` comes from the chain's archive of closed tasks (`closed_tasks`, written when the chain sees its task
   closed). The last done chips are picked by it; a task closed past the chain has none, and its chip stands before the
   dated ones, by number.
-- `queued` is the milestone's tasks in the chain's order (the result of its own filter) and the ones in work; the rest
-  is with the maintainer — Backlog, skipped labels, waiting blockers.
+- `queued` counts the milestone's open tasks that are in the chain's order — the tasks its rules take (status, labels,
+  blockers) — or in work. The rest waits for the maintainer: Backlog, skipped labels, waiting blockers.
 - The milestone is the one of the task in work or of the next one; with neither, the one of the task the chain closed
   last, so an idle badge still shows what waits for the maintainer. A fix or a carry does not count as a task in work
-  here (EKR-138): while one runs the card stays, by the next task or the last closed one. The release project's own
-  tasks get no card: they are another project's, and the filter of private data hides them.
+  here (EKR-138): while one runs the card stays, by the next task or the last closed one. A carry never brings the
+  release project's milestone: the card counts only the badge's own project's tasks.
 - No release date (BTN-1197). BTN-970 also sent `eta`, `queued` over the chain's pace of the last 7 days, and
   `target`, the milestone's `targetDate`; the forecast missed the milestone's growth (v0.3 grew from ~50 tasks to 200+
   while it kept saying "soon") and the tracker's date read as a promise. The service sends neither; the Worker still
   accepts them, well-formed, from an older service, and the picture ignores them, so they vanish without a redeploy.
 
-The dates go with the `chain` field, the split with `milestone`; there are no new fields.
-
 ### The queue's length (EKR-149)
 
 `chain.queued` is every task of the chain's order past those in work, of any milestone; `chain.tasks` carries only the
-first 12 of them (`QUEUED_CHIPS` in `collect.ts`). The picture draws the chips that fit its width and writes "+N" after
-them: the whole queue less the queued chips drawn, plus any other chip that did not fit. A state without the key (a
-service before EKR-149) counts only the sent chips that did not fit. The key only adds to v1 and goes with the `chain`
-field: an older Worker does not read it and keeps the old count until it is redeployed ("The Worker" below).
+first 12 of them (`QUEUED_CHIPS` in `collect.ts`). The key goes with the `chain` field. The picture makes the chips fit
+its width by dropping the older done chips first, down to one, which counts nowhere, then chips from the end, each one
+more for "+N"; N starts at the queue not sent. A queue of 30: 12 chips sent, 18 not; 5 of them cut for width — "+23".
 
 ### A task on a spent limit (BTN-969)
 
-A task is `limit` while the chain holds it on a usage limit it has not acted on yet (`CurrentTask.limit`, not a retry
-after an overload) or its session's lamp is `limit`. `until` is the hold's reset time, an absolute one: the Worker
-counts "resets in …" when it draws, like the age of the push; a reset nobody knows (a key out of money) leaves no key.
-Such a task has no `action` and its status line is not read: the session makes no call. Nothing of the account, its
-switch or the pool is in the state — when the chain goes on earlier, on another account, the task is `working` again
-and the badge explains nothing.
-
-The value was added to contract v1 without a new `BADGE_VERSION`, before the first release with the badge: a Worker
-deployed earlier refuses a push that has such a task until it is updated ("The Worker" below).
+A task is `limit` while the chain holds it on a usage limit it has neither resumed nor handed over yet
+(`CurrentTask.limit` with `acted: null`, not a retry after an overload), or while its session's state lamp on the page
+(`SessionView.lamp`) is `limit`. `until` is the hold's reset time, an absolute one: the Worker counts "resets in …"
+when it draws, like the age of the push; a reset nobody knows (a key out of money) leaves no key. Such a task has no
+`action` and its status line is not read: the session makes no call. Nothing of the account, its switch or the pool is
+in the state — when the chain goes on earlier, on another account, the task is `working` again and the badge explains
+nothing.
 
 ### The action text
 
@@ -97,22 +103,24 @@ the agent itself, without a tool and without a word in the task's prompt:
   `statusRequest()` (`src/badge/status.ts`), which the hook (plugin 0.15.0) puts into `additionalContext` after the
   mail: add one line `status: …` next to the next tool call, in English, up to 60 characters, no names, paths or
   addresses. An older plugin ignores the key.
-- **When** (`BadgeWiring.statusAsk`, `src/service/badge.ts`) — only if all hold: the chain runs this session now (a
-  session the chain did not start gets a 404 before that); its project's badge pushes and shows the `action` field;
-  the project's last push went through (`BadgePusher.pushed`: none yet, no secret or a failure — no request, the
-  status would go nowhere); the session's agent writes a status (`SessionView.badgeStatus` is not absent: Claude Code
-  only); and both the last status and the last request are 2 min old or more (`STATUS_ASK_MS`, `StatusAsks`, in
-  memory). The config is read at every call, so a badge turned off mid-task stops the requests at the next one.
-- **Not a tool.** A `badge_status` tool would be one more API request per status, each rereading the whole context;
-  the line rides in the answer that makes the next call anyway.
+- **When** (`BadgeWiring.statusAsk`, `src/service/badge.ts`) — only if all hold:
+  - the chain runs this session now (the mail route answers 404 to a session the service does not know, before
+    asking);
+  - its project's badge pushes and shows the `action` field — the config is read at every call, so a badge turned
+    off mid-task stops the requests at the next one;
+  - the project's last push went through (`BadgePusher.pushed`): with none yet, no secret or a failure the status
+    would go nowhere;
+  - the session's agent writes a status (`SessionView.badgeStatus` is not absent: Claude Code only);
+  - both the last status and the last request are 2 min old or more (`STATUS_ASK_MS`, `StatusAsks`, in memory).
+- **Not a tool**: a `badge_status` tool would cost one more API request per status, each rereading the whole context.
 - **Reading it.** `TranscriptFold` sees the request's mark in a hook attachment, as it sees mail, and takes the last
   `status: …` line of the next assistant text of the same turn (`statusLineIn`): one line per request, none after a
   new prompt of the user. A line nobody asked for is ordinary text. The taken line is hidden from the chat's feed.
   `statusTextOf` flattens it, cuts it to 60 characters and refuses anything but printable ASCII — the badge's fonts
   hold nothing else; a refused line clears the status.
 - **Showing it.** `badgeStateOf` puts the status in place of the action's text, the tool kept for the icon, while it
-  is younger than 5 min (`STATUS_FRESH_MS`) and passes the filter below (`BadgeInputs.statusOk`, the log's field "the
-  status line"). Otherwise the badge shows the default action: it is never empty for want of a status.
+  is younger than 5 min (`STATUS_FRESH_MS`) and passes the filter below (`BadgeInputs.statusOk`; a caught line is
+  logged as "the status line"). Otherwise the badge shows the default action: it is never empty for want of a status.
 
 Never run live ([unverified](unverified/page.md#the-badges-status-line-from-the-agent-btn-932)).
 
@@ -153,15 +161,18 @@ not hide "name".
   MAC addresses, `localhost`, hosts;
 - absolute paths: a drive, a UNC share, `~/`, a slash-led path of two segments or more.
 
-What the tests pin down: a four-part number (`1.2.3.4`) is an IP address, a three-part version is not; a dotted name
-is a host unless its last part is a file ending of `FILE_ENDINGS` or a camel-case word, or it follows a `/` — so
-`src/x.ts`, `x.ts` and `chain.excludedLabels` pass and `state.tasks` or `example.io` do not; `/stats` passes, `/home/john/x` does not; `vitest@3.2.1` and
-`tasks@even-keel` are not e-mails.
+A four-part number is an IP address, a three-part version is not; a dotted name is a host unless its last part is a
+file ending of `FILE_ENDINGS` or a camel-case word, or it follows a `/`. The tests pin down:
+
+- passes: `src/x.ts`, `x.ts`, `chain.excludedLabels`, `/stats`, `1.2.3`, `vitest@3.2.1` and `tasks@even-keel` (no
+  e-mails);
+- caught: `state.tasks`, `example.io`, `/home/john/x`, `1.2.3.4`.
 
 **A caught text is left out, never masked**: a title leaves no `titleEn` key and the picture draws the task's key
-alone, with no word in the title's place; an action keeps only its tool (`{ tool, text: tool }`), and an action whose tool itself is caught becomes `null`. Not sure — not published: an
-exception inside the filter drops the text, and until the repository's git identity is first read every free text is
-dropped. The log gets one line per project, field and layer for the service's lifetime, without the text:
+alone, with no word in the title's place; an action keeps only its tool (`{ tool, text: tool }`), and an action whose
+tool itself is caught becomes `null`. Not sure — not published: an exception inside the filter drops the text, and
+until the repository's git identity is first read every free text is dropped. The log gets one line per project, field
+and layer for the service's lifetime, without the text:
 `badge: ABC: the action text is left out, it looks like a secret, a contact, an address or a path (layer 2)`.
 
 What it does not catch: a person's, a company's or a client's name the service does not know. Only the translation
@@ -169,44 +180,131 @@ prompt asks for those to be replaced, and only in the title; an action's descrip
 project's own key and name, the milestone's name and the agent's and model's names are not filtered: the project
 picks those fields itself.
 
+## Stats
+
+`stats` are Tally's numbers over the last 30 local days (`src/badge/stats.ts`): the session count, the median cost of
+done tasks at API list prices (`priceEstimate`, else `cost`) and their median active minutes. The read is `/stats`'s
+`period` with `scope=all` (chain and hand sessions alike) and test projects included, as the project page's strip
+reads it: a project's own numbers count it even when it is flagged a test project, which only hides it from the
+overall page ([`stats.md`](stats.md)).
+
+- **Key and cache.** Read in the background at most every 15 min, cached in memory by the project's current key from
+  the live config, not its GUID: projects sharing a key share the numbers and the reader's `firstByKey` repository
+  mapping, as on `/stats`; a changed key never shows the previous key's numbers. Without a key the badge has no
+  numbers; an empty period read fine shows `0 sessions` without medians. A restart reads anew.
+- **The first read** waits 1 min after a start (`BADGE_FIRST_STATS_MS`, BTN-1531): the start holds the event loop for
+  its first half minute, and a read then missed the reader's 5 s connect timeout (`error: timeout expired` — 56 of 59
+  failures of 19–22.11 were in the first minute), while one a minute later went through.
+- **Failures** are not cached for 15 min. `off` (the reader not up yet) and `newer` (Tally's schema is newer than the
+  running service knows: a newer build's collector migrated it, until the service restarts) are retried every minute
+  (`BADGE_STATS_RETRY_MS`, BTN-1282). `error` and a thrown read (a statement timeout, a lost connection) are retried
+  after 1 min, then after 2, 4, 8 and at most 15 min, back to 15 min after the next `ok` (BTN-1351): a read the database
+  cancels must not load it every minute. The last good numbers stay on the badge until the next `ok`; before the first
+  one there are none.
+- **The log** gets a failure once per change of its kind (`badge: the stats of <key> are not read (…)`) and the
+  recovery once (`… are read again`).
+
+## English titles
+
+`BadgeTranslations` (`src/badge/translate.ts`, BTN-918) translates only the current tasks of an enabled badge whose
+fields include `title`. No task or an empty title means no request. Preview and Check can read an existing translation
+with publishing off, but do not ask for a new one. Requests run in the background: until a title is ready, the badge
+shows the task's key alone.
+
+- **The request** uses the classifier's live `TALLY_LLM_URL`, `TALLY_LLM_KEY` and `TALLY_LLM_MODEL` (`llmSettings`,
+  `tally/src/classify.ts`): `POST <url>/chat/completions`, bearer key, `temperature: 0`, the default model
+  `google-gemini-3.1-flash-lite`; LiteLLM owns model fallbacks. Timeout: three minutes, like the classifier. The user
+  message is **only the title**, never the task's description, comments or question. The system prompt asks to
+  translate close to the title's words, never retelling it, shortening only past 90 characters, with code and file
+  names unchanged, and to replace names of people, companies and clients, addresses and e-mails with general words.
+- **`KEEP` and `NONE`.** The model is asked for every title, English ones too: it is the layer that keeps a client's
+  name off the public picture. `KEEP` answers a title already in English, within 90 characters and with no names or
+  addresses (BTN-1784), and takes the original word for word, through the cleaning below; a `KEEP` for a title with
+  letters outside the Latin script is an unusable answer, retried after the pause. `NONE` answers a title that makes no
+  sense without its names (BTN-931): kept as an empty title, so the badge shows the key alone and the title is not
+  asked again, even after a change of the LLM settings.
+- **Not translated**: a release carry, "Carrying release v0.3 into dev" (EKR-138) — the version from the release
+  project's `branch` (`release/v0.3`; a branch with no version is named whole) and the `branch` of the project it goes
+  into, never a literal; a fix of main, "Fixing the red dev" (EKR-137) — the `branch` of the project the fix is of. With
+  no tracker task and a meaning known exactly, they are the one exception to a task without a translation showing its
+  key alone (BTN-974). Both go only with the `title` field picked.
+- **The answer** loses Markdown, HTML tags, controls, formatting characters, surrounding quotes and extra whitespace,
+  then is cut to 90 Unicode characters. Then it passes the filter of private data like any free text; the titles of a
+  fix and a carry pass it too.
+
+### The cache
+
+`badge_translations` (`docs/storage/database.md`) keys a title by its tracker source (kind, profile and tracker
+project; built-in trackers use the project GUID), task id and SHA-256 of the original title, and keeps `prompt`, the
+version of the prompt it was translated by (`PROMPT_VERSION`, bumped with every change of the prompt; null — the
+first). A title of another version is asked again like a failed one, its old answer shown until the new one replaces
+it; a failed request leaves the old one. A `NONE` of any version is kept. An in-flight request is shared by all badge
+consumers. Success stays cached across restarts and changes of model or credentials; a changed title uses another
+cache key.
+
+An attempt is saved **before** the request: missing settings, failure, an empty answer or a restart during a request
+leave no `titleEn` and delay another attempt for at least 30 minutes. Each failure reason is logged once per service
+lifetime and set of settings, without the response body, original title or credentials.
+
+A live change of the URL, key or model (BTN-955) lifts that delay for every failed title, in memory and in the table
+(`attempted_at = 0`), and lets each reason be logged again; a request still in flight under the old settings starts no
+delay either. Ready titles are kept. The change is seen by the running service only: settings edited while it is down
+leave the saved delay to run out.
+
+`badge_translation_spend` retains the usage as Tally message rows, even for an unusable title. The next collector run
+reads it through the state database's owner and writes `messages` (`entrypoint: badge-translate`, account `litellm`,
+project and folder as for the classifier). Message ids make replay idempotent after a failed collection; the retained
+ledger also lets translation work while Tally is off. The classifier's free Gemini/Gemma prices are 0, tokens visible.
+The live LiteLLM request and free-tier accounting are unchecked (BTN-919,
+[unverified](unverified/page.md#the-badges-english-titles-btn-918)).
+
 ## Modes
 
-`badgeMode` (`src/badge/render.ts`) by the state's age and the chain:
+`badgeMode` (`src/badge/render.ts`) by the state's age and the chain, checked in the table's order — the first row
+that holds wins, so a paused chain whose state is older than 60 min is `offline`:
 
 | Mode | When | Drawing |
 | --- | --- | --- |
-| `live` | the chain runs, the state ≤ 5 min old | animated |
-| `stale` | the chain runs, 5–60 min old | animated, the dot grey |
+| `unpublished` | no state yet | a placeholder |
 | `offline` | older than 60 min | still, "OFFLINE" with "last seen …" at the right edge, the last tasks frozen |
 | `still` | the chain is paused, stopped or idle | still |
-| `unpublished` | no state yet | a placeholder |
+| `stale` | the chain runs, 5–60 min old | animated, the dot grey |
+| `live` | the chain runs, the state ≤ 5 min old | animated |
 
 ## Drawing
 
-`renderBadge` returns an SVG document 840 px wide: no script, no outside resource. The layout follows the task's mockups
-(BTN-915's attachments): a header with the state, what the chain does ("<project> is being built right now", "the agent
-asked the maintainer…"; an idle chain's next task as "next up `ABC-7`") and the age of the push. No fact is joined to
-another with a `·` (BTN-1385): each stands in its own cell 16 px apart or in a grey plaque — the number of tasks in work
-when there are several ("2 tasks"), the model with the agent's icon in front (the page's own icons: Claude's star,
-Codex's hexagon; with no model the plaque names the agent), and next to it a clock with how long the task has run. One task in work gets a large title with
-that agent line under it (a fix's and a release carry's title is their own, see "English titles";
-a task with no title has that line on its key's line, right after the key, online and offline alike, and its bar stays
-where it is — EKR-137), several share rows with that line on the right; the action bar is the
-tool's icon, the action in the agent's colour (yellow for Claude, blue for the rest), a blinking cursor, the context
-fill with a glowing edge and `context N%`; a waiting task has a dashed "waiting for the maintainer's answer" bar
-instead, and one on a limit the same bar with a pause mark, "waiting for the usage limit" and a muted "resets in 2 h"
-cell (left out once the reset has passed); while no task works and one is on a limit the header says "WAITING", then
-"<project> waits for the usage limit to reset". With no task in hand a running chain draws "no task in hand" and
-"next up `ABC-7`" under the header. The chain's chips name a task of the project by its number (`895`), one of another project by its key, a
-done one with `Nov 10 03:40` under it (the month by name: `11-10` reads two ways), which makes the badge 18 px taller only
-when a chip has a time. Under the chips sit two cards: the milestone's on the left — its name and "next release", a bar of done (green), queued for the agent (blue) and with the
-maintainer (hatched in the waiting colour) with 3 px gaps, and a legend that leaves a part of no task out — and the
-stats' on the right, a 100 px tile per number (`1,710` / sessions / last 30 days, `$2.41*` / per task / median,
-`11 min` / per task / median) with "* at API list prices" under it. A number not picked has no tile; without tiles the
-milestone takes the whole width, and without a milestone the stats' card stays on the right. The colours are the page's tokens
-from `web/src/styles.css`, copied into `src/badge/theme.ts` for the dark and the light theme. Animations are CSS in the
-SVG's own `<style>`, off under `prefers-reduced-motion`. `<title>` and `aria-label` carry the full text; a cut title is
-cut by the fonts' width table, the same one the browser draws by.
+`renderBadge` returns an SVG document 840 px wide: no script, no outside resource. The layout follows BTN-915's
+mockups (its attachments). No fact is joined to another with a `·` (BTN-1385): each stands in its own cell 16 px apart
+or in a grey plaque.
+
+- **The header** — the state, what the chain does ("`<project>` is being built right now", "the agent asked the
+  maintainer…"; an idle chain's next task as "next up `ABC-7`") and the age of the push. While no task works and one
+  is on a limit it says "WAITING", then "`<project>` waits for the usage limit to reset". With no task in hand a
+  running chain draws "no task in hand" and "next up `ABC-7`" under the header.
+- **The agent line** — the number of tasks in work when there are several ("2 tasks"), the model with the agent's icon
+  in front (the page's own icons: Claude's star, Codex's hexagon; with no model the plaque names the agent), and a
+  clock with how long the task has run.
+- **Tasks in work.** One task gets a large title with the agent line under it; several share rows with that line on
+  the right. A fix's and a carry's title is their own ("English titles"). A task with no title has the agent line on
+  its key's line, right after the key, online and offline alike, its bar where it stays (EKR-137).
+- **The bar.** The tool's icon, the action in the agent's colour (yellow for Claude, blue for the rest), a blinking
+  cursor, the context fill with a glowing edge and `context N%`. A waiting task has a dashed "waiting for the
+  maintainer's answer" bar instead, and one on a limit the same bar with a pause mark, "waiting for the usage limit"
+  and a muted "resets in 2 h" cell (left out once the reset has passed).
+- **Chips** name a task of the project by its number (`895`), one of another project by its key, a done one with
+  `Nov 10 03:40` under it (the month by name: `11-10` reads two ways); the badge is 18 px taller only when a chip has
+  a time.
+- **Cards** under the chips. The milestone's on the left: its name and "next release", a bar of done (green), queued
+  for the agent (blue) and with the maintainer (hatched in the waiting colour) with 3 px gaps, and a legend that leaves
+  a part of no task out. The stats' on the right: a 100 px tile per number (`1,710` / sessions / last 30 days,
+  `$2.41*` / per task / median, `11 min` / per task / median) with "* at API list prices" under it. A number not picked
+  has no tile; without tiles the milestone takes the whole width, and without a milestone the stats' card stays on the
+  right.
+- **Colours and motion.** The colours are the page's tokens from `web/src/styles.css`, copied into
+  `src/badge/theme.ts` for the dark and the light theme. Animations are CSS in the SVG's own `<style>`, off under
+  `prefers-reduced-motion`.
+- **Text.** `<title>` and `aria-label` carry the full text; a cut title is cut by the fonts' width table, the same one
+  the browser draws by.
 
 ### Fonts
 
@@ -237,8 +335,7 @@ session or the numbers: a push then would show a stump of the state for the 2 mi
 not pushed until everything its state is built from was read once (`warmedUp` in `src/service/badge.ts`):
 
 - every tracker the project reads (its own and its feeds) and the sessions (`agentsRead`) — the `read` of `wireBadges`;
-- the stats, when a stats field is picked and the project has a key (only an `ok` answer counts as read; the first read
-  goes 1 min after the start, BTN-1531; Tally not ready yet after the start is retried every minute, BTN-1282);
+- the stats, when a stats field is picked and the project has a key: only an `ok` answer counts ("Stats" above);
 - the git identity of the filter of private data.
 
 The wait ends after 2 min from the start at the latest (`BADGE_WARMUP_MS`): a tracker that is down or off, or a read
@@ -247,79 +344,26 @@ that hangs, gets one log line and the badge is pushed with what there is. A usua
 never waits again, a badge turned on later waits only inside those first 2 min, and the preview and the dialog's
 "Check" never wait.
 
-## Stats
-
-`stats` are Tally's numbers over the last 30 local days, all scope, tests included (`src/badge/stats.ts`): the session
-count, the median cost of done tasks at API list prices (`priceEstimate`, else `cost`) and their median active minutes.
-They are read in the background at most every 15 min, cached by the project's current key rather than its GUID.
-The key comes from the live config; projects sharing it use the same numbers and the stats reader's `firstByKey`
-repository mapping, just like `/stats`. A changed key never shows the previous key's cached numbers. Without a configured
-key the badge has no numbers; a successfully read empty period shows `0 sessions` without medians. The first read after
-a start waits 1 min (`BADGE_FIRST_STATS_MS`, BTN-1531): the start holds the event loop for its first half minute, and a
-read then missed the reader's 5 s connect timeout (`error: timeout expired` — 56 of 59 failures in the log of
-19–22.11 fell in the first minute), while the retry a minute later went through; until then the badge and the preview
-have no numbers, and the warm-up waits for them inside its 2 min. An answer other than
-`ok` is not cached for 15 min. `off` and `newer` (Tally not ready after a start) are retried every minute
-(`BADGE_STATS_RETRY_MS`); `error` and a thrown read (a statement timeout, a lost connection) after 1 min, then a pause
-that doubles to 2, 4, 8 and at most 15 min, back to 15 min after the next `ok` (BTN-1351): a read the database cancels
-must not load it every minute. The last good numbers, if any, stay on the badge until the next `ok`; before the first one
-the badge has none. Such a failure is logged once per change of its kind (`badge: the stats of <key> are not read
-(…)`), and the recovery once (`… are read again`). The cache is in memory and read anew after a restart.
-
-## English titles
-
-`BadgeTranslations` (`src/badge/translate.ts`, BTN-918) translates only the current tasks of an enabled badge whose
-fields include `title`. No task or an empty title means no request. Preview and Check can read an existing translation
-with publishing off, but do not ask for a new one. Requests run in the background: until a title is ready, only the
-task's key is available. The next push follows the usual two-minute minimum gap.
-
-It uses the classifier's live `TALLY_LLM_URL`, `TALLY_LLM_KEY` and `TALLY_LLM_MODEL` (`llmSettings`,
-`tally/src/classify.ts`): `POST <url>/chat/completions`, bearer key, `temperature: 0`, the default model
-`google-gemini-3.1-flash-lite`. LiteLLM owns model fallbacks. The system prompt asks to answer `KEEP` for a title
-already in English, within 90 characters and with no names or addresses (BTN-1784); otherwise to translate it close to
-its words, never retelling it, shortening only past 90 characters, with code and file names unchanged, and to replace
-names of people, companies and clients, addresses and e-mails with general words — or to answer `NONE` where the title
-makes no sense without them (BTN-931). The model is asked for every title, English ones too: it is the layer that keeps
-a client's name off the public picture. `KEEP` takes the original title word for word (through the same cleaning as an
-answer, below); a `KEEP` for a title with letters outside the Latin script is an unusable answer, retried after the
-pause. `NONE` is kept as an empty title: the badge shows the key alone and the title is not asked again, even after a
-change of the LLM settings. The answer then passes the filter above like any free text. The user message is **only the title**, never the
-task's description, comments or question. A release carry is not translated: it has no tracker task, and its title is
-its own (EKR-138), "Carrying release v0.3 into dev" — the version from the release project's `branch` (`release/v0.3`;
-a branch with no version is named whole) and the `branch` of the project it goes into, never a literal. A fix of main is
-not translated either (EKR-137): "Fixing the red dev", the `branch` of the project the fix is of. BTN-974's ban on
-words in a task's place does not reach them: they have no tracker task and their meaning is known exactly. Both go
-only with the `title` field picked. Timeout: three minutes, like the classifier. The answer loses Markdown, HTML tags, controls,
-formatting characters, surrounding quotes and extra whitespace, then is cut to 90 Unicode characters.
-
-Database step 45 adds `badge_translations`: a tracker source (kind, profile and tracker project; built-in trackers use
-the project GUID), task id and SHA-256 of the original title. Step 89 adds `prompt`, the version of the prompt a title
-was translated by (`PROMPT_VERSION`, bumped with every change of the prompt; null — the first). A title of another
-version is asked again like a failed one, its old answer shown until the new one replaces it; a failed request leaves
-the old one. A `NONE` of any version is kept. An in-flight request is shared by all badge consumers.
-Success stays cached across restarts and changes of model or credentials; a changed title uses another cache key.
-An attempt is saved **before** the request: missing settings, failure, an empty answer or a restart during a request
-leave no `titleEn` and delay another attempt for at least 30 minutes. Each failure reason is logged once per service
-lifetime and set of settings, without the response body, original title or credentials.
-
-A live change of the URL, key or model (BTN-955) lifts that delay for every failed title, in memory and in the table
-(`attempted_at = 0`), and lets each reason be logged again; a request still in flight under the old settings starts no
-delay either. Ready titles are kept. The change is seen by the running service only: settings edited while it is down
-leave the saved delay to run out.
-
-`badge_translation_spend` retains the usage as Tally message rows, even for an unusable title. The next collector run
-reads it through the state database's owner and writes `messages` (`entrypoint: badge-translate`, account `litellm`,
-project and folder as for the classifier). Message ids make replay idempotent after a failed collection; the retained
-ledger also lets translation work while Tally is off. The classifier's free Gemini/Gemma prices are 0, tokens visible.
-Unit tests cover the request, cache, restart, retries, cleanup, selection and spend replay; the actual LiteLLM request
-and free-tier accounting await BTN-919 ([unverified](unverified/page.md#the-badges-english-titles-btn-918)).
-
 ## Setting and secret
 
 - `badge` — a project setting (`docs/settings.md`): `null` — no badge, else `{ on, url, slug, fields }`. The project
-  form leaves it alone; the badge's dialog writes it (below), `config-import` by hand. A bad value is `config.badge`;
-  it applies live.
+  form leaves it alone; the badge's dialog writes it (below), `config-import` by hand. A bad value gives the notice
+  code `config.badge`; it applies live.
 - `EVEN_KEEL_BADGE_SECRET` in `.env` — the Worker's push secret, one for all projects.
+
+## Preview
+
+`GET /api/projects/<id>/badge.svg?theme=dark|light` draws the badge of the service's current state (anything but
+`light` is dark), `no-store`; an unknown project is 404. It does not need the badge to be on. `still=1` draws it
+without animation whatever the mode (`RenderOptions.still`): one frame for the PNG.
+
+### No PNG from the Worker (BTN-920)
+
+A post on Reddit or LinkedIn takes neither SVG nor a picture by link, so it needs a snapshot: the dialog's "Download
+PNG" gives one, taken once by the maintainer for a post. A `/<slug>.png` on the Worker would need resvg as wasm, a
+large part of the free plan's 3 MB script limit, and an 840 px render at twice the size with embedded fonts within the
+free plan's 10 ms of CPU per request (neither measured), and it would serve only a site that loads pictures by link yet
+refuses SVG — none is known (dev.to not checked).
 
 ## The dialog
 
@@ -331,10 +375,8 @@ the settings tab kept (`BadgeDialog.tsx`, lazy). Four cards, each change written
   key in lower case until one is given, `defaultSlug`), written on blur or Enter; the push secret through
   `secrets/set` (the page sees only whether it is set; one from outside `.env` disables the field); a link to
   `deploy/badge/README.md` on GitHub. "Check" pushes the project's current state to the address and name in the
-  fields, saved or not, then reads the picture back (`checkBadge`, `src/badge/check.ts`). Its answer is a band under
-  the button: `badge.checked`, or `badge.url`, `badge.slug`, `badge.noSecret`, `badge.unreachable` (the network error
-  only in the log), `badge.refused` (401), `badge.notWorker` (404), `badge.rejected` (400), `badge.pushStatus`, then
-  for the picture `badge.imageStatus`, `badge.notSvg`.
+  fields, saved or not, then reads the picture back (`checkBadge`, `src/badge/check.ts`); its answer is a band under
+  the button (the codes below).
 - **What to show** — eight switches over `fields` (`BADGE_GROUPS` in `badgeParts.ts`): tasks in work and the action
   (`agent`, `model`, `time`, `action` together), context, the chain, the milestone, sessions, median cost, median time,
   English titles. The dialog always writes the full list.
@@ -348,25 +390,25 @@ the settings tab kept (`BadgeDialog.tsx`, lazy). Four cards, each change written
   under it the snippet (`badgeMarkdown`): a `<picture>` with the light theme for a light reader and the dark one
   otherwise, inside `<a>` when the link is not empty. Without an address and a name only a line saying so.
 
+"Check" answers, in the order it checks:
+
+| Code | When |
+| --- | --- |
+| `badge.url`, `badge.slug` | the address or the name is bad |
+| `badge.noSecret` | no push secret |
+| `badge.unreachable` | the push did not reach the Worker (the network error only in the log) |
+| `badge.refused` | the push got 401 |
+| `badge.notWorker` | 404 |
+| `badge.rejected` | 400 |
+| `badge.pushStatus` | any other error |
+| `badge.imageStatus` | the push went through, the picture did not answer 200 |
+| `badge.notSvg` | the picture is not an SVG |
+| `badge.checked` | the Worker took the push and draws the badge |
+
 The commands: `project/badge` `{ project, badge }` — `badge.url`/`badge.slug` for a bad address or name, else
 `ConfigStore.saveBadge` (`withBadge` in `src/config-form.ts`) and a push tick; the query `project/badge/check`
 `{ project, url, slug }` → `{ ok, notice }`. In `dev:fake`: `?badgeState=filled`, `?badgeCheck=refused|unreachable`
 (`docs/web/fake-states.md`).
-
-## Preview
-
-`GET /api/projects/<id>/badge.svg?theme=dark|light` draws the badge of the service's current state (anything but
-`light` is dark), `no-store`; an unknown project is 404. It does not need the badge to be on. `still=1` draws it
-without animation whatever the mode (`RenderOptions.still`): one frame for the PNG.
-
-### No PNG from the Worker (BTN-920)
-
-A post on Reddit or LinkedIn takes neither SVG nor a picture by link, so it needs a snapshot; the dialog's button gives
-one. The Worker has no `/<slug>.png`: rasterizing there would need resvg as wasm, a large part of the free plan's 3 MB
-script limit, and a render of the 840 px badge at twice its size with embedded fonts against the free plan's 10 ms of
-CPU per request (neither measured). A snapshot is taken once by the maintainer for a post, which the button covers
-without a Worker; a live PNG link would only matter for a site that loads pictures by link yet refuses SVG — none is
-known (how dev.to treats a picture by link is not checked).
 
 ## The Worker
 
@@ -415,5 +457,5 @@ so the Worker cannot import `src/badge/`: it takes the drawing from the npm pack
   The folder's own `tsconfig.json` has no `paths`: a user's clone resolves the package from `node_modules`.
 
 The Worker's tests (`deploy/badge/src/worker.test.ts`, a fake KV) run in the root `npm test`. `npx wrangler deploy
---dry-run` in the folder bundles it (66 KiB, 2026-11-09; again 2026-11-09 with the packed `even-keel-badge` installed
-from its tarball, 66.53 KiB), and `wrangler dev` served pushes from `postBadge` live (`docs/verified/page.md`).
+--dry-run` in the folder bundles it (66.53 KiB with the packed `even-keel-badge` installed from its tarball,
+2026-11-09), and `wrangler dev` served pushes from `postBadge` live (`docs/verified/page.md`).

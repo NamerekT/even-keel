@@ -1,84 +1,297 @@
 # Tally stats on the page
 
-Reference for sessions: the `/stats` page, its server and rule changes. The collector and the database themselves are in `docs/tally.md`.
+The `/stats` page, its server and rule changes. The collector and the database themselves are in `docs/tally.md`.
 
-## Optional: the mode (BTN-247)
+## Tally mode (BTN-247)
 
-- Tally is optional. The global setting `tally` (`off` | `local` | `server`, `src/stats/mode.ts`) picks where it writes; its default is `null`, not chosen, and until the user chooses the service starts no collector and creates no database.
-- An install that had no `tally` yet gets one inferred at startup and saved as the setting (`inferredTallyMode`): `TALLY_DB_HOST` set → `server`, `state/tally/pgdata` exists → `local`, otherwise it stays `null`. So an install where Tally already ran never sees the setup screen.
-- While `tally` is `null` (and the config parses), `/` sends the page to the stats step of the setup, `/setup?step=stats` (`StatsStep` in `StatsSetup.tsx`; the whole setup on the first run, BTN-310, `docs/web/setup.md`), before the project wizard: a picture of `/stats` (`web/public/stats-preview.png`, shot from `dev:fake`), what is collected, where, the room it takes, that without stats the checkpoint threshold stays at 200k, then the three modes as the account wizard's cards (`TallyChoice.tsx`). `off` and `local` apply at once; `server` is a second part with the connection fields (`&db=server`).
-- Settings → Stats has the same cards (`TallySettings`) above the stats fields: the mode in force is tagged "now", another one applies with a button, `server` through its fields. Everything applies live: the service restarts the collector and the reader on the new mode (`applyTally` in `src/service.ts`) on a config change and on a `.env` change of `TALLY_DB_*`/`TALLY_READER_*`/`TALLY_WRITER_*`.
-- `POST /api/stats/tally` `{ mode, server? }` (`TallyControl`): `server` takes `{ host, port, name, readerPassword, writerPassword }` — a blank password keeps the one in `.env`, a blank port is 5432 (`serverValues` in `src/stats/connect.ts`); without `server`, the `.env` values. The service signs in as the reader and as the writer first (`checkServer`, `tally.unreachable`), writes the changed variables to `.env` in one write (`Secrets.update`, which the classifier's section on Stats sends through `secrets/update` too), then saves the setting.
-- Turning stats off deletes nothing: the embedded folder and the `TALLY_*` lines stay, and switching back starts Tally on them without the setup.
-- Off, the `/stats` answers are `{ state: 'off', reason }`: `disabled` (turned off — a plain note with a link to Settings → Stats), `unchosen` (a link to the setup), or the comma-separated `.env` variables the `server` mode is missing (a warning).
+- Tally is optional. The global setting `tally` (`off` | `local` | `server`, `src/stats/mode.ts`) picks where it
+  writes; its default is `null`, not chosen, and until the user chooses the service starts no collector and creates no
+  database.
+- An install that had no `tally` yet gets one inferred at startup and saved as the setting (`inferredTallyMode`):
+  `TALLY_DB_HOST` set → `server`, `state/tally/pgdata` exists → `local`, otherwise it stays `null`. So an install where
+  Tally already ran never sees the setup screen.
+- **The setup step.** While `tally` is `null` (and the config parses), `/` sends the page to the stats step of the
+  setup, `/setup?step=stats` (`StatsStep` in `StatsSetup.tsx`; the whole setup on the first run, BTN-310,
+  `docs/web/setup.md`), before the project wizard. It shows:
+  - a picture of `/stats` (`web/public/stats-preview.png`, shot from `dev:fake`);
+  - what is collected, where, the room it takes, and that without stats the checkpoint threshold stays at 200k;
+  - the three modes as the account wizard's cards (`TallyChoice.tsx`): `off` and `local` apply at once; `server` is a
+    second part with the connection fields (`&db=server`).
+- **Settings → Stats** has the same cards (`TallySettings`) above the stats fields: the mode in force is tagged "now",
+  another one applies with a button, `server` through its fields. Everything applies live: the service restarts the
+  collector and the reader on the new mode (`applyTally` in `src/service.ts`) on a config change and on a `.env`
+  change of `TALLY_DB_*`/`TALLY_READER_*`/`TALLY_WRITER_*`.
+- `POST /api/stats/tally` `{ mode, server? }` (`TallyControl`): `server` takes
+  `{ host, port, name, readerPassword, writerPassword }` — a blank password keeps the one in `.env`, a blank port is
+  5432 (`serverValues` in `src/stats/connect.ts`); without `server`, the `.env` values. The service signs in as the
+  reader and as the writer first (`checkServer`, `tally.unreachable`), writes the changed variables to `.env` in one
+  write (`Secrets.update`), then saves the setting.
+- Turning stats off deletes nothing: the embedded folder and the `TALLY_*` lines stay, and switching back starts Tally
+  on them without the setup.
+- **Off**, the `/stats` answers are `{ state: 'off', reason }`: `disabled` (turned off — a plain note with a link to
+  Settings → Stats), `unchosen` (a link to the setup), or the comma-separated `.env` variables the `server` mode is
+  missing (a warning; the project page's strip names them too). The database not answering or the embedded one failed
+  to open is an error on the page and the strip; the rest of Even Keel works.
 
 ## Database and collector (BTN-70)
 
-- `local` is the embedded one, PGlite in `state/tally/pgdata`: a service thread owns it and exposes it to the ordinary `pg` on a free `127.0.0.1` port (`owner.json` next to it), and the service starts the collector itself every 5 minutes (`src/stats/tally.ts`); no server or scheduler is needed, the same on all systems.
-- While the service process is alive, a manual `npm run tally` refuses with the embedded database, and `tally/bin/sql.mjs` reads it through the service's port. The database survives a hard kill of the process (which is how the Windows service stops it).
-- `server` is an external Postgres from `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_READER_PASSWORD` (and `TALLY_WRITER_PASSWORD` for the collector), and Even Keel reads it with the `tally_reader` role. The variables alone no longer pick it: the mode does.
-- `server` with a variable missing — the page and the strip say stats are off and name the variables; the database does not answer or the embedded one failed to open — they show an error, and the rest of Even Keel works.
-- The session audit (and the weekly one, and the review of handoffs) is the skill `tally:session-audit` of the plugin `plugins/tally` (BTN-263), its queries go through the plugin's launcher to `tally/bin/sql.mjs`, read-only, over the `audit_*` views (`docs/tally.md`, "Session audit").
+- `local` is the embedded PGlite in `state/tally/pgdata`, owned by a service thread; the service runs the collector
+  itself, so no server or scheduler is needed. Its port, `owner.json`, the run every 5 minutes and why `npm run tally`
+  refuses while the service lives are in [`docs/tally/collector.md`](tally/collector.md).
+- `server` is an external Postgres from `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_READER_PASSWORD`
+  (and `TALLY_WRITER_PASSWORD` for the collector); Even Keel reads it with the `tally_reader` role. The variables alone
+  no longer pick it: the mode does.
+- The session audit is a skill of the `plugins/tally` plugin ([`docs/tally/rules.md`](tally/rules.md),
+  "Session audit").
 
 ## The `/stats` page (BTN-44, BTN-49, `web/src/stats/`)
 
-- **Test project** in a project's Repository settings (`testProject`, BTN-206) applies live and retrospectively. The home launch chart excludes flagged project GUIDs. Stats exclude their resolved project keys after task/folder attribution, before aggregation; if projects share a key, one flagged project hides the whole key. History, totals, tasks, steps, comparisons, rule marks and checkpoint recommendations follow this filter. **Show test projects** restores them; the switch is Even Keel's setting `statsShowTests` (BTN-1364, `state.showTests.stats`, written by `view/tests`), so it outlives a reload, a new tab, a bare `/stats` link and a restart of the service. The URL parameter `tests=1` (BTN-809) turns them on for that visit only, the stored switch left as it is; a press on the switch writes the setting and drops the parameter (`testsShown` in `web/src/stats/search.ts`). Explicit project selection alone does not include them. The project's own strip includes tests, and its More link carries `tests=1`. Reader cache keys include the current flagged keys and the switch. Collection, calibration, actual account usage windows and spend remain unchanged; removing the flag restores the history. Empty and unavailable states keep their existing actions.
+- **What is on it.** A link in the header, across all Tally projects: a project column (filter and legend), a period,
+  tiles, the spend chart, "Where the spend goes", the task table (a row expands into sessions on a time axis and
+  stuck spans) and stuck spans.
+- **Tiles.** The cost tile has "unpriced" on a line of its own under its change. The "Within ×1.5" tile lists
+  captioned rows under its number — within ×2, compared, skipped (the count; no estimate and not closed apart in its
+  tip) — and the baseline tile its within ×2 the same way.
+- **Groups.** Overview (tiles, chart, sources, "Limits by account"), "Rule changes", time and quality ("Time and
+  estimates", "Checkpoint threshold"), then lists ("Tasks", "Stuck", "Steps"), with a larger gap between groups.
+  - "Rule changes" starts open; the other foldable sections start closed (`folds.ts`). The saved browser choice
+    (`localStorage`, `even-keel.stats.open`) wins, an empty saved list too; picking a chart mark opens "Rule changes".
+  - Every disclosure is the shared `Fold`, which animates closing as well as opening. Long header explanations live in
+    `HelpTip`; counts and handwritten remarks stay visible folded.
+- Model shares below 1% are grouped into "others" with a breakdown tip (each one's name and sum) and disclosure.
+  Components in "Time and estimates" show the top 10 by task count, with the rest behind "Show all".
+- **No facts glued with `·`** (BTN-1384, the rule in `docs/design.md`). For example, "Spent stuck" shows its share as
+  a muted second figure in the value's row; the legends of "Where the spend goes" are columns — name, sum, share — of
+  fixed widths, so the folded tail lines up under the major keys; in a task's timeline a session's model is a tag
+  beside its cost and the steps stand apart by the gap. An account of a machine elsewhere shows the machine's name as
+  a tag beside the key in the Account filter. The foot reads "Read from Tally at …".
+- **The task table** has "Estimate", "Time" (active, over the whole task rather than the period; the full one is in the
+  tooltip), "Waiting" (from the `task_times` view) and "Compactions" — the main threads' context compactions in the
+  period (the `compactions` view; automatic and `/compact` apart in the tooltip), also marked as ticks on the sessions'
+  time axis of an expanded row.
+  - A column no task has a value for is hidden, "Project" shows only with several projects (`taskColumns.ts`); the
+    first 20 rows are shown, the rest behind a link.
+  - A task's id links to the `url` the launch log recorded for it (`tasks.url`, BTN-66: a task of a feed lives in
+    another tracker than its project), else to the tracker's template.
+- **Keep-warm pings** (BTN-1413, Tally's `warm_ping_costs`, `docs/tally/migrations.md` step 20) count in a task's cost
+  and weekly-limit share of the period.
+  - `TASKS` in `reader.ts` adds the pings of the period's sessions by their task; the cost's tip says how much of it
+    the pings took and how many there were (`warmCost`, `warmPings`), under the OpenRouter estimate when both apply. A
+    session of an expanded row shows its pings of all time the same way (`TASK_SESSIONS`). The period's totals, the
+    chart and the breakdowns stay on the responses.
+  - Under the pings the tip counts the agents gone cold (BTN-1530, `agentMisses`, `agentMissCost`): an agent's request
+    after a pause longer than its cache's lifetime that wrote more than it read, which keep-warm cannot prevent
+    (`docs/sessions/cache.md`, "A turn ended on a background job"). Its cost is already part of the task's; the pause
+    before the period's first request of an agent is taken from the earlier period's messages.
+- **Project chats** (BTN-1233, `ChatSpend.tsx`) are a line under the task table, inside the "Tasks" fold, shown only
+  when the period has any: per project the number of chats and their spend as paid, the sessions and the weekly-limit
+  share in the tip, the project's key only with several projects. The server's `period.chats` (`CHATS` in
+  `reader.ts`) groups the period's responses of sessions in Tally's `chat_sessions` by project; those sessions are no
+  task's, so the table, the medians and the task strip never count them (`docs/tally/migrations.md`, step 18). The
+  page's filters (projects, accounts, tests) apply as to the tasks.
+- **"Time and estimates"** (BTN-55, `EstimateSection.tsx`, `accuracy.ts`) — the median active time of closed tasks,
+  the share within ×1.5 and ×2 of the estimate and the median "actual / estimate" by project, component and model;
+  only closed tasks with an estimate are compared, those without an estimate and open ones go into a counter. The
+  baseline (BTN-81, "Const.") is the same shares if every compared task were estimated at the median active time of
+  closed tasks of its project in the page's selection: an estimate that does not beat it tells nothing.
+- **"Steps"** (BTN-56, `StepsSection.tsx`, the server is `src/stats/steps.ts` and `steps-reader.ts`) — the agent's long
+  commands from Tally's `step_runs` over the period: per step the runs, p50, p90, max, the share longer than
+  `slowSeconds`, distribution over buckets, cold and warm runs, failed ones, the share of tasks' active time (over
+  whole tasks; the base is the task's active time plus the time of runs outside turns) and p90 by week. At the top are
+  the steps that grew over the week (the same rule as the `step_growth` view), at the bottom the collapsed commands
+  without a rule, longest in total. An expanded task has a "Steps:" line with each step's share.
+- **Colours.** A project's colour is its `color` setting (BTN-207, `docs/settings.md`), the slot of `LaunchChart` and
+  the home cards (`projectSlot`/`seriesStyle`); the chart shows the first six selected and "others". Model and
+  entrypoint shares take the slate ramp `--tone-1`…`--tone-6` (`toneStyle`).
+- **Entrypoints.** Codex sessions come as "Codex CLI" (`codex-exec`) and `codex-desktop`; OpenCode as "OpenCode",
+  Copilot as "GitHub Copilot" (`copilot`), priced at API prices.
+- **Model families.** Model shares, task models and comparisons use the common `familyOf` (`src/stats/base-sql.ts`):
+  Claude's tiers, OpenAI's families with versions combined (an untiered OpenAI model as "GPT") and the other
+  providers' by name, provider prefixes included; an unrecognised model is "other" in shares. Tally's
+  `task_estimates.model_family` uses the same expression (schema v14, BTN-967; MiniMax since v16, BTN-1204).
+- **Jokes without typing** (`web/src/stats/remarks.ts`):
+  - one stamp over the tiles — dead calm with no spend, over budget at ×2 the previous period, aground at 25 % of the
+    money stuck, suspicious savings at half, an even keel from 5 tasks and under 5 % stuck — slapped once per period
+    (in the flow under the tiles below 640 px);
+  - graphite handwritten remarks on section heads (not red: red means an error or a limit), visible folded too: one
+    model with 90 % of "Where the spend goes", the project median beating the estimates (from 5 compared tasks), a
+    task with 30 % of the money among 3+ or with 5+ sessions, the top stuck reason from 3 spans.
+- **A project page's strip** (`web/src/pages/StatsStrip.tsx`): three figures over 30 days, a small chart, the median
+  finished task (its cost and active time, each a median of its own), the three costliest tasks, each key opening the
+  task card (BTN-615, `stripTasks` in `web/src/pages/stripTasks.ts`), and "More →" to `/stats?projects=<key>&tests=1`.
+  - The tasks come from `period` with the same test-inclusive query as that link, so the two share one cached answer.
+  - Moving to another project, the strip counts tasks only from the current project's answer (`keptTasks`); a project
+    opened again shows its last tasks and history at once while they are read anew.
+  - Up to 760 px the strip keeps only the spend. While the stats are read it shimmers in the same shape
+    (`StripSkeleton`), and its fixed line heights keep it, a one-line notice and the figures at one height, so what is
+    under it does not jump (BTN-367).
+- **"In weekly limits"** (BTN-51) — the tile and the strip's figure are the spend of all accounts in units of one
+  weekly limit, not the header's `Week`, which is the current account's usage from `/usage`.
+  - It counts only days with limit snapshots: `history` and `period` return `limits` — the first and last local day
+    of 7d window snapshots (`limit_snapshots` start on 2026-10-03).
+  - The tile holds one number and "since <day>": up to 7 covered days the sum of shares, more — the weekly average; no
+    snapshots — "no data", not 0 (`weeklyLimit` in `web/src/stats/format.ts`).
+  - For a period longer than 7 days, the folded "Limits by account" section lists weekly window peaks, with full
+    wrapping account names and separate closed/ongoing columns (`period.windows`, `limitAccounts`).
 
-- A link in the header, across all Tally projects: a project column (filter and legend), a period, tiles, the spend chart, "Where the spend goes", the task table (a row expands into sessions on a time axis and stuck spans) and stuck spans.
-- The page groups overview (tiles, chart, sources, "Limits by account"), "Rule changes", time and quality ("Time and estimates", "Checkpoint threshold"), then lists ("Tasks", "Stuck", "Steps"), with a larger gap between groups. "Rule changes" starts open; the other foldable sections start closed (`folds.ts`). The saved browser choice (`localStorage`, `even-keel.stats.open`) wins, including an empty saved list; picking a chart mark opens "Rule changes". All disclosures use the shared `Fold`, including their exit motion. Long header explanations live in `HelpTip`; counts and handwritten remarks stay visible folded.
-- Model shares below 1% are grouped into "others" with a breakdown tip (each one's name and sum) and disclosure. Components in "Time and estimates" show the top 10 by task count, with the rest behind "Show all".
-- No facts glued with `·` on the page (BTN-1384, the rule in `docs/design.md`): "Spent stuck" shows its share as a muted second figure in the value's row; the legends of "Where the spend goes" are columns — name, sum, share — of fixed widths, so the folded tail lines up under the major keys; "unpriced" is a line of its own under the cost tile's change. The "Within ×1.5" tile lists captioned rows under its number — within ×2, compared, skipped (the count; no estimate and not closed apart in its tip) — and the baseline tile its within ×2 the same way. A rule mark's tasks are key tags (no link: the row is a button; the opened "What changed" links them), its reasons, kinds and authors stand apart by the gap; "What changed" puts the time span, the file count and the lines into cells of their own. In a task's timeline a session's model is a tag beside its cost, and the steps stand apart by the gap. An account of a machine elsewhere shows the machine's name as a tag beside the key in the Account filter. The foot reads "Read from Tally at …".
-- The task table has "Estimate", "Time" (active, over the whole task rather than the period; the full one is in the tooltip) and "Waiting" (from the `task_times` view), and "Compactions" — the main threads' context compactions in the period (the `compactions` view; automatic and `/compact` apart in the tooltip), also marked as ticks on the sessions' time axis of an expanded row. A column no task has a value for is hidden, "Project" shows only with several projects (`taskColumns.ts`); the first 20 rows are shown, the rest behind a link. A task's id links to the `url` the launch log recorded for it (`tasks.url`, BTN-66: a task of a feed lives in another tracker than its project), else to the tracker's template.
-- A task's cost and weekly-limit share count its keep-warm pings of the period (BTN-1413, Tally's `warm_ping_costs`, `docs/tally/migrations.md` step 20): `TASKS` in `reader.ts` adds the pings of the period's sessions by their task, and the cost's tip says how much of it the pings took and how many there were (`warmCost`, `warmPings`), under the OpenRouter estimate when both apply. A session of an expanded row shows its pings of all time the same way (`TASK_SESSIONS`). The period's totals, the chart and the breakdowns stay on the responses. Under the pings the tip counts the agents gone cold (BTN-1530, `agentMisses`, `agentMissCost`): an agent's request after a pause longer than its cache's lifetime that wrote more than it read, which keep-warm cannot prevent (`docs/sessions/cache.md`, "A turn ended on a background job"); its cost is already part of the task's, the pause before the period's first request of an agent is taken from the earlier period's messages.
-- Project chats (BTN-1233, `ChatSpend.tsx`) are a line under the task table, inside the "Tasks" fold, shown only when the period has any: per project the number of chats and their spend as paid, the sessions and the weekly-limit share in the tip, the project's key only with several projects. The server's `period.chats` (`CHATS` in `reader.ts`) groups the period's responses of sessions in Tally's `chat_sessions` by project; those sessions are no task's, so the table, the medians and the task strip never count them (`docs/tally/migrations.md`, step 18). The page's filters (projects, accounts, tests) apply as to the tasks.
-- "Time and estimates" (BTN-55, `EstimateSection.tsx`, `accuracy.ts`) — the median active time of closed tasks, the share within ×1.5 and ×2 of the estimate and the median "actual / estimate" by project, component and model; only closed tasks with an estimate are compared, those without an estimate and open ones go into a counter. The baseline (BTN-81, "Const.") is the same shares if every compared task were estimated at the median active time of closed tasks of its project in the page's selection: an estimate that does not beat it tells nothing.
-- "Steps" (BTN-56, `StepsSection.tsx`, the server is `src/stats/steps.ts` and `steps-reader.ts`) — the agent's long commands from Tally's `step_runs` over the period: per step the runs, p50, p90, max, the share longer than `slowSeconds`, distribution over buckets, cold and warm runs, failed ones, the share of tasks' active time (over whole tasks; the base is the task's active time plus the time of runs outside turns) and p90 by week. At the top are the steps that grew over the week (the same rule as the `step_growth` view), at the bottom the collapsed commands without a rule, longest in total. An expanded task has a "Steps:" line with each step's share.
-- A project's colour is its `color` setting (BTN-207, `docs/settings.md`), the slot of `LaunchChart` and the home cards (`projectSlot`/`seriesStyle`); the chart shows the first six selected and "others". Model and entrypoint shares take the slate ramp `--tone-1`…`--tone-6` (`toneStyle`). Codex sessions come as "Codex CLI" (`codex-exec`) and `codex-desktop`; OpenCode as "OpenCode", Copilot as "GitHub Copilot" (`copilot`), priced at API prices. Model shares, task models and comparisons use the common `familyOf` (`src/stats/base-sql.ts`): Claude tiers, OpenAI's Sol, Luna, Astra and Terra (versions combined, untiered OpenAI as "GPT"), DeepSeek, Qwen, Gemini, Kimi, GLM, Mistral, Llama and MiniMax, including provider prefixes. Unrecognised models appear as "other" in shares. Since Tally schema v14, `task_estimates.model_family` uses the same expression (BTN-967); MiniMax since v16 (BTN-1204).
-- Jokes without typing (`web/src/stats/remarks.ts`): one stamp over the tiles — dead calm with no spend, over budget at ×2 the previous period, aground at 25 % of the money stuck, suspicious savings at half, an even keel from 5 tasks and under 5 % stuck — slapped once per period (in the flow under the tiles below 640 px); and graphite handwritten remarks on section heads (not red: red means an error or a limit), visible folded too: one model with 90 % of "Where the spend goes", the project median beating the estimates (from 5 compared tasks), a task with 30 % of the money among 3+ or with 5+ sessions, the top stuck reason from 3 spans.
-- A project page has a strip `web/src/pages/StatsStrip.tsx`: three figures over 30 days, a small chart, the median finished task (its cost and active time, each a median of its own) and the three costliest tasks, each key opening the task card (BTN-615, `stripTasks` in `web/src/pages/stripTasks.ts`), and "More →" to `/stats?projects=<key>&tests=1`. The tasks come from `period` with the same test-inclusive query as that link, so the two share the server's 60 s cache. The page keeps the strip's hook when it moves to another project, so the tasks count only when they answered the current project's query (`keptTasks`); the last tasks of each project and the last history stay for the page's life, and a project opened again shows its strip at once while it is read anew. Up to 760 px the strip keeps only the spend. While the stats are read it shimmers in the same shape (`StripSkeleton`), and the strip's fixed line heights keep it, a one-line notice and the figures at one height, so what is under it does not jump (BTN-367).
-- The "In weekly limits" tile and strip figure (BTN-51) is the spend of all accounts in units of one weekly limit — not the header's `Week`, which is the current account's usage from `/usage`. It counts only days with limit snapshots: `history` and `period` return `limits` — the first and last local day of 7d window snapshots (`limit_snapshots` start on 2026-10-03). The tile holds one number and "since <day>"; up to 7 covered days it is the sum of shares, more — the weekly average; no snapshots — "no data", not 0 (`weeklyLimit` in `web/src/stats/format.ts`). For a period longer than 7 days, the folded "Limits by account" section lists weekly window peaks, with full wrapping account names and separate closed/ongoing columns (`period.windows`, `limitAccounts`).
+### Test projects (BTN-206)
+
+**Test project** in a project's Repository settings (`testProject`) applies live and retrospectively.
+
+- **What it hides.** The home launch chart leaves out the flagged project GUIDs. Stats leave out their resolved
+  project keys after task/folder attribution, before aggregation; if projects share a key, one flagged project hides
+  the whole key. History, totals, tasks, steps, comparisons, rule marks and checkpoint recommendations follow it.
+- **What it does not touch.** It changes only what the page reads: Tally still collects the projects, and the
+  hooks' estimate calibration, the accounts' usage windows ("Limits by account") and their spend still count them.
+  Removing the flag brings their history back. A page the filter leaves empty shows the usual empty state.
+- **Show test projects** brings them back on the page. The switch is Even Keel's setting `statsShowTests` (BTN-1364,
+  `state.showTests.stats`, written by `view/tests`), so it outlives a reload, a new tab, a bare `/stats` link and a
+  restart of the service. The URL parameter `tests=1` (BTN-809) turns them on for that visit only, the stored switch
+  left as it is; a press on the switch writes the setting and drops the parameter (`testsShown` in
+  `web/src/stats/search.ts`). Picking a test project in the column alone does not include it.
+- The project's own strip includes tests, and its More link carries `tests=1`. The reader's cache is keyed by the
+  flagged keys and the switch too, so a change shows at once.
 
 ## Server (`src/stats/`)
 
-- `GET /api/stats/history?scope=all|chain&account=&tz=` — spend by day and project over the whole history: for the column, the calendar heat map and the chart.
+- `GET /api/stats/history?scope=all|chain&account=&tz=` — spend by day and project over the whole history: for the
+  column, the calendar heat map and the chart.
 - `GET /api/stats/period?from=&to=&projects=&scope=&account=&tz=` — tiles, sources, tasks, stuck spans.
 - `GET /api/stats/steps?from=&to=&projects=&scope=&account=&tz=` — the "Steps" section.
 - `GET /api/stats/task/<ID>` — the task's sessions, stuck spans and steps.
-- The task card's "Time" (BTN-1097): `GET /api/tasks/<ID>` adds `activeS`, the task's `task_times.active_s` (`readTaskActive`, the query of the task table's "Time"; `StatsReader.activeTime`, under the same 60 s cache). The page never asks Tally for it; stats off, a failed read or one over 1.5 s give `null` and the card goes without the time.
-- Stuck spend (period totals and before/after comparisons) and task span counts exclude the current `span_reasons.reason = 'normal'`. Missing reasons and `other` count. Span lists and weekly breakdowns keep all reasons; the existing 60 s cache applies to reclassification too.
-- `GET /api/projects/<key>/calibration?task=<ID>` — estimate calibration (BTN-82, `src/stats/calibration.ts`) for the hook of the `huly` and `tasks` plugins (`plugins/<plugin>/hooks/show-calibration.mjs`): per step 5/10/20/40/80 min — closed tasks, the median and 25–75% of active time; 8 recent closed tasks of the task's component (the component is from Tally's `tasks`), or of the whole project without it. A step is an estimate equal to the step to the minute; the old scale does not fall into a step. "Too little data" — fewer than `stats.compare.minTasks`. The key is any that Tally has seen, not only from `projects`.
-- `GET /api/stats/spend?tz=` — the spend in dollars since local midnight and over the last 30 days, by account folder key (Tally's `account`), from `message_paid` (BTN-99): a session's real spend on an OpenRouter key where Even Keel read one (BTN-860), the estimate by price otherwise, so a model Tally has no price for still counts on a metered key. The accounts panel shows it for API accounts instead of limits (`docs/accounts.md`); the page fetches it only while some account is on a key, every 5 minutes.
-- `GET /api/stats/tokens?tz=` — the tokens of `messages` (input, output and both cache writes and reads) since local midnight (`day`) and over the last 30 days (`month`), by account folder key (BTN-342): the accounts whose limit nothing tells show them instead of limits (`docs/accounts.md`); fetched only while such an account is shown, every 5 minutes.
-- `GET /api/stats/checkpoints` — each configured project's threshold, source (`default`, `config`, `calibrated`) and sample. The folded "Checkpoint threshold" section follows estimates: only configured/calibrated projects have individual rows; default projects share one "others N — 200k default" line with their missing sample counts in a tip. One query for all projects, ~0.5 s. Calculation and hook — `docs/sessions/checkpoint.md`, "Checkpoint threshold".
-- The whole history is read in ~0.7 s, `period` over 3 months in ~1.2 s (server, 61 thousand messages, 2026-10-09), so Tally needs no per-day aggregate. The response is cached for 60 s, an error for 5 s, the page refreshes it every 5 minutes; a second call with the same key while the first is read waits for its answer instead of sending its own queries, so the badge and the page share one `period` (BTN-1178).
-- The reader's pool (`readerPool` in `src/stats/reader.ts`, BTN-1178): 8 clients, 5 s to open a connection, 20 s `statement_timeout`, 30 s for a query to wait for a free client. `pg-pool` has one `connectionTimeoutMillis` for both the connect and the queue wait, so the pool's value is the queue wait and each client gets its own connect timeout; with one 5 s for both, a burst of `period` (ten queries of ~2 s each) beside `history` failed the queue's tail with "timeout exceeded when trying to connect" while Tally was alive. The client wrapper copies `password` explicitly: `pg-pool` makes it non-enumerable, so a spread alone drops it and server authentication fails (BTN-1184). The local Tally's socket server allows 16 connections and runs their queries one by one.
-- What already ate time: the server's JIT (the planner re-estimates `limit_shares` 60 times and compiles the query — 2.4 s of 3.3; the reader runs with `jit=off`), `limit_shares` itself in every query of a read (since BTN-1658 the reads take the stored rows, `limit_shares_stored`, refreshed by the writers, `docs/tally/migrations.md`, step 24) and parsing the folder for every message (`places` in `base-sql.ts` parses each folder once). Indexes do not help: the queries read almost the whole table, a full pass over `messages` is ~7 ms.
-- "Chain" is sessions from the launch log (`sessions.launch_reason`), not the entry point.
-- `machine=<id>` on `history`, `period`, `steps`, `rules` and `compare` (BTN-1280) keeps one machine's sessions: a machine elsewhere's by `sessions.machine`, the hub's own id those without one. Its accounts are `<key>@<machine id>` (`docs/tally/collector.md`, "Machines elsewhere").
-- Even Keel projects go under their key: sessions by task key, without a task — by the project folder of Even Keel's settings (without drive letter and case, with subfolders), as a "No task" row. The rest go by folder group (`folderGroups`): a folder goes under the outermost folder from the data that contains it (not a sibling and not one containing an Even Keel project), the group is named by the last segment of its path; the desktop app's scratch folders are a single "App scratch" row.
-- A session's folder is the folder of its first response (`sessions.project_dir`): a session that did `cd` stays entirely where it began. A session in `<config>/jobs/<first 8 characters of the id>/tmp/…` is a test run by another session: it takes the task and folder of its parent (`places` in `base-sql.ts`).
-- `stats.moves` (`{ "old folder": "new" }`) — folders that moved: the old one and its subfolders count under the new one, as do neighbouring worktrees like `<folder>-btn-7`; the new folder is the root of a group even if it is not in the data. Inside an Even Keel project, what moved goes under its key.
-- `stats.otherBelow` — folder groups (not Even Keel projects) cheaper than the threshold over all time are merged into "Other". 0 by default — off. Both keys apply on the fly.
-- `stats.checkpointTokens` — a number from 100000 pins the checkpoint threshold of every project (a project's own value or a task label over it, `docs/settings.md`), `null` (the default) leaves it to the calibration. Applies on the fly; a session's hook picks it up within an hour. `stats.checkpointShares` caps the thresholds by shares of the session's window (`docs/sessions/checkpoint.md`, "Checkpoint threshold"). With `contextHandoffs` off (BTN-255) neither asks for a handoff: the threshold is still computed and shown, the hook ignores it.
+- The task card's "Time" (BTN-1097): `GET /api/tasks/<ID>` adds `activeS`, the task's `task_times.active_s`
+  (`readTaskActive`, the query of the task table's "Time"; `StatsReader.activeTime`, cached like the rest). The page
+  never asks Tally for it; stats off, a failed read or one over 1.5 s give `null` and the card goes without the time.
+- **Stuck spend** (period totals and before/after comparisons) and task span counts leave out the spans whose reason
+  (`span_reasons.reason`) is `normal` at the time of the read. Missing reasons and `other` count. Span lists and weekly
+  breakdowns keep all reasons; a reclassified span moves once the cached answer expires.
+- `GET /api/projects/<key>/calibration?task=<ID>` — estimate calibration (BTN-82, `src/stats/calibration.ts`) for the
+  hook of the `huly` and `tasks` plugins (`plugins/<plugin>/hooks/show-calibration.mjs`): per step 5/10/20/40/80 min —
+  closed tasks, the median and 25–75% of active time; 8 recent closed tasks of the task's component (the component is
+  from Tally's `tasks`), or of the whole project without it. A step is an estimate equal to the step to the minute;
+  the old scale does not fall into a step. "Too little data" — fewer than `stats.compare.minTasks`. The key is any
+  that Tally has seen, not only from `projects`.
+- `GET /api/stats/spend?tz=` — the spend in dollars since local midnight and over the last 30 days, by account folder
+  key (Tally's `account`), from `message_paid` (BTN-99): a session's real spend on an OpenRouter key where Even Keel
+  read one (BTN-860), the estimate by price otherwise, so a model Tally has no price for still counts on a metered key.
+  The accounts panel shows it for API accounts instead of limits (`docs/accounts.md`); the page fetches it only while
+  some account is on a key, every 5 minutes.
+- `GET /api/stats/tokens?tz=` — the tokens of `messages` (input, output and both cache writes and reads) since local
+  midnight (`day`) and over the last 30 days (`month`), by account folder key (BTN-342): the accounts whose limit
+  nothing tells show them instead of limits (`docs/accounts.md`); fetched only while such an account is shown, every
+  5 minutes.
+- `GET /api/stats/checkpoints` — each configured project's threshold, source (`default`, `config`, `calibrated`) and
+  sample. The folded "Checkpoint threshold" section follows estimates: only configured/calibrated projects have
+  individual rows; default projects share one "others N — 200k default" line with their missing sample counts in a
+  tip. One query for all projects, ~0.5 s. The threshold's calculation, its settings (`stats.checkpointTokens`,
+  `stats.checkpointShares`, `contextHandoffs`) and the hook are in `docs/sessions/checkpoint.md`, "Checkpoint
+  threshold"; their levels in `docs/settings.md`.
+- `machine=<id>` on `history`, `period`, `steps`, `rules` and `compare` (BTN-1280) keeps one machine's sessions: a
+  machine elsewhere's by `sessions.machine`, the hub's own id those without one. Its accounts are `<key>@<machine id>`
+  (`docs/tally/collector.md`, "Machines elsewhere").
+
+### Speed and the cache
+
+- The whole history is read in ~0.7 s, `period` over 3 months in ~1.2 s (server, 61 thousand messages, 2026-10-09), so
+  Tally needs no per-day aggregate.
+- **The cache.** A response is cached for 60 s, an error for 5 s; the page refreshes it every 5 minutes. A second call
+  with the same key while the first is read waits for its answer instead of sending its own queries, so the badge and
+  the page share one `period` (BTN-1178).
+- **The reader's pool** (`readerPool` in `src/stats/reader.ts`, BTN-1178): 8 clients, 5 s to open a connection, 20 s
+  `statement_timeout`, 30 s for a query to wait for a free client.
+  - `pg-pool` has one `connectionTimeoutMillis` for both the connect and the queue wait, so the pool's value is the
+    queue wait and each client gets its own connect timeout; with one 5 s for both, a burst of `period` (ten queries
+    of ~2 s each) beside `history` failed the queue's tail with "timeout exceeded when trying to connect" while Tally
+    was alive.
+  - The client wrapper copies `password` explicitly: `pg-pool` makes it non-enumerable, so a spread alone drops it and
+    server authentication fails (BTN-1184).
+  - The local Tally's socket server allows 16 connections and runs their queries one by one.
+- **What already ate time:** the server's JIT (the planner re-estimates `limit_shares` 60 times and compiles the query
+  — 2.4 s of 3.3; the reader runs with `jit=off`), `limit_shares` itself in every query of a read (since BTN-1658 the
+  reads take the stored rows, `limit_shares_stored`, refreshed by the writers, `docs/tally/migrations.md`, step 24) and
+  parsing the folder for every message (`places` in `base-sql.ts` parses each folder once). Indexes do not help: the
+  queries read almost the whole table, a full pass over `messages` is ~7 ms.
+
+### How sessions are laid out by project
+
+- "Chain" (`scope=chain`) is sessions from the launch log (`sessions.launch_reason`), not the entry point; `scope=all`
+  takes hand sessions too.
+- **Even Keel projects** go under their key: sessions by task key, without a task — by the project folder of Even
+  Keel's settings (without drive letter and case, with subfolders), as a "No task" row.
+- **The rest** go by folder group (`folderGroups`): a folder goes under the outermost folder from the data that
+  contains it (not a sibling and not one containing an Even Keel project), the group is named by the last segment of
+  its path; the desktop app's scratch folders are a single "App scratch" row.
+- **A session's folder** is the folder of its first response (`sessions.project_dir`): a session that did `cd` stays
+  entirely where it began. A session in `<config>/jobs/<first 8 characters of the id>/tmp/…` is a test run by another
+  session: it takes the task and folder of its parent (`places` in `base-sql.ts`).
+- `stats.moves` (`{ "old folder": "new" }`) — folders that moved: the old one and its subfolders count under the new
+  one, as do neighbouring worktrees like `<folder>-btn-7`; the new folder is the root of a group even if it is not in
+  the data. Inside an Even Keel project, what moved goes under its key.
+- `stats.otherBelow` — folder groups (not Even Keel projects) cheaper than the threshold over all time are merged into
+  "Other". 0 by default — off.
+- `stats.moves` and `stats.otherBelow` apply on the fly.
 
 ## URL (`web/src/stats/search.ts`)
 
-`range=7d|month|last-month|3m|year|all` (a ready-made period, rolling; 30 days — no parameter) or `from=&to=`, `projects=` (absent — all, empty — none), `tests=1` (test projects included for this visit, over the stored switch), `scope=chain`, `account=`, `machine=` (the select "Machine", shown with more than one machine), `step=d|w|m` (chart step; absent — automatic: up to ~2 months by day, up to a year by week, beyond by month), `kinds=`, `purposes=`, `places=shared|project`. Days are in local time (`tz`).
-
-`beforeModels=sol,terra&afterModels=sonnet` selects families independently for comparison. A missing parameter means all families; an empty value means none. These selections survive other filter changes. Without picked marks, both sides use the page period (local midnight through the day after `to`, converted to UTC); "Side by side" starts folded unless the URL has an explicit model selection.
+`range=7d|month|last-month|3m|year|all` (a ready-made period, rolling; 30 days — no parameter) or `from=&to=`,
+`projects=` (absent — all, empty — none), `tests=1` (test projects included for this visit, over the stored switch),
+`scope=chain`, `account=`, `machine=` (the select "Machine", shown with more than one machine), `step=d|w|m` (chart
+step; absent — automatic: up to ~2 months by day, up to a year by week, beyond by month), `kinds=`, `purposes=`,
+`places=shared|project`. Days are in local time (`tz`). The model selections of the rule comparison are under
+"Rule changes".
 
 ## Rule changes (BTN-50)
 
 Collecting the versions — "Rule versions" in `docs/tally/rules.md`.
 
-- The spend chart has change marks (`SpendChart`, `web/src/stats/marks.ts`) — a notch at the X axis; the line rises over the plot only under the pointer and for a selected mark — and under it is `RulesSection.tsx`: the "Files" (kinds) and "Goal" filters, the place legend filter (shared `~/.claude` files — an empty ring, project files — a dot in the project's colour; the same dot on each kind in the mark's row), period marks, the change sets of the selected mark (session, task, goal and reason from the log, the "±hour"/"±day" precision, divergence from the transcript), the file diff and "Before and after" (`RuleCompare.tsx`).
-- A mark is a session's changes (`s:<session>`), unattributed changes with gaps up to 30 min (`m:…`) or a log set without its own session (`i:<id>`). Neighbouring marks with fewer than `minSessions` sessions started between them are merged. Selected marks are not written to the URL.
-- Memory changes give no marks (`filterSets`): sessions write it constantly, there were so many points that there was nothing to compare; Tally collects them, there is no "memory" filter.
-- A click is a mark, Shift/Ctrl-click a second one: [start of the first − N days, start) is compared against [end of the second, + N days).
-- The selected mark shows "Before and after" and "By model" first, then "What changed", folded by default with dates and line totals visible. Each comparison side has an independent family multiselect, all by default. A session is selected by its predominant main-thread family; a task by its predominant family across `audit_sessions`. All metrics retain the full cost of the selected session/task, rather than only messages of that model. Side periods may overlap, including the same-period "Side by side" mode without a mark.
-- Side metrics: the median task cost, sessions per task, mean request context, share of requests > 150k, $ per request, share of stuck spans, errors and refusals, the median input context and the model shares by main-thread requests. The sample is in every row; fewer than `minTasks` tasks or `minSessions` sessions on either side — "too little data", no figures.
-- The model mix of the sides differs by more than 20 % (half the sum of share differences) — a warning above the table, unless both sides explicitly select the same families. Version shifts within an identical explicit selection do not show this warning.
-- "By model" (`FamilyCompare.tsx`, `SIDE_FAMILIES`) uses the shared `familyOf`, including separate GPT tiers and DeepSeek. For each side: tasks, closed, total cost, medians of closed-task cost/time and actual/estimate. The final "Change" column gives closed-task cost/time deltas. Families with fewer than `minTasks` closed tasks on either side keep their figures, are muted and sorted last, with no delta. Tasks use `task_estimates`, with the first session assigning the period and full task spend retained; page filters require a matching message. Families are computed in one pass over `audit_sessions`, avoiding the view's per-task `model_family` subquery. Method explanations are tips beside the comparison headings.
-- Tally classifier answers (`entrypoint` `tally-classify`, each a "session" of one answer of ~1k) are in neither the sides nor the session count for merging marks (BTN-52).
-- Routes: `GET /api/stats/rules?scope=&account=&tz=&projects=&kinds=&purposes=&places=` (marks), `GET /api/stats/rules/diff?changes=<id>,…` (diff), `GET /api/stats/rules/compare?before=&after=&days=&projects=&scope=&account=&tz=&beforeModels=&afterModels=`. Optional paired `from`/`to` are half-open UTC timestamps overriding both side periods; unlike page URL dates, `to` is exclusive. The comparison cache key includes all query fields.
+- **Marks.** The spend chart has change marks (`SpendChart`, `web/src/stats/marks.ts`) — a notch at the X axis; the
+  line rises over the plot only under the pointer and for a selected mark.
+- **The section** under the chart is `RulesSection.tsx`:
+  - the "Files" (kinds) and "Goal" filters, and the place legend filter — shared `~/.claude` files an empty ring,
+    project files a dot in the project's colour; the same dot on each kind in the mark's row;
+  - period marks;
+  - the change sets of the selected mark: session, task, goal and reason from the log, the "±hour"/"±day" precision,
+    divergence from the transcript;
+  - the file diff and "Before and after" (`RuleCompare.tsx`).
+- A mark is a session's changes (`s:<session>`), unattributed changes with gaps up to 30 min (`m:…`) or a log set
+  without its own session (`i:<id>`). Neighbouring marks with fewer than `minSessions` sessions started between them
+  are merged. Selected marks are not written to the URL.
+- Memory changes give no marks (`filterSets`): sessions write it constantly, there were so many points that there was
+  nothing to compare; Tally collects them, there is no "memory" filter.
+- A click is a mark, Shift/Ctrl-click a second one: [start of the first − N days, start) is compared against [end of
+  the second, + N days). Without a mark, "Side by side" compares two sides of the same period: the page's period
+  (local midnight through the day after `to`, converted to UTC). It starts folded unless the URL has an explicit model
+  selection.
+- The selected mark shows "Before and after" and "By model" first, then "What changed", folded by default with dates
+  and line totals visible; "What changed" puts the time span, the file count and the lines into cells of their own. A
+  rule mark's tasks are key tags (no link: the row is a button; the opened "What changed" links them), its reasons,
+  kinds and authors stand apart by the gap.
+- **Models of each side.** Each side has its own family multiselect, all by default:
+  `beforeModels=sol,terra&afterModels=sonnet` in the URL; a missing parameter means all families, an empty value none.
+  These selections survive other filter changes. A session is selected by its predominant main-thread family; a task
+  by its predominant family across `audit_sessions`. All metrics retain the full cost of the selected session/task,
+  rather than only messages of that model. Side periods may overlap.
+- **Side metrics:** the median task cost, sessions per task, mean request context, share of requests > 150k, $ per
+  request, share of stuck spans, errors and refusals, the median input context and the model shares by main-thread
+  requests. The sample is in every row; fewer than `minTasks` tasks or `minSessions` sessions on either side — "too
+  little data", no figures.
+- **The model-mix warning.** The model shares of the sides differing by more than 20 % (half the sum of share
+  differences, `MODEL_SHIFT`) put a warning above the table. When both sides explicitly pick the same families there is
+  none: a shift between models of those families, such as a new version, is what the comparison is about.
+- **"By model"** (`FamilyCompare.tsx`, `SIDE_FAMILIES`) uses the shared `familyOf`, including separate GPT tiers and
+  DeepSeek.
+  - For each side: tasks, closed, total cost, medians of closed-task cost/time and actual/estimate. The final "Change"
+    column gives closed-task cost/time deltas.
+  - Families with fewer than `minTasks` closed tasks on either side keep their figures, are muted and sorted last, with
+    no delta.
+  - Tasks use `task_estimates`, with the first session assigning the period and full task spend retained; page filters
+    require a matching message. Families come from one pass over `audit_sessions`, not the view's per-task
+    `model_family` subquery. Method explanations are tips beside the comparison headings.
+- Tally classifier answers (`entrypoint` `tally-classify`, each a "session" of one answer of ~1k) are in neither the
+  sides nor the session count for merging marks (BTN-52).
+- **Routes:** `GET /api/stats/rules?scope=&account=&tz=&projects=&kinds=&purposes=&places=` (marks),
+  `GET /api/stats/rules/diff?changes=<id>,…` (diff),
+  `GET /api/stats/rules/compare?before=&after=&days=&projects=&scope=&account=&tz=&beforeModels=&afterModels=`.
+  Optional paired `from`/`to` are half-open UTC timestamps overriding both side periods; unlike page URL dates, `to` is
+  exclusive. The comparison cache key includes all query fields.
 - Settings — `stats.compare` (`minTasks` 5, `minSessions` 10, `days` 7), applied on the fly.
