@@ -85,6 +85,8 @@ A warning also has **Don't show again**, which turns that kind of warning off: f
 
 Settings → **Notices** lists the kinds with a switch each and turns back on what was turned off; a project's own Notices tab can show or hide its kinds over the shared choice.
 
+A conflict of a hook or `settings.json` between two machines is such a warning too: hiding it leaves the newer version in the file, as before, and turning the kind back on shows the open conflicts again.
+
 Errors that stop a chain, such as a broken config, only take **Got it**.
 
 ### Notifications in the corner

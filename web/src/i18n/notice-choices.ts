@@ -22,6 +22,7 @@ export const noticeTexts = localized((language) => language === 'ru' ? {
     'cli.check': 'Автоматическая проверка CLI',
     'usage.unread': 'Лимиты подписки не прочитаны',
     unattended: 'Включён режим без присмотра',
+    'config.conflict': 'Хук или settings.json глобальной конфигурации изменили на двух машинах',
   } satisfies Record<NoticeKind, string>,
 } : {
   gotIt: 'Got it',
@@ -43,5 +44,6 @@ export const noticeTexts = localized((language) => language === 'ru' ? {
     'cli.check': 'The automatic CLI check',
     'usage.unread': 'Subscription limits not read',
     unattended: 'Unattended mode is on',
+    'config.conflict': 'A hook or settings.json of the global configuration changed on two machines',
   } satisfies Record<NoticeKind, string>,
 })

@@ -16,7 +16,14 @@
 
 @media (max-width: 600px) {
   .banner__inner.config-conflict { grid-template-columns: minmax(0, 1fr); }
-  .config-conflict .banner__actions { margin-left: 0; }
+  /* Four buttons (BTN-1744) wrap as a whole each, never a label over two lines. */
+  .config-conflict .banner__actions {
+    margin-left: 0;
+    flex-wrap: wrap;
+    gap: var(--space-8);
+  }
+
+  .config-conflict .banner__actions .button { white-space: nowrap; }
 }
 
 .config-conflict__versions {

@@ -11,6 +11,7 @@ export const NOTICE_KINDS = {
   'cli.check': 'global',
   'usage.unread': 'global',
   unattended: 'global',
+  'config.conflict': 'global',
 } as const satisfies Record<string, 'global' | 'project'>
 
 export type NoticeKind = keyof typeof NOTICE_KINDS
