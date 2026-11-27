@@ -1008,6 +1008,7 @@ export const noticesRu: NoticeTexts = {
     `${p.package === undefined ? 'набор пакетов' : `пакет ${p.package}`} — ${PACKAGE_PROBLEMS[p.problem](p.detail)}${(p.projects?.length ?? 0) > 1 ? ` в ${p.projects!.join(', ')}` : ''}`,
   'eventLog.usageUnread': (p) => `Лимиты аккаунта ${p.account} не читаются, берутся из сессий`,
   'eventLog.usageOff': (p) => `Лимиты аккаунта ${p.account} не читаются до перезапуска`,
+  'eventLog.statusGone': (p) => `в ${p.tracker} больше нет статуса «${p.status}» из правил цепочки${p.feed === undefined ? '' : ` источника задач ${p.feed}`}`,
 }
 
 const PACKAGE_PROBLEMS: Record<LoggedPackageProblem, (detail: string) => string> = {

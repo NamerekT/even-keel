@@ -97,6 +97,32 @@ describe('startTracker', () => {
     expect(view.openToAll?.APP).toBe(false)
   })
 
+  it('keeps the statuses the chain rules name that the tracker no longer lists, by reader, a failed read keeping them (BTN-1771)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let statuses = ['Todo', 'Done']
+    let fails = false
+    const { view, refreshers } = start(['APP'], async () => ({
+      chainTasks: async () => {
+        if (fails) throw new Error('huly: HTTP 502')
+        return { tasks: [], statuses }
+      },
+      tasks: async () => [], close: async () => {},
+    }), { rulesOf: () => ({ ...DEFAULT_RULES, active: ['Todo'], terminal: ['Done'] }) })
+    await vi.waitFor(() => expect(view.readAt.APP).toBeDefined())
+    expect(view.missingStatuses).toEqual({})
+    statuses = ['To do', 'Done']
+    await refreshers.get('APP')!()
+    expect(view.missingStatuses).toEqual({ APP: ['Todo'] })
+    fails = true
+    await refreshers.get('APP')!()
+    expect(view.missingStatuses).toEqual({ APP: ['Todo'] })
+    fails = false
+    statuses = ['Todo', 'Done']
+    await refreshers.get('APP')!()
+    expect(view.missingStatuses).toEqual({})
+  })
+
   it('keeps the last answer on visibility when its check fails, and says nothing of a tracker without it (BTN-1134)', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     let fails = false

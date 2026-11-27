@@ -5,7 +5,7 @@ import type { EventEntry } from './model.js'
 import { GRACE_MS, type EventMemory, type WatchInput } from './watch.js'
 
 const quiet: WatchInput = {
-  config: { shared: { ci: { guard: true, kinds: [] } }, projects: {} },
+  config: { shared: { ci: { guard: true, kinds: [] } }, projects: {}, feeds: {} },
   chain: { active: [], projects: {}, leftovers: {}, skipped: {} },
   ci: {},
   mainCi: {},
@@ -18,6 +18,7 @@ const quiet: WatchInput = {
   packages: { gateway: null, projects: {} },
   account: { accounts: [], pool: [] },
   configError: null,
+  trackers: [],
 }
 const running = { ...quiet, chain: { ...quiet.chain, active: [{ project: 'p1', current: null, paused: false, error: null }] } } as WatchInput
 

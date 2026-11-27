@@ -3,7 +3,8 @@ import { isLaunch } from '../chain/launches.js'
 import type { LaunchEntry } from '../chain/model.js'
 import type { ContinuedWhy, LoggedPackageProblem } from '../notice/en.js'
 import { notice, type Notice } from '../notice/notice.js'
-import type { EvenKeelState, PackageProblem, ProjectPackages } from '../state.js'
+import type { EvenKeelState, FeedView, PackageProblem, ProjectPackages } from '../state.js'
+import type { TrackerView } from '../tracker/health.js'
 import type { EventDraft, EventLevel } from './model.js'
 import { pageEvents, type EventsInput, type PageEvent } from './page-events.js'
 
@@ -11,6 +12,8 @@ export type WatchInput = EventsInput &
   Pick<EvenKeelState, 'cliVersions' | 'configError'> & {
     packages: Pick<EvenKeelState['packages'], 'gateway' | 'projects'>
     account: Pick<EvenKeelState['account'], 'accounts' | 'pool'>
+    trackers: Pick<TrackerView, 'title' | 'missingStatuses'>[]
+    config: { feeds: Record<string, Pick<FeedView, 'id' | 'key'>[]> }
   }
 
 /** A chain as the log tells its changes: its pause, and the error it is held on unless another entry says it. */
@@ -107,6 +110,7 @@ export function watchedOf(state: WatchInput, relative: RelativeOf = () => null):
       place: { view: 'accounts' },
     })
   }
+  for (const [key, draft] of missingStatusDrafts(state)) conditions.set(key, draft)
   const gateway = state.packages.gateway
   if (gateway !== null) conditions.set(`gateway|${JSON.stringify(gateway)}`, { level: 'error', notice: gateway, place: null })
   if (state.configError !== null) conditions.set(`config|${JSON.stringify(state.configError)}`, { level: 'error', notice: state.configError, place: { view: 'settings', project: null } })
@@ -137,6 +141,30 @@ function packageDrafts(project: string, found: ProjectPackages): [string, EventD
     const cause = problem.kind === 'installFailed' ? { cause: problem.notice } : {}
     return [[`packages|${project}|${name ?? ''}|${JSON.stringify(problem)}`, { level, notice: notice('eventLog.packages', params, cause), place: { view: 'packages', project } }]]
   })
+}
+
+/**
+ * A status the chain rules of a project or feed name that its tracker no longer lists (BTN-1771): a key a status, so a
+ * second one gone is news of its own and one that comes back writes nothing. A reader of no project now has none.
+ */
+function missingStatusDrafts(state: WatchInput): [string, EventDraft][] {
+  const owners = new Map<string, { project: string; feed?: string }>()
+  for (const [project, feeds] of Object.entries(state.config.feeds)) for (const feed of feeds) owners.set(feed.id, { project, feed: feed.key })
+  return state.trackers.flatMap((tracker) =>
+    Object.entries(tracker.missingStatuses ?? {}).flatMap(([reader, statuses]) => {
+      const owner = owners.get(reader) ?? (Object.hasOwn(state.config.projects, reader) ? { project: reader } : undefined)
+      if (owner === undefined) return []
+      const { project, feed } = owner
+      return statuses.map((status): [string, EventDraft] => [
+        `statusGone|${reader}|${status.toLowerCase()}`,
+        {
+          level: 'warning',
+          notice: notice('eventLog.statusGone', { project, tracker: tracker.title, status, ...(feed === undefined ? {} : { feed }) }),
+          place: { view: 'tracker', project },
+        },
+      ])
+    }),
+  )
 }
 
 function draftOf(event: PageEvent, relative: RelativeOf, repo?: string): EventDraft {

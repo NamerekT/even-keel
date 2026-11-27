@@ -1054,6 +1054,9 @@ export const en = {
     `${p.package === undefined ? 'the package set' : `the package ${p.package}`} — ${PACKAGE_PROBLEMS[p.problem](p.detail)}${(p.projects?.length ?? 0) > 1 ? ` in ${p.projects!.join(', ')}` : ''}`,
   'eventLog.usageUnread': (p: { account: string }) => `The limits of the account ${p.account} can't be read, taken from the sessions`,
   'eventLog.usageOff': (p: { account: string }) => `The limits of the account ${p.account} are not read until a restart`,
+  // `feed` — the key of the project's feed whose rules name the status (BTN-1771); none — the project's own rules.
+  'eventLog.statusGone': (p: { project: string; tracker: string; status: string; feed?: string }) =>
+    `${p.tracker} no longer has the status “${p.status}” the chain rules${p.feed === undefined ? '' : ` of the feed ${p.feed}`} name`,
 }
 
 /** The package problems the event log writes (`watchedOf`): those that pass by themselves and `unsupported` write none. */

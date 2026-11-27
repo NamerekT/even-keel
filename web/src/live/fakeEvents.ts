@@ -54,6 +54,7 @@ export function fakeEventLog(projects: string[]): EventEntry[] {
     [440, { level: 'info', notice: notice('eventLog.exportContinued', { project: second, tracker: 'GitHub', total: 14 }), place: { view: 'tracker', project: second } }],
     [430, { level: 'info', notice: notice('eventLog.exportFinished', { project: second, tracker: 'GitHub', copied: 14 }), place: { view: 'tracker', project: second } }],
     [428, { level: 'info', notice: notice('eventLog.trackerSwitched', { project: second, tracker: 'GitHub', from: 'DEMO', to: 'DEMOGH' }), place: { view: 'project', project: second } }],
+    [415, { level: 'warning', notice: notice('eventLog.statusGone', { project: first, tracker: 'Huly', status: 'Review' }), place: { view: 'tracker', project: first } }],
     [400, { level: 'error', notice: notice('eventLog.red', { project: first, commit: 'a1b2c3d', cis: ['github'] }), place: { view: 'ci', project: first } }],
     [398, { level: 'info', notice: notice('eventLog.stopped', { task: `${first}-2` }), place: { view: 'project', project: first } }],
     [

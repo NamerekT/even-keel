@@ -9,6 +9,7 @@ export const eventsRu = {
     'eventLog.unmerged': 'Задача ушла из цепочки, а работа осталась в её папке.',
     'eventLog.chainHeld': 'Откройте проект, чтобы продолжить.',
     'eventLog.exportFailed': 'Проект остаётся на собственном трекере Even Keel. Откройте «Перенести в другой трекер» и нажмите «Продолжить».',
+    'eventLog.statusGone': 'Пока его нет, цепочка неверно читает задачи в этом статусе. Выберите статусы заново в «Статусы» правил цепочки.',
   } as Partial<Record<string, string>>,
   titles: {
     'review.notOpened': 'pull request не открыт',

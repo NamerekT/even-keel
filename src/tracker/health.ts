@@ -62,6 +62,12 @@ export interface TrackerView {
   closedTotal?: Record<string, number>
   /** Status moves on a task's start or pull request that did not go through (BTN-554), by reader. In memory only. */
   moveFailures?: Record<string, Notice[]>
+  /**
+   * By reader, rechecked on every full read: the statuses its chain rules name that the tracker no longer lists, renamed
+   * or removed there (BTN-1771); the event log writes each once. A reader with none has no entry; a failed read keeps
+   * the last answer. In memory only.
+   */
+  missingStatuses?: Record<string, string[]>
 }
 
 /** The reader's last full read is since the link last turned live, and the link is live: a chain may start by it (BTN-830). */

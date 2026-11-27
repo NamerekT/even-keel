@@ -6,7 +6,7 @@ import type { EventsInput } from './page-events.js'
 import { BLINK_MS, GRACE_MS, launchDraft, observe, settingsDrafts, stopDraft, watchedOf, type WatchInput } from './watch.js'
 
 const none: WatchInput = {
-  config: { shared: { ci: { guard: true, kinds: ['forgejo'] } }, projects: {} },
+  config: { shared: { ci: { guard: true, kinds: ['forgejo'] } }, projects: {}, feeds: {} },
   chain: { active: [], projects: {}, leftovers: {}, skipped: {} },
   ci: {},
   mainCi: {},
@@ -19,6 +19,7 @@ const none: WatchInput = {
   packages: { gateway: null, projects: {} },
   account: { accounts: [], pool: [] },
   configError: null,
+  trackers: [],
 }
 const chain = (fields: object = {}) => ({ project: 'p1', current: null, paused: false, error: null, ...fields }) as EventsInput['chain']['active'][number]
 const withChain = (fields: object = {}): WatchInput => ({ ...none, chain: { ...none.chain, active: [chain(fields)] } })
@@ -228,6 +229,28 @@ describe('observe', () => {
     ])
     const again = [entry('a', 'unread', { usage: { state: 'unread', reason: null, since: '2026-11-05T12:00:00Z' } })]
     expect(step(accounts([entry('a', 'unread')]), accounts(again))).toHaveLength(1)
+  })
+
+  it('writes a status named in the chain rules once when the tracker stops listing it, again only after it came back (BTN-1771)', () => {
+    const missing = (byReader: Record<string, string[]>): WatchInput => ({
+      ...none,
+      config: { ...none.config, projects: { p1: none.config.shared }, feeds: { p1: [{ id: 'f1', key: 'WEB' }] } },
+      trackers: [{ title: 'Huly', missingStatuses: byReader }],
+    })
+    const gone = (status: string, feed?: string) => ({
+      level: 'warning',
+      notice: notice('eventLog.statusGone', { project: 'p1', tracker: 'Huly', status, ...(feed === undefined ? {} : { feed }) }),
+      place: { view: 'tracker', project: 'p1' },
+    })
+    expect(step(missing({}), missing({ p1: ['Todo'], f1: ['Closed'], removed: ['Done'] }))).toEqual([gone('Todo'), gone('Closed', 'WEB')])
+    expect(step(missing({ p1: ['Todo'] }), missing({ p1: ['Todo'] }))).toEqual([])
+    expect(step(missing({ p1: ['Todo'] }), missing({ p1: ['Todo', 'Done'] }))).toEqual([gone('Done')])
+    const first = observe(null, watchedOf(missing({})), at(0))
+    const lost = observe(first.memory, watchedOf(missing({ p1: ['Todo'] })), at(1))
+    const back = observe(lost.memory, watchedOf(missing({})), at(2))
+    const cleared = observe(back.memory, watchedOf(missing({})), at(3))
+    expect([lost.drafts, back.drafts, cleared.drafts]).toEqual([[gone('Todo')], [], []])
+    expect(observe(cleared.memory, watchedOf(missing({ p1: ['Todo'] })), at(4)).drafts).toEqual([gone('Todo')])
   })
 
   it('says whether what it remembers changed, not only when it was last seen', () => {

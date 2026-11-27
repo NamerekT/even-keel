@@ -354,9 +354,12 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       const { unknownStatuses } = read
       const unknown = unknownStatuses.join('", "')
       if (unknown !== (unknownByProject.get(project) ?? '') && unknown !== '') {
-        console.warn(`config: ${view.title} has no status "${unknown}" named in the chain rules of ${project}`)
+        console.warn(`config: ${view.title} has no status "${unknown}" named in the chain rules of ${label(project)}`)
       }
       unknownByProject.set(project, unknown)
+      view.missingStatuses ??= {}
+      if (unknownStatuses.length > 0) view.missingStatuses[project] = unknownStatuses
+      else delete view.missingStatuses[project]
       const listed = new Set([...tasks, ...parents, ...closedParents].map((task) => task.id))
       const missing = [...new Set(tasks.filter((task) => isOpen(task.status)).flatMap((task) => task.blockedBy))].filter((id) => !listed.has(id))
       const others = missing.length === 0 ? [] : await link.run((tracker) => tracker.tasks(missing), JSON.stringify(['tasks', ...missing]))

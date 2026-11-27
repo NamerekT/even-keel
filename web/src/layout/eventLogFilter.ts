@@ -44,6 +44,8 @@ const categories = {
   'eventLog.exportFailed': 'settings',
   'eventLog.exportFinished': 'settings',
   'eventLog.trackerSwitched': 'settings',
+  // A status of the chain rules renamed or removed in the tracker: the rules are what to fix (BTN-1771).
+  'eventLog.statusGone': 'settings',
   'eventLog.transferMatched': 'settings',
   'eventLog.transferMismatched': 'settings',
   // The import into the built-in tracker (BTN-1405), for the same reason.
