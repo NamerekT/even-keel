@@ -1,6 +1,6 @@
-# Fake states: machines, the header's accounts and the rest of accounts
+# Fake states: machines, accounts and the page's sign-in
 
-The URL parameters of machines and pools, the header's accounts, models, the configuration conflicts and more account kinds. Accounts' basic states are in `setup-limits-accounts.md`.
+The URL parameters of machines and pools, the header's accounts, models, the configuration conflicts, more account kinds and the page's sign-in. Accounts' basic states are in `setup-limits-accounts.md`.
 
 ## Accounts
 
@@ -51,3 +51,28 @@ The URL parameters of machines and pools, the header's accounts, models, the con
 - **A machine's accounts**: `/accounts?machines=signIn&machine=machine-1` lists the laptop's (BTN-1302: none, so the hub's accounts with "Sign in"; wait for `.machine-accounts__list`), its "Add account" the agents' window; `account=tokenOnly&machines=signIn&machine=machine-1` the empty state; `/status?machines=signIn` the machines at the bottom. A machine's own rows have the hub row's menu (BTN-1584, `web/src/live/fakeMachineAccounts.ts`): `/accounts?machines=many&machine=machine-2` and `--click '.account-row__button'` opens the desktop's first; Remove waits 6 s for a session there with "removal pending" and Keep (the second row: the first is Even Keel's and cannot go), Rename of an account with an e-mail renames the hub's too, VS Code moves the desktop's own; `machine=machine-9` (off the link) says so at the menu's head.
 - **`pooled`** (BTN-1564): "Example laptop" in every project's pool, with a long commit author and folder and the first project's packages not ready: `/p/ABC?machines=pooled&machine=machine-1#settings` opens its panel in the project with no clicks (`--wait '.pool__block-actions'`), `machine=pc` the own machine's, ready. `/machines/machine-1?machines=pooled` lists every project on the laptop's page; `pooledOff` turns the laptop off in the first project's pool there (BTN-1562; at 390 px the row stacks the name and folder, then "off in the project" and "packages not ready", then "Packages"). `pooledCommands` (BTN-1553) adds "Example desktop" to every pool too, its commands after a green main off, and gives the laptop two own ones, the first too long for a line: `/p/ABC?machines=pooledCommands#settings` with `--click '#settings-tab-machines' --wait '.pool'` shows the three kinds.
 - **`tooLarge`** (BTN-1560): the laptop's state is over the link's limit — its card in the machines panel is blocked with the reason, `/machines/machine-1?machines=tooLarge` has the band with the size (`--wait '.machine-page__body'`).
+
+## Sign-in to the page
+
+How the sign-in works is in `docs/web/sign-in.md`; the fake settings group reads `web/src/live/fakeAuth.ts`.
+
+- **The screen**: `/?signIn`; `?signIn=nokey` — no owner key on the hub, `?signIn=elsewhere` — passkeys made only on other names, `?signIn=nopasskeys` — the passkey refused at once, as by a browser without passkeys. The key is `owner-key`, a passkey otherwise passes without the browser's dialog, and signing in drops the parameter.
+- **The settings group**: three passkeys on two names and four devices, two of them "Chrome on Windows", one by invitation, this browser one of them. Its band follows the fake `EVEN_KEEL_TOKEN` (unset by default).
+- **`&signInOn`** starts with the sign-in an invitation turned on, in the page state too, so the setup's Phone access step is checked (`/setup?step=phone&signInOn`); a fake "Let in" turns it on in the settings group alone.
+- **`&invites`** starts with two invitations waiting, one opened; an invitation made in the dialog is opened by a fake phone 3 s later, digits 47. `&invites=soon` makes the links live seconds (the two rows expire 3 and 5 s after the page opens, a new one 6 s after "Invite a device"), so a row dropping and the dialog's "The link expired" can be shot; like the hub, the fake neither lists nor decides an expired one.
+- **The link's origin.** dev:fake is open by localhost, so the dialog shows the loopback cases: two known origins by default (`https://hub.example.ts.net:8443` seen last, `http://192.0.2.10:4747`), `&origins=1` the first alone, `&origins=0` none and the address field; a typed address is checked as the hub's `typedOrigin` does.
+- **The new device**: `/invite` is a browser signed in already, `/invite?signIn` the new device — let in 3 s after opening, or `&invite=declined|expired|cancelled|waiting|used|gone`, or `&invite=lost` (every wait fails as a dropped connection).
+- **Scan a QR.** The shot's browser has Chromium's fake camera, so the button is there and its window shows the fake picture; a browser without a camera has no button.
+
+The screen, the group, the dialog with and without known origins, the new device waiting and on a lost link, the scan window:
+
+```sh
+npm run shot -- '/?signIn&lang=ru' .sign-in__card --size 390x844
+npm run shot -- '/settings?lang=ru' --click '.settings-nav__item:has-text("Вход и устройства")' --wait '.sign-ins'
+npm run shot -- '/settings?lang=ru&signInOn' --click '.settings-nav__item:has-text("Вход и устройства")' --wait '.sign-ins'
+npm run shot -- '/settings?lang=ru&invites' --click '.settings-nav__item:has-text("Вход и устройства")' --click 'button:has-text("Пригласить устройство")' --wait '.invite__qr'
+npm run shot -- '/settings?lang=ru&origins=0' --click '.settings-nav__item:has-text("Вход и устройства")' --click 'button:has-text("Пригласить устройство")' --wait '.invite__ask'
+npm run shot -- '/invite?signIn&invite=waiting&lang=ru#fake' .sign-in__card --wait '.sign-in__digits' --size 390x844
+npm run shot -- '/invite?signIn&invite=lost&lang=ru#fake' .sign-in__card --wait 'text=Связь прервалась' --size 390x844
+npm run shot -- '/?signIn&lang=ru' 'dialog[open]' --click '.sign-in__wide:has-text("Сканировать")' --wait 1500 --size 390x844
+```

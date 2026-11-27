@@ -11,4 +11,4 @@ The parameters are split by subject, a file each in `docs/web/fake-states/`: rea
 | [`chain-states.md`](fake-states/chain-states.md) | Archive, outside view, CLI copies, protection, `?chain=…`, `?limit=…`, `?backlog=…`, `?order=…`, `?landing=…`, `?changelog=…`, session and chat states |
 | [`setup-limits-accounts.md`](fake-states/setup-limits-accounts.md) | The wizard, context, cache, limits, branches, config, the carry band, events and the log, CI, badge, packages, profiles, trackers, accounts |
 | [`stats-cards-updates.md`](fake-states/stats-cards-updates.md) | Stats and its default fixture, tools, task cards, the built-in tracker, the moves between trackers, saves, backup, updates, the CLI check, git, the creation job, chats, delay |
-| [`machines-header.md`](fake-states/machines-header.md) | The header's accounts and more account kinds, models, config conflicts, long chains and pins, machines and pools |
+| [`machines-header.md`](fake-states/machines-header.md) | The header's accounts and more account kinds, models, config conflicts, long chains and pins, machines and pools, the page's sign-in and invitations |
