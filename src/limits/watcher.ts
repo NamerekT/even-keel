@@ -139,7 +139,7 @@ export class LimitsWatcher {
   }
 
   /**
-   * What the hub tells of the account folders (`docs/machines/landings.md`, "Account limits"): which ones another machine polls,
+   * What the hub tells of the account folders (`docs/machines/limits.md`, "The account and its poller"): which ones another machine polls,
    * and the newest limits the account's other machines told.
    */
   plan(plan: LimitsPlan): void {

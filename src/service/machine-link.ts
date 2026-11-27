@@ -328,7 +328,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     },
   })
   const polls = new AccountPolls({ hub: () => own, log })
-  /** One poller per account and the newest limits for the others (`docs/machines/landings.md`, "Account limits"). */
+  /** One poller per account and the newest limits for the others (`docs/machines/limits.md`, "The account and its poller"). */
   const steerLimits = (): void => {
     const facts = remote.facts()
     if (facts === undefined) return

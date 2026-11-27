@@ -2,7 +2,7 @@ import { sameJson } from '../machine/facts.js'
 import { newestLimits, type RateLimits } from './model.js'
 import { tokenWindowsDiffer } from './token-windows.js'
 
-/** What a machine says of one of its account folders (`MachineFacts.identities`, `docs/machines/landings.md`, "Account limits"). */
+/** What a machine says of one of its account folders (`MachineFacts.identities`, `docs/machines/limits.md`, "The account and its poller"). */
 export interface AccountTie {
   /** `oauthAccount.accountUuid` of the folder's `.claude.json`: the same account on two machines is one. */
   account: string
