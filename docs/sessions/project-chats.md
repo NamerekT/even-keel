@@ -86,7 +86,7 @@ A chat may have packages of its own over the project's set (BTN-1696), a third l
 
 - The window moves the draft into the feed at once and keeps that bubble through the session id arriving, a missing transcript and an empty first read; the recorded prompt replaces it on the first read that contains it. The field stays editable during upload.
 - Mid-turn the field is open where the page's mailbox of the session says it listens (`EvenKeelState.mailbox`, `SessionMail.listens`: it steers, its inbox is known or its hooks ask for mail), with the task chat's tip on Send (`t.session.chat.steers` or `mailbox`). Each mid-turn message appears at once as a user bubble; its clock changes to checks when the transcript contains it. A returned message shows a red mark with the reason, and its contents return to the draft. A session that cannot take a mid-turn message keeps the field shut until it stops.
-- While the session's lamp is `working`, the task chat's turn line stands over the field — the clock's pill, then the action (`docs/web/session-panel.md`, BTN-1427): `ProjectChatWindow` gives the window the chat's session view.
+- While the session's lamp is `working`, the task chat's turn line stands over the field — the clock's pill, then the action (`docs/web/session-panel/turn.md`, "The turn line", BTN-1427): `ProjectChatWindow` gives the window the chat's session view.
 - The saved draft also keeps attachments awaiting mailbox delivery. Reopening the chat shares its pending send. A failed send prepends the original text and files to the current draft and saves the reason even if the window has closed.
 
 ## Going on in a new session
@@ -137,7 +137,7 @@ An idle chat's process group (the daemon, its pty host, the session, a `bg-spare
 
 ## The page
 
-The Chats tab of the project page (BTN-1231) polls `list` every 4 s while the page is open, for its list and its badge; `archive` is asked per search and page, `create` from the "New session" window, `send` and `read` from the chat's window. A chat's window is the session's transcript window with the chat's field, without the commands menu; one without a session yet shows an empty feed. How it looks is in `docs/web/project-page.md` ("The Chats tab").
+The Chats tab of the project page (BTN-1231) polls `list` every 4 s while the page is open, for its list and its badge; `archive` is asked per search and page, `create` from the "New session" window, `send` and `read` from the chat's window. A chat's window is the session's transcript window with the chat's field, without the commands menu; one without a session yet shows an empty feed. How it looks is in `docs/web/project-page/head.md` ("The Chats tab").
 
 ## In the stats
 

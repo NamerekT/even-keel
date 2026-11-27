@@ -2,7 +2,7 @@
 
 ## The copy into another tracker (BTN-1073)
 
-`src/tracker/export.ts` over `src/builtin/export.ts`. One neutral code on the target's `TaskEditor` alone, so GitHub, Huly, Linear, Jira, GitLab and Forgejo need nothing of their own. The target is opened by `connectExportTarget` (`src/tracker/export-target.ts`) from a profile, a place and a key, as the wizard's tracker step names them. After the copy the project moves to the target by [the switch](#the-switch-to-the-copys-target-btn-1074) below; the page's window is in `docs/web/project-settings.md`. `ExportState` and `ExportTargetFields` live in `src/tracker/export.ts`, which the page may import; `src/builtin/export.ts` re-exports them.
+`src/tracker/export.ts` over `src/builtin/export.ts`. One neutral code on the target's `TaskEditor` alone, so GitHub, Huly, Linear, Jira, GitLab and Forgejo need nothing of their own. The target is opened by `connectExportTarget` (`src/tracker/export-target.ts`) from a profile, a place and a key, as the wizard's tracker step names them. After the copy the project moves to the target by [the switch](#the-switch-to-the-copys-target-btn-1074) below; the page's window is in `docs/web/transfers.md`. `ExportState` and `ExportTargetFields` live in `src/tracker/export.ts`, which the page may import; `src/builtin/export.ts` re-exports them.
 
 ### What is copied
 

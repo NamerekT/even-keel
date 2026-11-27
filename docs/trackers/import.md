@@ -81,7 +81,7 @@ Never seen live for GitHub and Linear: [unverified](../unverified/trackers.md#a-
 
 ## The import into the built-in tracker (BTN-1405)
 
-The write side: `BuiltinImports` in `src/builtin/import.ts` over `runImport` in `import-run.ts`; the page's window (BTN-1406) is in `docs/web/project-settings.md`.
+The write side: `BuiltinImports` in `src/builtin/import.ts` over `runImport` in `import-run.ts`; the page's window (BTN-1406) is in `docs/web/transfers.md`.
 
 - An adapter that has an import also sets `TrackerAdapter.imports`, passed to the page as `TrackerChoice.imports` (`trackerChoices`, `src/config-form.ts`). Without it the window's button is disabled, its tip saying the import comes in a later release.
 - The project's tracker is opened by `connectImportSource` (`src/tracker/import-source.ts`) on the profile the project runs on, at its key and place. An adapter without `importSource` is refused with `import.none`, a project already on the built-in tracker with `import.builtin`.

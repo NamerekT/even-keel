@@ -22,7 +22,7 @@ BTN-1271: the tab "Machines" of a project's settings (`web/src/pages/ProjectMach
 `web/src/pages/ConnectMachine.tsx` lists the joined machines not in the pool (`others`); its pick marks one off the link by a hollow lamp after its name (`machineOption`). The own machine, out of the pool, is just turned on.
 
 - **The field.** A machine elsewhere takes one folder field with its state under it, the same as a machine's row in the wizard (`MachineFolderField`, BTN-1298; "The folder's state", asked with `{machine, folder, project}`): the machine's folder of projects and a name (the project's folder name by default), or "another folder…" with a full path (the only way when the machine did not report its folder of projects, `ProjectPool.others[].root`). A taken folder keeps "Connect" off. There is no switch between a clone and a folder already there: the folder decides.
-- **The job.** The command `machines/connect` (`clone` absent — `auto`; `true`/`false` still force either) starts a step job (the window of BTN-1048, `docs/web/setup.md`; kind `machine`, `StepJob.project` set) of `connectPlan` (`src/service/machine-pool.ts`). The checks after the place run on the machine (`src/machine/folder-check.ts`, the machine's services group `folders`).
+- **The job.** The command `machines/connect` (`clone` absent — `auto`; `true`/`false` still force either) starts a step job (the window of BTN-1048, `docs/web/wizard-repository.md`, "The creation job"; kind `machine`, `StepJob.project` set) of `connectPlan` (`src/service/machine-pool.ts`). The checks after the place run on the machine (`src/machine/folder-check.ts`, the machine's services group `folders`).
 
 | Step | What it does or checks | Refusal |
 | --- | --- | --- |

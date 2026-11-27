@@ -78,7 +78,7 @@ While a session of the project resolves its landing, no lane of the project star
 
 - A resolving landing is a record with `resolving` and without `waitingRemote` whose task is the current one of a lane of the project (`resolvingLanding`, `src/chain/landing-hold.ts`); a task taken off with "Skip" holds nothing.
 - Only a fresh start of the next task by the chain's order waits (`heldByLanding` in `launchNext`, `src/chain/step.ts`, logged once per lane and task): lanes whose tasks already run go on, and a live or returned session, a fix of main and a carry are not held.
-- The page shows it as the "waiting" state under Start/Stop with the task in its tip; a task waiting for the remote is a line above the chain with "Close without pushing" (`docs/web.md`, "Chain waits").
+- The page shows it as the "waiting" state under Start/Stop with the task in its tip; a task waiting for the remote is a line above the chain with "Close without pushing" (`docs/web/project-page/head.md`, "The chain's buttons and the run strip").
 
 ## "Slot" mode (`src/git/slot.ts`)
 
