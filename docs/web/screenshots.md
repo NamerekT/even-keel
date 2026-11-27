@@ -32,7 +32,7 @@ The pictures of `docs/guide/` are shot, never drawn by hand: each is a frame of 
 
 ```json
 { "frames": [
-  { "id": "chain-rows", "route": "/p/ABC", "crop": { "x": 24, "y": 204, "width": 800, "height": 372 } },
+  { "id": "chain-rows", "route": "/p/ABC?content=en", "crop": { "x": 24, "y": 204, "width": 800, "height": 372 } },
   { "id": "machine-pins", "route": "/p/ABC?chain=pins", "steps": [{ "hover": ".block__pin" }, { "wait": "300" }], "width": 1024, "theme": "light" }
 ] }
 ```
@@ -40,7 +40,7 @@ The pictures of `docs/guide/` are shot, never drawn by hand: each is a frame of 
 - A frame: `id` (lower-case words joined by `-`, the file's name), `route` (a `dev:fake` route with its query, as `npm run shot` takes it), `steps` (each `{ "<kind>": "<arg>" }`, the kinds and arguments of `npm run shot`'s steps above: `click`, `context`, `hover`, `press`, `fill`, `upload`, `wait`, `wheel`, `drag`, `drop`), `selector` (the element shot alone; none — the viewport), `width` and `height` of the viewport (1280×800), `theme` (`dark`, or `light`), `scale` (the device pixel ratio, 1), `crop` (`{x, y, width, height}` in CSS pixels from the top left of the element or the viewport), `quality` (WebP, 0.9) and `settle` (ms after the steps, 500). An unknown key or a wrong value stops the run with the frame's id.
 - The same machinery as `npm run shot` (`scripts/shot-browser.ts`, `scripts/shot-step.ts`): Playwright's headless shell and `dev:fake` in process. The encoder is the browser's own (`canvas.toDataURL('image/webp')`, `scripts/guide-shots.page.js`), no new dependency.
 - A run without interface changes rewrites no file: the line says `same`, `changed` or `new` per frame. For that the frame is shot at a fixed moment (`page.clock.setFixedTime`), in UTC and `en-US`, with `Math.random` seeded, every animation and transition run to its end at once, subpixel text off (`--disable-lcd-text`: its fringes followed the page's layers, one run in a few differed), and only once two shots 300 ms apart match (late panels such as the milestone's stats). A frame whose page logs an error is not saved and the run exits 1.
-- Only `dev:fake` data, so no real names reach a picture; its task titles are Russian, as the rest of the fake.
+- Only `dev:fake` data, so no real names reach a picture. The guide is English, so a frame's route takes `content=en` (BTN-1750): the fake's task titles, milestones, labels and session lines in English (`fakeEnglish.ts`); without it they stay Russian, as the rest of the fake and the session shots that rely on them.
 - `scripts/guide-shots-manifest.test.ts` holds the manifest and the guide together: every picture a guide page links under `images/` is a frame, every frame is linked from a page and has its file, and `docs/guide/images/` holds nothing else. A new frame is a manifest entry, a run with its id and a link in the same commit.
 - The frames are shot again before each release (`docs/releases.md`, step 5).
 
