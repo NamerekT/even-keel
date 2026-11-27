@@ -1,9 +1,7 @@
 # Settings by level
 
-The research of BTN-145 (2026-10-18): every setting Even Keel has, the levels it is set at, how they override each other,
-and the schema of the settings tables the storage move into one database (BTN-147) builds on. The implementation is
-split into BTN-186 (the registry over the current file), BTN-187 (the missing levels) and BTN-146 (effort, the first new
-setting on three levels); the "Mismatches" and "Decisions" sections are what they follow.
+Every setting Even Keel has, the levels it is set at and how they override each other, the settings tables of the state
+database, the code that reads and writes them, and where credentials are kept.
 
 ## Subtopics
 
@@ -11,5 +9,5 @@ The area is split by subtopic, a file each in `docs/settings/`: read this table,
 
 | File | What is in it |
 | --- | --- |
-| [`inventory.md`](settings/inventory.md) | The inventory: every setting, its levels and where it lives |
-| [`levels.md`](settings/levels.md) | Levels, mismatches, the proposed schema, reading and writing, credentials, labels as values, decisions |
+| [`inventory.md`](settings/inventory.md) | The inventory: every setting, its levels, who writes it, its default; what is outside the settings tables and what is not a setting |
+| [`levels.md`](settings/levels.md) | Levels and their order, the schema, reading and writing, tests, credentials, labels as values, decisions |
