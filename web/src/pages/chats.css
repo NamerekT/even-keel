@@ -71,8 +71,8 @@
 
 .chat-card__more {
   position: absolute;
-  top: 9px;
-  right: 7px;
+  top: var(--space-8);
+  right: var(--space-6);
 }
 
 /* Archived or deleted: the card slides right and fades out; the list read again drops it. */
@@ -200,7 +200,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-8);
-  padding-right: 24px;
+  padding-right: var(--space-24);
   color: var(--fg-muted);
   font-size: var(--text-12);
   font-variant-numeric: tabular-nums;
