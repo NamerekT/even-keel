@@ -10,7 +10,7 @@ import { databaseVersion, SQLITE_VERSIONS, STEPS } from './database.js'
 import { dataDirOf, filesDirOf } from './owner.js'
 
 // The automatic copies of the state database (BTN-1083): each written, opened back in a temporary folder and checked
-// before it counts. `docs/storage/first-start.md`, "Backup, export, rollback".
+// before it counts. `docs/storage/backup.md`.
 
 /** The folder of the automatic copies when the setting `backup.dir` names none: `backups/` next to the database's folder. */
 export const backupDirOf = (stateDir: string, setting: string | null) => setting ?? join(stateDir, 'backups')
