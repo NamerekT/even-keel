@@ -200,6 +200,21 @@ describe('sessionsByTask', () => {
     expect(byTask.get('chat-0123456789ab')?.sessionId).toBe('chat-newer')
   })
 
+  // BTN-1772: a Claude chat starts without a name, and the CLI lists it under its prompt, then under its title.
+  it("keeps a chat's session started without a name under the chat it is bound to, whatever name the CLI lists", () => {
+    const bound: Record<string, string> = { first: 'chat-0123456789ab', copy: 'chat-0123456789ab', other: 'chat-ba9876543210' }
+    const agents = [
+      { ...interactive, sessionId: 'first', name: 'ABC-1', startedAt: 1 },
+      { ...interactive, sessionId: 'copy', name: 'git-cherry-pick-explanation', startedAt: 2 },
+      { ...interactive, sessionId: 'other', name: undefined, startedAt: 3 },
+      { ...interactive, sessionId: 'hand', name: 'explain git', startedAt: 4 },
+    ]
+
+    const byTask = sessionsByTask(agents, ['ABC'], () => 'abc-1/fix', (sessionId) => bound[sessionId])
+
+    expect([...byTask].map(([task, agent]) => `${task}=${agent.sessionId}`)).toEqual(['ABC-1=hand', 'chat-0123456789ab=copy', 'chat-ba9876543210=other'])
+  })
+
   it('falls back to the issue branch the session works on when its name is free', () => {
     const branches: Record<string, string> = {
       manual: 'abc-3/session-panel',
