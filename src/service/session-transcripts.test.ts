@@ -17,9 +17,11 @@ describe('the hub reads a transcript on the machine of the session (BTN-1574)', 
   const own = readsOf('own')
   const laptop = readsOf('laptop')
   const where: Record<string, string> = { mine: 'own', far: 'laptop', away: 'desk' }
+  const chats: Record<string, string> = { mine: 'desk', chatted: 'laptop', 'chatted-away': 'desk' }
   const transcripts = sessionTranscripts({
     own: () => 'own',
     sessionMachine: (sessionId) => where[sessionId],
+    chatMachine: async (sessionId) => chats[sessionId],
     ownReads: own,
     elsewhere: (machine) => (machine === 'laptop' ? laptop : undefined),
     nameOf: async (machine) => (machine === 'desk' ? 'Desk' : machine),
@@ -47,5 +49,17 @@ describe('the hub reads a transcript on the machine of the session (BTN-1574)', 
     const failed = await transcripts.record('away').then(() => undefined, (error: unknown) => noticeOf(error))
     expect(failed).toEqual({ code: 'machines.transcriptOffline', params: { name: 'Desk' } })
     await expect(transcripts.context('away')).rejects.toThrow()
+  })
+
+  it("reads a session no mirror holds on its chat's machine, archived or after that machine's restart (BTN-1794)", async () => {
+    vi.mocked(own.feed).mockClear()
+    expect(await transcripts.feed('chatted', 0)).toEqual({ sessionId: 'chatted', after: 0, machine: 'laptop' })
+    expect(own.feed).not.toHaveBeenCalled()
+    const failed = await transcripts.record('chatted-away').then(() => undefined, (error: unknown) => noticeOf(error))
+    expect(failed).toEqual({ code: 'machines.transcriptOffline', params: { name: 'Desk' } })
+  })
+
+  it("lets a mirror's holder outrank the chat's machine", async () => {
+    expect(await transcripts.record('mine')).toEqual({ sessionId: 'mine', machine: 'own' })
   })
 })

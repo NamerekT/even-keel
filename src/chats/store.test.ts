@@ -4,7 +4,7 @@ import { insertRows, rowsOf } from '../storage/copy.js'
 import { ABC, fixture, readsWhole, schemaOf } from '../storage/database.fixture.js'
 import { openDatabase, STEPS, Writes } from '../storage/database.js'
 import type { ChatRecord } from './model.js'
-import { ChatStore, loadChatSessions } from './store.js'
+import { ChatStore, chatMachineOf, loadChatSessions } from './store.js'
 
 const writes = () => new Writes((line) => { throw new Error(line) })
 
@@ -245,6 +245,24 @@ describe('the chat store', { timeout: 120_000 }, () => {
       store.put(chat('chat-000000000004', { machine: 'machine-1', pending: 'Hello\n' }))
       await kept.settled()
       expect(await loadChatSessions(db, 'machine-1')).toEqual([['chat-000000000001', 'session-1']])
+    } finally {
+      await db.close()
+    }
+  })
+
+  it("finds the machine of a chat's session, an archived chat's too (BTN-1794)", async () => {
+    const db = await openDatabase(undefined)
+    try {
+      const kept = writes()
+      const store = await ChatStore.open({ db, writes: kept })
+      store.put(chat('chat-000000000001', { sessionId: 'session-1', machine: 'machine-1' }))
+      store.put(chat('chat-000000000002', { sessionId: 'session-2', machine: 'machine-2', archivedAt: '2026-11-18T11:00:00.000Z' }))
+      store.put(chat('chat-000000000003', { sessionId: 'session-3' }))
+      await kept.settled()
+      expect(await chatMachineOf(db, 'session-1')).toBe('machine-1')
+      expect(await chatMachineOf(db, 'session-2')).toBe('machine-2')
+      expect(await chatMachineOf(db, 'session-3')).toBeUndefined()
+      expect(await chatMachineOf(db, 'session-9')).toBeUndefined()
     } finally {
       await db.close()
     }

@@ -373,9 +373,11 @@ To check, on the benches (entry 181): with a project whose pool has the bench hu
 
 `docs/machines/seam.md`, "The seam". The hub read every transcript on its own machine: a session a machine elsewhere ran opened as "not found", and its checkpoint hook timed out while the hub's own machine searched all its account folders. Covered by `src/service/session-transcripts.test.ts` (each read routed, the own machine untouched, a machine off the link named) and the scenario of `src/e2e/elsewhere.test.ts` where the record and the checkpoint's context of a session elsewhere come from that machine's folders and monitor, both over the link in one process.
 
-Assumed: a machine elsewhere answers `transcript.*` over a real link within the checkpoint hook's timeout on a loaded hub, and a finished session's machine is still known from its mirror or its launch's task. If not, the transcript of an old session elsewhere opens as "not found" again, or the hook still times out; the log names the request.
+BTN-1794: a project chat's session no mirror holds (an archived chat's, after its machine's restart) is read on the chat's machine (`chats.machine_id`), not the hub's own. The scenario of `src/e2e/elsewhere.test.ts` archives a chat elsewhere and makes the machine and the hub forget its session; the restart itself is not in the bench.
 
-Seen on 2026-11-26 ([verified/machines.md](../verified/machines.md)): the record and transcript of a session on machine-1 read through the hub, and the read naming the machine while it was off the link. To check: the checkpoint hook of a session elsewhere — a task on machine-1 whose context passes the checkpoint's first share, with the hub's log free of `did not answer GET /api/sessions/…/checkpoint`.
+Assumed: a machine elsewhere answers `transcript.*` over a real link within the checkpoint hook's timeout on a loaded hub, and a finished session's machine is still known from its mirror, its launch's task or its chat. If not, the transcript of an old session elsewhere opens as "not found" again, or the hook still times out; the log names the request.
+
+Seen on 2026-11-26 ([verified/machines.md](../verified/machines.md)): the record and transcript of a session on machine-1 read through the hub, and the read naming the machine while it was off the link. To check: the checkpoint hook of a session elsewhere — a task on machine-1 whose context passes the checkpoint's first share, with the hub's log free of `did not answer GET /api/sessions/…/checkpoint`; and an archived chat of machine-1, after a restart of machine-1's service, opening its transcript on the hub's page.
 
 ## A hand session's tasks calls on a machine elsewhere (BTN-1573)
 
