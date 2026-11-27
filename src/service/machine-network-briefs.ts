@@ -5,6 +5,7 @@ import { SELECTION_EVENT, type MachineSelection } from '../machine/config.js'
 import { RemoteMachine } from '../machine/remote.js'
 import { CLONE_PROGRESS_EVENT, type CloneTold } from '../machine/services.js'
 import { fail } from '../notice/notice.js'
+import { loadChatSessions } from '../chats/store.js'
 import { loadMail } from '../sessions/mailbox.js'
 import { KEPT_WRITE_EVENT, type KeptWrite } from '../taskmcp/machine.js'
 import { BriefSender } from './hub-brief.js'
@@ -103,10 +104,12 @@ async function stateOverLimit(host: NetworkHost, machine: string, told: Snapshot
 /**
  * The machine's messages the hub keeps, handed back at each connection, which may be a new process with an empty
  * mailbox (BTN-1699): the waiting ones and the last delivered stay in its chat. The machine keeps what it already has.
+ * Its active chats' sessions go with them, for a Claude chat's session has no name to be found by (BTN-1772).
  */
 async function handMail(host: NetworkHost, machine: string, peer: Peer): Promise<void> {
   try {
-    await peer.remote.services().records.restore({ mail: await loadMail(host.options.db, machine) })
+    const { db } = host.options
+    await peer.remote.services().records.restore({ mail: await loadMail(db, machine), chats: await loadChatSessions(db, machine) })
   } catch (error) {
     host.options.log(`machines: machine ${machine} did not take back its messages: ${error instanceof Error ? error.message : String(error)}`)
   }

@@ -81,6 +81,11 @@ export interface SessionStart {
   /** The task id, or the name of a fix session; the session is found by it once started. */
   name: string
   /**
+   * Optional. The agent titles the session itself, a project chat's (BTN-1772): Claude's `--bg` session starts without
+   * `-n` and is found by its job, its chat by the machine's `ChatSessions`.
+   */
+  autoTitle?: boolean
+  /**
    * Optional. `taskMark` of the session's project and `name`, set by the service on every launch and resume: OpenCode
    * and Copilot put it into their turn's environment as `TASK_MARK`, for the cleanup after Done (BTN-1389).
    */

@@ -57,6 +57,7 @@ export function wireMonitor(ctx: MachineContext, sessionWindows: [string, number
     longToken: (key) => ctx.account.longToken(key) !== undefined,
     keyLimits: (key) => ctx.account.apiKey(key) && !ctx.spendsByKey(key),
     projectKeys: () => sessionPrefixes(ctx.configStore.current),
+    chatOf: (sessionId) => ctx.chatSessions.chatOf(sessionId),
     contextWindow: (key, model, task, settings) => (ctx.agentOf(ctx.homeOf(key)).contextWindow === undefined ? null : ctx.contextWindows.peek(key, model, task, settings)),
     sessionWindows,
     onSessionWindows: (windows) => ctx.writes.add(`the context windows of ${windows.length} sessions`, ctx.tell.record(WINDOWS_EVENT, { windows, at: Date.now() })),

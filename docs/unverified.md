@@ -353,6 +353,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 338 | [A sent video in the chat on Safari and from a machine](unverified/sessions.md#a-sent-video-in-the-chat-on-safari-and-from-a-machine-btn-1704) | anyone sending a video in a chat and watching it on an iPhone or from a task on a machine | the bubble's thumbnail is empty or the video does not play on Safari; a machine's video stalls | — |
 | 342 | [A skill picked from a Codex chat's menu](unverified/sessions.md#a-skill-picked-from-a-codex-chats-menu-btn-1737) | anyone picking a skill in a Codex chat | a package's `$plugin:skill` or a skill named apart from its folder arrives as plain text and the model reads the skill itself, or the menu lists a skill Codex does not have | — |
 | 343 | [A skill deleted from ~/.claude/skills](unverified/packages.md#a-skill-deleted-from-claudeskills-btn-1736) | anyone on Windows deleting a skill of their own while the service runs | the skill stays in the store and in the other agents' folders until the next restart, or its link comes back; delete it from `~/.claude-config/skills` instead | — |
+| 345 | [A Claude chat titled by the CLI](unverified/sessions.md#a-claude-chat-titled-by-the-cli-btn-1772) | every Claude `--bg` project chat | the card keeps the first message, a launch waits out `claude.notShown`, or a message after a restart is refused `chats.starting`; start a new chat | — |
 
 ### Waiting for the event / not checked by choice
 

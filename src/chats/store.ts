@@ -1,4 +1,4 @@
-import type { Db, Writes } from '../storage/database.js'
+import type { Db, Queryable, Writes } from '../storage/database.js'
 import { ARCHIVE_PAGE, type ChatChoice, type ChatMessage, type ChatRecord } from './model.js'
 
 export interface ChatStoreDeps {
@@ -171,4 +171,13 @@ export class ChatStore {
     )
     return { chats: rows.slice(0, ARCHIVE_PAGE).map(recordOf), more: rows.length > ARCHIVE_PAGE }
   }
+}
+
+/** `[chat, sessionId]` of the machine's active chats with a session: handed back at its connection (`ChatSessions`, BTN-1772). */
+export async function loadChatSessions(db: Queryable, machine: string): Promise<[string, string][]> {
+  const { rows } = await db.query<{ id: string; session_id: string }>(
+    'select id, session_id from chats where machine_id = $1 and archived_at is null and session_id is not null order by created_at, id',
+    [machine],
+  )
+  return rows.map((row) => [row.id, row.session_id])
 }

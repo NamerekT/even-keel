@@ -13,6 +13,7 @@ export type MachineChatsContext = Pick<MachineContext,
   | 'agentOf'
   | 'agentStatus'
   | 'branchOf'
+  | 'chatSessions'
   | 'chatSettingsFor'
   | 'chatTitles'
   | 'configStore'
@@ -32,14 +33,16 @@ export type MachineChatsContext = Pick<MachineContext,
  * The machine's side of the project chats (BTN-1230, `docs/sessions/project-chats.md`): a chain session without a task
  * (BTN-1694) in the project's folder — the project's packages behind the gateway, not the account's or the folder's own
  * plugins and servers, the chat's own choice over the set (BTN-1696), and a Claude chat's own `--settings`
- * (`chatSettingsFor`). Every start takes the set current then.
- * The hub sends the whole choice with every call; the machine keeps nothing of a chat.
+ * (`chatSettingsFor`). Every start takes the set current then. A Claude chat starts without a name, so the CLI titles it
+ * (BTN-1772), and its session is bound to the chat (`chatSessions`) at its launch and every resume.
+ * The hub sends the whole choice with every call; of a chat the machine keeps only that binding.
  */
 export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
   const startOf = (project: string, chat: string, folder: string, start: Omit<ChatStart, 'account'>, agent: string): SessionStart => {
     const config = ctx.configStore.current
     return {
       name: chat,
+      ...(agent === CLAUDE && { autoTitle: true }),
       cwd: folder,
       prompt: start.prompt,
       model: start.model,
@@ -52,6 +55,10 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       ...(isPlain(config, project) ? { outsideRepo: true } : {}),
     }
   }
+  const bound = (chat: string, sessionId: string) => {
+    ctx.chatSessions.bind(chat, sessionId)
+    return sessionId
+  }
   const sessionOf = (chat: string) => {
     const session = ctx.monitor.handoff(chat)
     if (session === undefined) throw fail('chats.starting', {})
@@ -61,7 +68,7 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
     launch: async (project, folder, chat, start) => {
       const home = ctx.homeOf(start.account)
       await ctx.daemons.prepare(home)
-      return ctx.launchIn(home, startOf(project, chat, folder, start, home.agent), project)
+      return bound(chat, await ctx.launchIn(home, startOf(project, chat, folder, start, home.agent), project))
     },
     send: async (project, chat, start) => {
       const session = sessionOf(chat)
@@ -85,7 +92,7 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       return ctx.monitor.holds.during(session.sessionId, async () => {
         await ctx.stopIn(home, session)
         await ctx.daemons.prepare(home)
-        return ctx.resumeIn(home, session, next)
+        return bound(chat, await ctx.resumeIn(home, session, next))
       }, ctx.liveView(chat)?.ask?.id ?? null)
     },
     stop: async (chat) => {

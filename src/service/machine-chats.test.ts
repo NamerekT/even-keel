@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { CLAUDE } from '../claude/name.js'
 import { replyPrompt } from '../sessions/ask.js'
+import { ChatSessions } from '../sessions/chat-sessions.js'
 import { ResumeHolds } from '../sessions/holds.js'
 import { wireAgentStatus } from './accounts.js'
 import { transcriptPartOf, wireMachineChats, type MachineChatsContext } from './machine-chats.js'
@@ -36,8 +37,9 @@ function setup(status: 'idle' | 'busy', question?: string, hung = false, agent =
   const launchIn = vi.fn().mockResolvedValue(session.sessionId)
   const chatStartOf = vi.fn((_project: string, _agent: string, _own: Record<string, boolean>) => set)
   const chatSettingsFor = vi.fn((_project: string, _folder: string, _own: Record<string, boolean>) => CHAT_SETTINGS)
+  const chatSessions = new ChatSessions()
   const chats = wireMachineChats({
-    monitor, liveView, agentStatus, stopIn, resumeIn, launchIn, toldInbox, mailbox,
+    monitor, liveView, agentStatus, stopIn, resumeIn, launchIn, toldInbox, mailbox, chatSessions,
     homeOf: () => ({ ...home, agent }), agentOf: () => ({ reply }), daemons: { prepare: vi.fn() },
     configStore: { current: { settings: {}, execution: {}, projects: {}, ...config } }, branchOf: () => 'dev',
     packages: { chatStartOf }, chatSettingsFor,
@@ -45,9 +47,30 @@ function setup(status: 'idle' | 'busy', question?: string, hung = false, agent =
   return {
     send: (prompt = start.prompt) => chats.send('project', chat, { ...start, prompt }),
     launch: () => chats.launch('project', '/project', chat, { ...start, account: session.account }),
-    chats, holds, reply, toldInbox, mailbox, stopIn, resumeIn, launchIn, chatStartOf, chatSettingsFor,
+    chats, holds, reply, toldInbox, mailbox, stopIn, resumeIn, launchIn, chatStartOf, chatSettingsFor, chatSessions,
   }
 }
+
+// BTN-1772: under `-n` the CLI generates no title, so a Claude chat goes without one and the machine binds its sessions.
+describe("a project chat's sessions", () => {
+  it('start a Claude chat for the CLI to title, other agents as before', async () => {
+    const claude = setup('idle')
+    await claude.launch()
+    expect(claude.launchIn).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ name: chat, autoTitle: true }), 'project')
+    const codex = setup('idle', undefined, false, 'codex')
+    await codex.launch()
+    expect(codex.launchIn.mock.calls[0]![1]).not.toHaveProperty('autoTitle')
+  })
+
+  it('are bound to the chat at the launch and at a resume into a copy', async () => {
+    const { launch, send, launchIn, resumeIn, chatSessions } = setup('idle')
+    launchIn.mockResolvedValue('first')
+    resumeIn.mockResolvedValue('copy')
+    await launch()
+    await send()
+    expect(['first', 'copy'].map((id) => chatSessions.chatOf(id))).toEqual([chat, chat])
+  })
+})
 
 describe('a message to an existing project chat', () => {
   it('stops and resumes an idle Claude --bg session with the message', async () => {

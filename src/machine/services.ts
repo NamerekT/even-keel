@@ -123,6 +123,8 @@ export interface RetainedRecords {
   mail: Mail[]
   /** The keep-warm pings of the last `MAX_KEEP_WARM_HOURS`, for the series a restart would lose (BTN-1507); absent — none handed. */
   warm?: WarmPing[]
+  /** The machine's active project chats with a session, `[chat, sessionId]` (`ChatSessions`, BTN-1772); absent — none handed. */
+  chats?: [string, string][]
 }
 
 /**
