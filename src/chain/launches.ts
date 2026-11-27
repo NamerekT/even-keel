@@ -197,6 +197,21 @@ export interface TaskRun {
   handoffs: number
 }
 
+/**
+ * The machine a session of the journal ran on (`LaunchEntry.machine`), else the newest its task's entries name: an entry a
+ * machine's move wrote before BTN-1800 has none, and a launched task never moves (`docs/machines/pool.md`).
+ */
+export function sessionLaunchMachine(entries: LaunchEntry[], sessionId: string): string | undefined {
+  const own = entries.findLast((entry) => entry.sessionId === sessionId)
+  if (own === undefined) return undefined
+  return own.machine ?? entries.findLast((entry) => entry.project === own.project && entry.task === own.task && entry.machine !== undefined)?.machine
+}
+
+/** A machine's journal entry as the hub keeps it: one without a machine is the sender's; `''` — the own one not known yet. */
+export function withLaunchMachine(entry: LaunchEntry, machine: string): LaunchEntry {
+  return entry.machine !== undefined || machine === '' ? entry : { ...entry, machine }
+}
+
 /** The task of a session the chain started and how many handoffs it had had by then; `undefined` for any other session. */
 export function handoffsOf(entries: LaunchEntry[], sessionId: string): TaskRun | undefined {
   const own = entries.find((entry) => entry.sessionId === sessionId && isLaunch(entry))

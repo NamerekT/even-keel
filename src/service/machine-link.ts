@@ -6,6 +6,7 @@ import { isOpen } from '../tracker/model.js'
 import type { CliSourceName } from '../agent/cli-state.js'
 import type { LaunchEntry } from '../chain/dispatcher.js'
 import { launchLine } from '../chain/log.js'
+import { sessionLaunchMachine, withLaunchMachine } from '../chain/launches.js'
 import { fileNote, keepHandoffNote, lastHandoffNote } from '../chain/handoff-notes.js'
 import { saveSnapshot } from '../chain/snapshots.js'
 import { AccountPolls } from '../limits/polls.js'
@@ -283,8 +284,9 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
       if (note !== undefined) await keepHandoffNote(ctx.db, note)
     },
     record: async (sent: MachineEvent) => {
-      // Where the task is read from is the hub's to know (BTN-66): the machine's journal entry has no source.
-      const event = sent.type === LAUNCH_EVENT ? { ...sent, payload: ctx.withSource(sent.payload as LaunchEntry) } : sent
+      // Where the task is read from is the hub's to know (BTN-66): the machine's journal entry has no source. A move's
+      // entry names no machine either: it is the one that sent it (BTN-1800).
+      const event = sent.type === LAUNCH_EVENT ? { ...sent, payload: ctx.withSource(withLaunchMachine(sent.payload as LaunchEntry, machine())) } : sent
       if (!await saveMachineRecord(ctx.db, machine(), event)) return
       if (event.type === LAUNCH_EVENT) {
         const entry = event.payload as LaunchEntry
@@ -511,8 +513,9 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     if (remote.page.sessions().some((view) => view.sessionId === sessionId)) return own
     const holder = network.holderOf(sessionId)
     if (holder !== undefined) return holder
+    // The journal names the machine a session ran on; the task's row is gone once Done released it (BTN-1800).
     const launch = ctx.launches.findLast((entry) => entry.sessionId === sessionId)
-    return launch === undefined ? undefined : assignments.machineOf(launch.project, launch.task)
+    return launch === undefined ? undefined : (sessionLaunchMachine(ctx.launches, sessionId) ?? assignments.machineOf(launch.project, launch.task))
   }
   const sessions = allSessions(() => [remote.page, ...network.pages()])
   const elsewhereSessions = (): string[] => {

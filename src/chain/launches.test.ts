@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LaunchEntry } from './dispatcher.js'
-import { fallbacksSince, fixEpisodes, handoffsOf, isLaunch, launchDays, launchedProjects, ranSince, taskSessions, taskSources } from './launches.js'
+import { fallbacksSince, fixEpisodes, handoffsOf, isLaunch, launchDays, launchedProjects, ranSince, sessionLaunchMachine, taskSessions, taskSources, withLaunchMachine } from './launches.js'
 
 function launch(at: Date, project: string): LaunchEntry {
   return { at: at.toISOString(), project, task: `${project}-1`, sessionId: 's' }
@@ -302,6 +302,42 @@ describe('taskSessions', () => {
       { sessionId: 's2', at: '2026-09-27T11:00:00.000Z', how: 'checkpoint', resumed: 0, answers: 0, replaced: { at: '2026-09-27T12:00:00.000Z', how: 'checkpoint' } },
       { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, answers: 0, replaced: { at: '2026-09-27T11:00:00.000Z', how: 'checkpoint' } },
     ])
+  })
+})
+
+describe('sessionLaunchMachine', () => {
+  const entry = (sessionId: string, task: string, over: Partial<LaunchEntry> = {}): LaunchEntry => ({ at: '2026-11-27T10:00:00Z', project: 'p', task, sessionId, ...over })
+
+  it('is the machine its own entry names', () => {
+    expect(sessionLaunchMachine([entry('s1', 'ABC-1', { machine: 'pc' })], 's1')).toBe('pc')
+  })
+
+  it('is the machine of the task’s other entries for an entry a machine’s move wrote without one (BTN-1800)', () => {
+    const journal = [entry('s1', 'ABC-1', { machine: 'pc' }), entry('s2', 'ABC-1', { reason: 'checkpoint', previous: 's1' }), entry('s3', 'ABC-2', { machine: 'server' })]
+    expect(sessionLaunchMachine(journal, 's2')).toBe('pc')
+  })
+
+  it('is the newest of them', () => {
+    const journal = [entry('s1', 'ABC-1', { machine: 'old' }), entry('s2', 'ABC-1', { machine: 'pc' }), entry('s3', 'ABC-1', { reason: 'checkpoint' })]
+    expect(sessionLaunchMachine(journal, 's3')).toBe('pc')
+  })
+
+  it('is not known for a session the journal has not, or a task none of whose entries names one', () => {
+    expect(sessionLaunchMachine([entry('s1', 'ABC-1', { machine: 'pc' })], 's9')).toBeUndefined()
+    expect(sessionLaunchMachine([entry('s1', 'ABC-1'), entry('s2', 'ABC-2', { machine: 'pc' })], 's1')).toBeUndefined()
+  })
+})
+
+describe('withLaunchMachine', () => {
+  const entry: LaunchEntry = { at: '2026-11-27T10:00:00Z', project: 'p', task: 'ABC-1', sessionId: 's2', reason: 'checkpoint' }
+
+  it('names the sending machine in a move’s entry without one (BTN-1800)', () => {
+    expect(withLaunchMachine(entry, 'pc')).toEqual({ ...entry, machine: 'pc' })
+  })
+
+  it('keeps the machine an entry names, and an entry while the own machine is not known', () => {
+    expect(withLaunchMachine({ ...entry, machine: 'pc' }, 'server').machine).toBe('pc')
+    expect(withLaunchMachine(entry, '')).toBe(entry)
   })
 })
 
