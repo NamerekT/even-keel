@@ -61,6 +61,7 @@ import { fakeArchiveCount, fakeArchivePage, withFakeArchive } from './fakeArchiv
 import { fakeOutside, fakeOutsideArchive } from './fakeOutside.js'
 import { withFeeds, withLongNames, withMixedNames } from './fakeLong.js'
 import { withFakeLanding } from './fakeLandings.js'
+import { withEnglishContent } from './fakeEnglish.js'
 import { fakeLaunches, fakeState, withFakeSpent, KEY_LIMIT_AGENTS } from './fakeState.js'
 
 const TICK_MS = 2_000
@@ -618,7 +619,8 @@ export function createFakeSource(search: string): LiveSource {
     ]
   }
   if (params.get('milestones') === 'saved' && current.state !== null) current.state = withSavedMilestoneOrder(current.state, { project: 'ABC', order: ['v0.3 — служба', 'v0.1 — каркас'] })
-  if (current.state !== null) current.state = withLiveMilestones(withHeaderLevels(prepareHeaderLevels(current.state, params.get('header'))))
+  const content = params.get('content') === 'en' ? withEnglishContent : <T>(value: T): T => value
+  if (current.state !== null) current.state = content(withLiveMilestones(withHeaderLevels(prepareHeaderLevels(current.state, params.get('header')))))
   const network = new FakeNetwork(params.get('machines'), (project) => current.state?.config.projects[project]?.repo ?? '')
   const chats = fakeChats(params.get('chats'))
   const notify = () => {
@@ -689,7 +691,7 @@ export function createFakeSource(search: string): LiveSource {
     setInterval(() => {
       const state = closing && ++ticks % CLOSE_TICKS === 0 ? close(current.state!) : current.state!
       const [kind, text] = FEED_STEPS[(closing ? ticks : ++ticks) % FEED_STEPS.length]!
-      const line: FeedLine = { at: ago(0), kind, text }
+      const line: FeedLine = { at: ago(0), kind, text: content(text) }
       const sessions = state.sessions.map((view) =>
         view.lamp === 'working' && view.contextTokens > 0
           ? { ...view, contextTokens: view.contextTokens + 800, lastActivityAt: ago(0), action: line, feed: [...view.feed.slice(1), line] }
