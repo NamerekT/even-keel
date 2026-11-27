@@ -40,17 +40,7 @@ A project names its repository: `{ "repo": "…", "tracker": "github", "github":
 
 GitHub has no backlog, so keep entry to the chain on a label: `"chain": { "requiredLabels": ["ready"] }`.
 
-In a public repository anyone with a GitHub account can open an issue, and a session gives its text to an agent that runs commands on your machine.
-
-So an issue opened by someone who is not the repository's owner, a member of its organization or a collaborator never enters the chain by itself: without required labels it waits in the backlog until you press **Into the chain** on it, which puts the label `even-keel: approved` on it (only people with triage rights can label an issue); with required labels it needs one of them, like any other issue.
-
-Until it has that label, a session's `tasks@even-keel` tools do not show it either: the task list only counts such issues, and reading one gives no title, description or files.
-
-The issues of the repository's own people enter at once unless you set required labels: the wizard says so for a public repository, and the project page keeps saying it in a band, with **Rules** next to it, for as long as the repository is public and has no required labels — also when it was made public after the project was added.
-
-For the same reason Even Keel reads only the comments of the repository's owner, the members of its organization, its collaborators and the token's own account — as an answer to a question, and in PR mode as a review or a comment on a pull request.
-
-Anyone else's is skipped with a line in the service log; the task card on the page still shows it.
+In a public repository an outsider's issue waits for **Into the chain**, and an outsider's comments never answer a session: who counts as the repository's own and what reaches a session is in [Whose text a session reads](security.md#github-gitlab-and-forgejo).
 
 Details and the mapping of statuses, blockers, sub-issues and priorities: [plugins/github/README.md](../../plugins/github/README.md).
 
@@ -72,13 +62,7 @@ The profile checks the account and shows the token expiry when the server expose
 
 Pick the project including subgroups: `{ "key": "APP", "repo": "…", "tracker": "gitlab", "gitlab": "group/subgroup/project" }`; issue `iid` 12 becomes `APP-12`.
 
-Opened issues are ready, closed ones done; use **Required labels** to keep unread issues out, especially in public projects.
-
-An issue opened by someone without Reporter access waits for **Into the chain** even without them, as on GitHub.
-
-Only members with Reporter access or above and the token owner can answer sessions through comments.
-
-**GitLab Free has only related links, so no blocking order**: the chain follows milestones and priority; Premium or Ultimate adds native blocking links. Text such as `blocked by #12` is ignored.
+How its issues, blocking links and milestones map onto the chain is in [Trackers](trackers.md#gitlab); whose issues and comments count, in [Whose text a session reads](security.md#github-gitlab-and-forgejo).
 
 Details: [plugins/gitlab/README.md](../../plugins/gitlab/README.md).
 
@@ -88,9 +72,7 @@ The site address (`https://<site>.atlassian.net`), the e-mail of an Atlassian ac
 
 The project key is the Jira project key (`ABC` for `ABC-12`): `{ "key": "ABC", "repo": "…", "tracker": "jira" }`.
 
-Statuses of the To Do category are ready and enter the chain, except one named Backlog; a board whose backlog is not a status needs **Required labels** or the project's own active statuses.
-
-The chain is ordered by the `Blocks` link type: if your site renamed or deleted it, the profile's projects do not start until a link type of that name is back.
+How its statuses, `Blocks` links and fix versions map onto the chain is in [Trackers](trackers.md#jira-cloud).
 
 Details: [plugins/jira/README.md](../../plugins/jira/README.md); the live checks are in [verified.md](../verified/trackers.md).
 
@@ -102,15 +84,7 @@ The same profile serves the repository's issues, its Forgejo Actions and PR mode
 
 A project names its repository: `{ "key": "APP", "repo": "…", "tracker": "forgejo", "forgejo": "owner/name" }`; issue 12 becomes `APP-12`.
 
-Open issues are ready, closed ones done; Forgejo has no backlog, so keep entry on a label with **Required labels**, and in a public repository an issue opened by anyone but the owner, a collaborator or the token's account waits for **Into the chain** even without one, as on GitHub; the wizard says so.
-
-The chain is ordered by the issues' native dependencies ("depends on").
-
-**A repository with dependencies turned off has no blocking order**: the chain then follows milestones and priority only, and text such as `blocked by #12` is ignored.
-
-Priority comes from labels `priority: high`, `priority/high` or `priority::high`; there are no subtasks and no estimates.
-
-Only comments of the repository's owner, its collaborators and the token's own account answer a session; anyone else's is skipped with a line in the service log.
+How its issues, dependencies and priority labels map onto the chain is in [Trackers](trackers.md#forgejo-gitea-and-codeberg); whose issues and comments count, in [Whose text a session reads](security.md#github-gitlab-and-forgejo).
 
 Details: [plugins/forgejo/README.md](../../plugins/forgejo/README.md).
 
@@ -147,14 +121,14 @@ On top of the adapter, a Claude Code plugin from this repository gives the sessi
 
 There are two kinds of tracker package, and a project needs one of them:
 
-- **`tasks@even-keel`, the default.** A new project gets it on as soon as it is added, installed in the background if the catalog lacks it; it is an ordinary package, which you turn off or remove like any other. Even Keel's own tasks server: five tools with short answers, statuses, labels and milestones by name, description patches instead of resending it, no deletes; the same on every tracker. Its tools are the service's own, so a session you start by hand with the `tasks` plugin needs Even Keel running — when it is not, the session says so when it starts, and `/mcp` reconnects the server once the service is up.
+- **`tasks@even-keel`, the default.** A new project gets it on as soon as it is added, installed in the background if the catalog lacks it; it is an ordinary package, which you turn off or remove like any other. Even Keel's own tasks server: five tools with short answers, statuses, labels and milestones by name, description patches instead of resending it, no deletes; the same on every tracker, a project's task feeds too: a session on a feed's task comments and files its blockers in the feed's tracker, and a task search covers every tracker of the project. Each session keeps its own task in the prompt. Its tools are the service's own, so a session you start by hand with the `tasks` plugin (`claude plugin install tasks@even-keel --scope project`, [`plugins/tasks/README.md`](../../plugins/tasks/README.md)) needs Even Keel running — when it is not, the session says so when it starts, and `/mcp` reconnects the server once the service is up.
 - **The tracker's own plugin** (`huly@even-keel`, `github@even-keel`, `linear@even-keel`, `gitlab@even-keel`, `jira@even-keel`, `forgejo@even-keel`). The tracker's own MCP server with its skills: more tools and more context, and it works without the service. Take it instead of `tasks` when you want that tracker's full set or a particular server.
 
 Wherever the page offers a tracker package, `tasks` comes first and the tracker's own plugin beside it. Turning both on in one project works but is not worth it: two tool sets of one tracker double the context and the agent writes through one or the other, so the project's packages warn about it, with **Turn off tasks** beside the warning.
 
 Even Keel offers its own plugins from this folder, with no marketplace to add first:
 
-1. In **Settings → Packages** (the package catalog), press **Add a package**, choose **Plugin** and pick `tasks@even-keel` or the tracker's own plugin for every project or one. Even Keel copies the plugin, installs a pinned version of its MCP server and gives both to every chain session at launch. A project turns a package on or off in its own packages: the project's settings → **Sessions** → **Project packages** at the top of the tab, where each package has a switch and ↺ puts back the catalog's default. A plugin your projects already had enabled when you upgraded is in the catalog already. A shortcut for one project: **Project packages** beside **Task description in the prompt** in the project's settings, or the **What sessions get** chip in the project's head while its tip says a tracker package is missing, opens the project's packages with the add dialog over them, `tasks@even-keel` and the project already picked; while the project lacks a tracker package, its packages show a button for each kind.
+1. In **Settings → Packages** (the package catalog), press **Add a package**, choose **Plugin** and pick `tasks@even-keel` or the tracker's own plugin for every project or one. Even Keel copies the plugin, installs a pinned version of its MCP server and gives both to every chain session at launch. A project turns a package on or off in its own packages ([Where packages are managed](packages.md#where-packages-are-managed)). A plugin your projects already had enabled when you upgraded is in the catalog already. A shortcut for one project: **Project packages** beside **Task description in the prompt** in the project's settings, or the **What sessions get** chip in the project's head while its tip says a tracker package is missing, opens the project's packages with the add dialog over them, `tasks@even-keel` and the project already picked; while the project lacks a tracker package, its packages show a button for each kind.
 2. The MCP server takes the credentials of the project's tracker profile: it runs behind a local gateway on `127.0.0.1:4748` (`EVEN_KEEL_MCP_PORT`), so the sessions never see them. Another key a package needs shows in the package's details in the catalog; until it is set the project's chain pauses with that reason and **Open the project's packages** beside it, and goes on by itself once the key is there.
 3. Nothing to switch off: once a package of the project brings the tracker's MCP server, the prompt carries only the task ID and the session reads the task itself (`brief` left as auto). The package `tasks@even-keel` counts as that server too: a project with it on and the tracker's plugin off also gets only the task ID. `brief: true` or `false` overrides that; with `false` the chain waits while no package of the project brings the server.
 

@@ -60,19 +60,16 @@ If `main` moved while the task ran, Even Keel runs the check again on `main` in 
 
 ## Pull requests
 
-With `pullRequests` on, a session does not merge its branch: Even Keel pushes it, opens a pull request on GitHub or Forgejo, or a merge request on GitLab, and takes the next task; review feedback and failed checks, with the end of the failed job's log, go back to the task's session, and a chain that ran out of tasks starts again for them by itself (one you stopped waits for **Start**).
+With `pullRequests` on, a session does not merge its branch: Even Keel pushes it, opens a pull request on GitHub or Forgejo, or a merge request on GitLab, and takes the next task.
 
 When the tasks are GitHub issues and the pull request is on GitHub, Even Keel ends its body with `Closes owner/repo#N`, so the issue shows the pull request and GitHub closes it at the merge; with GitLab Issues on the same GitLab server it ends a merge request with `Closes #N` (an issue of another project: `Closes group/name#N`).
 
-Feedback goes back to the task's session: reviews that ask for changes or comment, comments in the pull request's conversation (yours included: a forge does not let you request changes on a pull request opened with your own token) and failed checks.
+Feedback goes back to the task's session: reviews that ask for changes or comment, comments in the pull request's conversation (yours included: a forge does not let you request changes on a pull request opened with your own token) and failed checks with the end of the failed job's log. A chain that ran out of tasks with pull requests open starts again by itself when feedback comes on one of them; a chain you stopped waits for **Start**.
 
-Whose remarks count:
+Only the remarks of the repository's own people count, as [Whose text a session reads](security.md#github-gitlab-and-forgejo) says; anyone else's is skipped with a line in the service log. On top of that, for a pull request:
 
-- on GitHub those of the repository's owner, the members of its organization, its collaborators and the token's own account — anyone else's is skipped with a line in the service log, and bots' are not feedback;
-- on GitLab every note by a member with Reporter access or above, not system notes such as approvals and not bots;
-- on Forgejo those of the token's own account and of anyone with write access or above to the repository — when the token's account is not an admin of the repository, Forgejo does not tell it others' access, and then only the token's account and the repository's owner count, so make the profile's account an admin of the repository for other reviewers — anyone else's is skipped with a line in the service log.
-
-A chain that ran out of tasks with pull requests open starts again by itself when feedback comes on one of them; a chain you stopped waits for **Start**.
+- bots' remarks and GitLab's system notes, such as approvals, are not feedback;
+- on Forgejo a reviewer needs write access or above to the repository, and Forgejo tells another user's access only to an admin of the repository: when the token's account is not one, only that account and the repository's owner count, so make the profile's account an admin of the repository for other reviewers.
 
 The merge closes the task in the tracker; a close without a merge returns it skipped, and its next run is told of the closed pull request and its comments.
 

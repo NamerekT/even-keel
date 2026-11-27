@@ -161,8 +161,6 @@ Folders of other names in it, such as your own backups, are never removed.
 
 A copy holds the trackers' tokens and keys in plain text: keep its folder as private as `.env`.
 
-To restore one, stop Even Keel and put it in place of `state/even-keel`, as above.
-
 The statistics database is versioned too: the collector brings its schema up to date on its first run after the update, step by step, each step in one transaction.
 
 Going back to an older version does not undo that: the older collector stops on a newer database (one line in the log) and `/stats` says so, until you update again or restore a backup of the database taken before the update (`<state>/tally/pgdata` for the embedded one).

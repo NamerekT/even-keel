@@ -21,13 +21,9 @@ Everything is driven from one web page: the chains, the sessions, the accounts a
 
 ### The legend
 
-Open **?** above the side panel for a legend grouped by location: the header, project row, tabs, task card and session strip.
-
-Its queue and account samples match the header. It explains task states separately from priority numbers, dependency counters, the cache ring, release-carry agents and context usage.
+The **?** tab after **Settings** at the right of the project page opens a legend beside the chain, so you can check one against the other. It is grouped by location — the header, project row, tabs, task card and session strip — and says what each lamp and shape of a row means and each sign of the header that has no words on it: the limit rings, the account dot, the gear. Its queue and account samples match the header. It explains task states separately from priority numbers, dependency counters, the cache ring, release-carry agents and context usage.
 
 State marks have different shapes as well as colours. Fix and release-carry rows show their state beside the row key.
-
-What each lamp and shape of a row means, and each sign of the header that has no words on it — the limit rings, the account dot, the gear — is in the **?** tab after **Settings** at the right of the project page. It opens beside the chain, so you can check one against the other.
 
 ### A task's row in the chain
 
@@ -63,9 +59,7 @@ The milestone on the card is a pick: choosing another one moves the task there i
 
 **To the backlog** is its mirror, in the card and on a chain row you point at: it takes the required labels off and moves the task to a backlog status where there is one. It is not offered while a session works on the task.
 
-On GitHub and GitLab, which have no backlog status, the backlog is the open issues without a required label, so the two buttons only put that label on and take it off; in a public repository an issue opened by someone outside the repository lands in the backlog even with no required labels, and **Into the chain** lets it in with the label `even-keel: approved`.
-
-Only people with triage rights can label an issue.
+On GitHub and GitLab, which have no backlog status, the backlog is the open issues without a required label, so the two buttons only put that label on and take it off. An outsider's issue in a public repository waits for **Into the chain** even with no required labels ([Whose text a session reads](security.md#github-gitlab-and-forgejo)).
 
 ### The backlog panel
 
@@ -135,17 +129,7 @@ The gear in the header has a dot when something is wrong and a **Status** row le
 
 ## Updating from the page
 
-A newer release gets a mark next to the version in the gear menu and a notification. Both open the update window: the notes of every release since yours, a mark on a release that takes back part of an earlier one, and **Update**.
-
-Even Keel waits for the chains to settle, checks out the release, builds it and restarts the service; if the new version does not come up, the old one comes back, and the page says what failed.
-
-After an update, **Revert** goes back to the previous version the same way, unless the update changed the format of the stored state.
-
-The button needs Even Keel running as a service from a clean clone; otherwise the window says why and you update by hand.
-
-Even Keel asks GitHub for releases only once you allow it: the first start's setup asks, and **Settings** → **Interface** changes it.
-
-In full — [Updating](updating.md#updating).
+A newer release gets a mark next to the version in the gear menu and a notification; both open the update window ([From the page](updating.md#from-the-page)).
 
 ## Reporting a problem
 
@@ -162,11 +146,7 @@ A vulnerability goes privately, not as an issue: the last line, **privately only
 
 ## In the tray (Windows)
 
-On Windows `even-keel install` makes Even Keel start at your sign-in, with no administrator, and puts its icon in the tray: a dot says whether it runs, a chain is paused or a session waits for your answer, and the menu opens the page, restarts Even Keel or quits it.
-
-It runs while you are signed in; for a machine nobody signs in to, a clone can still be a Windows service.
-
-In full — [As a service](service.md#as-a-service).
+On Windows `even-keel install` puts Even Keel's icon in the tray, with a dot for its state and a menu ([Windows: a start at sign-in](service.md#windows-a-start-at-sign-in)).
 
 ## Hotkeys
 

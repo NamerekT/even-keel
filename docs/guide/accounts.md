@@ -13,25 +13,19 @@ An account is one sign-in of one agent: a subscription, an API key or a cloud. E
 
 ## Adding an account
 
-Accounts appear only after you add them.
+Accounts appear only after you add them: installing a CLI or signing in to it does not add one. **Add account** is on the setup's Agent step, the accounts page and in the project wizard.
 
-In **Add account**, choose a provider: if its CLI already has a sign-in on this machine, the dialog offers that identity or signing in with another account. Otherwise it opens the usual sign-in choices.
+Choose a provider (a provider's own **Add**, or **Add account** at the top, which also offers providers with no accounts, whose empty blocks are omitted). If its CLI — a global Claude Code or Codex folder — already has a sign-in on this machine, the dialog offers **Use this sign-in** or **Sign in with another account**, which keeps a separate folder; otherwise it opens the usual sign-in choices.
 
-The first account added for a provider takes its unused shared pool entry.
+Until a provider has a registered shared account, the first account added for it takes that role, its unused shared pool entry.
 
-Removing an added global CLI account from Even Keel keeps its folder and CLI sign-in.
-
-An update keeps global accounts that were already visible; a new installation starts without them.
-
-A provider's Add opens its sign-in choices; Add account at the top also offers providers with no accounts, whose empty blocks are omitted.
+Removing an added global CLI account from Even Keel keeps its folder and CLI sign-in. An update keeps global accounts that were already visible; a new installation starts without them.
 
 Claude Code offers a subscription, an API key or a cloud (Amazon Bedrock, Google Vertex AI, Microsoft Foundry); Codex a ChatGPT subscription or API key; OpenCode ChatGPT, GitHub Copilot, free models or API key; Copilot this machine's sign-in or a token.
 
 The dialog walks the sign-in steps, closes on success and highlights the added row. It opens over the current page, including setup and the project wizard.
 
 A missing CLI disables its provider with installation help.
-
-Until a provider has a registered shared account, its first added account takes that role.
 
 An account uses its given name, else e-mail, else provider (numbered for duplicates); Rename in the row menu changes only that name, and an empty name restores the default.
 
@@ -61,8 +55,6 @@ Paid plans have no limit on the number of accounts. An unreadable plan remains u
 ### OpenCode
 
 OpenCode accounts are folders of their own too, signed in with ChatGPT or GitHub Copilot (a link and a one-time code), on an Anthropic or OpenAI API key, or with no sign-in for OpenCode's free models. There is no Claude subscription for OpenCode: Anthropic allows it only in Claude Code, so Claude in OpenCode is an API key ([docs/accounts.md](../accounts/other-agents.md#the-opencode-folders-btn-214)).
-
-OpenCode can use ChatGPT, API keys or its free models.
 
 An API key may be Anthropic's (`sk-ant-…`), OpenAI's or OpenRouter's (`sk-or-…`): whose it is, is told by its start, and it is checked with that provider when added and hourly.
 
@@ -114,7 +106,7 @@ An account can also be an Anthropic API key, checked with Anthropic when added a
 
 A session whose key runs out of credit is held, the key is checked every 5 minutes, and the chain goes on once it is topped up ([account details](../accounts/claude-kinds.md#api-accounts-btn-99)).
 
-A spending cap also holds the current task: the account problem band and session panel show the reset date from the error, and the chain retries then, or sooner if a five-minute check succeeds after you raise the cap. You can switch accounts to continue immediately. Automatic recovery from a real spending cap and the workspace variant have [not yet been checked live](../unverified/sessions.md#api-spending-cap-recovery).
+A spending cap also holds the current task, in OpenCode on an Anthropic key too: the account problem band and session panel show the reset date from the error (UTC), and the chain retries then, or sooner if a five-minute check succeeds after you raise the cap. You can switch accounts to continue immediately. Automatic recovery from a real spending cap and the workspace variant have [not yet been checked live](../unverified/sessions.md#api-spending-cap-recovery).
 
 A Codex account can be an OpenAI API key the same way, checked with OpenAI; a Codex session whose key runs out of money is held the same way.
 
@@ -124,8 +116,6 @@ The new key is checked first and the old one stays if it is refused; a key of an
 
 Sessions already running finish on the old key, new ones start on the new one. A Copilot token is replaced the same way.
 
-An Anthropic API key's spending cap holds the current task in OpenCode too: the chain waits for the UTC reset named in the refusal and checks the key every five minutes, allowing earlier recovery after you raise the cap. Automatic recovery through a real cap still needs a [live check](../unverified/sessions.md#api-spending-cap-recovery).
-
 ## Claude on a cloud
 
 A Claude Code account can run on Claude models in your own cloud account instead of a subscription or an Anthropic key: Amazon Bedrock, Google Vertex AI or Microsoft Foundry. The cloud bills it, and none of the three has run a live session yet.
@@ -134,7 +124,7 @@ A Claude Code account can run on Claude models in your own cloud account instead
 
 A Claude Code account can also run on Claude models in your Amazon Bedrock account, billed by AWS: **Add account** → **Cloud** → **Amazon Bedrock**.
 
-Pick how Even Keel finds the AWS credentials — an AWS profile (suggested from the AWS files of the user Even Keel runs as, which under a Windows service may not be you), a Bedrock API key, an access key pair, or the environment Even Keel already runs with — and optionally the region, the models (an inference profile id like `us.anthropic.…` or its ARN) and the inference profile prefix.
+Pick how Even Keel finds the AWS credentials — an AWS profile (suggested from the AWS files of the user Even Keel runs as, which under a Windows service may not be you: sign in to AWS as that user, with `aws sso login` or `aws configure`), a Bedrock API key, an access key pair, or the environment Even Keel already runs with — and optionally the region, the models (an inference profile id like `us.anthropic.…` or its ARN) and the inference profile prefix.
 
 One short turn checks the connection before the account is added; a refusal says why (no credentials, no model access, no payment method, a region that does not serve the model on demand) and adds nothing.
 

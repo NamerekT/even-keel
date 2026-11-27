@@ -32,7 +32,7 @@ The button turns amber while the session waits for you. Even Keel stops the sess
 
 An unsent reply — its text and files — stays with each session's chat in your browser: close the window or reload the page and it is still there, until you send it.
 
-A sent message shows at once, with an icon left of its time: a clock with turning hands while it is on its way to the session (the loading bar at the top of the page stays still for it), two green checks once the session has it, a red sign if it could not be delivered. Point at the icon for its words and the time of delivery.
+A sent message shows at once, with a delivery icon left of its time ([Writing while the session works](#writing-while-the-session-works)). Point at the icon for its words and the time of delivery.
 
 The window's head names the task; point at its title for the session's id, press it to copy the id.
 
@@ -94,9 +94,9 @@ A session whose chain has stopped offers only the reply.
 
 ## Writing while the session works
 
-You can write to a session while it works. Its hooks can pass the message at the next tool call or at the end of the turn. Claude Code can also receive it through its inbox. Your message appears immediately with a clock. The clock changes to two green checks on the same bubble once the transcript contains the message. A message sent from another window also shows a clock while it waits in the session’s queue.
+You can write to a session while it works. Its hooks can pass the message at the next tool call or at the end of the turn. Claude Code can also receive it through its inbox. Your message appears immediately with a clock with turning hands (the loading bar at the top of the page stays still for it). The clock changes to two green checks on the same bubble once the transcript contains the message. A message sent from another window also shows a clock while it waits in the session’s queue.
 
-If the session asks a question, stops, or the task closes before delivery, the bubble shows a red mark. Point to it for the reason. The message and its attachments return ahead of whatever you have typed. On another device, the draft includes the saved file paths. A closed task keeps its draft available to copy.
+If the session asks a question, stops, or the task closes before delivery, the bubble shows a red mark until you send the next message. Point to it for the reason. The message and its attachments return ahead of whatever you have typed, even if you closed the chat. On another device, the draft includes the saved file paths. A closed task keeps its draft available to copy.
 
 If the hook times out before the service sends its response, the message stays queued for the next hook or resume.
 
@@ -134,7 +134,7 @@ If OpenCode stays silent for 30 seconds, Even Keel also checks its account log f
 
 A usage limit then follows the usual limit wait; another stream error shows a translated message and lets you send a reply or choose **New session**. Without such an error, the existing hang check still applies.
 
-If your reply cannot be delivered, Even Keel reports the failure and leaves the chain running; the message stays in the chat marked red until you send the next one. The field clears as soon as you send. If the reply fails, its text and files return ahead of any new draft, even if you closed the chat. You can retry once the cause is resolved.
+If your reply cannot be delivered, Even Keel reports the failure and leaves the chain running; the message comes back as [a message that missed its session](#writing-while-the-session-works) does, and you can retry once the cause is resolved.
 
 ## Keys
 
@@ -162,7 +162,7 @@ The chats are the **Chats** tab of the project page, between Backlog and Setting
 
 - You choose the machine, the account, the model, the effort and the chat's packages when you create a chat, and they stay until the chat ends. Even Keel offers your last choice in that project for the next chat.
 - Your first message appears in the chat as soon as you send it and stays visible while the session starts. You can type and attach files for your next message while the previous one uploads. If the upload fails, the chat shows the reason and puts the original text and attachments before your new draft, even if you closed the chat.
-- You can also send a message while a project chat is working if its session accepts mid-turn messages. The bubble shows the same clock, checks or failure mark as a task chat. Otherwise the field tells you when you can send.
+- You can also send a message while a project chat is working if its session accepts mid-turn messages. The bubble shows the same clock, checks or failure mark as a task chat ([Writing while the session works](#writing-while-the-session-works)). Otherwise the field tells you when you can send.
 - A chat goes to the archive a day after its last message or its session's last action, whatever it is doing then, and its session is stopped. Hiding a chat archives it too; nothing is deleted, and the transcript stays on disk.
 - An archived chat is only for reading. To go on, start a new chat.
 - A message to a chat whose cache went cold asks first: reply there anyway, which rereads the whole context, or **New session with this message**. When the chat's account is at its limit, only the new session is offered. The window says why, shows your message and lets you pick the account, the model and the effort; the new session stays on the chat's machine, with its history, so the accounts are that machine's; at a limit the next account with room is picked already. The new session gets your message, the last turns of the old chat and a link to its transcript; the old chat goes to the archive, its session stops, and the new chat opens with a "Continued from" link to it. Cancel keeps your text and files in the field.

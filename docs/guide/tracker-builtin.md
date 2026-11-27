@@ -18,17 +18,7 @@ Under **Project tasks** the **Milestone order** block lists every milestone of t
 
 A project with another tracker's tasks moves to the built-in one through the import ([Moving from a real tracker](#moving-from-a-real-tracker)), not by switching the tracker field.
 
-For sessions to file and edit its tasks themselves — record decisions, split a task, link a blocker — a project needs the package `tasks@even-keel`.
-
-A project you add gets it on from the start; one added before it, or one where you turned it off, turns it on in the project's packages (the project's settings → **Sessions** → **Project packages**, the first button of the tab).
-
-Each session keeps its own task in the prompt and gets five short tools for the others; nothing can be deleted through them.
-
-A session you start by hand reaches the same tools when the `tasks` plugin is installed in it (`claude plugin install tasks@even-keel --scope project`), as long as Even Keel is running, since the tools are the service's own: see [`plugins/tasks/README.md`](../../plugins/tasks/README.md).
-
-Chain sessions get the new version of `tasks@even-keel` and Even Keel's other plugins with each new Even Keel by themselves. Claude Code keeps its own copy of a plugin it installed, so after an Even Keel update run `claude plugin update tasks@even-keel --scope project` in each repository where you installed it, and the same for its other plugins there.
-
-The same package and plugin work for a project on Huly, GitHub, Linear, Jira, GitLab or Forgejo too, with a few limits of each tracker listed there, and for a project's task feeds: a session on a feed's task comments and files its blockers in the feed's tracker, and a task search covers every tracker of the project.
+For sessions to file and edit its tasks themselves — record decisions, split a task, link a blocker — a project needs the package `tasks@even-keel`, on from the start in a project you add ([With the plugin](tracker-connect.md#with-the-plugin)).
 
 #### Attachments and edits
 

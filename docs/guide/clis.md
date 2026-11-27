@@ -10,7 +10,7 @@ A version becomes the checked one after one live session on it went through a la
 
 By default chain sessions run on your own CLI, on whatever version it has updated itself to, and the event log (**Log** in the header) gets a warning when that is another version than the checked one: the stage, the context fill or a limit may then be read wrong, at worst a session does not start.
 
-"CLI version" `Checked` (in the setup's Agent step or Settings → Providers and models, which the log's warning opens) runs them on the checked version instead: Even Keel downloads it from Anthropic into `state/cli/claude/<version>/` (~340 MB a version, checked against Anthropic's sha256) only after you press Download, waits for that copy before starting chain sessions, and turns the auto-updater off for those sessions so they never update your own install ([docs/sessions/cli-versions.md](../sessions/cli-versions.md#the-checked-cli-btn-250-srcagentpinnedts)).
+"CLI version" `Checked` (in the setup's Agent step or Settings → Providers and models, which the log's warning opens) runs them on the checked version instead ([CLI copies](agents.md#cli-copies)): Even Keel downloads it from Anthropic into `state/cli/claude/<version>/` (~340 MB a version, checked against Anthropic's sha256) and turns the auto-updater off for those sessions so they never update your own install ([docs/sessions/cli-versions.md](../sessions/cli-versions.md#the-checked-cli-btn-250-srcagentpinnedts)).
 
 Installs from before v0.2 stay on `Checked`. The pin has limits:
 

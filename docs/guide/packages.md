@@ -35,7 +35,7 @@ Handoffs, chat messages mid-turn, the check before a merge, standards and the ba
 
 The project memory is Claude Code's memory folder of the project, `~/.claude-memory/<project>`. Claude Code chain sessions use it as Claude Code's own memory, as the sessions you start yourself do. For agents without that memory (Codex and others) the plugin brings the `memory` MCP server: it reads and writes the same folder's files, on this computer and on every machine, and each such session's prompt lists what the memory holds; a fact one session changed while another was working is not overwritten, the second session gets the new text and writes its change over it. Even Keel keeps the folder in a git repository of its own, one per project in `state/even-keel/memory/`, and commits every change there; the first start of this version puts the memory the database held into it. A machine of a hub keeps the same folders as copies of the hub's repositories, over the link: each project of its pool, and any other folder there once you bind it to a project under **Other projects' memory** on the machine's page (a clone you work in by hand, say). Edits made while the machine is offline are committed there and go to the hub when it is back; a folder neither in the pool nor bound is left alone.
 
-Update, Check and its version work as for any package, but it needs no Update after Even Keel itself is updated: once the new version starts, new sessions get its new plugin, while tasks already running keep the one they started with.
+Update, Check and its version work as for any package; after an update of Even Keel it needs no Update, as none of Even Keel's own plugins does ([Plugins](updating.md#plugins)).
 
 ## Pinned versions
 
@@ -53,7 +53,7 @@ The chosen profile supplies its whole set of connection fields: an optional addr
 
 The GitHub, Linear and GitLab MCP servers use the profile's own token.
 
-A Jira profile can connect Atlassian's MCP server through OAuth with one button instead of a separate MCP token; Even Keel keeps and refreshes that access, and the sessions never see it ([setup](tracker-builtin.md#trackers-and-plugins)).
+A Jira profile can connect Atlassian's MCP server through OAuth with one button instead of a separate MCP token; Even Keel keeps and refreshes that access, and the sessions never see it ([MCP through OAuth or a token](tracker-connect.md#jira-mcp-through-oauth-or-a-token)).
 
 ## The `tasks` package
 
