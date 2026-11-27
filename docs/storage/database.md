@@ -3,7 +3,8 @@
 ## The database (`src/storage/database.ts`, `src/storage/owner.ts`)
 
 Step 45 adds the README badge's `badge_translations` cache (tracker source, task, title hash, attempt time and English
-title) and `badge_translation_spend`, its retained usage ledger. Translation attempts are claimed before the request,
+title) and `badge_translation_spend`, its retained usage ledger; step 89 (BTN-1784) adds `prompt`, the version of the
+prompt a title was translated by (null — the first). Translation attempts are claimed before the request,
 so a restart keeps the 30-minute retry interval; Tally reads the ledger through the owner and imports it by message id
 without duplicates. See [English titles](../badge.md#english-titles).
 

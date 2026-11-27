@@ -63,6 +63,15 @@ model (BTN-955) and usage appearing on `/stats` after collection. BTN-919
 owns the run on a bench from `stands/README.md` in `even-keel-backstage`. **If it is wrong:** turn English titles off;
 the badge still shows task keys.
 
+## The badge's English titles kept word for word (BTN-1784)
+
+Unit tests cover the `KEEP` answer taken as the original title, a `KEEP` for a title not in Latin letters retried after
+the pause, and the titles of the first prompt asked again with the old answer shown until the new one, a `NONE` kept.
+Not checked live: whether Gemini answers `KEEP` for English titles of BTN and still replaces a name in an English
+title rather than keeping it, and the re-ask of the hub's stored titles after the update. **If it is wrong:** the badge
+still shows retold titles, or an English title with a name reaches the picture; turn English titles off in the badge's
+dialog.
+
 ## Lightweight commands and tray polling (BTN-826)
 
 HTTP tests and the built page against a real HTTP fixture populated from a read-only TSK bench snapshot cover command acknowledgements, two repeated Stop/Keep going presses, SSE-only startup, gzip JSON, flushed SSE patches/pings, disconnect cleanup and reconnect bases. The Windows tray host compiles. Not checked on a deployed service: a phone over Tailscale, a stream kept open for hours, and the actual tray's language/count/paused/question icons with its new `/api/tray` poll. Since BTN-840 every command answers only `{ok:true}`, and the server ignores the old `X-Even-Keel-Command: ack` header (an HTTP test covers a command without it); a tab opened before the update to this version must be reloaded. **If it is wrong:** reload the page, use its chain/question controls to inspect status, and open the page from the tray rather than relying on its icon. Live checks use the TSK bench and restore any changed settings.
