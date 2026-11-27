@@ -153,4 +153,31 @@ describe('HookReceiver', () => {
     expect(JSON.parse((await mail('lost')).body)).toEqual({ message: 'hi', inbox: true })
     expect((await mail('gone')).status).toBe(404)
   })
+
+  // BTN-1769: the machine's own monitor puts the call to the user, so the machine's own approvals hold it.
+  it("answers a permission hook by the machine's own approvals and never carries it to the hub", async () => {
+    const forwarded: HookRequest[] = []
+    const polled: unknown[][] = []
+    const receiver = new HookReceiver({
+      forward: async (request) => {
+        forwarded.push(request)
+        return { status: 200, body: '{"decision":{"behavior":"allow"}}' }
+      },
+      account: () => ({}),
+      permission: (sessionId, tool, input, since) => {
+        polled.push([sessionId, tool, input, since])
+        return sessionId === 'chat' ? null : sessionId === 'task' ? { behavior: 'deny', message: 'no' } : undefined
+      },
+      log: () => {},
+    })
+    receivers.push(receiver)
+    const { port } = await receiver.start(0)
+    const poll = (id: string, body = '{"tool":"Bash","input":{"command":"rm a"},"since":5}') => ask(port, 'POST', `/api/sessions/${id}/permission`, { body })
+    expect(JSON.parse((await poll('chat')).body)).toEqual({ decision: null })
+    expect(JSON.parse((await poll('task')).body)).toEqual({ decision: { behavior: 'deny', message: 'no' } })
+    expect((await poll('hand')).status).toBe(404)
+    expect((await poll('chat', '{"tool":"Bash","input":[],"since":5}')).status).toBe(400)
+    expect(polled[0]).toEqual(['chat', 'Bash', { command: 'rm a' }, 5])
+    expect(forwarded).toEqual([])
+  })
 })

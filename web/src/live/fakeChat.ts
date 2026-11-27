@@ -1,6 +1,7 @@
 import { fail } from '../../../src/notice/notice.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import type { Mail, SessionMail } from '../../../src/sessions/mail.js'
+import { permissionAsk } from '../../../src/sessions/permission.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { picture } from './fakeCards.js'
@@ -52,8 +53,17 @@ const LONG_QUESTION = [
   'chain do by default, given that the user usually reads the page from a phone and answers later in the day?',
 ].join(' ')
 
-/** `?chain=ask&ask=long|single`: a question of ~900 characters before the short second one, or the first question alone. */
+/** A tool call waiting for approval (BTN-1769): `?chain=ask&ask=permission` and the first chat of `?chats=permission`. */
+export const FAKE_PERMISSION: Ask = permissionAsk(
+  'toolu_fake_permission',
+  'Bash',
+  { command: 'cp release/notes.md docs/changelog.md && rm release/notes.md', description: 'Move the release notes into the changelog' },
+  'en',
+)
+
+/** `?chain=ask&ask=long|single|permission`: a question of ~900 characters before the short second one, the first question alone, or a tool call to approve. */
 export function fakeAsk(mode: string | null): Ask {
+  if (mode === 'permission') return FAKE_PERMISSION
   if (mode === 'single') return { ...FAKE_ASK, questions: FAKE_ASK.questions.slice(0, 1) }
   if (mode !== 'long') return FAKE_ASK
   const [first, second] = FAKE_ASK.questions as [Ask['questions'][number], Ask['questions'][number]]

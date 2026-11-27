@@ -519,7 +519,10 @@ export function createFakeSource(search: string): LiveSource {
   }
   if ((params.get('chain') === 'ask' || params.get('chain') === 'unsaved') && current.state !== null && active) {
     const waiting = session('ABC-5', contextTokens, 'waiting')
-    const asking: SessionView = params.get('chain') === 'ask' ? { ...waiting, ask: fakeAsk(params.get('ask')) } : { ...waiting, waitingFor: 'input needed', ask: FAKE_UNSAVED_ASK }
+    const asking: SessionView =
+      params.get('chain') === 'ask'
+        ? { ...waiting, ask: fakeAsk(params.get('ask')), ...(params.get('ask') === 'permission' && { waitingFor: 'permission prompt' }) }
+        : { ...waiting, waitingFor: 'input needed', ask: FAKE_UNSAVED_ASK }
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? asking : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: asking.sessionId, since: ago(42) } }]
   }
@@ -811,7 +814,9 @@ export function createFakeSource(search: string): LiveSource {
         return { lines: [...base, ...delivered].slice(after), turn }
       }
       const handed = view === undefined || current.state === null ? null : fakeHandedTranscript(current.state, view)
-      if (after === 0) return { lines: handed ?? fakeTranscript(view?.ask ?? null, params.get('shots')), turn }
+      // A permission prompt is never written to the transcript: only the question of `AskUserQuestion` is.
+      const written = view?.ask?.permission === undefined ? (view?.ask ?? null) : null
+      if (after === 0) return { lines: handed ?? fakeTranscript(written, params.get('shots')), turn }
       return { lines: [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }], turn }
     },
     onTranscript: () => () => {},

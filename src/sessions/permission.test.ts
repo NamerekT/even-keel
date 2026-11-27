@@ -11,6 +11,7 @@ describe('permissionAsk', () => {
   it('asks whether to allow the tool, with the call in the preview of both options (EKR-139)', () => {
     expect(ask).toEqual({
       id: 'toolu_07',
+      permission: { tool: 'Bash', several: false },
       questions: [
         {
           question: 'Allow the session to run Bash?',
@@ -57,6 +58,7 @@ describe('permissionAsk', () => {
     }
     expect(permissionAsk('toolu_14', 'PowerShell', { command: 'Get-Item a; Remove-Item b' }, 'ru').questions[0]!.question).toBe('Разрешить сессии вызвать PowerShell (несколько команд)?')
     expect(of('npm test\n')).toBe('Allow the session to run Bash?')
+    expect(permissionAsk('toolu_15', 'Bash', { command: 'cp a b && rm a' }, 'en').permission).toEqual({ tool: 'Bash', several: true })
   })
 })
 

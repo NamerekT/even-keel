@@ -15,6 +15,13 @@ export const composerEn = {
   otherPlaceholder: 'Your own answer…',
   noPreview: 'No preview for this option',
   unsavedTitle: 'This question is not saved by the session yet',
+  permission: {
+    title: (tool: string, several: boolean) => `The session wants to run ${tool}${several ? ' (several commands)' : ''}`,
+    allow: 'Allow',
+    deny: 'Deny',
+    allowTip: 'The session runs this call and goes on with its turn. Words typed in the field go to it as your next message.',
+    denyTip: 'The session goes on without this call. Words typed in the field go to it as the reason.',
+  },
   banner: {
     close: 'Close',
     retry: 'Try again',

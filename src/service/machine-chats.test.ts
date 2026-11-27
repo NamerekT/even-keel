@@ -30,6 +30,7 @@ function setup(status: 'idle' | 'busy', question?: string, hung = false, agent =
   const agentStatus = wireAgentStatus({ agents, liveView, monitor } as unknown as Parameters<typeof wireAgentStatus>[0])
   const reply = vi.fn<() => Promise<string | null>>().mockResolvedValue(null)
   const toldInbox = vi.fn<() => Promise<boolean>>().mockResolvedValue(false)
+  const approved = vi.fn<() => boolean>().mockReturnValue(false)
   const heard = new Set<string>()
   const mailbox = { listens: (sessionId: string) => heard.has(sessionId), post: vi.fn(), listen: (sessionId: string) => heard.add(sessionId) }
   const stopIn = vi.fn()
@@ -39,7 +40,7 @@ function setup(status: 'idle' | 'busy', question?: string, hung = false, agent =
   const chatSettingsFor = vi.fn((_project: string, _folder: string, _own: Record<string, boolean>) => CHAT_SETTINGS)
   const chatSessions = new ChatSessions()
   const chats = wireMachineChats({
-    monitor, liveView, agentStatus, stopIn, resumeIn, launchIn, toldInbox, mailbox, chatSessions,
+    monitor, liveView, agentStatus, stopIn, resumeIn, launchIn, toldInbox, approved, mailbox, chatSessions,
     homeOf: () => ({ ...home, agent }), agentOf: () => ({ reply }), daemons: { prepare: vi.fn() },
     configStore: { current: { settings: {}, execution: {}, projects: {}, ...config } }, branchOf: () => 'dev',
     packages: { chatStartOf }, chatSettingsFor,
@@ -47,7 +48,7 @@ function setup(status: 'idle' | 'busy', question?: string, hung = false, agent =
   return {
     send: (prompt = start.prompt) => chats.send('project', chat, { ...start, prompt }),
     launch: () => chats.launch('project', '/project', chat, { ...start, account: session.account }),
-    chats, holds, reply, toldInbox, mailbox, stopIn, resumeIn, launchIn, chatStartOf, chatSettingsFor, chatSessions,
+    chats, holds, reply, toldInbox, approved, mailbox, stopIn, resumeIn, launchIn, chatStartOf, chatSettingsFor, chatSessions,
   }
 }
 
@@ -73,6 +74,17 @@ describe("a project chat's sessions", () => {
 })
 
 describe('a message to an existing project chat', () => {
+  it('decides the call the session waits to have approved, with no reply, stop or resume (BTN-1769)', async () => {
+    const { send, approved, reply, toldInbox, stopIn, resumeIn } = setup('idle')
+    approved.mockReturnValue(true)
+    await expect(send('Allow')).resolves.toBe(session.sessionId)
+    expect(approved).toHaveBeenCalledWith(chat, session, 'Allow')
+    expect(reply).not.toHaveBeenCalled()
+    expect(toldInbox).not.toHaveBeenCalled()
+    expect(stopIn).not.toHaveBeenCalled()
+    expect(resumeIn).not.toHaveBeenCalled()
+  })
+
   it('stops and resumes an idle Claude --bg session with the message', async () => {
     const { send, stopIn, resumeIn, holds } = setup('idle')
     await expect(send()).resolves.toBe(session.sessionId)

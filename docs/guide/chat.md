@@ -68,15 +68,15 @@ Remote Control still works for Claude sessions: the page links each one's Remote
 
 ### A permission dialog
 
-A Claude session that stops on a permission dialog — a command an `ask` rule in your settings holds, a call the `auto` classifier keeps refusing — puts the call to you as a question: "Allow the session to run Bash?" with the command beside "Allow", and "Deny".
+A Claude session that stops on a permission dialog — a command an `ask` rule in your settings holds, a call the `auto` classifier keeps refusing — puts the call to you. In a chat, a task's or a project's, it stands over the field as a card: "The session wants to run Bash", the command under it, and **Allow** and **Deny**. Words you typed in the field go with the press: after Allow as your next message, with Deny as the reason. The question panel and the tracker comment show it as a question, "Allow the session to run Bash?", with the command beside "Allow", and "Deny".
 
-The question says "(several commands)" when the command has more than one line or joins commands with `&&`, `||`, `;` or `|`.
+The card and the question say "(several commands)" when the command has more than one line or joins commands with `&&`, `||`, `;` or `|`.
 
 The agent's own description of the call comes after the command, marked "The agent says", since it is the agent's word, not a check.
 
 A very long call keeps its first 12,000 and last 4,000 characters and says how many are hidden between them; the tracker comment shows the call the same way.
 
-Answer it from the chat, the question panel or the tracker comment, and the session goes on at once, without a stop: the call runs, or the session gets your refusal and your words.
+Answer it from the chat, the question panel or the tracker comment, and the session goes on at once, without a stop: the call runs, or the session gets your refusal and your words. A session on another machine is answered the same way. When Claude Code gives up on the dialog by itself, the card goes and the chat says the call was refused.
 
 While the chain runs unattended such a call is refused at once.
 
