@@ -1,87 +1,96 @@
 # Inventory
 
-As of 2026-10-20 (schema version 9, database step 9; BTN-187 widened levels, which needs no step). "Levels": G — Even Keel, P — project, T — task label. "Written
-by": page, hand (a file through `config-import`, `docs/storage.md`), service. Every key applies at once, without a
-restart of the service (BTN-130). The keys are those of the config's format, which the database's rows keep (BTN-199).
+"Levels": G — Even Keel, P — project, T — task; the tracker profile, the feed and the machine are named where they
+apply (`levels.md`). "Written by": page, hand (a file through `config-import`, `docs/storage.md`), service. Every key
+applies at once, without a restart of the service (BTN-130). The keys are those of the config's format, which the
+database's rows keep (BTN-199). A cell gives what the key is; how its feature behaves is in the document it links.
 
 ### The settings (`setting_values`)
 
 | Key | Levels | Merge | Written by | Default |
 | --- | --- | --- | --- | --- |
-| `parallel` | G | — (how many chains run at once; with machines, the own machine's capacity, set on that machine's page while the shared settings only show it with a link, `docs/machines/pool.md`, "The pool" and "The machine's page") | page, hand | 1 |
-| `width` | P | — (how many of the project's tasks run at once, each on a machine of its pool with a free place, BTN-993, and never two on one machine, BTN-1569; at most the machines of the project's list, turned on or off, the own one too, 1 with none elsewhere: the page's field goes no higher, a save above is refused `config.widthOverMachines`, `config-import` stores the most with a line, a machine gone from the list cuts it with a line in the log and none connected raises it, BTN-1571, `docs/machines/pool.md`, "The pool"; the project's settings, "Machines", shown where the hub has more than one machine, BTN-1271) | page, hand | 1 |
-| `componentLanes` | P | — ("Lanes by component", BTN-1273: a lane takes no task of the tracker component a sibling lane holds, `docs/machines/pool.md`, "The pool"; the project's settings, "Machines", under `width`, shown only where the tracker names components or it is on) | page, hand | false — lanes take tasks by the order alone |
-| `tracker` | P | — (a project's own since BTN-345: every writer stores it, so no later default moves a project). `builtin` — the built-in tracker, no profile or place (BTN-767); a project with tasks there cannot leave it by a save (`config.builtinLocked`, BTN-769), only by the switch after a copy of its tasks, which writes `tracker`, `trackerProject` and `key` at once (`builtin/export/switch`, BTN-1074, `docs/trackers.md`), and the page does not offer it to a project whose chain has another tracker's tasks | page, hand | `github`, only for a project of a hand-written file that names none |
+| `parallel` | G | — how many chains run at once; with machines, the own machine's capacity, set on its machine page (`docs/machines/pool.md`, "The pool") | page, hand | 1 |
+| `width` | P | — how many of the project's tasks run at once, each on another machine of its pool (BTN-993, BTN-1569), at most the machines of its list (`config.widthOverMachines`, BTN-1571; `docs/machines/pool.md`, "The pool") | page (the project's "Machines" tab), hand | 1 |
+| `componentLanes` | P | — "Lanes by component" (BTN-1273): a lane takes no task of the tracker component a sibling lane holds (`docs/machines/pool.md`, "The pool") | page, hand | false — lanes take tasks by the order alone |
+| `tracker` | P | — a project's own: every writer stores it, so no later default moves a project (BTN-345). `builtin` — the built-in tracker, left only by the switch after a copy of its tasks (`config.builtinLocked`; `docs/trackers/copy.md`, "The switch to the copy's target") | page, hand | `github`, only for a project of a hand-written file that names none |
 | `brief` | G, P | P over G; `null` — auto: on exactly when no enabled package of the project brings its tracker's MCP server (`bringsServer`, BTN-225); the built-in tracker's is `tasks` (BTN-1680) | page, hand | `null` |
 | `chain.active`, `chain.terminal` | G, profile, P | each key P over the profile's over G; `null` — back to the status categories | page, hand (not the profile's) | `null` |
 | `chain.requiredLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole | page, hand (not the profile's) | `[]` |
-| `chain.excludedLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole; no label is built in or excluded by default (BTN-758, BTN-971) | page, hand (not the profile's) | `[]` |
-| `chain.requiredMilestones`, `chain.excludedMilestones` | G, P | each key P over G, the list replaced whole; one milestone in both is `config.milestoneBoth`; projects on one tracker place must split it (`config.trackerProjectShared`, BTN-172, `docs/chain/projects.md`) | page, hand | `[]` |
-| `provider` | G, P | P over G | page, hand, service (the "Even Keel" role, `saveActive`) | `claude` |
+| `chain.excludedLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole; no label is excluded unless a list names it (BTN-758, BTN-971) | page, hand (not the profile's) | `[]` |
+| `chain.requiredMilestones`, `chain.excludedMilestones` | G, P | each key P over G, the list replaced whole; one milestone in both is `config.milestoneBoth`; projects on one tracker project must split it (`config.trackerProjectShared`, BTN-172, `docs/chain/projects.md`) | page, hand | `[]` |
+| `provider` | G, P | P over G | page, hand, service (the "Even Keel" role, the account the service runs on, moved to another account: `saveActive`, `docs/accounts/folders.md`) | `claude` |
 | `models.<provider>` | G, P | by provider, P over G; OpenCode's by the provider its account signs in to, `models.opencode/<vendor>` (BTN-984, `docs/sessions/models.md`) | page, hand | `{ claude: 'opus' }` (`DEFAULT_MODELS`); another provider's is its CLI's own |
 | `accounts.<provider>` | G, P | by provider, P over G | page, hand, service (`saveActive`) | `{ claude: 'global', codex: 'codex' }` |
-| `execution.<provider>` | G | — | page, hand | the first mode of each provider: `claude` — `auto` (`bg`, `sdk`; the transport of its sessions, BTN-353), `codex` — `sandbox` (`bypass`). `claude: sdk` needs `cli.claude: checked` (BTN-610, `needsCheckedCli`): the pair with `system` is `config.executionCli`, on the page, in `config-import` and at a write; DB step 21 and config v22 move a stored pair to `checked` |
-| `cli.<provider>` | G | — | page, hand, service (download failure switches only that provider to `system`, unless its execution needs the copy — `ConfigStore.fallBackCli`) | `system` for every provider (BTN-603; before it `checked`, which DB step 20 and config v21 write for installs that left it out): the CLI installed by the user; `checked` asks download consent, chain waits for the copy (`docs/sessions/cli-versions.md`); `latest` (BTN-1539) is Even Keel's copy of the newest release, offered on the page only where the user cannot install the CLI (a container, an unwritable npm global folder), consent covering each newer release the 15-minute sweep finds; not with `execution.claude: sdk`. Picking `execution.claude: sdk` on the page switches `cli.claude` to `checked` at once (or asks for the download) and locks Yours until the execution changes; the value stays `checked` after |
-| `modelPrompts.<pattern>` | G | — | page, hand | `{}` — ordered prompts matching `provider \| model` (`*` means any string, case ignored); a bare provider includes its CLI default. Added to new-session prompts only, never to chat replies or automatic resumes. Schema v17 and database step 16 migrate legacy model keys to `* \| <model>` |
+| `execution.<provider>` | G | — the transport of the provider's sessions; `claude: sdk` needs `cli.claude: checked` (`config.executionCli`, `docs/sessions/sdk.md`) | page, hand | the first mode of each provider: `claude` — `auto` (`bg`, `sdk`, BTN-353), `codex` — `sandbox` (`bypass`) |
+| `cli.<provider>` | G | — which CLI sessions run on: `system` ("Yours", the installed one), `checked` (Even Keel's copy of the checked version), `latest` (its copy of the newest release, offered only where the CLI cannot be installed) (`docs/sessions/cli-versions.md`) | page, hand, service (a failed download switches that provider to `system` unless its execution needs the copy, `ConfigStore.fallBackCli`) | `system` (BTN-603) |
+| `modelPrompts.<pattern>` | G | — ordered prompts matching `provider \| model`, added to new sessions' prompts only (`docs/sessions/models.md`, "Model prompts") | page, hand | `{}` |
 | `language` | G | — | page, hand | `null` (the browser's) |
 | `promptLanguage` | G, P | P over G | page, hand | `language`, else `en` |
 | `hiddenSkills` | G | — | page, hand | `DEFAULT_HIDDEN_SKILLS` |
-| `protection` | G, P | fields merge; each project's native-rule or disabled-group list replaces the shared field | page, hand | all twelve built-in groups on (six command groups, one per tracker); no extra native rules. New launches only (`docs/sessions/protection.md`, "Protection") |
-| `cacheTtl` | G, P | P over G; a project's `null` is its own value (the CLI's). Chain sessions only: a Claude project chat always gets `promptCacheTtl: "1h"` (BTN-1401, `docs/sessions/cache.md`) | page, hand | `"5m"` since BTN-1401 (before, `null`); a stored value, `null` too, stays |
-| `cacheTrial` | G | — the cache trial (BTN-1412, `docs/sessions/cache.md`, "The cache trial"): on, a Claude chain session of a numbered task gets the lifetime of its number's second bit (`trialTtl`) over every `cacheTtl`; a measuring tool, no field on the page | hand | false |
-| `autoCompactWindow` | G, P | P over G; positive whole tokens; a project's `null` is its own value (the account's window). Claude chain sessions only; new launches take live edits, running sessions retain their launch settings | page, hand | `null` (the account's window) |
-| `codexAutoCompactWindow` | G, P | P over G; positive whole tokens; a project's `null` is its own value (the model's window). Codex chain sessions only (BTN-810): `-c model_context_window=<W>` and `-c model_auto_compact_token_limit=<W − 32000>`; the session record keeps `W` for its later turns and keep-warm forks, so live edits reach new launches only; hand sessions and `config.toml` are untouched | page (the Agent card's window column, project and shared), hand | `null` (the model's window) |
-| `openCodeAutoCompactWindow` | G, P | P over G; positive whole tokens; a project's `null` is its own value (the model's window). OpenCode chain sessions only (BTN-856): a ceiling, taken only below the chosen model's catalogue window, as the model's `limit` and `compaction.reserved` in `OPENCODE_CONFIG_CONTENT`, so the session compacts at `W − 32000`; the session record keeps `W` for its resumes, so live edits reach new launches only; hand sessions are untouched | page (the Agent card's window column, project and shared), hand | `null` (the model's window) |
-| `keepWarm` | G | — whole hours 0–24 since a waiting chain session's last answer (including a temporary model error awaiting retry) that its cache is kept warm (BTN-437, `docs/chain/exceptions.md`); 0 — off | page, hand | 2 since BTN-1401 (before, 0), with the 5-minute cache; a stored value stays |
-| `chatSessions` | G | — an integer ≥ 1: project chat sessions a machine keeps up; a chat starting past it stops the machine's longest idle one, never a working or waiting one, and starts anyway when all are busy (BTN-1653, `docs/sessions/project-chats.md`) | page, hand | 3 |
-| `cliCheck` | G | — the service runs the live CLI check on a new version of an agent's CLI and weekly on the checked one, in the account folder the projects run on (BTN-569, `docs/releases.md`, "The automatic run in the service") | page, hand | false: it spends the account's limits |
-| `switchOnLimit` | G | — "Go on where a limit is left": a task not launched yet leaves a machine whose limit is spent for another with limit left, read at every step (BTN-996, `docs/machines/pool.md`, "Past a limit"); the page shows it only while the hub has more than one machine and turns it on only through the warning on provider terms | page, hand | false: switching to another of one's own paid accounts on a limit is at the user's risk |
+| `protection` | G, P | fields merge; each project's native-rule or disabled-group list replaces the shared field; new launches only (`docs/sessions/protection.md`, "Protection") | page, hand | all twelve built-in groups on (six command groups, one per tracker); no extra native rules |
+| `cacheTtl` | G, P | P over G; a project's `null` is its own value (the CLI's). Chain sessions only (`docs/sessions/cache.md`) | page, hand | `"5m"` since BTN-1401; a value stored before stays |
+| `cacheTrial` | G | — a measuring tool, no field on the page (BTN-1412, `docs/sessions/cache.md`, "The cache trial") | hand | false |
+| `autoCompactWindow`, `codexAutoCompactWindow`, `openCodeAutoCompactWindow` | G, P | P over G; a project's `null` is its own value; see the note under the table | page (the Agent card's window column, shared and project), hand | `null` — the account's or the model's window |
+| `keepWarm` | G | — whole hours 0–24 a waiting chain session's cache is kept warm after its last answer; 0 — off (BTN-437, `docs/chain/exceptions.md`) | page, hand | 2 since BTN-1401; a value stored before stays |
+| `chatSessions` | G | — an integer ≥ 1: project chat sessions a machine keeps up (BTN-1653, `docs/sessions/project-chats.md`) | page, hand | 3 |
+| `cliCheck` | G | — the service runs the live CLI check on a new CLI version and weekly (BTN-569, `docs/releases.md`, "The automatic run in the service") | page, hand | false: it spends the account's limits |
+| `switchOnLimit` | G | — "Go on where a limit is left": a task not launched yet leaves a machine whose limit is spent for one with limit left (BTN-996, `docs/machines/pool.md`, "Past a limit"); on only through the warning on provider terms | page (shown with more than one machine), hand | false: switching to another of one's own paid accounts on a limit is at the user's risk |
 | `allowedHosts` | G | — | page, hand | `[]` |
-| `machinesAddress` | G | — "Hub address for machines": the name or IP machines reach the hub by, `:port` when another is forwarded, kept trimmed and in lower case; set — the hub listens on `EVEN_KEEL_MACHINES_PORT` and issues connection strings with it, applied live (BTN-1242, `docs/machines/elsewhere.md`, "Machines elsewhere") | page, hand | `null`: machines do not connect |
-| `memoryMirror` | G | — "Mirror repository": an address git pushes to (an SSH or HTTPS URL, a path), kept trimmed; each project's memory repository goes into its branch named by the project's GUID after every push into it on the hub, and all of them at the service's start and at a new address, applied live (BTN-1649, `docs/sessions/memory.md`, "The mirror"). The check refuses spaces, a leading `-` and a URL with a password: git signs in by an SSH key or its credential helper. While set, the page warns that the repository must be private | page, hand | `null`: no mirror |
-| `attachmentLimit` | G | — whole megabytes 1–1024, the largest file a built-in tracker's task takes and a session attaches through the tasks server to any tracker, read per upload (BTN-773, BTN-895, `docs/trackers.md`, "Attachments" and "The tasks server") | page, hand | 25 |
-| `backup.dir` | G | — an absolute folder of the automatic copies of the state database; `null` — `backups/` in the state folder. Read at each copy; the page refuses a path of an existing file (BTN-1083, BTN-1179, `docs/storage/backup.md`) | page, hand | `null` |
+| `machinesAddress` | G | — "Hub address for machines": the name or IP, `:port` when another is forwarded; set — the hub listens on `EVEN_KEEL_MACHINES_PORT` (BTN-1242, `docs/machines/elsewhere.md`, "Machines elsewhere") | page, hand | `null`: machines do not connect |
+| `memoryMirror` | G | — "Mirror repository": the address git pushes each project's memory repository to; refused with spaces, a leading `-` or a password in it (BTN-1649, `docs/sessions/memory.md`, "The mirror") | page, hand | `null`: no mirror |
+| `attachmentLimit` | G | — whole megabytes 1–1024, the largest file a built-in task takes and a session attaches through the tasks server, read per upload (BTN-773, BTN-895; `docs/trackers/builtin.md`, "Attachments", `docs/trackers/tasks-server.md`) | page, hand | 25 |
+| `backup.dir` | G | — an absolute folder of the state database's automatic copies; `null` — `backups/` in the state folder (BTN-1083, BTN-1179, `docs/storage/backup.md`) | page, hand | `null` |
 | `backup.keep` | G | — whole checked copies 1–365 the rotation keeps, the copy before schema steps among them | page, hand | 14 |
-| `defaultGit` | G | — the mode the project wizard starts a new project on, the answer to the setup's "Use git?" (BTN-886, `docs/web/setup.md`); `null` — not asked yet: with git where git starts. Never inherited: a project's own `git` is picked in the wizard | the setup's Git step, page, hand | `null` |
-| `setupPassed` | G | — the setup's steps gone past with no setting of their own to tell it (BTN-1023, `PASSABLE_STEPS` in `src/setup.ts`: `phone`, `git`, `tracker`, `updates`, `stats`): a skip, or the update step left with `updates.check` as it was. Read only by the page, for the line's checks and the step the setup stopped at (`docs/web/setup.md`) | the setup, hand | `[]` |
-| `context.warn`, `context.danger` | G | Warning and danger thresholds as percentages of the window reported by the session's agent | page, hand | 50, 80 |
+| `defaultGit` | G | — the setup's answer to "Use git?", the mode the project wizard starts on; `null` — not asked yet. Never inherited (BTN-886, `docs/web/setup.md`) | the setup's Git step, page, hand | `null` |
+| `setupPassed` | G | — the setup's steps passed with no setting of their own to tell it (`PASSABLE_STEPS` in `src/setup.ts`; BTN-1023, `docs/web/setup.md`); read only by the page | the setup, hand | `[]` |
+| `context.warn`, `context.danger` | G | — warning and danger thresholds, percent of the window the session's agent reports | page, hand | 50, 80 |
 | `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |
-| `contextHandoffs` | G, P | P over G; `false` — the `agent-bridge` hook asks for no handoff by context size at all and the agent's own compaction keeps the context, the threshold and the shares unused but kept (BTN-255, `docs/sessions/checkpoint.md`) | page, hand | `true` |
-| `stats.checkpointTokens` | G, P, T | T over P over G (pins the threshold, calibration off; a project's `null` calibrates it) | page, hand, task label | `null` (calibrated per project) |
-| `stats.checkpointShares.first`, `.late`, `.hard` | G, P | each key P over G; whole percents 1–100, `first < late < hard` checked on what each level ends up with (`config.checkpointShareOrder`); ignored while `stats.checkpointTokens` pins the threshold; for a Claude session `first`, `late` and `hard` are also kept before its compaction, so a share above that point does nothing (BTN-261, BTN-377, BTN-506, `docs/sessions/checkpoint.md`) | page (the project's panel sets the three together), hand | 72, 85, 95 |
-| `tally` | G | — (`off`, `local`, `server`) | page (the setup's stats step and Settings → Stats, sent at once, `stats/tally`), hand, service (the mode an older install ran on, at startup) | `null` — not chosen, nothing collected (`docs/stats.md`) |
-| `updates.check`, `updates.notify` | G | — | page (the check also in the first run's setup, BTN-310), hand, service (`muteUpdates`) | true, true; the check is held during the first run (`docs/web.md`) |
-| `notices.<kind>` | G, P | by kind (the qualifier), P over G; a project holds only the kinds of a project's banner (`PROJECT_KINDS`: `protection.noRules`, `protection.remote`, `branch.drift`), Even Keel's also the shared ones (`cli.versions`, `cli.check`, `usage.unread`, `unattended`; `cli.versions` has no banner since BTN-780 and is not in Settings → Notices, it is still accepted and turns nothing off); another key is `config.noticeKind` (`src/notice/kinds.ts`, BTN-759) | page ("Don't show again" on a banner and Settings → Notices, both sent at once, `notices/mute`), hand | `{}` — every kind shown; Even Keel's `true` leaves no row |
-| `unattended` | G | — | page (a switch on `/settings`, sent at once, `chain/unattended`), hand | false |
+| `contextHandoffs` | G, P | P over G; `false` — no handoff by context size, the agent's own compaction keeps the context (BTN-255, `docs/sessions/checkpoint.md`) | page, hand | `true` |
+| `stats.checkpointTokens` | G, P, T | T over P over G; a value pins the threshold and turns the calibration off, a project's `null` calibrates it | page, hand, task label | `null` (calibrated per project) |
+| `stats.checkpointShares.first`, `.late`, `.hard` | G, P | each key P over G; whole percents 1–100, `first < late < hard` on what each level ends up with (`config.checkpointShareOrder`); ignored while the threshold is pinned (`docs/sessions/checkpoint.md`) | page (the project's panel sets the three together), hand | 72, 85, 95 |
+| `tally` | G | — `off`, `local`, `server` (`docs/stats.md`) | page (the setup's stats step, Settings → Stats, `stats/tally`), hand, service (the mode an older install ran on, at startup) | `null` — not chosen, nothing collected |
+| `updates.check`, `updates.notify` | G | — | page (the check also in the first run's setup, BTN-310), hand, service (`muteUpdates`) | true, true; the check is held during the first run (`docs/web/header.md`, "Updates") |
+| `notices.<kind>` | G, P | by kind, P over G; a project holds only the project kinds; an unknown kind is `config.noticeKind` (BTN-759, `docs/web/header.md`, "The banners") | page ("Don't show again", Settings → Notices, `notices/mute`), hand | `{}` — every kind shown; Even Keel's `true` leaves no row |
+| `unattended` | G | — | page (a switch on `/settings`, `chain/unattended`), hand | false |
 | `trimTools` | G | — | page (a switch on `/settings`, `chain/trim`), hand | true |
-| `homeShowTests`, `statsShowTests` | G | — each on its own: the "Test projects" switches of the home page and of `/stats` (BTN-1364, `state.showTests`), so the stands can stay hidden at home and shown in the stats. Kept here rather than in the browser or the address, so they outlive a reload, a new tab and a restart of the service | page (the switch on the page, sent at once, `view/tests` with `{ page: 'home' \| 'stats', on }`), hand | false — test projects hidden |
+| `homeShowTests`, `statsShowTests` | G | — the "Test projects" switches of the home page and of `/stats`, each on its own (BTN-1364, `docs/web/home.md`, `docs/stats.md`) | page (`view/tests`), hand | false — test projects hidden |
 | `slot` | P | — | page, hand | none (a worktree per task) |
-| `slotCleanup.clean`, `.keep` | P | — `.gitignore` patterns from a slot's root: after Done `clean` is deleted save what `keep` matches; `!` is refused (`config.slotCleanup`); used only in slots (BTN-1315, `docs/chain/worktrees.md`) | hand | `[".temp/**"]`, `[]` |
+| `slotCleanup.clean`, `.keep` | P | — `.gitignore` patterns from a slot's root: after Done `clean` is deleted save what `keep` matches; `!` is refused (`config.slotCleanup`, BTN-1315, `docs/chain/worktrees.md`) | hand | `[".temp/**"]`, `[]` |
 | `git` | P | — `false` reads `slot`, `pullRequests`, `mergeInto` and `ci.guard` as off (BTN-883, `docs/guide/chain.md`, "A project without git") | the project wizard; later only "Turn on git" on the Repository tab, between tasks (`project/git`, BTN-884; never back to `false`, BTN-1063), hand (`config-import` takes `false` as it is) | true |
-| `testProject` | P | — | page (Repository → Test project), hand | `false`; hides the project's full history from the home launch chart and default aggregate stats, and its card from the home page while `homeShowTests` is off; collection and chains continue |
-| `color` | P | — | page (with the repository), hand, the wizard (the first free one) | none: the first slot of 1–8 no project has as its own, in config order (`colorsOf`, `src/projects/colors.ts`); none left — `--series-other`. Database step 9 wrote the slots of the positions (BTN-207) |
-| `branch` | P | — | page (with the checkout's branches offered, BTN-754, but not task branches `<slug>/task` nor those another worktree holds, BTN-765; typed by hand they still move as what they are), hand, the wizard (the checkout's current branch) | `main`. A new value saved on the page or in the wizard moves the main checkout first (`git switch`, `-c` for a branch nowhere, `--track` for one only on a remote; `src/projects/branch-move.ts`) and is written only once that worked; a failed write puts the checkout back. The project's folders on the machines elsewhere of its pool move first and the same way, over the link; a machine off the link or one that cannot move refuses the save with its name, and the folders already moved go back (`docs/machines/landings.md`, "The main branch on machines", BTN-1567). Refused while the project has a task in hand or a session mid-turn on any machine (`branch.busy`). A checkout moved by hand does not move the key: `BranchControl` (`src/projects/branch-control.ts`) notes the drift when the settings open and when the chain starts, `EvenKeelState.branchDrift`, and the page offers `project/branch/adopt` and `project/branch/restore`; a machine's folder off the branch is `machineDrift`, the same buttons with `machine`, and the machine takes no task of the project until it is back. A hand edit of the config moves nothing |
-| `changelog` | P | — | page, hand | `CHANGELOG.md` (a path relative to the repository's root; absolute or `..` is `config.changelogPath`; BTN-209, `docs/sessions.md`) |
-| `standards` | P | — | page, hand | `[]` — the project's standards, `{ doc, files, except, shots }` each: a document inside the repository, at least one mask, a document once, else `config.standards` (BTN-359, `docs/sessions/protection.md`, "Project standards") |
-| `prompt` | G, P | adds up, not over (BTN-338): a new session gets G, then P (`withPrompts`); a project's empty one leaves G in place. `ProjectSettings.prompt` is only the project's own row, G is `EvenKeelConfig.prompt` | page, hand | `null` on both |
-| `commands.beforeStart`, `.check`, `.afterGreen` | P | each key on its own | page, hand | `[]` |
-| `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask`, `.rerunFailed` | G, P | each key on its own, P over G over `DEFAULT_CI`; a project's `waitMinutes: null` is its own value | page, hand | `DEFAULT_CI` |
+| `testProject` | P | — hides the project from the home page and the default stats; collection and chains go on (BTN-206, `docs/stats.md`) | page (Repository → Test project), hand | `false` |
+| `color` | P | — | page (with the repository), hand, the wizard (the first free one) | none: the first slot of 1–8 no project has as its own, in config order (`colorsOf`, `src/projects/colors.ts`); none left — `--series-other` |
+| `changelog` | P | — a path relative to the repository's root; absolute or `..` is `config.changelogPath` (BTN-209, `docs/sessions.md`) | page, hand | `CHANGELOG.md` |
+| `standards` | P | — the project's standards, `{ doc, files, except, shots }` each (`config.standards`, BTN-359, `docs/sessions/protection.md`, "Project standards") | page, hand | `[]` |
+| `prompt` | G, P | adds up, not over (BTN-338): a new session gets G, then P (`withPrompts`); a project's empty one leaves G in place | page, hand | `null` on both |
+| `commands.beforeStart`, `.check`, `.afterGreen` | P, machine | each key on its own; a machine's list replaces the project's (`levels.md`, "A machine in a project") | page, hand | `[]` |
+| `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask`, `.rerunFailed` | G, P | each key on its own, P over G over `DEFAULT_CI`; a project's `waitMinutes: null` is its own value (`docs/ci/layer.md`) | page, hand | `DEFAULT_CI` |
 | `fillMilestone` | G, P | P over G | page, hand | false |
-| `landingHold` | G, P | P over G; live | page ("Wait while a task resolves its landing", Check and CI → "Main and its check"), hand | true — while a session of the project resolves its landing, no lane of it starts a new task; running lanes go on (BTN-1582, `docs/chain/worktrees.md`, "The hold while a landing resolves") |
-| `milestoneOrder` | P | — | page ("Milestone order" in the main tracker's window, sent at once, `project/milestone-order`; not the form), hand | `[]` — the automatic order. Milestone labels, trimmed and deduplicated, else `config.milestoneOrder`; the chain ranks live milestones by it, a label not in it goes after its closest automatic predecessor, one gone is ignored (`src/chain/milestone-sequence.ts`, BTN-792) |
-| `badge` | P | — | the badge's dialog (Repository → "README badge", BTN-917), `config-import` | `null` — no badge. `{ on, url, slug, fields }`: `url` http(s) or empty, `slug` lower-case letters, digits and dashes, `fields` from `BADGE_FIELDS` (left out — every field), else `config.badge`; applied live (`src/badge/settings.ts`, BTN-915, `docs/badge.md`) |
-| `mergeInto` | P | — the key of a main project, checked against the projects (`config.mergeInto`); the page's save also refuses a checkout of another repository (`config.mergeIntoForeign`, BTN-285) | page, hand | `null` — a main project (BTN-172, `docs/chain/projects.md`, "Carrying a release project forward") |
-| `carryAgent` | P | — read only for a release project; unattended mode acts as if it were on | page (under "Merges into", shown once that names a project), hand | false — a carry conflict waits for "Resolve with the agent" (BTN-370, `docs/chain/projects.md`, "The carry session") |
-| `pullRequests` | P | — | page, hand | false (PR mode, BTN-205, `docs/chain/pr-mode.md`) |
-| `intakeLabel` | P | — | page (the Tracker tab, not for a GitHub tracker), hand | `null` — no GitHub issues are taken in (BTN-262, `docs/trackers.md`, "Taking GitHub issues in") |
-| `statusMoves` | profile, P | each of `start`, `review`, `done` P over the profile's (`tracker_profiles.moves`, not in `config-export`); a feed's `feeds[].moves` over its profile's instead. `start`/`review` a status name or `null` (leave it), `done` a done status name; a name out of the chain or not done by the rules is refused on the page's save | page (the profile in "Whose rules" of Chain rules, the source's window in the Tracker tab), hand (not the profile's) | `{}` — nothing moves, the close is automatic (BTN-554, `docs/chain/entry.md`, "Status moves") |
-| `remoteProfiles` | P | — | page, hand | `{}` — the GitHub, GitLab and Forgejo profile ids the remotes' CI and pull requests take; a missing or unfit one is the automatic choice (BTN-231, `docs/ci.md`) |
+| `landingHold` | G, P | P over G — while a session of the project resolves its landing, no lane of it starts a new task (BTN-1582, `docs/chain/worktrees.md`, "The hold while a landing resolves") | page (Check and CI → "Main and its check"), hand | true |
+| `milestoneOrder` | P | — milestone labels, trimmed and deduplicated (`config.milestoneOrder`), the order the chain ranks live milestones by: a label not in it goes after its closest automatic predecessor, one gone is ignored (BTN-792, `src/chain/milestone-sequence.ts`, `docs/web/milestones.md`) | page ("Milestone order" in the main tracker's window, `project/milestone-order`), hand | `[]` — the automatic order |
+| `badge` | P | — `{ on, url, slug, fields }` (`config.badge`, BTN-915, `docs/badge.md`) | the badge's dialog (Repository → "README badge", BTN-917), `config-import` | `null` — no badge |
+| `mergeInto` | P | — the key of a main project (`config.mergeInto`); the page also refuses a checkout of another repository (`config.mergeIntoForeign`, BTN-285, `docs/chain/projects.md`, "Carrying a release project forward") | page, hand | `null` — a main project |
+| `carryAgent` | P | — read only for a release project; unattended mode acts as if it were on (BTN-370, `docs/chain/projects.md`, "The carry session") | page (under "Merges into"), hand | false — a carry conflict waits for "Resolve with the agent" |
+| `pullRequests` | P | — PR mode (BTN-205, `docs/chain/pr-mode.md`) | page, hand | false |
+| `intakeLabel` | P | — the label that takes GitHub issues in (BTN-262, `docs/trackers.md`, "Taking GitHub issues in") | page (the Tracker tab, not for a GitHub tracker), hand | `null` — no issues taken in |
+| `statusMoves` | profile, feed, P | each of `start`, `review`, `done` P over the profile's (`tracker_profiles.moves`, not in `config-export`); a feed's `feeds[].moves` over its profile's instead (BTN-554, `docs/chain/entry.md`, "Status moves") | page (the profile in "Whose rules" of Chain rules, the source's window in the Tracker tab), hand (not the profile's) | `{}` — nothing moves, the close is automatic |
+| `remoteProfiles` | P | — the GitHub, GitLab and Forgejo profile ids the remotes' CI and pull requests take; a missing or unfit one is the automatic choice (BTN-231, `docs/ci/layer.md`, "Which CI a project has") | page, hand | `{}` |
 
-Project record fields, not settings: `id` (written by the service for an entry without one, `withIds`), `key`, `name`,
-`repo`, the tracker's project (`github`, `huly`, `linear` by `TrackerAdapter.projectKey`): the table `projects`; the
-extra task feeds (`feeds`, BTN-66, `docs/chain/entry.md`, "Task feeds"): a JSON column of `projects`, each feed's profile in
-`feed_profiles`. `version` is the
-schema version of a file of the format.
+**The auto-compaction windows** are positive whole tokens, each for the chain sessions of one agent: `autoCompactWindow`
+Claude's, `codexAutoCompactWindow` Codex's (BTN-810), `openCodeAutoCompactWindow` OpenCode's (BTN-856, a ceiling taken
+only below the chosen model's window). A live edit reaches new launches only: Codex and OpenCode keep the launch's
+window in the session's record for its later turns. Hand sessions and the agents' own config files are untouched. How
+each agent is told: `docs/sessions/models.md`, "The auto-compaction window".
+
+Project record fields, not settings — the table `projects`: `id` (written by the service for an entry without one,
+`withIds`), `key`, `name`, `repo`, `branch`, the tracker's project (`github`, `huly`, `linear` by
+`TrackerAdapter.projectKey`) and the extra task feeds (`feeds`, BTN-66, `docs/chain/entry.md`, "Task feeds"), each
+feed's profile in `feed_profiles`. `version` is the schema version of a file of the format.
+
+- **`branch`** — the project's main branch, `main` by default: one for the hub's checkout and the project's folders on
+  its machines. It is a fact about the repository like `repo`, not a choice that could be shared. Written by the page,
+  the wizard (the checkout's current branch) and hand; a save on the page moves the checkout and the machines' folders
+  first, and is refused while the project has a task in hand (`branch.busy`); a hand edit of the config moves nothing
+  (`docs/machines/landings.md`, "The main branch on machines").
 
 ### Outside the settings tables
 
@@ -89,7 +98,9 @@ schema version of a file of the format.
 | --- | --- | --- | --- |
 | a package's `default`, `settings` | `state/packages.json` `packages.<name>` | G | the package level: projects start from it |
 | a project's `on`, `off`, `settings` | `state/packages.json` `projects.<id>` | P | over the package's, `settings` by variable |
-| a task's run: provider, model, effort, machines | the state database, `task_runs` | T | over the project's `provider` and `models.<provider>`; set on the task card and by the tasks server, not a setting row (BTN-983, `docs/sessions/models.md`). `machines` (BTN-1623, step 78) pins the task to machines of the pool, empty — any (`docs/machines/pool.md`, "A task pinned to machines"). The tracker label `<Provider> \| <model>` is not read; `modelLabels` went with config v37 and database step 47 |
+| a machine's server command and arguments | `project_machines.settings` | machine | over the catalog's (`levels.md`, "A machine in a project") |
+| a task's run: provider, model, effort, machines | the state database, `task_runs` | T | over the project's `provider` and `models.<provider>`; set on the task card and by the tasks server (BTN-983, `docs/sessions/models.md`); `machines` pins the task to machines of the pool (BTN-1623, `docs/machines/pool.md`, "A task pinned to machines") |
+| `Break \| compaction`, `Break \| handoff` | tracker label | T | the task level of `stats.checkpointTokens` (`levels.md`, "Labels as values") |
 | other excluded labels | tracker label | T | matched by `chain.excludedLabels`, a G/P setting |
 | required labels | tracker label | T | matched by `chain.requiredLabels` |
 | `Question`/`Вопрос` | tracker label | T | `QUESTION_LABELS`: the card's mark and the prompts' wording; it changes neither the order nor the launch |
@@ -97,27 +108,22 @@ schema version of a file of the format.
 
 ### Not settings
 
-- **Credentials** — never in a draft or the settings tables. The trackers' (`HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`)
-  are profiles in the state database (BTN-200, `docs/trackers.md`, "Profiles"), and so is Forgejo's
-  (`FORGEJO_URL`, `FORGEJO_TOKEN`, BTN-201); `EVEN_KEEL_TOKEN`, `EVEN_KEEL_BADGE_SECRET` (BTN-915), Tally's own Postgres and classifier stay in `.env`, written from the `/settings` tab each belongs to
-  (BTN-131, BTN-355, "Credentials" below). Both are outside git (invariant 3).
+- **Credentials** — never in a draft or the settings tables: the trackers' and the CI's are profiles in the state
+  database, Even Keel's own secrets are lines of `.env`, both outside git (invariant 3; `levels.md`, "Credentials").
 - **The address** — `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT`, `EVEN_KEEL_MCP_PORT`: read before anything else, from the
   environment.
-- **Locations and binaries** — `EVEN_KEEL_CONFIG` (since BTN-199 only the file imported at the first start),
-  `EVEN_KEEL_STATE_DIR`, `EVEN_KEEL_ACCOUNTS_DIR`,
-  `EVEN_KEEL_CODEX_ACCOUNTS_DIR`, `EVEN_KEEL_CLAUDE_BIN`, `EVEN_KEEL_CODEX_BIN`: needed before the storage is open (the
-  database lives in the state folder), so they stay in the environment. So does `EVEN_KEEL_CPU_PROFILE`, a diagnostic
-  of the start (`docs/service.md`, "A slow start"), and `EVEN_KEEL_MACHINE=1`, set by the Compose templates' `machine`
-  service: an installation that joined no hub waits for the join instead of starting a hub (BTN-1440,
-  `docs/machines/elsewhere.md`, "Machines elsewhere").
+- **Locations and binaries** — `EVEN_KEEL_CONFIG` (only the file imported at the first start), `EVEN_KEEL_STATE_DIR`,
+  `EVEN_KEEL_ACCOUNTS_DIR`, `EVEN_KEEL_CODEX_ACCOUNTS_DIR`, `EVEN_KEEL_CLAUDE_BIN`, `EVEN_KEEL_CODEX_BIN`: needed before
+  the storage is open (the database lives in the state folder), so they stay in the environment. So do
+  `EVEN_KEEL_CPU_PROFILE`, a diagnostic of the start (`docs/service.md`, "A slow start"), and `EVEN_KEEL_MACHINE=1`,
+  set by the Compose templates' `machine` service: an installation that joined no hub waits for the join instead of
+  starting a hub (BTN-1440, `docs/machines/elsewhere.md`, "Machines elsewhere").
 - **Tally's connection** — `TALLY_DB_*`, `TALLY_*_USER`, `TALLY_LLM_URL`, `TALLY_LLM_MODEL`, `TALLY_CONFIG`,
   `TALLY_LLM_DICTATION_MODEL` (the chat microphone's model, BTN-1391; read by the service on each recording),
   `EVEN_KEEL_URL`: the collector's, which can run against an external Postgres. Tally's own file stays its own; its
   prices are reference data, already loaded into its `model_prices` table.
-- **State that sits among settings** — `updates.dismissed` (the service writes it when a toast is closed; `service_state`
-  since BTN-199, a key of the config before), `notices.dismissed` (a banner's "Got it": its id to the stamp of what it
-  said, `service_state`, BTN-759), a package's
-  catalog entry, installs and the task pins of `state/packages.json`, the account pool's sign-ins in `state/account.json`.
-- **Project record fields** — `id`, `key`, `name`, `repo`, `branch`, the tracker's project. `branch` is a fact about the
-  repository like `repo`, not a choice that could be shared. A tracker connection is a tracker profile (BTN-66): the
-  project's `tracker` with the tracker's project and its profile, and each feed's, say where its tasks come from.
+- **State that sits among settings** — `updates.dismissed` (the version whose toast was closed) and `notices.dismissed`
+  (a banner's "Got it": its id to the stamp of what it said, BTN-759), both in `service_state`; a package's catalog
+  entry, installs and the task pins of `state/packages.json`; the account pool's sign-ins in `state/account.json`.
+- **A tracker connection** is a tracker profile (BTN-66): the project's `tracker` with the tracker's project and its
+  profile, and each feed's, say where its tasks come from.
