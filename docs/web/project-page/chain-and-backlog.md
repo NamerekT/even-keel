@@ -21,6 +21,7 @@ One for every place the task shows — the chain block, the home card, the queue
 - With no session a task in the backlog (status category `UnStarted`) is `backlog` (dotted ring), not `ahead`, so a blocker the chain does not show reads as waiting in the backlog.
 - A finished session of an open task is `stopped` (amber ring with a stop square), not done; a session whose last line is `CHECKPOINT: …` (`SessionView.checkpoint`) is `handoff` (blue arrow) whether its process lives or not, and it does not count as waiting for a reply.
 - A background job that `claude agents` still calls `working` but has no live process 5 min after its launch is finished (`lampOf` in `src/sessions/agents.ts`).
+- A task whose merge is being landed (`underway` of `chain.landings`, BTN-1779, `docs/chain/worktrees.md`) is lit at work with the tip "merging into the main branch" (`landingTasks` in `web/src/completion.ts`) on the row, the project card, the session panel and the machine page's sessions; the header's questions, the tab's dot and the README badge do not count it as waiting. Tests: `src/chain/landings-underway.test.ts`, `src/e2e/landing.test.ts` (a long `commands.check`).
 - Working has a triangle, waiting a question mark, and a completed branch fix a cross, so the marks differ without relying on colour (`ui/Lamp.tsx`, `ui/lamp.css`). Fix and release-carry rows show the same lamp beside their key, the archive included; their Forge smiths mark the service agent, with crossed hammers on a completed fix.
 
 ### Links: the lock and the key

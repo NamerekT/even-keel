@@ -12,7 +12,7 @@ A person who has just installed Even Keel can watch the chain work before connec
 | The page | `web/src/pages/Demo.tsx` (`DemoWelcome`, `DemoNotice`), the checkbox in `ProjectAdd.tsx` |
 | The routes | `demo/start`, `demo/again` (both take the page's `language`), `demo/remove` |
 | The state | `EvenKeelState.demo`: `{ project, finished }` or `null` |
-| The test | `src/e2e/demo.test.ts` (`docs/chain/e2e.md`) |
+| The test | `src/e2e/demo.test.ts` ([e2e.md](e2e.md)) |
 
 ## What it is made of
 
@@ -23,7 +23,7 @@ A person who has just installed Even Keel can watch the chain work before connec
 - Any failure while preparing the folder removes the whole `<state>/demo/` folder before returning the error; no project is made, and a later start can try again.
 - **The project** `DEMO` (name Demo / Демо) on the built-in tracker, with `testProject` on (BTN-206): out of the launch chart, `/stats` and Tally. The run settings are the demo's whatever the config says (`runOf`): agent `demo`, account `even-keel-demo`; a task's run cannot take it off the demo agent, whose pool has no other account.
 - **The account** `even-keel-demo` is listed by `AccountHomes` only while its folder exists (`setDemo`) and is never shown on the page: the accounts view filters it out, and the update check counts no demo project as the person's.
-- **The tasks**, in the page's language at the start: DEMO-1 (a welcome line in the README), DEMO-2 (a changelog) blocked by DEMO-1, DEMO-3 (the tone of a greeting) which asks a question with two options. A task the person adds (a ghost, BTN-770) gets a short generic turn: a note under `notes/`.
+- **The tasks**, in the page's language at the start: DEMO-1 (a welcome line in the README), DEMO-2 (a changelog) blocked by DEMO-1, DEMO-3 (the tone of a greeting) which asks a question with two options. A task the person adds on the page (BTN-770) gets a short generic turn: a note under `notes/`.
 
 ## The scenario
 
@@ -35,10 +35,10 @@ Each turn reads, thinks and checks with pauses of 2–4 s (`PACE`), commits `[DE
 
 ## The page
 
-- **No project at all**: the home page is the welcome, two choice cards pressed anywhere (the shared `add-package__kind`, no "?" and no buttons) — «Посмотреть демо» (`demo/start`, then the demo's project page) and the project's card: «Настроить Even Keel и подключить проект» while the first run's setup is not walked, a link straight to the step it stopped at with no question; «Подключить свой проект», the project wizard, after it.
-- **The demo's project page**: a band «Это демо: агент — сценарий, ничего не тратится» with «Подключить своё» and «Убрать» in its ⋯ (a confirmation: the demo is still running); once over, the end card «Демо закончено» with «Убрать», «Ещё раз» (`demo/again`) and «Подключить своё».
+- **No project at all**: the home page is the welcome with two choice cards, each pressed anywhere (the look of the packages' kind cards, `add-package__kind`) — "Watch the demo" (`demo/start`, then the demo's project page) and the project's card: "Set up Even Keel and connect a project" while the first run's setup is not walked, a link straight to the step it stopped at with no question; "Connect your project", the project wizard, after it.
+- **The demo's project page**: a band "This is the demo: the agent is a script, nothing is spent" with "Connect your own" and "Remove" in its ⋯ (a confirmation: the demo is still running); once over, the end card "The demo is over" with "Remove", "Run again" (`demo/again`) and "Connect your own".
 - **The demo is none of the person's projects** (`ownProjects`): it does not end the first run, the project wizard shows the first run's line while only the demo is there, and the stats are asked about only once an own project exists.
-- **The project wizard** shows «Убрать демо», on by default, while a demo exists; after the project is added the page sends `demo/remove`.
+- **The project wizard** shows "Remove the demo", on by default, while a demo exists; after the project is added the page sends `demo/remove`.
 
 ## Removal
 

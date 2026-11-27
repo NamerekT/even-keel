@@ -31,7 +31,7 @@ const WAIT_MS = 3 * 60_000
 /** A project's check that passes once the branch's last commit is a fix: committed in the bench's checkout. */
 const CHECK_SCRIPT = "import { execFileSync } from 'node:child_process'\nprocess.exit(execFileSync('git', ['log', '-1', '--format=%s'], { encoding: 'utf8' }).includes('Fix') ? 0 : 1)\n"
 
-/** The chain's scenarios on one real CLI with the scripted model (`docs/chain/e2e.md`, "Real CLIs"). */
+/** The chain's scenarios on one real CLI with the scripted model (`docs/chain/e2e-cli.md`). */
 export function chainOnRealCli(kit: CliKit): void {
   describe(`the chain on a real ${kit.title}`, { timeout: 10 * 60_000 }, () => {
     let run: Harness
