@@ -81,6 +81,9 @@
   grid-area: action;
   margin-top: 6px;
   overflow: hidden;
+  /* A press on the line focuses the session, as anywhere on the row (BTN-1788); the full action is in its tip. */
+  -webkit-user-select: none;
+  user-select: none;
   animation: action-open var(--motion-step) ease-out var(--beat-take, 0s) both;
 }
 
@@ -100,6 +103,7 @@
   padding-left: 14px;
   overflow: hidden;
   color: var(--fg);
+  cursor: pointer;
   font-family: var(--mono);
   font-size: var(--text-12);
   line-height: 18px;

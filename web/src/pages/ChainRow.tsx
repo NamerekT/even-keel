@@ -155,6 +155,11 @@ export function Block(props: BlockProps) {
       onDoubleClick={(event) => {
         if (!ownControl(event.target)) onCard(block.id)
       }}
+      // The action line is positioned for its glyph and so paints over the stretched key: a press on it is passed to the key (BTN-1788).
+      onClick={(event) => {
+        if (!(event.target instanceof Element) || event.target.closest('.block__action') === null) return
+        event.currentTarget.querySelector<HTMLElement>('.block__key')?.click()
+      }}
     >
       {rails.map((rail) => (
         <RailLink key={rail.family} project={project} rail={rail} />
