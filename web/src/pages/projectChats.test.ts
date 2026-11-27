@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ChatCard, ChatState } from '../../../src/chats/model.js'
-import { chatChip, chatTone, chatsBadge, contextPercent, modelText } from './projectChats.js'
+import { chatActions, chatChip, chatTone, chatsBadge, contextPercent, modelText } from './projectChats.js'
 
 function card(state: ChatState, unread = false): ChatCard {
   return {
@@ -76,5 +76,25 @@ describe('the context of a chat', () => {
     expect(contextPercent(null)).toBeNull()
     expect(contextPercent({ tokens: 1_000, window: null })).toBeNull()
     expect(contextPercent({ tokens: 0, window: 200_000 })).toBeNull()
+  })
+})
+
+describe('the ⋯ menu of a chat (BTN-1775)', () => {
+  it('archives a chat with a session in any state, a question and a turn too', () => {
+    for (const state of ['working', 'waiting', 'answered', 'cold', 'error'] as const) {
+      expect(chatActions({ ...card(state), sessionId: 's-1' })).toEqual(['archive'])
+    }
+  })
+
+  it('deletes an empty chat, one with no session yet', () => {
+    expect(chatActions(card('new'))).toEqual(['delete'])
+  })
+
+  it('archives a chat whose first session is starting: it has one already', () => {
+    expect(chatActions(card('starting'))).toEqual(['archive'])
+  })
+
+  it('has none for an archived chat', () => {
+    expect(chatActions({ ...card('archived'), sessionId: 's-1', archivedAt: '2026-11-19T11:00:00Z' })).toEqual([])
   })
 })

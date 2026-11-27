@@ -25,16 +25,28 @@ function placeEnd(element: HTMLElement, at: DOMRect) {
   element.style.top = `${top}px`
 }
 
+interface Props {
+  items: MoreItem[]
+  label: string
+  disabled?: boolean
+  /**
+   * The quiet ⋯ of a row or a window's head (BTN-1775): no frame and no fill, `--fg-muted`, a `--fg` 8% tint while
+   * pointed or open, 24 px; `--more-quiet` sets another size (28 px in a window's head beside its framed buttons).
+   */
+  quiet?: boolean
+  className?: string
+}
+
 /** The rare and destructive actions of a card behind a ⋯ button (`docs/design.md`, "Buttons"). */
-export function MoreMenu({ items, label, disabled = false }: { items: MoreItem[]; label: string; disabled?: boolean }) {
+export function MoreMenu({ items, label, disabled = false, quiet = false, className }: Props) {
   const { open, setOpen, root, button, menu, onKeyDown } = usePopoverMenu<HTMLUListElement>(placeEnd)
   if (items.length === 0) return null
   return (
-    <div className="more-menu" ref={root}>
+    <div className={className === undefined ? 'more-menu' : `more-menu ${className}`} ref={root}>
       <button
         ref={button}
         type="button"
-        className="button button--small more-menu__button"
+        className={quiet ? 'more-menu__quiet' : 'button button--small more-menu__button'}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={label}

@@ -28,6 +28,10 @@ export const CHATS_QUERIES: Record<string, Query> = {
     await chats(deps).archive(idOf(body))
     return {}
   },
+  'chats/delete': async (deps, body) => {
+    await chats(deps).remove(idOf(body))
+    return {}
+  },
 }
 
 function chats({ chats }: ServerDeps): ProjectChats {

@@ -36,6 +36,11 @@ export const chatsEn: typeof chatsRu = {
   newer: 'Newer',
   older: 'Older',
   successor: 'Continued in a new session',
+  menu: {
+    label: 'Chat actions',
+    archive: 'Archive',
+    delete: 'Delete',
+  },
   window: {
     key: 'Chat',
     blank: 'The session starts with your first message',

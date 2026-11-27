@@ -197,7 +197,8 @@ function fakeMail(card: ChatCard): Mail[] {
 
 /**
  * The project chats of `dev:fake` (BTN-1231): `?chats=none` — none, `?chats=many` — a dozen active ones, `?chats=long`
- * an OpenCode one with a long model name first, `?chats=packages` a last choice with packages of its own; by default four active (waiting, answered unread, working, cold on
+ * an OpenCode one with a long model name first, `?chats=packages` a last choice with packages of its own, `?chats=empty`
+ * an untitled chat with no session too; by default four active (waiting, answered unread, working, cold on
  * Codex) and 25 archived. Kept per page load, so a new chat, a message and a read stay until a reload.
  */
 export function fakeChats(mode: string | null) {
@@ -208,6 +209,8 @@ export function fakeChats(mode: string | null) {
     let list = lists.get(project)
     if (list === undefined) {
       const cards = mode === 'none' ? [] : mode === 'long' ? [longModelChat(state, project), ...active(state, project)] : active(state, project)
+      // `?chats=empty`: an untitled chat with no session yet, its menu offers Delete (BTN-1775).
+      if (mode === 'empty') cards.unshift(card(state, project, { id: `${project}-empty`, title: null, state: 'new', context: null, last: null, sessionId: null, lastAt: ago(2) }))
       const extra =
         mode === 'many'
           ? Array.from({ length: 8 }, (_, index) =>
@@ -375,6 +378,14 @@ export function fakeChats(mode: string | null) {
           const now = new Date().toISOString()
           replace(id, { state: 'answered', unread: true, last: { from: 'agent', text: 'Here is what I found: the step waits on a port another run holds.', at: now }, lastAt: now })
         }, ANSWER_MS)
+        return true
+      }
+      // The ⋯ menu (BTN-1775): a chat with a session goes to the archive, an empty one is gone for good.
+      if (name === 'chats/hide' || name === 'chats/delete') {
+        const hit = find(id)
+        if (hit === undefined) return true
+        hit.list.active = hit.list.active.filter((each) => each.id !== id)
+        if (name === 'chats/hide') hit.list.archived = [{ ...hit.found, state: 'archived', archivedAt: new Date().toISOString(), unread: false }, ...hit.list.archived]
         return true
       }
       return name.startsWith('chats/')

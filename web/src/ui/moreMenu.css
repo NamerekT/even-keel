@@ -20,6 +20,36 @@
   border-color: var(--accent);
 }
 
+/* The quiet ⋯ of a row or a window's head (BTN-1775): no frame and no fill, only a tint while pointed or open, so a
+   list of cards does not carry a column of outlined buttons. Its size is `--more-quiet`, 24 px by default (the least
+   target). */
+.more-menu__quiet {
+  display: inline-grid;
+  place-items: center;
+  width: var(--more-quiet, 24px);
+  height: var(--more-quiet, 24px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.more-menu__quiet:hover,
+.more-menu__quiet[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  color: var(--fg);
+}
+
+.more-menu__quiet:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .more-menu__list {
   position: fixed;
   inset: auto;

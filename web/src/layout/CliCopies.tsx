@@ -21,6 +21,12 @@ export function requestCli(provider: string) {
 export const titleOf = (provider: string) => (t.account.agents as Record<string, string>)[provider] ?? provider
 export const mb = (bytes: number) => Math.ceil(bytes / 1_000_000)
 
+/**
+ * A download's line (`docs/design.md`, "Download"). The meter's box holds the name (13 px), a full-height divider,
+ * a 6 px pill bar (`--accent` on `--surface-muted`, 240 px, shrinking on a narrow screen), a short divider and
+ * "A of B MB" in 12 px muted tabular figures; before the size is known it says "Preparing download…", at the full
+ * size "Verifying and unpacking…". On a narrow screen the box wraps under the words.
+ */
 export function CliProgress({ provider, copy }: { provider: string; copy: CliCopyView }) {
   const text = cliText()
   return <div className="cli-copy__progress" role="status">

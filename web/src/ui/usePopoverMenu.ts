@@ -1,8 +1,8 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 
 /**
- * A menu in a popover under its button: it opens placed by `place`, focuses its first live item (a button or a link), closes on a pointer or
- * a scroll outside its root, on a resize, on Tab and on Escape (back to the button), and moves between items by arrows.
+ * A menu in a popover under its button: it opens placed by `place`, focuses its first live item (a button or a link), closes on a pointer
+ * outside its root, on a scroll of a box around its button, on a resize, on Tab and on Escape (back to the button), and moves between items by arrows.
  */
 export function usePopoverMenu<Menu extends HTMLElement>(place: (menu: HTMLElement, at: DOMRect) => void) {
   const [open, setOpen] = useState(false)
@@ -20,13 +20,17 @@ export function usePopoverMenu<Menu extends HTMLElement>(place: (menu: HTMLEleme
     const away = (event: Event) => {
       if (!(event.target instanceof Node && root.current?.contains(event.target))) setOpen(false)
     }
+    // Only a scroll that moves the button: a box beside it, such as a working chat's feed under its head, keeps it open.
+    const moved = (event: Event) => {
+      if (event.target instanceof Node && root.current !== null && event.target.contains(root.current)) setOpen(false)
+    }
     const shut = () => setOpen(false)
     document.addEventListener('pointerdown', away)
-    document.addEventListener('scroll', away, true)
+    document.addEventListener('scroll', moved, true)
     window.addEventListener('resize', shut)
     return () => {
       document.removeEventListener('pointerdown', away)
-      document.removeEventListener('scroll', away, true)
+      document.removeEventListener('scroll', moved, true)
       window.removeEventListener('resize', shut)
       if (element.matches(':popover-open')) element.hidePopover()
     }

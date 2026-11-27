@@ -12,6 +12,8 @@ import { askAnswers, NO_PICK, permissionAnswer, pickAnswer, type Pick } from './
 import { PermissionBanner } from './PermissionBanner.js'
 import { encoded, sentLine } from './ChatComposer.js'
 import { chatRenewal, renewalChoice, type ChatRenewal } from './chatRenewal.js'
+import { ChatMenu } from './ChatMenu.js'
+import type { ChatAction } from './projectChats.js'
 import { ChatRenewDialog } from './ChatRenewDialog.js'
 import { shownAsk } from './composerHold.js'
 import { useChatAccounts } from './useChatAccounts.js'
@@ -35,6 +37,8 @@ interface Props {
   onChanged: () => void
   /** Opens another chat in place of this one: the one it goes on from, or the one it went on in (BTN-1232). */
   onOpen: (chat: ChatCard) => void
+  /** An action of the head's ⋯ menu, the card's own list (BTN-1775); the panel closes the window. */
+  onAct: (chat: ChatCard, action: ChatAction) => void
 }
 
 /**
@@ -43,7 +47,7 @@ interface Props {
  * archived chat is only read. A message to a chat whose cache went cold or whose account is at a limit asks first whether
  * to go on in a new session (BTN-1232).
  */
-export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged, onOpen }: Props) {
+export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged, onOpen, onAct }: Props) {
   const { state } = useLive()
   const { send } = useCommand()
   const archived = chat.archivedAt !== null
@@ -65,6 +69,7 @@ export function ProjectChatWindow({ chat, choice, onClose, onContinue, onChanged
       initialPrompt={(chat.state === 'starting' || chat.state === 'working') && chat.last?.from === 'user' ?
         { kind: 'prompt', at: chat.last.at, text: chat.last.text } : undefined}
       lead={chat.previous === null ? undefined : <Continued previous={chat.previous} onOpen={onOpen} />}
+      headMenu={<ChatMenu chat={chat} className="transcript__more" onAct={onAct} />}
       mail={archived || chat.sessionId === null ? undefined : (state?.mailbox[chat.sessionId] ?? NO_MAIL)}
       session={archived ? undefined : session}
       onClose={onClose}

@@ -160,6 +160,37 @@ describe('ProjectChats', { timeout: 120_000 }, () => {
     }
   })
 
+  it('deletes an empty chat for good, and refuses one with a session (BTN-1775)', async () => {
+    const { chats, store, calls, close } = await setup()
+    try {
+      const { id } = await chats.create(ABC, { account: 'global', model: null, effort: null })
+      await chats.remove(id)
+      expect(chats.list(ABC)).toEqual([])
+      expect(await store.find(id)).toBeUndefined()
+      expect((await chats.archived(ABC, '', 0)).chats).toEqual([])
+      expect(calls).toEqual([])
+      const used = await chats.create(ABC, { account: 'global', model: null, effort: null })
+      await chats.send(used.id, { text: 'Hello', files: [] })
+      await expect(chats.remove(used.id)).rejects.toMatchObject({ notice: { code: 'chats.hasSession' } })
+      expect(chats.list(ABC)).toHaveLength(1)
+      await expect(chats.remove('chat-ffffffffffff')).rejects.toMatchObject({ notice: { code: 'chats.unknown' } })
+    } finally {
+      await close()
+    }
+  })
+
+  it('refuses to delete a chat whose first session is pending after a move (BTN-1775)', async () => {
+    const { chats, close } = await setup()
+    try {
+      const old = await chats.create(ABC, { account: 'global', model: null, effort: null })
+      await chats.send(old.id, { text: 'Hello', files: [] })
+      const next = await chats.renew(old.id, { text: 'Go on', files: [] }, { account: 'global', model: null, effort: null })
+      await expect(chats.remove(next.id)).rejects.toMatchObject({ notice: { code: 'chats.hasSession' } })
+    } finally {
+      await close()
+    }
+  })
+
   it('archives with the successor that goes on in a new session', async () => {
     const { chats, close } = await setup()
     try {

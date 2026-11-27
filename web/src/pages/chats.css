@@ -64,6 +64,42 @@
   list-style: none;
 }
 
+/* A card and its ⋯, which stands over the card's top right corner, right of the time (BTN-1775). */
+.chats__item {
+  position: relative;
+}
+
+.chat-card__more {
+  position: absolute;
+  top: 9px;
+  right: 7px;
+}
+
+/* Archived or deleted: the card slides right and fades out; the list read again drops it. */
+.chats__item--leaving {
+  animation: chat-card-leave 100ms ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes chat-card-leave {
+  to {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+}
+
+@keyframes chat-card-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chats__item--leaving {
+    animation-name: chat-card-fade;
+  }
+}
+
 .chats__empty {
   margin-top: var(--space-24);
 }
@@ -159,10 +195,12 @@
   background: var(--accent);
 }
 
+/* Its right padding keeps the room of the ⋯ over it (`.chat-card__more`). */
 .chat-card__when {
   display: flex;
   align-items: center;
   gap: var(--space-8);
+  padding-right: 24px;
   color: var(--fg-muted);
   font-size: var(--text-12);
   font-variant-numeric: tabular-nums;

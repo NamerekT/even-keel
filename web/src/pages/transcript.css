@@ -68,6 +68,12 @@
   color: var(--accent);
 }
 
+/* A project chat's quiet ⋯ (BTN-1775): as high as the framed buttons beside it, without their frame. */
+.transcript__more {
+  --more-quiet: 28px;
+  flex: none;
+}
+
 .transcript .chat__task-toggle--on {
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
   background: color-mix(in srgb, var(--accent) 16%, var(--surface));

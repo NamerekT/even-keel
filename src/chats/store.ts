@@ -142,6 +142,12 @@ export class ChatStore {
     ))
   }
 
+  /** Forgets the chat for good: its row goes, not to the archive (BTN-1775, an empty chat). */
+  remove(id: string): void {
+    this.chats.delete(id)
+    this.deps.writes.add(`the removal of the chat ${id}`, this.deps.db.query('delete from chats where id = $1', [id]))
+  }
+
   choice(project: string): ChatChoice | null {
     return this.choices.get(project) ?? null
   }

@@ -210,10 +210,12 @@ export class ProjectChats {
   /**
    * Into the archive: its session is stopped (`docs/chain/exceptions.md`), its last message and title kept.
    * `successor` — the chat that goes on in a new session (BTN-1232). A stop that fails refuses the archive, unless
-   * `anyway` (the archive a day after the last event): then it is a line in the log.
+   * `anyway` (the archive a day after the last event): then it is a line in the log. A launch under way refuses it
+   * (`chats.starting`): its end would keep the chat active again.
    */
   async archive(id: string, options: { successor?: string; anyway?: boolean } = {}): Promise<void> {
     const chat = await this.active(id)
+    if (options.anyway !== true && (this.starting.has(id) || this.moving.has(id))) throw fail('chats.starting', {})
     try {
       await this.stop(chat)
     } catch (error) {
@@ -221,6 +223,18 @@ export class ProjectChats {
       this.deps.log(`chats: ${id}: the session ${chat.sessionId} was not stopped on its way to the archive: ${messageOf(error)}`)
     }
     this.putArchived(chat, options.successor ?? null)
+    this.deps.changed()
+  }
+
+  /**
+   * Deletes an empty chat for good (BTN-1775): one with no session, none being launched and none pending, so nothing
+   * of it runs or is kept anywhere but its record. A chat with a session goes to the archive instead (`archive`).
+   */
+  async remove(id: string): Promise<void> {
+    const chat = await this.active(id)
+    if (chat.sessionId !== null || chat.pending !== null || this.starting.has(id) || this.moving.has(id)) throw fail('chats.hasSession', {})
+    this.deps.store.remove(id)
+    this.deps.log(`chats: ${id} of ${chat.project} deleted, it had no session`)
     this.deps.changed()
   }
 

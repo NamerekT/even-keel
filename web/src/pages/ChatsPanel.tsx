@@ -1,8 +1,9 @@
 import { lazy, startTransition, Suspense, useEffect, useRef, useState } from 'react'
 import type { ChatCard, ChatPage } from '../../../src/chats/model.js'
+import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import { agentLabel } from '../accountName.js'
 import { formatStamp } from '../format.js'
-import { t } from '../i18n/index.js'
+import { say, t } from '../i18n/index.js'
 import { AgentIcon } from '../layout/accountParts.js'
 import { useNarrow } from '../layout/useNarrow.js'
 import { useNow } from '../layout/useNow.js'
@@ -16,7 +17,8 @@ import { EffortBars } from '../ui/RunLabelTag.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { NewChatDialog } from './NewChatDialog.js'
 import { modelTip, shortModel } from '../ui/modelLabel.js'
-import { chatChip, chatsBadge, chatTone, contextPercent, modelText } from './projectChats.js'
+import { ChatMenu } from './ChatMenu.js'
+import { chatChip, chatsBadge, chatTone, contextPercent, modelText, type ChatAction } from './projectChats.js'
 import { GroupTabs } from './settingsParts.js'
 import type { ProjectChatsView } from './useProjectChats.js'
 import './chats.css'
@@ -66,6 +68,19 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
   const [section, setSection] = useState<Section>('active')
   const [opened, setOpened] = useState<ChatCard | null>(null)
   const [creating, setCreating] = useState(false)
+  const { command } = useLive()
+  // The cards on their way out (BTN-1775): they slide and fade until the list read again drops them.
+  const [leaving, setLeaving] = useState<ReadonlySet<string>>(new Set())
+  const [failure, setFailure] = useState<Notice | null>(null)
+  const act = (chat: ChatCard, action: ChatAction) => {
+    setOpened((now) => (now?.id === chat.id ? null : now))
+    setFailure(null)
+    setLeaving((now) => new Set(now).add(chat.id))
+    command(action === 'archive' ? 'chats/hide' : 'chats/delete', { id: chat.id }).then(chats.refresh, (reason: unknown) => {
+      setLeaving((now) => new Set([...now].filter((id) => id !== chat.id)))
+      setFailure(noticeOf(reason))
+    })
+  }
   const closeRef = useRef<HTMLButtonElement>(null)
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
   useEffect(() => {
@@ -91,8 +106,13 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
           <CloseIcon />
         </button>
       </header>
+      {failure !== null && (
+        <p className="notice notice--error" role="alert">
+          {say(failure)}
+        </p>
+      )}
       {section === 'active' ? (
-        <ActiveList project={project} chats={chats} onOpen={setOpened} />
+        <ActiveList project={project} chats={chats} leaving={leaving} onOpen={setOpened} onAct={act} />
       ) : (
         <ArchiveList project={project} active={active} onOpen={setOpened} />
       )}
@@ -137,6 +157,7 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
               setCreating(true)
             }}
             onChanged={chats.refresh}
+            onAct={act}
           />
         )}
       </Suspense>
@@ -144,7 +165,15 @@ export function ChatsPanel({ project, chats, onClose }: Props) {
   )
 }
 
-function ActiveList({ project, chats, onOpen }: { project: string; chats: ProjectChatsView; onOpen: (chat: ChatCard) => void }) {
+interface ActiveProps {
+  project: string
+  chats: ProjectChatsView
+  leaving: ReadonlySet<string>
+  onOpen: (chat: ChatCard) => void
+  onAct: (chat: ChatCard, action: ChatAction) => void
+}
+
+function ActiveList({ project, chats, leaving, onOpen, onAct }: ActiveProps) {
   const now = useNow(30_000)
   const narrow = useNarrow()
   const { state } = useLive()
@@ -157,8 +186,10 @@ function ActiveList({ project, chats, onOpen }: { project: string; chats: Projec
   return (
     <ul className="chats__list">
       {chats.chats.map((chat) => (
-        <li key={chat.id}>
+        // The ⋯ stands beside the card's button, over its corner: a button holds no other button.
+        <li key={chat.id} className={leaving.has(chat.id) ? 'chats__item chats__item--leaving' : 'chats__item'} inert={leaving.has(chat.id) || undefined}>
           <ChatCardButton chat={chat} machine={machineOf(chat)} now={now} narrow={narrow} onOpen={() => onOpen(chat)} />
+          <ChatMenu chat={chat} className="chat-card__more" onAct={onAct} />
         </li>
       ))}
     </ul>

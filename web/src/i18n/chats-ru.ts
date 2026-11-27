@@ -35,6 +35,11 @@ export const chatsRu = {
   newer: 'Новее',
   older: 'Старше',
   successor: 'Продолжен в новой сессии',
+  menu: {
+    label: 'Действия с чатом',
+    archive: 'В архив',
+    delete: 'Удалить',
+  },
   window: {
     key: 'Чат',
     blank: 'Сессия запустится с вашим первым сообщением',

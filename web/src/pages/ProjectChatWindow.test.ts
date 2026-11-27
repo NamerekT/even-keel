@@ -42,9 +42,9 @@ const card: ChatCard = {
 }
 const message = 'Where are the tests?'
 
-async function render(chat: ChatCard) {
+async function render(chat: ChatCard, onAct: (chat: ChatCard, action: string) => void = () => {}) {
   const noop = () => {}
-  await act(async () => root.render(createElement(ProjectChatWindow, { chat, choice: null, onClose: noop, onContinue: noop, onChanged: noop, onOpen: noop })))
+  await act(async () => root.render(createElement(ProjectChatWindow, { chat, choice: null, onClose: noop, onContinue: noop, onChanged: noop, onOpen: noop, onAct })))
 }
 
 async function type(box: HTMLTextAreaElement, value: string) {
@@ -472,7 +472,9 @@ it('shows an archived chat its note and the way on inside the field frame, with 
   root = createRoot(host)
   const onContinue = vi.fn()
   const archived: ChatCard = { ...card, state: 'archived', archivedAt: new Date().toISOString() }
-  await act(async () => root.render(createElement(ProjectChatWindow, { chat: archived, choice: null, onClose: () => {}, onContinue, onChanged: () => {}, onOpen: () => {} })))
+  await act(async () => root.render(createElement(ProjectChatWindow, { chat: archived, choice: null, onClose: () => {}, onContinue, onChanged: () => {}, onOpen: () => {}, onAct: () => {} })))
+  // An archived chat has nothing for the head's ⋯ (BTN-1775).
+  expect(host.querySelector('.transcript__more')).toBeNull()
   const frame = host.querySelector('.chat__box')!
   expect(frame.querySelector('textarea')).toBeNull()
   expect(host.querySelector('textarea')).toBeNull()
@@ -481,6 +483,28 @@ it('shows an archived chat its note and the way on inside the field frame, with 
   expect(button.textContent).toBe(t.chats.window.continue)
   await act(async () => button.click())
   expect(onContinue).toHaveBeenCalledOnce()
+})
+
+it("offers Delete in the head's ⋯ of an empty chat and Archive of one with a session, left of the close button (BTN-1775)", async () => {
+  const host = document.body.appendChild(document.createElement('div'))
+  root = createRoot(host)
+  const onAct = vi.fn()
+  const pick = async () => {
+    const more = host.querySelector<HTMLButtonElement>('.transcript__more button')!
+    expect(more.closest('.panel__head')?.querySelector('.transcript__more + .panel__close')).not.toBeNull()
+    await act(async () => more.click())
+    const items = [...document.querySelectorAll<HTMLButtonElement>('.more-menu__item')]
+    expect(items.every((item) => item.classList.contains('more-menu__item--danger'))).toBe(true)
+    await act(async () => items[0]!.click())
+    return items.map((item) => item.textContent)
+  }
+  await render(card, onAct)
+  expect(await pick()).toEqual([t.chats.menu.delete])
+  expect(onAct).toHaveBeenLastCalledWith(card, 'delete')
+  const used: ChatCard = { ...card, state: 'answered', sessionId: 'first-session' }
+  await render(used, onAct)
+  expect(await pick()).toEqual([t.chats.menu.archive])
+  expect(onAct).toHaveBeenLastCalledWith(used, 'archive')
 })
 
 async function permission(text?: string) {

@@ -123,6 +123,8 @@ interface Props {
   initialPrompt?: FeedLine
   /** A line under the head, over the feed: a project chat's link to the chat it goes on from. */
   lead?: ReactNode
+  /** The head's control left of its close button: a project chat's ⋯ menu (BTN-1775). */
+  headMenu?: ReactNode
   /** A project chat's mailbox. */
   mail?: SessionMail
   /** A project chat's session: its turn line shows over the foot, as a task chat's does (BTN-1427). */
@@ -130,7 +132,7 @@ interface Props {
 }
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
-export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead, initialPrompt, mail: ownMail, session: ownSession }: Props) {
+export function TranscriptWindow({ sessionId: session, account, live, chat, task, onCard, onClose, foot, known, blank, lead, headMenu, initialPrompt, mail: ownMail, session: ownSession }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl, state } = useLive()
   const mail = chat?.mail ?? ownMail ?? (task?.project && session ? state?.mailbox[session] : undefined)
   const sessionId = session ?? ''
@@ -394,6 +396,7 @@ export function TranscriptWindow({ sessionId: session, account, live, chat, task
                 <OpenOutIcon />
               </a>
             )}
+            {headMenu}
             <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closeTranscript} onClick={() => dialogRef.current?.close()}>
               <CloseIcon />
             </button>

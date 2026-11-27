@@ -92,6 +92,7 @@ export const en = {
   'chats.noAccount': (p: { account: string }) => `The account ${p.account} is not on the machine with the project’s folder. Start a new chat with another Account.`,
   'chats.busy': () => 'The chat’s session is working. Send the message once it answers.',
   'chats.starting': () => 'The chat’s session is still starting. Send the message again in a moment.',
+  'chats.hasSession': () => 'This chat has a session now, so it cannot be deleted. Archive it instead.',
   'chats.noMachine': () => 'The machine with the project’s folder is not connected. Send the message once it is back.',
   'chats.notInPool': () => 'This machine does not take the project’s work. Start the chat on another Machine, or add this one to the project’s machines.',
   'chats.noFolder': () => 'This machine has no folder of the project. Start the chat on another Machine, or give it the project’s folder on its page.',
