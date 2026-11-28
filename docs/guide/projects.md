@@ -21,6 +21,8 @@ The wizard checks:
 
 All the steps are on one page. Each is marked once its check passes; when one fails, the reason is under its field and the step turns red. Empty required fields are named at the bottom of the form, and **What will be created** there sums the project up before **Add project**. When you add the project, Even Keel checks the repository again before saving it.
 
+![The wizard filled in for a clone: every step marked, the line "Clone from github.com" under Folder or repository address, and What will be created above Add project](images/project-wizard.webp)
+
 The wizard keeps what you changed yourself when you leave it and come back, and after a failed check or add; adding the project or reloading the browser page clears the draft. A Git or tracker choice you have not touched follows the setup's current answer.
 
 ## The folder or the repository's address
@@ -46,6 +48,8 @@ The folder accepts `~` for the home folder of the user Even Keel runs as and, on
 ## Adding the project
 
 **Add project** opens a window with the steps: the folder, the clone with its progress (and its Git LFS files, if it has any) or the first commit, the project itself, Claude Code's trust and the project's packages.
+
+![The creation window: the folder done, the clone running with its progress bar and speed, the project entry, Claude Code's trust and the packages waiting](images/project-creation.webp)
 
 A step that fails says why and offers **Retry**; when only the Git LFS files fail — say, one was never pushed to the server — the clone is kept and **Retry** downloads just those files.
 

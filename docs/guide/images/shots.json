@@ -19,6 +19,28 @@
       "id": "home-demo-cards",
       "route": "/?projects=none&content=en",
       "crop": { "x": 240, "y": 80, "width": 792, "height": 236 }
+    },
+    {
+      "id": "project-wizard",
+      "route": "/projects/add?content=en",
+      "steps": [
+        { "fill": "#wizard-target=https://github.com/example/my-app.git" },
+        { "wait": "1000" },
+        { "click": "#wizard-profile" },
+        { "click": ".select__list li:has-text(\"Built-in\")" },
+        { "fill": "#wizard-project=APP" },
+        { "fill": "#wizard-name=My app" },
+        { "click": "h1" },
+        { "wait": "1500" }
+      ],
+      "height": 1620,
+      "crop": { "x": 240, "y": 80, "width": 792, "height": 1444 }
+    },
+    {
+      "id": "project-creation",
+      "route": "/projects/add?job=clone&content=en",
+      "steps": [{ "click": "dialog[open] h2" }],
+      "selector": "dialog[open]"
     }
   ]
 }
