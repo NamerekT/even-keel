@@ -441,8 +441,10 @@ export class ProjectChats {
   private async carryTranscript(old: ChatRecord, from: string, to: Pick<MachineServices, 'chat'>, folder: string): Promise<string | null> {
     const reader = this.deps.services(from)
     if (reader === undefined) return null
+    // By the session id too: the old machine's monitor may no longer list a session long stopped (BTN-1796).
+    const sessionId = old.sessionId ?? undefined
     try {
-      const head = await reader.chats.transcriptPart(old.id, 0, 0)
+      const head = await reader.chats.transcriptPart(old.id, 0, 0, sessionId)
       if (head === null) {
         this.deps.log(`chats: ${old.id}: its transcript was not found on ${from} and stays there if it is anywhere`)
         return null
@@ -453,7 +455,7 @@ export class ProjectChats {
       }
       const parts: Buffer[] = []
       for (let at = 0; at < head.size; ) {
-        const part = await reader.chats.transcriptPart(old.id, at, TRANSCRIPT_PART_BYTES)
+        const part = await reader.chats.transcriptPart(old.id, at, TRANSCRIPT_PART_BYTES, sessionId)
         const data = part === null ? Buffer.alloc(0) : Buffer.from(part.data, 'base64')
         if (data.length === 0) throw new Error(`the transcript ended at ${at} of ${head.size} bytes`)
         parts.push(data)
@@ -528,7 +530,7 @@ export class ProjectChats {
   private async pastOf(chat: ChatRecord): Promise<ChatPast | null> {
     if (chat.sessionId === null || chat.machine === null) return null
     try {
-      return (await this.deps.services(chat.machine)?.chats.past(chat.id)) ?? null
+      return (await this.deps.services(chat.machine)?.chats.past(chat.id, chat.sessionId)) ?? null
     } catch (error) {
       this.deps.log(`chats: ${chat.id}: its last turns were not read: ${messageOf(error)}`)
       return null

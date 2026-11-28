@@ -171,7 +171,8 @@ export interface TranscriptSummary {
   unansweredMail?: UnansweredMail | null
 }
 
-const FEED_SIZE = 30
+/** How many recent lines a live session's summary keeps (`TranscriptSummary.feed`). */
+export const FEED_SIZE = 30
 const BACKGROUND_LIMIT = 200
 const TEXT_LIMIT = 500
 /** The most of a session's last message that is kept: an answer goes to the tracker as one comment (BTN-883). */
