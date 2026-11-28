@@ -55,6 +55,8 @@ const HISTORY: CiRun[] = [
 ]
 
 const FIX_RUN = run(41, { push: 9, status: 'success', startedAgo: 900, length: 180 })
+/** The push no run has taken yet, of `ci=push` and `ci=redpush`. */
+const PUSHED = '5c95521730bbc58ab20052f7ff807c29a8fbeb65'
 
 /** The fix of a red main in the fake chain archive: the red #39 and the green #41 of `?ci=fixed`. */
 export const FAKE_FIX = { red: HISTORY[1]!.commit, landed: FIX_RUN.commit }
@@ -165,8 +167,9 @@ function githubView(finished: boolean, partial = false): CiView {
 }
 
 /**
- * `?ci=failure|stuck|busy|nottaken|push|fixed|mirror|partial|error|off|none`, and the cases of `fakeMainCi`; without it ABC has a running Forgejo run and
+ * `?ci=failure|redpush|stuck|busy|nottaken|push|fixed|mirror|partial|error|off|none`, and the cases of `fakeMainCi`; without it ABC has a running Forgejo run and
  * an uncounted GitHub Actions whose push runs two workflows, one still going. `partial` — a counted GitHub run at work with one job waiting for a runner.
+ * `redpush` — `failure` with a later push no run has taken yet, the one the next task waits on (the guide's frame, BTN-1816).
  */
 export function fakeCi(kind: string | null): Record<string, CiView[]> {
   if (kind?.startsWith('gitlab')) {
@@ -184,11 +187,13 @@ export function fakeCi(kind: string | null): Record<string, CiView[]> {
   const queued = run(42, { push: 5, status: 'queued', startedAgo: 300, length: null })
   const untaken = { ...run(42, { push: 5, status: 'failure', startedAgo: 1_200, length: 900 }), notTaken: true }
   const notTakenJob: CiJob = { ...job(1, 'test', 'cancelled', null, null, false), notTaken: true }
+  const failure = forgejo({
+    current: current([[HISTORY[1]!, [job(1, 'test', 'failure', 7_200, 75, false), job(2, 'deploy', 'skipped', null, null, false)]]], ['ABC-3']),
+    history: HISTORY.slice(1),
+  })
   const views: Record<string, CiView> = {
-    failure: forgejo({
-      current: current([[HISTORY[1]!, [job(1, 'test', 'failure', 7_200, 75, false), job(2, 'deploy', 'skipped', null, null, false)]]], ['ABC-3']),
-      history: HISTORY.slice(1),
-    }),
+    failure,
+    redpush: { ...failure, pushed: { commit: PUSHED, at: ago(40) } },
     stuck: forgejo({ current: current([[queued, [job(1, 'test', 'queued', null, null, false)]]], ['ABC-5']), history: [queued, ...HISTORY] }),
     busy: forgejo({
       current: current([[queued, [job(1, 'test', 'queued', null, null, false)]]], ['ABC-5']),
@@ -198,7 +203,7 @@ export function fakeCi(kind: string | null): Record<string, CiView[]> {
     nottaken: forgejo({ current: current([[untaken, [notTakenJob]]], ['ABC-5']), history: [untaken, ...HISTORY] }),
     fixed: forgejo({ current: current([[FIX_RUN, [job(1, 'test', 'success', 900, 180, false)]]], []), history: [FIX_RUN, ...HISTORY] }),
     mirror: finished,
-    push: { ...finished, pushed: { commit: '5c95521730bbc58ab20052f7ff807c29a8fbeb65', at: ago(40) } },
+    push: { ...finished, pushed: { commit: PUSHED, at: ago(40) } },
     error: { ...finished, health: 'error', error: notice('ci.unreachable', { ci: 'Forgejo' }, { detail: 'connect ETIMEDOUT 100.64.0.1:443' }), checkedAt: ago(30) },
     off: { ...forgejo(), health: 'off', error: notice('ci.noToken', { kind: 'forgejo' }), checkedAt: null, current: null, history: [], medians: {} },
     late: forgejo({ current: current([[untaken, [notTakenJob]]], ['ABC-5']), history: [untaken, ...HISTORY] }),
@@ -233,6 +238,8 @@ export function fakeMainCi(kind: string | null): FakeMainCi {
   switch (kind) {
     case 'wait':
       return { mainCi: main(), ciWait: { commit: going, since: ago(150) } }
+    case 'redpush':
+      return { mainCi: main(), ciWait: { commit: PUSHED, since: ago(40) } }
     case 'local':
       return { mainCi: main(), ciWait: { commit: sha(6), since: ago(70), local: true } }
     case 'late':

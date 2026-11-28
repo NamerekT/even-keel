@@ -86,6 +86,12 @@
       "route": "/p/ABC?header=two&content=en",
       "steps": [{ "hover": ".account-block__toggle" }, { "wait": "800" }],
       "crop": { "x": 876, "y": 0, "width": 320, "height": 206 }
+    },
+    {
+      "id": "ci-panel",
+      "route": "/p/ABC?ci=redpush&content=en",
+      "steps": [{ "click": "[class*=\"chip--ci-\"]" }, { "wait": ".ci-card" }],
+      "crop": { "x": 830, "y": 70, "width": 416, "height": 704 }
     }
   ]
 }

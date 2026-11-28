@@ -32,6 +32,8 @@ A badge in the project's head shows the CI of each remote — Forgejo Actions, G
 
 All of them are of the project's main branch.
 
+![The CI panel open from the CI tab: on Forgejo Actions a new push waiting for a run with the line that the next task waits for the CI's verdict on it, under it the red run of the push before with its failed test job, the after-green row and the history dots; below, a GitHub Actions run marked "not counted" with two workflows at work](images/ci-panel.webp)
+
 - A run that waits says when the runner is busy with another run; a run no runner took is grey rather than red; a CI the chain does not wait for is marked "not counted".
 - When the next task waits — for the CI's verdict, for the project's own check, or for a push no runner took in time — the panel says so under the push it waits on, with the time.
 - Each push says whether the chain pushed it or someone did by hand. A project with **Commands after a green main** has an "After green" row: running, done, the command that failed, or skipped and why.
