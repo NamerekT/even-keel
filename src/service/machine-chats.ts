@@ -7,6 +7,7 @@ import { TRANSCRIPT_PART_BYTES, type ChatStart, type MachineChats, type Transcri
 import { fail } from '../notice/notice.js'
 import { replyParts } from '../sessions/ask.js'
 import { typedText } from '../sessions/commandPrompt.js'
+import { FEED_SIZE } from '../sessions/transcript.js'
 import type { MachineContext } from './machine-context.js'
 
 export type MachineChatsContext = Pick<MachineContext,
@@ -20,6 +21,7 @@ export type MachineChatsContext = Pick<MachineContext,
   | 'configStore'
   | 'daemons'
   | 'homeOf'
+  | 'inHomes'
   | 'launchIn'
   | 'liveView'
   | 'mailbox'
@@ -60,6 +62,8 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
     ctx.chatSessions.bind(chat, sessionId)
     return sessionId
   }
+  /** The transcript of a session the monitor no longer lists, in the machine's account folders (BTN-1796). */
+  const fileOf = (sessionId: string) => ctx.inHomes(async (home) => ctx.agentOf(home).feedFile?.(home, sessionId))
   const sessionOf = (chat: string) => {
     const session = ctx.monitor.handoff(chat)
     if (session === undefined) throw fail('chats.starting', {})
@@ -107,12 +111,22 @@ export function wireMachineChats(ctx: MachineChatsContext): MachineChats {
       const home = ctx.homeOf(account)
       return home.agent === CLAUDE ? ctx.chatTitles.of(join(home.dir, 'projects'), sessionId, chat) : null
     },
-    past: async (chat) => {
+    past: async (chat, sessionId) => {
       const session = ctx.monitor.handoff(chat)
-      return session === undefined ? null : { sessionId: session.sessionId, transcript: session.transcript, recent: session.recent }
+      if (session !== undefined) return { sessionId: session.sessionId, transcript: session.transcript, recent: session.recent }
+      // An id left out comes over the link as `null`.
+      if (sessionId == null) return null
+      const found = await ctx.inHomes(async (home) => {
+        const agent = ctx.agentOf(home)
+        const record = await agent.record(home, sessionId)
+        if (record === undefined) return undefined
+        return { sessionId, transcript: (await agent.feedFile?.(home, sessionId)) ?? null, recent: record.feed.slice(-FEED_SIZE) }
+      })
+      return found ?? null
     },
-    transcriptPart: async (chat, from, length) => {
-      const transcript = ctx.monitor.handoff(chat)?.transcript
+    transcriptPart: async (chat, from, length, sessionId) => {
+      const session = ctx.monitor.handoff(chat)
+      const transcript = session !== undefined ? session.transcript : sessionId == null ? null : await fileOf(sessionId)
       return transcript == null ? null : transcriptPartOf(transcript, from, length)
     },
   }

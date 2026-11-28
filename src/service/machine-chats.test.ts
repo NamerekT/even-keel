@@ -219,3 +219,46 @@ describe('a part of a chat transcript carried to another machine (BTN-1711)', ()
     }
   })
 })
+
+// BTN-1796: a session long stopped is no longer listed after the machine's restart, but its file is still there.
+describe("a chat's session the monitor no longer lists", () => {
+  function unlisted(path: string) {
+    const feed = Array.from({ length: 40 }, (_, at) => ({ kind: 'text', text: `line ${at}` }))
+    const homes = [{ key: 'other', agent: CLAUDE }, home]
+    const agentOf = () => ({
+      record: async (at: { key: string }, sessionId: string) => (at.key === home.key && sessionId === session.sessionId ? { sessionId, feed } : undefined),
+      feedFile: async (at: { key: string }, sessionId: string) => (at.key === home.key && sessionId === session.sessionId ? path : undefined),
+    })
+    const inHomes = async <T>(read: (at: typeof home) => Promise<T | undefined>) => {
+      for (const at of homes) {
+        const found = await read(at)
+        if (found !== undefined) return found
+      }
+      return undefined
+    }
+    return wireMachineChats({ monitor: { handoff: () => undefined }, agentOf, inHomes } as unknown as MachineChatsContext)
+  }
+
+  it("finds its transcript by the session id in the machine's account folders", async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ek-transcript-'))
+    try {
+      const path = join(dir, 'session-1.jsonl')
+      writeFileSync(path, '0123456789')
+      const chats = unlisted(path)
+      expect(await chats.transcriptPart(chat, 0, 0, session.sessionId)).toEqual({ name: 'session-1.jsonl', size: 10, data: '' })
+      const past = await chats.past(chat, session.sessionId)
+      expect(past).toMatchObject({ sessionId: session.sessionId, transcript: path })
+      expect(past!.recent.map((line) => line.text)).toEqual(Array.from({ length: 30 }, (_, at) => `line ${at + 10}`))
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('knows none without the session id, or of an id no folder holds', async () => {
+    const chats = unlisted('/gone.jsonl')
+    expect(await chats.past(chat)).toBeNull()
+    expect(await chats.transcriptPart(chat, 0, 0)).toBeNull()
+    expect(await chats.past(chat, 'session-2')).toBeNull()
+    expect(await chats.transcriptPart(chat, 0, 0, 'session-2')).toBeNull()
+  })
+})

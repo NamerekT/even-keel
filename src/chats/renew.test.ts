@@ -70,6 +70,10 @@ describe('a project chat going on in a new session (BTN-1232)', { timeout: 120_0
       expect(fixture.calls.map(([name]) => name)).toEqual(['stop', 'launch'])
       expect(fixture.calls[1]?.slice(0, 3)).toEqual(['launch', ABC, FAR_FOLDER])
       expect(fixture.carried.filter(([, kind]) => kind === 'part').map(([machine]) => machine)).toEqual([OWN, OWN, OWN])
+      // By the session id too, for a session the old machine's monitor no longer lists (BTN-1796).
+      const sessionId = `session-${old}`
+      expect(fixture.carried.filter(([, kind]) => kind === 'part').map((part) => part[5])).toEqual([sessionId, sessionId, sessionId])
+      expect(fixture.pastsAsked).toContainEqual([old, sessionId])
       const saves = fixture.carried.filter(([, kind]) => kind === 'save')
       expect(saves).toEqual([[FAR, 'save', FAR_FOLDER, ['old.jsonl', body]]])
       const prompt = (fixture.calls[1]![4] as { prompt: string }).prompt

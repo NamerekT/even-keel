@@ -62,6 +62,8 @@ export async function setup(options: SetupOptions = {}) {
   const sessions: SessionView[] = []
   const titles = new Map<string, string>()
   const pasts = new Map<string, ChatPast>()
+  /** Every `past` asked: the chat and the session id the hub named. */
+  const pastsAsked: Array<[string, string | undefined]> = []
   /** The transcript files of the chats' sessions on the own machine; `size` — told instead of the data's own. */
   const transcripts = new Map<string, { name: string; data: Buffer; size?: number }>()
   /** The transcript reads and the inbox saves, with the machine each went to. */
@@ -96,9 +98,12 @@ export async function setup(options: SetupOptions = {}) {
         if (switches.stopFails) throw fail('chats.noMachine', {})
       },
       title: async (_account, sessionId) => titles.get(sessionId) ?? null,
-      past: async (chat) => pasts.get(chat) ?? null,
-      transcriptPart: async (chat, from, length) => {
-        carried.push([machine, 'part', chat, from, length])
+      past: async (chat, sessionId) => {
+        pastsAsked.push([chat, sessionId])
+        return pasts.get(chat) ?? null
+      },
+      transcriptPart: async (chat, from, length, sessionId) => {
+        carried.push([machine, 'part', chat, from, length, sessionId])
         const file = transcripts.get(chat)
         if (file === undefined || machine !== OWN) return null
         return { name: file.name, size: file.size ?? file.data.length, data: file.data.subarray(from, from + Math.min(length, TRANSCRIPT_PART_BYTES)).toString('base64') }
@@ -135,6 +140,7 @@ export async function setup(options: SetupOptions = {}) {
     sessions,
     titles,
     pasts,
+    pastsAsked,
     transcripts,
     carried,
     switches,

@@ -94,13 +94,17 @@ export interface MachineChats {
    * an agent that gives none.
    */
   title(account: string, sessionId: string, chat: string): Promise<string | null>
-  /** The chat's session as the monitor knows it: its id, transcript and recent lines; `null` — none (BTN-1232). */
-  past(chat: string): Promise<ChatPast | null>
+  /**
+   * The chat's session as the monitor knows it: its id, transcript and recent lines (BTN-1232); one the monitor no
+   * longer lists is found by `sessionId` in the machine's account folders (BTN-1796). `null` — none.
+   */
+  past(chat: string, sessionId?: string): Promise<ChatPast | null>
   /**
    * `length` bytes from `from` of the chat's session transcript, at most `TRANSCRIPT_PART_BYTES`, with its whole size:
-   * the hub carries it to the machine the chat goes on at (BTN-1711). `null` — no transcript known or readable.
+   * the hub carries it to the machine the chat goes on at (BTN-1711). A session the monitor no longer lists is found by
+   * `sessionId`, as in `past`; a machine of an older build ignores it. `null` — no transcript known or readable.
    */
-  transcriptPart(chat: string, from: number, length: number): Promise<TranscriptPart | null>
+  transcriptPart(chat: string, from: number, length: number, sessionId?: string): Promise<TranscriptPart | null>
 }
 
 /** A piece of a transcript: the file's name and whole size, and the bytes asked for in base64. */
