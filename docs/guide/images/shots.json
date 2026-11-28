@@ -72,6 +72,20 @@
       "route": "/p/ABC?chain=ask&content=en",
       "steps": [{ "click": ".panel__chat--waiting" }, { "wait": "dialog[open]" }],
       "selector": "dialog[open]"
+    },
+    {
+      "id": "accounts-panel",
+      "route": "/p/ABC?account=rows&content=en",
+      "steps": [{ "click": ".account-block__toggle" }, { "wait": "#account-panel" }],
+      "height": 1000,
+      "selector": "#account-panel",
+      "crop": { "x": 0, "y": 0, "width": 640, "height": 868 }
+    },
+    {
+      "id": "header-account-chip",
+      "route": "/p/ABC?header=two&content=en",
+      "steps": [{ "hover": ".account-block__toggle" }, { "wait": "800" }],
+      "crop": { "x": 876, "y": 0, "width": 320, "height": 206 }
     }
   ]
 }

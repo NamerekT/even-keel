@@ -140,9 +140,11 @@ Then the deployment names for Opus, Sonnet and Haiku, at least one, exactly as t
 
 **Accounts** in the header opens a panel; the `/accounts` page shows the same in full. Accounts are grouped by provider, those at work first. Each row has the account's name, its roles, its limits and its live sessions, and problems appear above the list with their fix; tips tell where a limit is shared and how old a reading is.
 
+![The Accounts panel: Add account and All accounts on top, a line naming the account with a problem, then a group per provider — Claude Code with two subscription accounts carrying the Even Keel and VS Code roles and an Anthropic key that is refused, and Codex with a ChatGPT account whose week is used up](images/accounts-panel.webp)
+
 A role is an app that runs on the account: **Even Keel** for the chain's sessions of that provider, **VS Code** for the Claude Code extension in VS Code. Click the row (or focus it and press Enter) for its menu: move Even Keel or VS Code onto the account, rename it or remove it; an action that cannot be done says why. VS Code picks up the new account after **Developer: Reload Window**, and the move waits while a Claude chat is open there. The Claude desktop app is pointed at an account folder by hand.
 
-The **Machines** column names every other machine of a [hub](hub-machine.md#accounts-on-a-machine) the account is on, each label opening that machine's page; an amber label with a dashed edge is a machine where the account was signed out — press it to sign in there again.
+On the `/accounts` page, the **Machines** column names every other machine of a [hub](hub-machine.md#accounts-on-a-machine) the account is on, each label opening that machine's page; an amber label with a dashed edge is a machine where the account was signed out — press it to sign in there again.
 
 On a phone, a row keeps the name, the role and the tightest used percentage of the plan's windows (with the model's name when the account also has a model's own week); tapping the row opens its menu, whose head shows every window with its reset. The menu button of the header has one **Accounts** button with that percentage and an error dot.
 
@@ -151,6 +153,8 @@ On a phone, a row keeps the name, the role and the tightest used percentage of t
 On a project's chain page, the header chip shows the account of its current session, or of the next task before it starts, also while the chain is paused or stopped. Other pages show Even Keel's shared account. Pressing the chip opens the Accounts panel.
 
 Pointing at it shows the accounts that decide the next task's account, up to three: the task's own, the project's and the shared one. When the task or the project has an account of its own over the shared one, the chip gets a coloured border and the number of accounts in play. On a phone, the header shows the account's windows as thin bars along its bottom edge.
+
+![The header's account chip with a green border and 2 accounts in play, pointed at: the project's account on top with its 5-hour and weekly windows, Even Keel's shared account below it](images/header-account-chip.webp)
 
 ## Limits
 
