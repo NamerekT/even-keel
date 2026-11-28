@@ -168,6 +168,13 @@
       ],
       "height": 1200,
       "selector": "dialog[open]"
+    },
+    {
+      "id": "packages",
+      "route": "/settings?content=en",
+      "steps": [{ "click": ".settings-nav__item:has-text(\"Packages\")" }, { "wait": ".packages" }],
+      "height": 900,
+      "crop": { "x": 168, "y": 72, "width": 936, "height": 764 }
     }
   ]
 }

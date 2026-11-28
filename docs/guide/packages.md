@@ -19,6 +19,8 @@ Packages live in two places.
 
 **Settings** → **Packages** is the catalog: adding a package, install, update, check (one or all), remove, whether it is on by default, the shared values of its settings and its keys.
 
+![The shared settings at Packages: the package catalog with Check all, Update all and Add a package at its top, the packages grouped as Even Keel, claude-plugins-official and MCP servers, each row with its version, Update where a newer one is out and the switch of whether it is on by default; Tracker keys below](images/packages.webp)
+
 **Project packages**, the wide button at the top of the **Sessions** tab of a project's settings, lists the packages turned on in it, or in amber the first problem among them. It opens the project's own set:
 
 - a switch per package, with ↺ beside it when the project chose for itself — it puts back the catalog's default;
