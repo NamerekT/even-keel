@@ -112,11 +112,17 @@ An error on a card says what to do, and where a setting, an access profile or an
 
 ## Status
 
-The gear in the header has a dot when something is wrong and a **Status** row leading to `/status`, one screen:
+The gear at the end of the header opens a menu:
+
+![The gear menu open: Settings, Status with a green dot and all good, Tools, Hotkeys, the theme switch, Report a problem, and the version with a newer release available](images/gear-menu.webp)
+
+The gear has a dot when something is wrong, and the menu's **Status** row leads to `/status`, one screen:
 
 - a line on top that says all is well or names the problems, with a button for the first;
 - a tile each for the service itself, the reading of the limits, the settings and the statistics collector;
 - a card per tracker account in use: whether it answers and when it last did, its error in plain words, the projects and task feeds it reads (those not read for a while marked), a **Check** button that reads them now and **Open profile**.
+
+![The status screen with one problem: the line on top names the account that lost its connection with Open profile, four tiles all green, and a card per tracker account with Check and Open profile, the failing one showing its error](images/status-screen.webp)
 
 ## Settings tables
 
@@ -164,7 +170,7 @@ The page is light or dark. **Settings** → **Interface** → **Theme** and the 
 
 ## Elsewhere
 
-- **Updating:** a newer release gets a mark next to the version in the gear menu and a notification; both open the update window ([From the page](updating.md#from-the-page)).
+- **Updating:** a newer release gets a mark next to the version in the gear menu (as in [the menu above](#status)) and a notification; both open the update window ([From the page](updating.md#from-the-page)).
 - **The tray (Windows):** `even-keel install` puts Even Keel's icon in the tray, with a dot for its state and a menu ([Windows: a start at sign-in](service.md#windows-a-start-at-sign-in)).
 - **Tips** close when you scroll the page or another area outside the tip, or resize the window; scrolling inside a tip keeps it open.
 - **A lost connection:** the page keeps its last data and reconnects by itself; commands are never repeated automatically.

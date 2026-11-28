@@ -54,6 +54,18 @@
       "route": "/p/ABC?chain=pins&content=en&task=ABC-10",
       "steps": [{ "wait": ".task-card__run" }],
       "selector": "dialog[open] .task-card__block:has(.task-card__run)"
+    },
+    {
+      "id": "gear-menu",
+      "route": "/p/ABC?update=0.2.0&content=en",
+      "steps": [{ "click": ".gear-toggle" }, { "wait": "#gear-panel" }],
+      "crop": { "x": 990, "y": 0, "width": 262, "height": 350 }
+    },
+    {
+      "id": "status-screen",
+      "route": "/status?trackers=problems&content=en",
+      "steps": [{ "wait": ".status-connections" }],
+      "height": 940
     }
   ]
 }
