@@ -6,7 +6,7 @@
 
 **The page.** Sessions → Protection edits them; new launches read current values, running processes are left alone. Each group's hint names what it denies, and each agent's field of additional rules has its own hint and an example placeholder. An agent without a sandbox and without Even Keel rules gets a warning linking to the project's session settings. "Deleting tracker records" over the six tracker switches stores nothing: it is on while all six are, and turning it on or off turns them all. A project's "Use shared protection" does not lock the fields: on means the project has no `protection` of its own; changing a field copies the shared values with the change and turns it off; turning it on drops the project's values.
 
-**The tracker groups** (BTN-541) are enforced in the MCP gateway, not by the agents: it refuses a tracker server's deleting `tools/call` for every agent, Codex included, also one nested in a dispatcher such as Huly's `invoke_tool` (BTN-641; `docs/packages.md`, "The gateway"). Native rules match tool names only and miss such a call. `deleteHuly` also keeps Huly's native deny rules for Claude, Copilot and OpenCode; the other trackers have none. Codex cannot deny MCP calls through execpolicy.
+**The tracker groups** (BTN-541) are enforced in the MCP gateway, not by the agents: it refuses a tracker server's deleting `tools/call` for every agent, Codex included, also one nested in a dispatcher such as Huly's `invoke_tool` (BTN-641; `docs/packages/gateway.md`, "The gateway"). Native rules match tool names only and miss such a call. `deleteHuly` also keeps Huly's native deny rules for Claude, Copilot and OpenCode; the other trackers have none. Codex cannot deny MCP calls through execpolicy.
 
 ### Per agent
 

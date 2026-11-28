@@ -28,7 +28,7 @@ The machine opens every connection, so a machine behind NAT needs no open port.
 | `/link/events` | the machine's numbered events | an empty one is the machine's pulse |
 | `/link/mcp` | `{connection, request}` → `{status, headers, body}` | a session's request to an MCP server of the hub; counts as the pulse, and its failure leaves the connection alone ("MCP through the hub") |
 | `/link/hook` | `{connection, request: {method, path, body?}}` → `{status, body}` | a session's hook asking the hub's page ("Hooks through the hub") |
-| `/link/tally` | `{connection, rows}` → `{taken}` | the rows of the machine's Tally collector; the receipt is the machine's read mark (`docs/tally.md`, "Machines elsewhere") |
+| `/link/tally` | `{connection, rows}` → `{taken}` | the rows of the machine's Tally collector; the receipt is the machine's read mark (`docs/tally/collector.md`, "Machines elsewhere") |
 | `/link/credentials` | `{connection, project, urls}` → `{credentials}` | the tokens of a project's HTTPS remotes for one git call (BTN-1541, `docs/ci/layer.md`, "Git over HTTPS") |
 | `/link/git` | `{connection, project, request}` → `{status, contentType, body}`, bodies base64 | one smart-HTTP request of the machine's memory relay to the hub's `git http-backend` (BTN-1648, `docs/sessions/memory.md`, "The machines' copies") |
 | `/link/join` | `{api, about}` → `{secret}` | a connection string's one join (`elsewhere.md`, "The door") |

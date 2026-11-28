@@ -89,9 +89,9 @@ These hub tables stay for upgrades and are read no more: the machine's database 
 | Table | What it held |
 | --- | --- |
 | `account_limits` | each account folder's last known limits: `account`, `limits` (`RateLimits` JSON with its time and source, `docs/sessions/limits.md`) |
-| `account_settings` | what Even Keel keeps of each Claude folder's `settings.json`: `account`, `written` (what the last transfer wrote), `own` (the account's own layer, `null` removing a key), `saved_at` (`docs/accounts.md`, "Transferring the shared configuration") |
+| `account_settings` | what Even Keel keeps of each Claude folder's `settings.json`: `account`, `written` (what the last transfer wrote), `own` (the account's own layer, `null` removing a key), `saved_at` (`docs/accounts/share.md`, "Transferring the shared configuration") |
 | `global_accounts` | the global CLI folders added to this installation: `account` (`global` or `codex`) |
-| `key_organizations` | the organization each API account's key pays through, as a working key's answer last named it: `account`, `organization`, `seen_at` (`docs/accounts.md`, "The key's organization") |
+| `key_organizations` | the organization each API account's key pays through, as a working key's answer last named it: `account`, `organization`, `seen_at` (`docs/accounts/claude-kinds.md`, "The key's organization") |
 | `management_keys` | the management key of an OpenCode account on an OpenRouter key, read only for its balance: `account`, `key` (in the clear), `saved_at`; kept outside the account folder, which its sessions read |
 | `left_folders` | the worktree folders a cleanup after Done left while a process held them (`docs/chain/cleanup.md`): `path` (key), `project_id`, `task`, `repo`, `until` (epoch ms, the end of the wait) |
 | `context_windows` | the context window each agent named for an account, model and launch settings: `account`, `model`, `settings` (unique together, nulls not distinct), `stamp`, `window_size`, `measured_at`; the newest 200 kept (`docs/sessions/models.md`, "Context window") |

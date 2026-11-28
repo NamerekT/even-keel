@@ -49,6 +49,37 @@ export const markdownFiles = (root: string): string[] => {
   return out
 }
 
+/** A section reference in prose: `` `docs/x.md`, "Section" `` or `` `docs/x.md` ("Section") ``, the path from the checkout's root. */
+const SECTION_REF = /`(docs\/[^`]+?\.md)`,? \(?"([^"]+)"/g
+
+/** Whether a document holds a section: a heading that contains its name or a list item that starts with it in bold, code marks aside. */
+const holdsSection = (text: string, section: string): boolean =>
+  text.split(/\r?\n/).some((raw) => {
+    const line = raw.replace(/`/g, '')
+    return (/^#{1,6}\s/.test(line) && line.includes(section)) || line.replace(/^\s*(?:[-*]|\d+\.)\s+/, '').startsWith(`**${section}`)
+  })
+
+/** Prose section references of a file whose document has no such section, or no such document. */
+export const brokenSections = (root: string, files: string[]): string[] => {
+  const texts = new Map<string, string | null>()
+  const textOf = (path: string): string | null => {
+    if (!texts.has(path)) texts.set(path, existsSync(path) ? readFileSync(path, 'utf8') : null)
+    return texts.get(path)!
+  }
+  const broken: string[] = []
+  for (const file of files) {
+    readFileSync(file, 'utf8').split(/\r?\n/).forEach((line, index) => {
+      for (const match of line.matchAll(SECTION_REF)) {
+        const [, target, section] = match as unknown as [string, string, string]
+        const text = textOf(join(root, target))
+        if (text !== null && holdsSection(text, section)) continue
+        broken.push(`${relative(root, file).split(sep).join('/')}:${index + 1} ${target} "${section}"${text === null ? ' (no file)' : ''}`)
+      }
+    })
+  }
+  return broken
+}
+
 /** Relative markdown links of a file that lead nowhere: a missing file or a missing anchor. */
 export const brokenLinks = (root: string, files: string[]): string[] => {
   const anchors = new Map<string, Set<string>>()
