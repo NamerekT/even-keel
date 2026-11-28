@@ -1,6 +1,9 @@
-/** A line glued under a field (`FieldStrip`): what the field's value was found as, or what is wrong with it. */
+/**
+ * A line glued under a field (`FieldStrip`): what the field's value was found as, or what is wrong with it; `warn` —
+ * usable, but with something to fix next to it.
+ */
 export interface StripLine {
-  tone: 'ok' | 'error' | 'plain'
+  tone: 'ok' | 'warn' | 'error' | 'plain'
   text: string
   /** The same said shorter, for a field too narrow for `text`: the login alone for "signed in as <login>". */
   short?: string

@@ -6,9 +6,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { runGit } from '../git/run.js'
 import type { Git, GitResult } from '../git/types.js'
 import { NoticeError } from '../notice/notice.js'
-import { checkFolderStep, cloneTarget, probeFolder, throwOf, type FolderCheckDeps, type FolderSpec } from './folder-check.js'
+import { checkFolderStep, cloneTarget, completeRemotes, probeFolder, throwOf, type FolderCheckDeps, type FolderSpec } from './folder-check.js'
 
-const spec: FolderSpec = { project: 'p1', folder: '/work/abc', remotes: ['https://forge.example.com/team/abc.git'], branch: 'trunk', claude: true }
+const HUB_REMOTE = { name: 'origin', url: 'https://forge.example.com/team/abc.git' }
+const spec: FolderSpec = { project: 'p1', folder: '/work/abc', remotes: [HUB_REMOTE], branch: 'trunk', claude: true }
 
 /** git answering by the joined arguments; anything unscripted fails. */
 function gitOf(answers: Record<string, GitResult>, calls: string[][] = []): Git {
@@ -38,7 +39,7 @@ describe('checkFolderStep', () => {
   it('remote: the hub has none, the folder has another, the same one under another scheme', async () => {
     expect(await checkFolderStep(depsOf(gitOf({})), 'remote', { ...spec, remotes: [] })).toMatchObject({ code: 'pool.hubNoRemote' })
     const other = gitOf({ [REMOTES]: ok('remote.origin.url https://forge.example.com/team/other.git\n') })
-    expect(await checkFolderStep(depsOf(other), 'remote', spec)).toMatchObject({ code: 'pool.otherRemote', params: { remote: spec.remotes[0] } })
+    expect(await checkFolderStep(depsOf(other), 'remote', spec)).toMatchObject({ code: 'pool.otherRemote', params: { remote: HUB_REMOTE.url } })
     const same = gitOf({ [REMOTES]: ok('remote.upstream.url git@forge.example.com:team/abc\n') })
     expect(await checkFolderStep(depsOf(same), 'remote', spec)).toBeNull()
   })
@@ -87,7 +88,7 @@ describe('checkFolderStep', () => {
       sh(source, 'branch', 'dev')
       const folder = join(root, 'clone')
       sh(root, 'clone', '-q', '--', source, folder)
-      return { folder, check: { ...spec, folder, remotes: [source], branch: 'dev' } }
+      return { folder, check: { ...spec, folder, remotes: [{ name: 'origin', url: source }], branch: 'dev' } }
     }
 
     it('switches a clean checkout onto the main branch, tracking the remote one', async () => {
@@ -200,7 +201,7 @@ describe('cloneTarget', () => {
 })
 
 describe('probeFolder', () => {
-  const remotes = ['https://forge.example.com/team/abc.git']
+  const remotes = [HUB_REMOTE]
 
   it('free: absent or empty; a clone of the remote; anything else refused with what to do (BTN-1297)', async () => {
     const root = mkdtempSync(join(tmpdir(), 'probe-folder-'))
@@ -216,8 +217,59 @@ describe('probeFolder', () => {
       const same = gitOf({ ...repo, [REMOTES]: ok('remote.origin.url git@forge.example.com:team/abc\n') })
       expect(await probeFolder(same, filled, remotes)).toEqual({ state: 'clone' })
       const other = gitOf({ ...repo, [REMOTES]: ok('remote.origin.url https://forge.example.com/team/other.git\n') })
-      expect(await probeFolder(other, filled, remotes)).toEqual({ state: 'taken', notice: { code: 'pool.foreignRepo', params: { folder: filled, remote: remotes[0] } } })
+      expect(await probeFolder(other, filled, remotes)).toEqual({ state: 'taken', notice: { code: 'pool.foreignRepo', params: { folder: filled, remote: HUB_REMOTE.url } } })
       expect(await probeFolder(async () => ({ code: 1, out: '', missing: true }), filled, remotes)).toMatchObject({ state: 'taken', notice: { code: 'pool.noGit' } })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it("a clone short of the hub's remotes names them, a local one this machine lacks left out (BTN-1806)", async () => {
+    const root = mkdtempSync(join(tmpdir(), 'probe-folder-'))
+    try {
+      const filled = join(root, 'filled')
+      mkdirSync(filled)
+      writeFileSync(join(filled, 'file'), 'x')
+      const near = join(root, 'near.git')
+      mkdirSync(near)
+      const github = { name: 'github', url: 'https://github.example.com/team/abc.git' }
+      const local = { name: 'local', url: near }
+      const hub = [HUB_REMOTE, github, local, { name: 'gone', url: join(root, 'gone.git') }]
+      const repo = { 'rev-parse --is-inside-work-tree': ok('true\n') }
+      const short = gitOf({ ...repo, [REMOTES]: ok('remote.origin.url git@forge.example.com:team/abc\n') })
+      expect(await probeFolder(short, filled, hub)).toEqual({
+        state: 'clone',
+        notice: { code: 'pool.remotesMissing', params: { folder: filled, names: 'github, local' } },
+        missing: [github, local],
+      })
+      const whole = gitOf({ ...repo, [REMOTES]: ok(`remote.origin.url ${HUB_REMOTE.url}\nremote.mirror.url http://github.example.com/team/abc\nremote.near.url ${near}\n`) })
+      expect(await probeFolder(whole, filled, hub)).toEqual({ state: 'clone' })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('completeRemotes', () => {
+  const github = { name: 'github', url: 'https://github.example.com/team/abc.git' }
+  const repo = { 'rev-parse --is-inside-work-tree': ok('true\n'), [REMOTES]: ok(`remote.origin.url ${HUB_REMOTE.url}\n`) }
+
+  it("adds the hub's missing remotes by their names; one git refuses fails with its name; a folder not the project's is refused (BTN-1806)", async () => {
+    const root = mkdtempSync(join(tmpdir(), 'complete-remotes-'))
+    try {
+      const folder = join(root, 'abc')
+      mkdirSync(folder)
+      writeFileSync(join(folder, 'file'), 'x')
+      const calls: string[][] = []
+      await completeRemotes(gitOf({ ...repo, [`remote add -- github ${github.url}`]: ok() }, calls), folder, [HUB_REMOTE, github])
+      expect(calls.filter((args) => args[0] === 'remote')).toEqual([['remote', 'add', '--', 'github', github.url]])
+      const taken = gitOf({ ...repo, [`remote add -- github ${github.url}`]: { code: 3, out: 'error: remote github already exists.\n' } })
+      await expect(completeRemotes(taken, folder, [HUB_REMOTE, github])).rejects.toMatchObject({
+        notice: { code: 'pool.remotesRefused', params: { folder, names: 'github' }, detail: 'github: error: remote github already exists.' },
+      })
+      const other = gitOf({ ...repo, [REMOTES]: ok('remote.origin.url https://forge.example.com/team/other.git\n') })
+      await expect(completeRemotes(other, folder, [HUB_REMOTE])).rejects.toMatchObject({ notice: { code: 'pool.foreignRepo' } })
+      await expect(completeRemotes(gitOf({}), join(root, 'absent'), [HUB_REMOTE])).rejects.toMatchObject({ notice: { code: 'pool.notRepository' } })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

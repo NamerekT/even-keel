@@ -202,6 +202,10 @@ export const en = {
   'pool.hubNoRepository': (p: { repo: string }) =>
     `There is no repository of the project here in ${p.repo}, so there is nothing to clone onto the machine: name the folder of its clone on the machine, or set its folder on the Repository tab to a clone here`,
   'pool.hubNoRepositoryTaken': (p: { folder: string }) => `The repository in ${p.folder} is taken as the project's as it is: there is no repository of the project here to compare its remotes with`,
+  'pool.remotesMissing': (p: { folder: string; names: string }) =>
+    `This clone lacks remotes the project has on the hub: ${p.names}. Work pushed from it reaches only the remotes it has; Add remotes adds these`,
+  'pool.remotesRefused': (p: { folder: string; names: string }) =>
+    `git did not add the remotes ${p.names} to ${p.folder} on the machine: a remote of that name is there with another address, so rename it there, then press Add remotes again`,
   'pool.folderNoRemote': (p: { folder: string }) => `The repository in ${p.folder} on the machine has no remote: a machine elsewhere gets its work only through one, so add one there, then Retry`,
   'pool.otherRemote': (p: { folder: string; remote: string }) => `The repository in ${p.folder} is not this project's: none of its remotes is ${p.remote}`,
   'pool.noBranch': (p: { folder: string; branch: string }) => `The repository in ${p.folder} has no branch ${p.branch}: fetch it there (git fetch), then Retry`,

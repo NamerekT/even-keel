@@ -17,15 +17,29 @@ const PROBE_DELAY_MS = 500
  */
 export type FolderAsk = { id: string; machine: string; folder: string } & ({ remote: string } | { project: string })
 
+export interface FolderAnswers {
+  /** Each ask's answer by its `id`; absent while it is being asked. */
+  answers: Record<string, FolderProbe | undefined>
+  /** Asks the folder of `id` again: after something changed it on the machine (BTN-1806: remotes added). */
+  again: (id: string) => void
+}
+
 /**
  * What each folder is now (BTN-1297, BTN-1298), asked of its machine a moment after it stops changing; an ask absent
  * from the answers is being asked.
  */
-export function useFolderAnswers(asks: FolderAsk[]): Record<string, FolderProbe | undefined> {
+export function useFolderAnswers(asks: FolderAsk[]): FolderAnswers {
   const { read } = useLive()
   const [answers, setAnswers] = useState<Record<string, FolderProbe>>({})
+  const [round, setRound] = useState(0)
   const keyed = asks.map(({ id, ...body }) => ({ id, body, key: JSON.stringify(body) }))
   const asked = JSON.stringify(keyed.map((each) => each.key))
+  const again = (id: string) => {
+    const key = keyed.find((each) => each.id === id)?.key
+    if (key === undefined) return
+    setAnswers(({ [key]: _, ...rest }) => rest)
+    setRound((before) => before + 1)
+  }
   useEffect(() => {
     const fresh = keyed.filter((each) => answers[each.key] === undefined)
     if (fresh.length === 0) return
@@ -42,9 +56,9 @@ export function useFolderAnswers(asks: FolderAsk[]): Record<string, FolderProbe 
       live = false
       clearTimeout(timer)
     }
-    // The asks' keys stand for the asks.
-  }, [asked])
-  return Object.fromEntries(keyed.map((each) => [each.id, answers[each.key]]))
+    // The asks' keys stand for the asks; a round asks a dropped answer again.
+  }, [asked, round])
+  return { answers: Object.fromEntries(keyed.map((each) => [each.id, answers[each.key]])), again }
 }
 
 export interface MachineFolderFieldProps {
@@ -58,6 +72,8 @@ export interface MachineFolderFieldProps {
   probe: FolderProbe | undefined
   disabled?: boolean
   onChange: (patch: Partial<FolderPick>) => void
+  /** Adds the remotes a clone there lacks (BTN-1806); absent — no button, as for a project not made yet. */
+  onAddRemotes?: () => void
 }
 
 /**
@@ -65,10 +81,11 @@ export interface MachineFolderFieldProps {
  * or a full path behind "another folder…", and what is there now — free for a clone, the project's clone to take, or
  * taken with what to do. The folder decides between a clone and a clone already there; there is no switch.
  */
-export function MachineFolderField({ labels, root, pick, hubName, probe, disabled = false, onChange }: MachineFolderFieldProps) {
+export function MachineFolderField({ labels, root, pick, hubName, probe, disabled = false, onChange, onAddRemotes }: MachineFolderFieldProps) {
   const other = pick.other || root === null
   const folder = machineFolder(pick, { root }, hubName)
   const invalid = probe?.state === 'taken' || undefined
+  const lacking = folder !== null && probe?.state === 'clone' && (probe.missing?.length ?? 0) > 0
   return (
     <>
       <FieldStrip line={stripOf(folder, probe)} wide>
@@ -106,6 +123,11 @@ export function MachineFolderField({ labels, root, pick, hubName, probe, disable
         </span>
       )}
       </FieldStrip>
+      {lacking && onAddRemotes !== undefined && (
+        <button type="button" className="link-button project-add__other" disabled={disabled} onClick={onAddRemotes}>
+          {t.pool.wizard.addRemotes}
+        </button>
+      )}
       {root !== null && (
         <button type="button" className="link-button project-add__other" disabled={disabled} onClick={() => onChange({ other: !pick.other })}>
           {pick.other ? t.pool.wizard.rootFolder : t.creation.other}
@@ -120,5 +142,6 @@ function stripOf(folder: string | null, probe: FolderProbe | undefined): StripLi
   if (folder === null) return null
   if (probe === undefined) return { tone: 'plain', text: t.wizard.checking }
   if (probe.state === 'taken') return { tone: 'error', text: say(probe.notice) }
+  if (probe.state === 'clone' && (probe.missing?.length ?? 0) > 0 && probe.notice !== undefined) return { tone: 'warn', text: say(probe.notice) }
   return { tone: 'ok', text: probe.state === 'clone' && probe.notice !== undefined ? say(probe.notice) : t.pool.wizard.states[probe.state] }
 }

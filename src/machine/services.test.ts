@@ -81,14 +81,22 @@ describe('the services of the machine over the link', () => {
 
   it("checks and clones a project's folder only where the machine agrees, and a check's refusal comes back whole", async () => {
     const { remote, answers, calls, ran } = await started()
-    const spec = { project: PROJECT, folder: REPO, remotes: ['https://forge.example.com/team/abc.git'], branch: 'main', claude: true }
-    answers['folders.check'] = { code: 'pool.noBranch', params: { folder: REPO, branch: 'main' } }
-    expect(await remote.folders.check('branch', spec)).toEqual({ code: 'pool.noBranch', params: { folder: REPO, branch: 'main' } })
     const source = { name: 'origin', url: 'https://forge.example.com/team/abc.git' }
     const others = [{ name: 'github', url: 'https://github.example.com/team/abc.git' }]
+    const spec = { project: PROJECT, folder: REPO, remotes: [source, ...others], branch: 'main', claude: true }
+    answers['folders.check'] = { code: 'pool.noBranch', params: { folder: REPO, branch: 'main' } }
+    expect(await remote.folders.check('branch', spec)).toEqual({ code: 'pool.noBranch', params: { folder: REPO, branch: 'main' } })
     await remote.folders.clone(spec, source, others)
-    expect(calls).toEqual([['folders.check', ['branch', spec]], ['folders.clone', [spec, source, others]]])
-    expect(ran.map((command) => [command.type, command.project, command.folder])).toEqual([['folders.check', PROJECT, REPO], ['folders.clone', PROJECT, REPO]])
+    await remote.folders.addRemotes({ project: PROJECT, folder: REPO, remotes: spec.remotes })
+    expect(calls).toEqual([['folders.check', ['branch', spec]], ['folders.clone', [spec, source, others]], ['folders.addRemotes', [{ project: PROJECT, folder: REPO, remotes: spec.remotes }]]])
+    expect(ran.map((command) => [command.type, command.project, command.folder])).toEqual([
+      ['folders.check', PROJECT, REPO],
+      ['folders.clone', PROJECT, REPO],
+      ['folders.addRemotes', PROJECT, REPO],
+    ])
+    const elsewhere = remote.folders.addRemotes({ project: PROJECT, folder: 'C:/elsewhere', remotes: spec.remotes }).catch((error: unknown) => error)
+    await tick()
+    expect(noticeOf(await elsewhere).code).toBe('machine.commandRefused')
     const outside = remote.folders.check('repo', { ...spec, folder: 'C:/elsewhere' }).catch((error: unknown) => error)
     await tick()
     expect(noticeOf(await outside).code).toBe('machine.commandRefused')

@@ -60,6 +60,7 @@ export const poolRu = {
     pathOf: (name: string) => `Полный путь на машине ${name}`,
     pathPlaceholder: 'полный путь на машине',
     rootFolder: 'в папку проектов машины',
+    addRemotes: 'Дописать remotes',
     states: {
       free: 'свободна — проект склонируется сюда',
       clone: 'там уже клон этого репозитория — возьмётся он',

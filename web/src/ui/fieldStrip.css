@@ -80,7 +80,15 @@
   white-space: normal;
 }
 
-.field-strip__line--error > .field-strip__text {
+.field-strip__line--warn {
+  border-color: color-mix(in srgb, var(--lamp-waiting) 45%, var(--border));
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  white-space: normal;
+}
+
+.field-strip__line--error > .field-strip__text,
+.field-strip__line--warn > .field-strip__text {
   overflow-wrap: anywhere;
 }
 
@@ -91,6 +99,12 @@
 .field-strip__mark {
   flex: none;
   color: var(--lamp-done);
+}
+
+.field-strip__mark--warn {
+  align-self: flex-start;
+  color: var(--lamp-waiting);
+  font-weight: 600;
 }
 
 .field-strip__text {

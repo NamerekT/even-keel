@@ -149,6 +149,11 @@ export interface MachineFolders {
    */
   clone(spec: FolderSpec, source: Remote, others: Remote[]): Promise<void>
   /**
+   * "Add remotes" of a clone already there (BTN-1806): the hub's remotes the folder lacks, added by their names, as a
+   * fresh clone gets them. A folder that is not the project's clone is refused.
+   */
+  addRemotes(spec: Pick<FolderSpec, 'project' | 'folder' | 'remotes'>): Promise<void>
+  /**
    * What the folder is to a project with these remotes before the machine is connected to it (BTN-1297). A project the
    * wizard has not made yet is named `DRAFT_PROJECT`: the machine runs it only inside its folder of projects.
    */
@@ -245,7 +250,7 @@ export const SERVICE_COMMANDS = {
   transcript: ['record', 'feed', 'image', 'inboxFile', 'sharedFile', 'note', 'context'],
   chat: ['post', 'giveBack', 'dismiss', 'steer', 'tell', 'saveInbox'],
   records: ['restore', 'launched'],
-  folders: ['check', 'clone', 'probe'],
+  folders: ['check', 'clone', 'addRemotes', 'probe'],
   chats: ['launch', 'send', 'stop', 'title', 'past', 'transcriptPart'],
   git: ['identity'],
   branch: ['move', 'back'],

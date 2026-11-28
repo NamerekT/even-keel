@@ -44,7 +44,7 @@ Every request but the request by the address carries `Authorization: Bearer <mac
 - `connection` 409: the post names a connection that is no longer the machine's;
 - `expired` and `used` 410: a connection string past its time or already joined with (`elsewhere.md`, "The door").
 
-The handshake: the machine's `{api, host, lastCommand, about?}` is the body of the stream's request, `about` its report about itself (`MachineAbout`), kept by the hub on every handshake that has it; the hub's first frame is `hello` with `{api, connection, heartbeatMs, lastEvent}`. `API_VERSION` (`src/link/protocol.ts`) is 26 (since BTN-1766: `folders.clone` takes the source remote and the hub's others by name) and is compared before anything else; a change of a frame, a post or their meaning is a new version.
+The handshake: the machine's `{api, host, lastCommand, about?}` is the body of the stream's request, `about` its report about itself (`MachineAbout`), kept by the hub on every handshake that has it; the hub's first frame is `hello` with `{api, connection, heartbeatMs, lastEvent}`. `API_VERSION` (`src/link/protocol.ts`) is 27 (since BTN-1806: a folder's spec carries the hub's remotes by name, `folders.probe` answers the ones a clone lacks, and `folders.addRemotes` adds them) and is compared before anything else; a change of a frame, a post or their meaning is a new version.
 
 ## MCP through the hub
 

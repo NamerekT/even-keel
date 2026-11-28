@@ -47,7 +47,7 @@ export function useFolderProbes(fields: WizardFields, machines: WizardMachine[],
     const folder = machineFolder(fields.machines[machine.id]!, machine, hubName)
     return folder === null || remote === null ? [] : [{ id: machine.id, machine: machine.id, folder, remote }]
   })
-  return useFolderAnswers(asks)
+  return useFolderAnswers(asks).answers
 }
 
 export interface MachinesBlockProps {

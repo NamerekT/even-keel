@@ -86,7 +86,8 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
   const folders = Object.fromEntries(unattached.map((project) => [project, machineFolder(pickOf(project), { root }, hubNameOf(project))]))
   const fresh = joinRequests(unattached, chosen, folders)
   // The folder decides between a clone and a clone already there (BTN-1298): each picked one is asked what it is.
-  const probes = useFolderAnswers(fresh.flatMap((each) => (each.folder === undefined ? [] : [{ id: each.project, machine: machine.id, folder: each.folder, project: each.project }])))
+  const asked = useFolderAnswers(fresh.flatMap((each) => (each.folder === undefined ? [] : [{ id: each.project, machine: machine.id, folder: each.folder, project: each.project }])))
+  const probes = asked.answers
   const blocked = fresh.some((each) => folderBlocked(pickOf(each.project), { root }, probes[each.project]))
   const busy = sending || machineLogin(state.machineSignIns) !== undefined
   const [token, setToken] = useState<MachineTokenTarget | null>(null)
@@ -101,6 +102,11 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
     })
   const pick = (project: string, change: Partial<FolderPick>) => setPicks((current) => ({ ...current, [project]: { ...NEW_FOLDER, ...current[project], ...change } }))
   const connect = () => void send('machines/join', { machine: machine.id, projects: fresh })
+  const addRemotes = async (project: string) => {
+    const folder = folders[project]
+    if (folder === null || folder === undefined || sending) return
+    if (await send('machines/remotes', { project, machine: machine.id, folder })) asked.again(project)
+  }
   const finish = async () => {
     if (job !== undefined && (await send('job/close', { id: job.id }))) onClose()
   }
@@ -170,6 +176,7 @@ export function MachineJoined({ state, machine, onClose }: MachineJoinedProps) {
                           probe={probes[project]}
                           disabled={sending}
                           onChange={(change) => pick(project, change)}
+                          onAddRemotes={() => void addRemotes(project)}
                         />
                       </div>
                     )}

@@ -63,7 +63,7 @@ export function connectSteps(deps: ConnectDeps, project: () => string, target: P
     facts = await deps.factsOf(project())
     const folder = request.folder?.trim() || folderUnder(target.root, facts.repo)
     if (!insideRoot(folder, target.root)) throw fail('pool.outside', { folder, root: target.root })
-    spec = { project: project(), folder, remotes: urlsOf(facts), branch: facts.branch, claude: facts.claude }
+    spec = { project: project(), folder, remotes: facts.remotes, branch: facts.branch, claude: facts.claude }
     return spec
   }
   const clone: StepDef = {
@@ -182,10 +182,11 @@ export async function onMachines(deps: ConnectDeps, plan: JobPlan, machines: Dra
  * What a folder on a machine elsewhere is to a project with the remote `remote` (BTN-1297), for the wizard before the
  * project is made: outside the machine's folder of projects it is refused here, never asked there.
  */
-export async function probeOn(network: Pick<PoolNetwork, 'target' | 'folders'>, machine: string, folder: string, remote: string | string[] | null, project = DRAFT_PROJECT): Promise<FolderProbe> {
+export async function probeOn(network: Pick<PoolNetwork, 'target' | 'folders'>, machine: string, folder: string, remote: string | Remote[] | null, project = DRAFT_PROJECT): Promise<FolderProbe> {
   const target = await network.target(machine)
   if (!insideRoot(folder, target.root)) return { state: 'taken', notice: notice('pool.outside', { folder, root: target.root }) }
-  return network.folders(target).probe({ project, folder, remotes: typeof remote === 'string' ? [remote] : remote })
+  // The wizard's one address: git's name for a clone's remote.
+  return network.folders(target).probe({ project, folder, remotes: typeof remote === 'string' ? [{ name: 'origin', url: remote }] : remote })
 }
 
 /**
@@ -195,11 +196,21 @@ export async function probeOn(network: Pick<PoolNetwork, 'target' | 'folders'>, 
  */
 export async function probeProject(deps: Pick<ConnectDeps, 'network' | 'factsOf'>, project: string, machine: string, folder: string): Promise<FolderProbe> {
   const facts = await deps.factsOf(project)
-  const probe = await probeOn(deps.network, machine, folder, urlsOf(facts), project)
+  const probe = await probeOn(deps.network, machine, folder, facts.remotes, project)
   return probe.state === 'free' && facts.remotes === null ? { state: 'taken', notice: notice('pool.hubNoRepository', { repo: facts.repo }) } : probe
 }
 
-const urlsOf = (facts: ProjectFacts): string[] | null => facts.remotes?.map((remote) => remote.url) ?? null
+/**
+ * "Add remotes" of a project's folder on a machine elsewhere (BTN-1806): the remotes of the hub's folder, read now, that
+ * the clone there lacks. The page asks the folder again after it.
+ */
+export async function addRemotesOn(deps: Pick<ConnectDeps, 'network' | 'factsOf'>, project: string, machine: string, folder: string): Promise<void> {
+  const target = await deps.network.target(machine)
+  if (!insideRoot(folder, target.root)) throw fail('pool.outside', { folder, root: target.root })
+  const facts = await deps.factsOf(project)
+  if (facts.remotes === null) throw fail('pool.hubNoRepository', { repo: facts.repo })
+  await deps.network.folders(target).addRemotes({ project, folder, remotes: facts.remotes })
+}
 
 /** What a probe of a folder is asked against: the remote of a project not made yet, or a project. */
 export type ProbeOf = { remote: string } | { project: string }
@@ -224,5 +235,6 @@ export function poolControl(deps: PoolControlDeps) {
     },
     probe: (machine: string, folder: string, of: ProbeOf) =>
       'project' in of ? probeProject(deps, of.project, machine, folder) : probeOn(deps.network, machine, folder, of.remote),
+    addRemotes: (project: string, machine: string, folder: string) => addRemotesOn(deps, project, machine, folder),
   }
 }
