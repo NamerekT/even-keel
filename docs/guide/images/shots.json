@@ -8,6 +8,17 @@
       "id": "chain-rows",
       "route": "/p/ABC?content=en",
       "crop": { "x": 24, "y": 204, "width": 800, "height": 372 }
+    },
+    {
+      "id": "setup-agent-step",
+      "route": "/setup?step=agent&copies=fresh&content=en",
+      "height": 1100,
+      "crop": { "x": 240, "y": 255, "width": 792, "height": 820 }
+    },
+    {
+      "id": "home-demo-cards",
+      "route": "/?projects=none&content=en",
+      "crop": { "x": 240, "y": 80, "width": 792, "height": 236 }
     }
   ]
 }

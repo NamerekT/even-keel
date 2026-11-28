@@ -89,19 +89,23 @@ The step has three parts:
 - **Which version to run** for the chosen agent: **Yours** (the CLI installed on the machine) or **Checked** (Even Keel's own copy of the version it was checked against, downloaded with your consent — about 340 MB for Claude Code). In Docker, or where npm cannot install the CLI globally, there is also **Latest**, Even Keel's copy of the newest release ([CLI copies](agents.md#cli-copies));
 - **its accounts** as a table, the one sessions run on ticked, **+ Add** in the heading.
 
+![The Agent step: the agent cards with Claude Code picked, Yours or Checked for its version, its accounts with + Add, and Next at the bottom](images/setup-agent-step.webp)
+
 Without your CLI, Yours shows the command that installs it with **Install** and **Check again**; choosing Checked asks before downloading. What happens when a download fails is in [CLI copies](agents.md#cli-copies).
 
 **Next** waits until the agent has something to run on (your CLI, or the copy, even still downloading) and an account.
 
 ### Accounts
 
-Installing a CLI or signing in to it does not add an Even Keel account: use **Add account** on the Agent step ([Adding an account](accounts.md#adding-an-account); a cloud's credentials, in [Claude on a cloud](accounts.md#claude-on-a-cloud)).
+Installing a CLI or signing in to it does not add an Even Keel account: use **+ Add** in the account part of the Agent step ([Adding an account](accounts.md#adding-an-account); a cloud's credentials, in [Claude on a cloud](accounts.md#claude-on-a-cloud)).
 
 Even Keel moves your Claude Code skills, agents, commands, hooks and output styles into `~/.claude-config` and each project's memory into `~/.claude-memory/<project>`, leaving links in their old places, so Claude Code goes on finding them, and every account folder and machine shares them ([your Claude Code configuration](hub-machine.md#your-claude-code-configuration-on-every-machine)). [Uninstall](uninstall.md#in-your-claude-code-config) says how to put them back.
 
 ### The demo
 
 With no project yet, the home page offers two cards: **Watch the demo** or **Connect your project** (**Set up Even Keel and connect a project** while the setup is not finished).
+
+![The home page with no project: the cards Watch the demo and Connect your project](images/home-demo-cards.webp)
 
 The demo takes about two minutes and needs nothing installed: Even Keel makes a small project folder in its state folder and a project `DEMO` on the built-in tracker, and its chain goes through three tasks while you watch — one waits for another, and one asks you a question in the session's chat.
 
