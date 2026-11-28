@@ -25,6 +25,9 @@ One task can run on something else. On the task card, **Runs on** has a provider
 - **As the project** — the first choice of the provider pick — leaves the provider to the project.
 - A provider with an empty model takes the model set for that provider, shown greyed in the field. A provider with no account set runs the task on the project's provider and says so in a toast.
 - The effort is Claude Code's `low`, `medium`, `high`, `xhigh` or `max` and Codex's `minimal`, `low`, `medium`, `high` or `xhigh`. OpenCode and Copilot offer `none` to `max`, but each model takes only some of them (in OpenCode, the model's variants), so pick one your model has. **Default** passes none and the CLI decides. An effort set without a provider goes to whatever the task runs on, when that provider has such a level.
+- In a project with several [machines](hub-machine.md#projects-and-tasks-on-machines), **Machines** under it pins the task to the ones ticked.
+
+![Runs on of a task card: Claude Code, the model sonnet, high effort, and the machines of the pool with any machine ticked](images/task-card-runs-on.webp)
 
 For a task with a session at work, the card says that the change takes effect from its next session. A session that files tasks through the tasks server can set the run too.
 

@@ -133,14 +133,17 @@ describe('real texts', () => {
       }),
     )
     let kept = 0
+    let pictured = 0
     for (const [path, text] of files) {
       const loss = previewLoss(text)
+      if (loss === 'image') pictured += 1
       if (loss !== null) continue
       kept += 1
       const once = roundTrip(text)
       expect(roundTrip(once), path).toBe(once)
     }
-    // Most of the documents are plain Markdown; a drop here means the editor stopped holding something it held.
-    expect(kept / files.length).toBeGreaterThan(0.7)
+    // Most of the documents are plain Markdown; a drop here means the editor stopped holding something it held. A picture
+    // is refused by design, and the guide's pages gain frames (BTN-1749), so those pages are left out of the share.
+    expect(kept / (files.length - pictured)).toBeGreaterThan(0.7)
   }, 60_000)
 })

@@ -1,9 +1,10 @@
 /**
  * `?content=en` (BTN-1750): the default fake state with English task titles, milestones, labels and session lines, for the
- * guide's frames. Every string equal to a key below is replaced wherever it stands in the state; the rest stays. A new
- * Russian string in the default state fails `fakeEnglish.test.ts` until it has its line here.
+ * guide's frames. Every string equal to a key below is replaced wherever it stands in the state and in a task card; the
+ * rest stays. A new Russian string in the default state fails `fakeEnglish.test.ts` until it has its line here.
  */
 const ENGLISH: Record<string, string> = {
+  'Вопрос': 'Question',
   'v0.1 — каркас': 'v0.1 — skeleton',
   'v0.2 — удобство': 'v0.2 — comfort',
   'v0.3 — служба': 'v0.3 — service',

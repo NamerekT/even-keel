@@ -45,6 +45,8 @@ The **Archive** line above the chain holds the project's closed tasks of every m
 
 A click on a task's title opens its card: the description and comments rendered from Markdown (on Huly with the replies of a comment's thread under it), labels with what each means to the chain, milestone, priority, and the tasks it blocks, waits for or relates to.
 
+![A task card: the Question label's warning above the description, To the backlog at the top of the side column, then the estimate, priority, the milestone pick, Runs on, labels and attachments](images/task-card.webp)
+
 A task number such as `ABC-12` in a description, comment or journal entry opens that task's card, for tasks of any project or feed in Even Keel. A number inside code, an address or a link's text stays as written.
 
 The milestone on the card is a pick: choosing another one moves the task there in the tracker at once, and the chain reorders. Tracker changes reach the page on the next poll, every 30 seconds; the refresh button in the project head reads the tracker now.

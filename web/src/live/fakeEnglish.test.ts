@@ -26,6 +26,12 @@ describe('content=en', () => {
     expect(state.sessions.find((view) => view.task === 'ABC-5')!.feed.map((line) => line.text)).toContain('Reading the task description and attachments.')
   })
 
+  it('gives a task card in English too, its question label included', async () => {
+    const card = await createFakeSource('?content=en').card('ABC-13')
+    expect(cyrillicOf(card)).toEqual([])
+    expect(card!.labels.map((label) => label.name)).toContain('Question')
+  })
+
   it('keeps the Russian content without the parameter', () => {
     const state = createFakeSource('').snapshot().state!
     expect(state.tasks.find((task) => task.id === 'ABC-5')!.title).toBe('Цепочка задач по связям')

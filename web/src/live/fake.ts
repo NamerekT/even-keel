@@ -842,7 +842,7 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       const mode = params.get('card')
       if (current.state === null) return null
-      if (!isBuiltinCard(mode)) return fakeCard(current.state, task, mode)
+      if (!isBuiltinCard(mode)) return content(fakeCard(current.state, task, mode))
       return withMovedRefs(fakeBuiltinCard(current.state, task, params.get('journal'), params.get('description'), params.get('files')), params.get('export'))
     },
     attach: async (task, file) => {

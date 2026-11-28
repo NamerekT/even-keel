@@ -41,6 +41,19 @@
       "route": "/projects/add?job=clone&content=en",
       "steps": [{ "click": "dialog[open] h2" }],
       "selector": "dialog[open]"
+    },
+    {
+      "id": "task-card",
+      "route": "/p/ABC?content=en&task=ABC-13",
+      "steps": [{ "wait": ".task-card__run" }],
+      "height": 1000,
+      "selector": "dialog[open]"
+    },
+    {
+      "id": "task-card-runs-on",
+      "route": "/p/ABC?chain=pins&content=en&task=ABC-10",
+      "steps": [{ "wait": ".task-card__run" }],
+      "selector": "dialog[open] .task-card__block:has(.task-card__run)"
     }
   ]
 }
