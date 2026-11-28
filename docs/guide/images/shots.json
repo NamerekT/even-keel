@@ -150,6 +150,12 @@
       "steps": [{ "click": ".machine-block" }, { "wait": ".machine-panel" }],
       "selector": ".machine-panel",
       "crop": { "x": 0, "y": 0, "width": 401, "height": 416 }
+    },
+    {
+      "id": "update-window",
+      "route": "/p/ABC?update=0.2.0&content=en",
+      "steps": [{ "click": ".gear-toggle" }, { "click": ".gear__update" }, { "wait": ".update-window[open]" }],
+      "selector": "dialog[open]"
     }
   ]
 }

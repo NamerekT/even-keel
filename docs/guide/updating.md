@@ -6,7 +6,11 @@ The gear menu in the header ends with the installed version. Even Keel asks GitH
 
 ## From the page
 
-The mark and the notification open the update window: the installed version, the notes of every newer release, and **Update to &lt;version&gt;**. A release marked as a revert release (its notes have a **Reverted** section) takes back a part of an earlier release, and says which. The update:
+The mark and the notification open the update window: the installed version, the notes of every newer release, and **Update to &lt;version&gt;**. A release marked as a revert release (its notes have a **Reverted** section) takes back a part of an earlier release, and says which.
+
+![The update window: installed 0.1.0, latest release 0.2.0, the notes of 0.2.0 with "What's new" and "Fixes" and a link to GitHub, what the update will do, and the Update to 0.2.0 button](images/update-window.webp)
+
+The update:
 
 1. waits, up to 5 minutes, until no chain is starting a session, handing over or closing a task — a restart in that moment would pause the chain; the page shows which projects it waits for. A chain only waiting for a limit to reset does not hold it;
 2. installs the new version and builds it, then restarts the service;
