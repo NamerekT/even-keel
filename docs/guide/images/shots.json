@@ -92,6 +92,18 @@
       "route": "/p/ABC?ci=redpush&content=en",
       "steps": [{ "click": "[class*=\"chip--ci-\"]" }, { "wait": ".ci-card" }],
       "crop": { "x": 830, "y": 70, "width": 416, "height": 704 }
+    },
+    {
+      "id": "project-chats",
+      "route": "/p/ABC?content=en#chats",
+      "steps": [{ "wait": ".chat-card" }, { "click": "h1" }],
+      "crop": { "x": 838, "y": 77, "width": 400, "height": 692 }
+    },
+    {
+      "id": "chat-permission",
+      "route": "/p/ABC?chats=permission&content=en#chats",
+      "steps": [{ "click": ".chat-card:has-text(\"changelog\")" }, { "wait": "dialog[open]" }],
+      "selector": "dialog[open]"
     }
   ]
 }

@@ -82,6 +82,8 @@ A Claude session can stop on a permission dialog: a command an `ask` rule in you
 
 The card and the question say "(several commands)" when the command has more than one line or joins commands with `&&`, `||`, `;` or `|`. The agent's own description of the call comes after the command, marked "The agent says", since it is the agent's word, not a check. A very long call keeps its first 12,000 and last 4,000 characters and says how many are hidden between them.
 
+![A project chat waiting on a permission: over the reply box a card says "The session wants to run Bash (several commands)", with the command, the agent's own words under it, and Deny and Allow](images/chat-permission.webp)
+
 Answer it from any of these places, and the session goes on at once, without a stop: the call runs, or the session gets your refusal and your words. A session on another machine is answered the same way. When Claude Code gives up on the dialog by itself, the card goes and the chat says the call was refused. While the chain runs unattended such a call is refused at once.
 
 Codex and OpenCode sessions never stop on such a dialog.
@@ -148,10 +150,12 @@ Besides the sessions of tasks, a project has chats of its own: a session without
 
 Sessions you start yourself in a terminal or VS Code keep their own settings.
 
-The chats are the **Chats** tab of the project page, between Backlog and Settings (Settings is the gear icon there). Its badge is amber with the number of chats waiting for you — a question or a permission — and blue with the number of answers you have not opened yet. On a phone the tabs take the first row under the project's name, and the tab opens over the whole screen.
+The chats are the **Chats** tab of the project page, between Backlog and Settings (Settings is the sliders icon there). Its badge is amber with the number of chats waiting for you — a question or a permission — and blue with the number of answers you have not opened yet. On a phone the tabs take the first row under the project's name, and the tab opens over the whole screen.
 
 - **Active** lists the chats, those waiting for you first, then by their last event. A card shows the agent's icon in the chat's colour (blue — working, amber — waiting for you, green — answered, grey — the cache went cold, red — a limit or an error), the title, the machine when the project has more than one, the account, the model and effort, how full the context is and the last message.
 - **Archive** lists the older chats, with a search over titles and messages, twenty to a page.
+
+![The Chats tab with an amber badge of 1 and its Active list of four: a chat with a question first, then a working one, an answered one with its unread dot, and a Codex chat whose cache went cold; New session in the corner](images/project-chats.webp)
 
 ### Starting a chat
 
