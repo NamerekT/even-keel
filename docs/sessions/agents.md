@@ -68,7 +68,7 @@ A Codex, Copilot or OpenCode turn and the SDK transport's executor are detached 
 - A process created later than the time in the last turn's output file name plus the adapter's launch window (60 s for Codex, 120 s for Copilot and OpenCode) has reused the pid: the session rests, and a stop leaves that tree alive and marks the session stopped. The session's original `startedAt` is not the last turn's start after a resume.
 - On Windows the polls share one `Get-Process` snapshot across adapters and accounts, coalescing concurrent requests and caching it for a second; a stop uses a fresh lookup of that pid. Linux reads `/proc/<pid>/stat` with the boot time and `getconf CLK_TCK`, macOS uses `ps -o lstart=`.
 - An unknown creation time or an unrecognised output file name keeps the check out.
-- Checked live on Windows for all three adapters ([verified](../verified/sessions.md)); Linux and macOS are open (`docs/unverified.md`, "Stopping a turn on macOS and Linux").
+- Checked live on Windows for all three adapters ([verified](../verified/sessions.md)); Linux and macOS are open (`docs/unverified/codex.md`, "Stopping a turn on macOS and Linux").
 
 **The turn file.** The three adapters write a turn's stdout and stderr into one file. The end of a turn is read from the last JSON object with a string `type`, skipping trailing stderr and JSON without an event type; a later real event outranks an earlier terminal one. OpenCode's turn-error reader uses the same rule ([verified](../verified/codex.md)).
 

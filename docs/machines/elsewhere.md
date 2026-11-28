@@ -27,7 +27,7 @@ BTN-1243: `even-keel install --machine` with a string, an optional `--root` fold
 
 - It refuses a Node older than 24 and a machine without git, joins in a child process (the tray start) or inside `install.sh`/`install.ps1 -Machine -Projects`, then installs the service; a checkout builds `build:machine` (no page). A string already joined with (`joinedWith`) is not joined again.
 - `install-check.js --machine` waits for 10 s of a running process instead of the page, the CLI 30 s for `contactAt`; the tray shows the contact's age.
-- `machines/invite` answers with `command`, `npx even-keel@<hub version> install --machine <string>`, and `byAddress` `{command, docker}`, the same two commands with the address written by `writtenAddressOf` (`src/link/address.ts`: the default 4749 dropped, 443 named). Guide: `docs/guide/setup.md`, "A machine of a hub".
+- `machines/invite` answers with `command`, `npx even-keel@<hub version> install --machine <string>`, and `byAddress` `{command, docker}`, the same two commands with the address written by `writtenAddressOf` (`src/link/address.ts`: the default 4749 dropped, 443 named). Guide: `docs/guide/hub-machine.md`.
 
 ### Docker
 

@@ -26,7 +26,7 @@
 ### "Start"
 
 - **A fresh read when nothing runs** (BTN-158). "Start" with nothing to run by the last task list (or before the first one) reads the project's tracker out of turn first (`DispatcherDeps.refresh` → `refreshProject` in `src/tracker/start.ts`, queued behind a read already under way), so a task created a moment before the click is taken. Still nothing — the start is refused with `chain.empty` and the reason as its cause (no open tasks, none in a status the chain takes, without a required label, all skipped, held by blockers), and the same line goes to the log; the list never read — `chain.notRead`. A chain that ends later for want of tasks writes `chain: <KEY> ended, no task left to run`.
-- **Only by a fresh list** (BTN-830): when `DispatcherDeps.listBlock` says the list is stale — a project or feed read before its tracker last turned live (`readFresh`, `chain.unread`), or on a turned-off profile (`profiles.disabled`) — it reads the tracker anew as above and refuses while the reason stays. Unattended mode and auto-resume never start a project of a turned-off profile (`profileBlock`). Details in `docs/trackers.md`, "Profiles".
+- **Only by a fresh list** (BTN-830): when `DispatcherDeps.listBlock` says the list is stale — a project or feed read before its tracker last turned live (`readFresh`, `chain.unread`), or on a turned-off profile (`profiles.disabled`) — it reads the tracker anew as above and refuses while the reason stays. Unattended mode and auto-resume never start a project of a turned-off profile (`profileBlock`). Details in `docs/trackers/profiles.md`, "Profiles".
 - The other pauses and waits before a launch are in [launch](launch.md).
 
 ### Filling the milestone (`fillMilestone`, BTN-107, `src/chain/milestones.ts`)
@@ -81,7 +81,7 @@ A project's tracker is its main task feed; `feeds` adds others (`Feed` in `src/c
 
 ## Status moves (BTN-554, `src/chain/moves.ts`, `src/tracker/mover.ts`)
 
-Even Keel can move a task to a chosen status at three points: when it starts the task (`start`), when it opens the task's pull request (`review`, PR mode only) and when it closes the task after the merge (`done`). Only trackers with `moveTo` (Huly, Linear, Jira; `docs/trackers.md`, "Moving a task to a chosen status").
+Even Keel can move a task to a chosen status at three points: when it starts the task (`start`), when it opens the task's pull request (`review`, PR mode only) and when it closes the task after the merge (`done`). Only trackers with `moveTo` (Huly, Linear, Jira; `docs/trackers/link.md`, "Moving a task to a chosen status").
 
 - **Levels.** A tracker profile sets them for its projects (`tracker_profiles.moves`), a source over it — the project's `statusMoves` for its main tracker, a feed's `moves` — key by key (`movesOf`). `start` and `review`: a status name, or `null` — leave the status; `done`: a done status name. Nothing set anywhere — nothing moves and the close is automatic.
 - **Only forward.** On a start only a task of the `ToDo` category moves (a task already started stays where it is), on a pull request any open one; a task already in the status is not touched. A start or review status the rules put out of the chain is never tried, or the chain would let the task go the moment it moved (`statusMove.outside`); the settings refuse to save one (`statusMoves.outside`, `statusMoves.notDone`), and a status the tracker does not list (`statusMoves.unknown`, BTN-667).

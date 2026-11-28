@@ -71,7 +71,7 @@ database's rows keep (BTN-199). A cell gives what the key is; how its feature be
 | `mergeInto` | P | — the key of a main project (`config.mergeInto`); the page also refuses a checkout of another repository (`config.mergeIntoForeign`, BTN-285, `docs/chain/projects.md`, "Carrying a release project forward") | page, hand | `null` — a main project |
 | `carryAgent` | P | — read only for a release project; unattended mode acts as if it were on (BTN-370, `docs/chain/projects.md`, "The carry session") | page (under "Merges into"), hand | false — a carry conflict waits for "Resolve with the agent" |
 | `pullRequests` | P | — PR mode (BTN-205, `docs/chain/pr-mode.md`) | page, hand | false |
-| `intakeLabel` | P | — the label that takes GitHub issues in (BTN-262, `docs/trackers.md`, "Taking GitHub issues in") | page (the Tracker tab, not for a GitHub tracker), hand | `null` — no issues taken in |
+| `intakeLabel` | P | — the label that takes GitHub issues in (BTN-262, `docs/trackers/github.md`, "Taking GitHub issues in") | page (the Tracker tab, not for a GitHub tracker), hand | `null` — no issues taken in |
 | `statusMoves` | profile, feed, P | each of `start`, `review`, `done` P over the profile's (`tracker_profiles.moves`, not in `config-export`); a feed's `feeds[].moves` over its profile's instead (BTN-554, `docs/chain/entry.md`, "Status moves") | page (the profile in "Whose rules" of Chain rules, the source's window in the Tracker tab), hand (not the profile's) | `{}` — nothing moves, the close is automatic |
 | `remoteProfiles` | P | — the GitHub, GitLab and Forgejo profile ids the remotes' CI and pull requests take; a missing or unfit one is the automatic choice (BTN-231, `docs/ci/layer.md`, "Which CI a project has") | page, hand | `{}` |
 

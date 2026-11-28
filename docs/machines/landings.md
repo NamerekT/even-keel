@@ -15,7 +15,7 @@ BTN-1567: a project's main branch (`branch`, `docs/settings.md`) is one for its 
 
 ## A machine in a project
 
-BTN-994: a machine elsewhere of the pool may run the project with commands of its own — before the start, the check, after a green main — and its own command for each stdio server of the project's packages (`docs/settings.md`, "A machine in a project").
+BTN-994: a machine elsewhere of the pool may run the project with commands of its own — before the start, the check, after a green main — and its own command for each stdio server of the project's packages (`docs/settings/levels.md`, "A machine in a project").
 
 - **Where they are edited.** The settings tab of the machine in the project ("The settings tab in a machine's view", `page.md`). `ProjectPool` carries each row's values (`settings`), the commands it runs after a green main (`afterGreen`, its own else the project's), the stdio servers here (`servers`, `Packages.localStdio`) and the project's lists (`commands`) for the fields' grey.
 - **"Connect"** takes `copyFrom`, a machine of the pool whose values the new row starts with (`MachineNetwork.place`).
