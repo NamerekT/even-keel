@@ -36,6 +36,11 @@
   white-space: nowrap;
 }
 
+/* A pinned task's machines off the link (BTN-1807): dimmed as an offline machine's card, the reason in the tip. */
+.machine-tag--offline {
+  opacity: 0.55;
+}
+
 /* Each machine of the tag opens its page (BTN-1272). */
 .machine-tag__link {
   display: inline-flex;

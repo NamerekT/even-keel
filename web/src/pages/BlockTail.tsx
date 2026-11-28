@@ -4,7 +4,7 @@ import type { TaskMachine } from '../lanes.js'
 import type { TaskLinks } from '../state.js'
 import { hasLinks, Links } from '../ui/Links.js'
 import { RunLabelTag } from '../ui/RunLabelTag.js'
-import { MachineTag } from '../ui/MachineTag.js'
+import { MachineTag, type TagWait } from '../ui/MachineTag.js'
 
 interface BlockTailProps {
   run: TaskRun | null
@@ -12,6 +12,8 @@ interface BlockTailProps {
   machines?: TaskMachine[] | undefined
   /** `machines` are the ones its run pins it to (`ChainBlock.pinned`, BTN-1623). */
   pinned?: boolean
+  /** Why the pinned task waits for its machines, shown by their tag (BTN-1807). */
+  wait?: TagWait | undefined
   links: TaskLinks
   onCard: (task: string) => void
   /** "To the backlog" or "To Todo", always at the end. */
@@ -23,7 +25,7 @@ interface BlockTailProps {
  * their figures and without a zero (BTN-1365), and the row's button. When the run would be cut, the lock and the key
  * fold away together first.
  */
-export function BlockTail({ run, machines, pinned = false, links, onCard, children }: BlockTailProps) {
+export function BlockTail({ run, machines, pinned = false, wait, links, onCard, children }: BlockTailProps) {
   const box = useRef<HTMLDivElement>(null)
   const linksBox = useRef<HTMLSpanElement>(null)
   const linksWidth = useRef(0)
@@ -57,7 +59,7 @@ export function BlockTail({ run, machines, pinned = false, links, onCard, childr
 
   return (
     <div ref={box} className={folded ? 'block__tail block__tail--folded' : 'block__tail'}>
-      {machines !== undefined && <MachineTag machines={machines} pinned={pinned} />}
+      {machines !== undefined && <MachineTag machines={machines} pinned={pinned} wait={wait} />}
       {run !== null && <RunLabelTag run={run} />}
       {linked && (
         <span ref={linksBox} className="block__tail-links">

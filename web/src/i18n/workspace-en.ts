@@ -303,11 +303,10 @@ export const chainEN: Messages['chain'] = {
     machinesTitle: 'The machines this task ran on, the one it is on now last',
     machinesPinned: 'Only these machines take this task',
     pinWait: {
-      waits: (machines: string) => `waits for ${machines}`,
       gone: (machines: string) => `${machines} gone`,
       elsewhere: 'on another machine',
-      busy: (machines: string) => `Pinned to ${machines}: busy with another task. The task waits for it, the chain goes on with the others.`,
-      offline: (machines: string) => `Pinned to ${machines}: not on the link. The task waits for it, the chain goes on with the others.`,
+      busy: 'Busy with another task now: this one waits, the chain goes on with the others.',
+      offline: 'Not on the link: the task waits for it, the chain goes on with the others.',
       goneTip: (machines: string) => `Pinned to ${machines}, revoked or no longer in the project's pool: no machine takes the task. Open the card to change its machines.`,
       elsewhereTip: (machines: string) => `Pinned to ${machines}, but another machine holds it: a pin does not move a started task. Reassign it when that machine is gone, or change the machines on the card.`,
       open: 'Open the task',
