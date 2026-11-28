@@ -156,6 +156,18 @@
       "route": "/p/ABC?update=0.2.0&content=en",
       "steps": [{ "click": ".gear-toggle" }, { "click": ".gear__update" }, { "wait": ".update-window[open]" }],
       "selector": "dialog[open]"
+    },
+    {
+      "id": "tracker-move",
+      "route": "/p/ABC?tracker=builtin&chain=idle&export=done&content=en",
+      "steps": [
+        { "click": "button[aria-label=\"Settings\"], button:has-text(\"Settings\") >> nth=-1" },
+        { "click": "#settings-tab-tracker" },
+        { "click": "button:has-text(\"another tracker\")" },
+        { "wait": "dialog[open] button:has-text(\"Switch to GitHub\")" }
+      ],
+      "height": 1200,
+      "selector": "dialog[open]"
     }
   ]
 }
