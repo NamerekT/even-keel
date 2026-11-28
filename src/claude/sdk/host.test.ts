@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { isAlive } from '../../agent/process.js'
 import { replyPrompt, type Ask } from '../../sessions/ask.js'
-import { replyMove, SdkSessions, sessionOptions, type SdkHostOptions } from './host.js'
+import { replyMove, SdkSessions, sessionOptions, sessionTitle, type SdkHostOptions } from './host.js'
 import { newPipe, startExecutor } from './pipe.js'
 
 const ask: Ask = {
@@ -71,5 +71,14 @@ describe('sessionOptions', () => {
     const start = { name: 'ABC-1', cwd: tmpdir(), prompt: 'ABC-1', model: null }
     expect(sessionOptions({ ...start, effort: 'max' }, () => undefined).extraArgs).toEqual({ effort: 'max' })
     expect(sessionOptions(start, () => undefined)).not.toHaveProperty('extraArgs')
+  })
+
+})
+
+describe('sessionTitle', () => {
+  it('titles a session by its name, and leaves a project chat untitled so the CLI generates its title (BTN-1777)', () => {
+    const start = { name: 'ABC-1', cwd: tmpdir(), prompt: 'ABC-1', model: null }
+    expect(sessionTitle(start)).toEqual({ title: 'ABC-1' })
+    expect(sessionTitle({ ...start, name: 'chat-0123456789ab', autoTitle: true })).toEqual({})
   })
 })

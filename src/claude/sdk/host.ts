@@ -298,9 +298,9 @@ export class SdkSessions {
       pathToClaudeCodeExecutable: this.options.bin(),
       permissionMode: SESSION_MODE,
       systemPrompt: { type: 'preset', preset: 'claude_code' },
-      title: session.name,
       ...(session.model !== null && { model: session.model }),
-      ...(start !== null && sessionOptions(start)),
+      // Attached, the CLI keeps the title it has: the chat's generated one is not renamed back to its id.
+      ...(start !== null && { ...sessionTitle(start), ...sessionOptions(start) }),
       ...(resumed ? { resume: session.sessionId } : start !== null ? { sessionId: session.sessionId } : {}),
       canUseTool: (tool, input, { signal, toolUseID }) => this.permission(connection, tool, input, signal, toolUseID),
       spawnClaudeCodeProcess: ({ command, args, cwd, env }) =>
@@ -322,18 +322,21 @@ export class SdkSessions {
     }
     if (hello?.pid != null && hello.pid !== session.cli) this.registry.save({ ...session, cli: hello.pid })
     if (start !== null) {
-      await this.remoteControl(home, session, query)
+      await this.remoteControl(home, session, query, sessionTitle(start).title)
       connection.push(start.prompt)
     }
     return connection
   }
 
-  /** Remote Control with the session kept on claude.ai after the CLI exits, so that a resume goes back to it; without an answer the session runs without it. */
-  private async remoteControl(home: AccountHome, session: SdkSession, query: SdkQuery): Promise<void> {
+  /**
+   * Remote Control with the session kept on claude.ai after the CLI exits, so that a resume goes back to it; without an
+   * answer the session runs without it. It is named by `title`; untitled, a chat's, it takes the CLI's own (BTN-1777).
+   */
+  private async remoteControl(home: AccountHome, session: SdkSession, query: SdkQuery, title: string | undefined): Promise<void> {
     if (query.enableRemoteControl === undefined || !(await this.options.remote(home))) return
     try {
       const reattach = session.bridge === undefined ? {} : { reattachSessionId: session.bridge }
-      const answer = await within(query.enableRemoteControl(true, session.name, { keepSessionOnExit: true, ...reattach }), REMOTE_TIMEOUT_MS, 'no answer')
+      const answer = await within(query.enableRemoteControl(true, title, { keepSessionOnExit: true, ...reattach }), REMOTE_TIMEOUT_MS, 'no answer')
       const bridge = answer.bridge_session_id
       const current = (await this.registry.get(session.sessionId)) ?? session
       if (typeof bridge === 'string' && bridge !== '') this.registry.save({ ...current, bridge })
@@ -419,7 +422,16 @@ export class SdkSessions {
 }
 
 /**
- * What a new CLI starts with besides the session's own name and model: Claude Code's own system prompt, as `--bg` gets,
+ * The title a new CLI starts with: the session's name. Under a title the CLI generates none, so a session that
+ * `autoTitle`s, a project chat's, goes without it (BTN-1777), as `sessionArgs` drops `-n`; the registry still keeps it
+ * under its name.
+ */
+export function sessionTitle(start: SessionStart): Pick<SdkOptions, 'title'> {
+  return start.autoTitle === true ? {} : { title: start.name }
+}
+
+/**
+ * What a new CLI starts with besides the session's own title and model: Claude Code's own system prompt, as `--bg` gets,
  * with the lone `AGENTS.md` the CLI will not read (`agentsFallback`) appended, as `--append-system-prompt-file` does.
  */
 export function sessionOptions(start: SessionStart, fallback: (cwd: string) => string | undefined = agentsFallback): Partial<SdkOptions> {

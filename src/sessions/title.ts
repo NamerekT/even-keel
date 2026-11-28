@@ -46,6 +46,11 @@ export class ChatTitles {
     this.known.set(sessionId, { size, title })
     return title
   }
+
+  /** The title `of` last read, with no read of its own: for a list that cannot wait (BTN-1777). */
+  last(sessionId: string): string | null {
+    return this.known.get(sessionId)?.title ?? null
+  }
 }
 
 async function findTranscript(projectsDir: string, name: string): Promise<string | undefined> {

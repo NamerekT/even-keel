@@ -359,6 +359,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 347 | [A machine elsewhere's launch journal](unverified/machines.md#a-machine-elsewheres-launch-journal-btn-1803) | hubs whose chain runs tasks on machines elsewhere | after the machine's restart a task's session there has no account on the page, or a slot's live session of another task is not stopped before a launch; send the machine's `machines:` log lines with an issue | — |
 | 348 | [A machine's clone with every remote of the hub](unverified/machines.md#a-machines-clone-with-every-remote-of-the-hub-btn-1766) | projects whose hub checkout has more than one remote, cloned onto a machine elsewhere | the machine's clone lacks a remote of the hub's, and `git sync` there pushes to fewer forges; add it with `git remote add` | — |
 | 349 | ["Add remotes" for a clone already on a machine](unverified/machines.md#add-remotes-for-a-clone-already-on-a-machine-btn-1806) | projects whose hub checkout has more than one remote, connected to a clone already on a machine elsewhere | the folder's line stays amber after "Add remotes", or the press is refused for a remote the clone has; add it with `git remote add` | — |
+| 350 | [A Claude chat on the Agent SDK titled by the CLI](unverified/sessions.md#a-claude-chat-on-the-agent-sdk-titled-by-the-cli-btn-1777) | Claude project chats of account folders on the Agent SDK | the card keeps the first message, or a list of busy sessions names a chat by its prompt; rename the chat | — |
 
 ### Waiting for the event / not checked by choice
 

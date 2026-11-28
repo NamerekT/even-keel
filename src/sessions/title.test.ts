@@ -87,4 +87,13 @@ describe('ChatTitles', () => {
     transcript('55555555-6666')
     expect(await new ChatTitles().of(dir, '77777777-8888')).toBeNull()
   })
+
+  it('gives the title it last read without reading again, none before the first read (BTN-1777)', async () => {
+    const file = transcript('aaaaaaaa-bbbb')
+    writeFileSync(file, `${line({ type: 'ai-title', aiTitle: 'Fixing the header' })}\n`)
+    const titles = new ChatTitles()
+    expect(titles.last('aaaaaaaa-bbbb')).toBeNull()
+    await titles.of(dir, 'aaaaaaaa-bbbb')
+    expect(titles.last('aaaaaaaa-bbbb')).toBe('Fixing the header')
+  })
 })

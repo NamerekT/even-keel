@@ -210,6 +210,16 @@ describe('liveSessions', () => {
     ]
     expect(liveSessions(agents, 'work')).toEqual([])
   })
+
+  // BTN-1777: a Claude chat starts without a name, and the CLI lists it under its prompt, then under a kebab title.
+  it("names a chat's session by its chat, not by the name the CLI lists it under", () => {
+    const agents = [
+      agent({ sessionId: 'chat-session', name: 'explain how git cherry-pick works', pid: 101, account: 'work' }),
+      agent({ name: 'ABC-1', pid: 102, account: 'work' }),
+    ]
+    const chatName = (sessionId: string) => (sessionId === 'chat-session' ? 'Git cherry-pick explained' : undefined)
+    expect(liveSessions(agents, 'work', chatName)).toEqual(['Git cherry-pick explained', 'ABC-1'])
+  })
 })
 
 describe('loginBlock', () => {
@@ -261,6 +271,12 @@ describe('loginBlock', () => {
         { name: '12345678', status: 'busy', waitingFor: null },
       ],
     })
+  })
+
+  it("names a busy chat's session by its chat (BTN-1777)", () => {
+    const agents = [agent({ sessionId: 'chat-session', name: 'explain how git cherry-pick works', status: 'busy' })]
+    const chatName = (sessionId: string) => (sessionId === 'chat-session' ? 'chat-0123456789ab' : undefined)
+    expect(loginBlock([], agents, 'global', chatName)?.sessions.map((session) => session.name)).toEqual(['chat-0123456789ab'])
   })
 })
 
