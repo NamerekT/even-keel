@@ -72,6 +72,18 @@
       "route": "/p/ABC?chain=ask&content=en",
       "steps": [{ "click": ".panel__chat--waiting" }, { "wait": "dialog[open]" }],
       "selector": "dialog[open]"
+    },
+    {
+      "id": "project-chats",
+      "route": "/p/ABC?content=en#chats",
+      "steps": [{ "wait": ".chat-card" }, { "click": "h1" }],
+      "crop": { "x": 838, "y": 77, "width": 400, "height": 692 }
+    },
+    {
+      "id": "chat-permission",
+      "route": "/p/ABC?chats=permission&content=en#chats",
+      "steps": [{ "click": ".chat-card:has-text(\"changelog\")" }, { "wait": "dialog[open]" }],
+      "selector": "dialog[open]"
     }
   ]
 }
