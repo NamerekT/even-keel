@@ -1,6 +1,7 @@
 import type { LaunchEntry } from '../chain/model.js'
 import type { HandoffSession } from '../chain/relay.js'
 import type { ChatPast } from '../chats/prompt.js'
+import type { Remote } from '../ci/remote.js'
 import type { CloneProgress } from '../git/clone-progress.js'
 import type { AccountControl } from '../server-control.js'
 import type { HubBuild, MachineFollow } from '../link/view.js'
@@ -141,8 +142,12 @@ export interface MachineRecordsService {
 export interface MachineFolders {
   /** One check of the folder; `null` — it passed. */
   check(step: FolderStep, spec: FolderSpec): Promise<Notice | null>
-  /** Clones `remote` into the folder, absent or empty, and trusts it for Claude Code; the progress goes as `CLONE_PROGRESS_EVENT`. */
-  clone(spec: FolderSpec, remote: string): Promise<void>
+  /**
+   * Clones `source` into the folder, absent or empty, under its name and trusts it for Claude Code; the progress goes as
+   * `CLONE_PROGRESS_EVENT`. `others`, the rest of the hub's remotes, are added by their names (BTN-1766): `git sync`
+   * pushes to every remote of a checkout, so each machine's set is the hub's.
+   */
+  clone(spec: FolderSpec, source: Remote, others: Remote[]): Promise<void>
   /**
    * What the folder is to a project with these remotes before the machine is connected to it (BTN-1297). A project the
    * wizard has not made yet is named `DRAFT_PROJECT`: the machine runs it only inside its folder of projects.

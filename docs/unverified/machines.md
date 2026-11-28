@@ -476,3 +476,11 @@ To check, on the benches: a machine whose `~/.claude` is signed in as an account
 Assumed: the command reaches the machine before its next snapshot reads the journal, and the machine's restart takes the journal back before its first launch. If not, the page shows no account for the task's session after the restart, or a launch into a slot leaves another task's idle session there running; the hub's log has `machines: machine … did not take the launch of …`.
 
 To check, on the benches: run a bench task on machine-1, see its session's account on the page; restart machine-1's service and see the account stay with no `history/task` asked; launch another task into the same slot and see the earlier idle session stopped.
+
+## A machine's clone with every remote of the hub (BTN-1766)
+
+`docs/machines/page.md`, "Connecting a machine", the step `machine-clone`. The clone keeps the source remote's name and gets the hub's other remotes by name (`addRemotes`, `src/machine/folder-check.ts`). Covered by `src/service/machine-services.test.ts` with real git on disk and `src/machine/services.test.ts` over the link; no real machine elsewhere has cloned a project with two remotes.
+
+Assumed: the hub's remote names and addresses reach the machine as they are, and an address that is a folder on the hub's disk is left out on a machine without that folder. If not, `git remote -v` on the machine differs from the hub's and `git sync` there pushes to fewer forges; the machine's log has `machine folder: … gets no remote …`. Add the missing remote by hand with `git remote add`.
+
+To check, on the benches: give the bench project's hub checkout a second remote, connect machine-1 into a free folder, and compare `git remote -v` on both.

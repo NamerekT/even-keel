@@ -357,6 +357,7 @@ The **Task** column is the manual "Проверка" task that checks the row, o
 | 345 | [A Claude chat titled by the CLI](unverified/sessions.md#a-claude-chat-titled-by-the-cli-btn-1772) | every Claude `--bg` project chat | the card keeps the first message, a launch waits out `claude.notShown`, or a message after a restart is refused `chats.starting`; start a new chat | — |
 | 346 | [The badge's English titles kept word for word](unverified/page.md#the-badges-english-titles-kept-word-for-word-btn-1784) | projects with badge title translation on | the badge still shows retold titles, or an English title with a name reaches the picture; turn English titles off | — |
 | 347 | [A machine elsewhere's launch journal](unverified/machines.md#a-machine-elsewheres-launch-journal-btn-1803) | hubs whose chain runs tasks on machines elsewhere | after the machine's restart a task's session there has no account on the page, or a slot's live session of another task is not stopped before a launch; send the machine's `machines:` log lines with an issue | — |
+| 348 | [A machine's clone with every remote of the hub](unverified/machines.md#a-machines-clone-with-every-remote-of-the-hub-btn-1766) | projects whose hub checkout has more than one remote, cloned onto a machine elsewhere | the machine's clone lacks a remote of the hub's, and `git sync` there pushes to fewer forges; add it with `git remote add` | — |
 
 ### Waiting for the event / not checked by choice
 

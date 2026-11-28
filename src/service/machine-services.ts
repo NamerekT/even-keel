@@ -10,7 +10,7 @@ import { readGitSetup, saveIdentity } from '../git/setup.js'
 import type { Git } from '../git/types.js'
 import { isPlain } from '../config.js'
 import { branchHere } from '../machine/branch-here.js'
-import { checkFolderStep, cloneTarget, probeFolder } from '../machine/folder-check.js'
+import { addRemotes, checkFolderStep, cloneTarget, probeFolder } from '../machine/folder-check.js'
 import { taskSessionsHere } from '../machine/scope.js'
 import { fail } from '../notice/notice.js'
 import { readJson } from '../packages/plugins.js'
@@ -147,16 +147,18 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
         const git = withCredentials(deps.git ?? runGit, (_folder, urls) => ctx.tell.credentials(spec.project, urls))
         return checkFolderStep({ git, claudeConfigs: () => ctx.claudeConfigs().map(readJson), packages: ctx.packages }, step, spec)
       },
-      clone: async (spec, remote) => {
+      clone: async (spec, source, others) => {
         cloneTarget(spec.folder)
         await (deps.clone ?? cloner(credentialedRemote(runRemoteGit, (urls) => ctx.tell.credentials(spec.project, urls))))({
-          remote,
+          remote: source.url,
+          name: source.name,
           path: spec.folder,
           // The project's main branch, not the remote's default one: sessions merge into the checkout's branch (BTN-1566).
           branch: spec.branch,
           signal: new AbortController().signal,
           onProgress: (progress) => deps.cloneProgress(spec.project, spec.folder, progress),
         })
+        await addRemotes(deps.git ?? runGit, spec.folder, others)
         // A folder Even Keel made is trusted by it, as a project the wizard clones.
         if (spec.claude) for (const file of ctx.claudeConfigs()) trustFolder(file, spec.folder)
       },
