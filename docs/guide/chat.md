@@ -14,6 +14,8 @@ A session that needs you asks a question and waits. You answer from the page's c
 
 The **Chat** button of the current session opens its whole transcript with a reply box. The button turns amber while the session waits for you; your answer resumes the session. The session's questions come one at a time as a card with radio buttons or checkboxes and free text.
 
+![The chat window of a session waiting on a question: the head with the sidebar button and the task key, the end of the feed, the question card with its options, a preview and a pager through two questions, the reply box with +, / and the microphone, and the line under it with the branch, the account, the model and the context ring](images/chat-window.webp)
+
 The window's head names the task; point at its title for the session's id, press it to copy the id.
 
 ### Attaching files
@@ -61,7 +63,7 @@ The chat remembers whether the panel was open. On a narrow window the panel lies
 
 ## Answering a question
 
-A question comes to the chat as a card with its options. The same question can be answered in other places, and two kinds of question need a word of their own.
+A question comes to the chat as a card with its options (as in [the window above](#the-chat-window)). The same question can be answered in other places, and two kinds of question need a word of their own.
 
 ### From the tracker
 

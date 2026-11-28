@@ -32,6 +32,16 @@ describe('content=en', () => {
     expect(card!.labels.map((label) => label.name)).toContain('Question')
   })
 
+  it('gives the waiting question and the end of its transcript in English, every shared file at hand', async () => {
+    const source = createFakeSource('?chain=ask&content=en')
+    const view = source.snapshot().state!.sessions.find((each) => each.task === 'ABC-5')!
+    expect(cyrillicOf(view.ask)).toEqual([])
+    const { lines } = (await source.transcript(view.sessionId, 0))!
+    expect(cyrillicOf(lines.slice(-4))).toEqual([])
+    const share = lines.find((line) => line.share !== undefined)!
+    expect(share.share!.files.map((_, index) => source.sharedUrl(view.sessionId, share.tool!, index)).filter((url) => !url.startsWith('data:'))).toEqual([])
+  })
+
   it('keeps the Russian content without the parameter', () => {
     const state = createFakeSource('').snapshot().state!
     expect(state.tasks.find((task) => task.id === 'ABC-5')!.title).toBe('Цепочка задач по связям')

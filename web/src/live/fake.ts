@@ -819,7 +819,7 @@ export function createFakeSource(search: string): LiveSource {
       const handed = view === undefined || current.state === null ? null : fakeHandedTranscript(current.state, view)
       // A permission prompt is never written to the transcript: only the question of `AskUserQuestion` is.
       const written = view?.ask?.permission === undefined ? (view?.ask ?? null) : null
-      if (after === 0) return { lines: handed ?? fakeTranscript(written, params.get('shots')), turn }
+      if (after === 0) return { lines: handed ?? content(fakeTranscript(written, params.get('shots'))), turn }
       return { lines: [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }], turn }
     },
     onTranscript: () => () => {},
@@ -832,7 +832,8 @@ export function createFakeSource(search: string): LiveSource {
     },
     imageUrl: (_sessionId, tool, index) => fakeImageUrl(tool, index),
     sentFileUrl: (_sessionId, name) => fakeSentFileUrl(name),
-    sharedUrl: (_sessionId, tool, index) => fakeSharedUrl(tool, index),
+    // A guide frame may log no error, so under `content=en` the share's file the worktree took with it is still there.
+    sharedUrl: (_sessionId, tool, index) => fakeSharedUrl(tool, index, params.get('content') !== 'en'),
     badgeUrl: (project, theme, still) => fakeBadgeUrl(current.state, project, theme, still),
     tools: async (project) => {
       await answer()
