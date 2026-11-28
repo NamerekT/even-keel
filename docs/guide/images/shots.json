@@ -132,6 +132,24 @@
         { "wait": ".invite__digits" }
       ],
       "selector": "dialog[open]"
+    },
+    {
+      "id": "add-machine",
+      "route": "/p/ABC?addMachine=new&content=en",
+      "steps": [
+        { "fill": "dialog .settings__text=hub.example.ts.net" },
+        { "click": "dialog button[type=submit]" },
+        { "wait": "dialog .add-machine__command" }
+      ],
+      "height": 1000,
+      "selector": "dialog[open]"
+    },
+    {
+      "id": "machines-panel",
+      "route": "/p/ABC?machines=pooled&content=en",
+      "steps": [{ "click": ".machine-block" }, { "wait": ".machine-panel" }],
+      "selector": ".machine-panel",
+      "crop": { "x": 0, "y": 0, "width": 401, "height": 416 }
     }
   ]
 }
