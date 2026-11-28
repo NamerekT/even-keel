@@ -104,6 +104,34 @@
       "route": "/p/ABC?chats=permission&content=en#chats",
       "steps": [{ "click": ".chat-card:has-text(\"changelog\")" }, { "wait": "dialog[open]" }],
       "selector": "dialog[open]"
+    },
+    {
+      "id": "invite-device",
+      "route": "/settings?invites&content=en",
+      "steps": [
+        { "click": ".settings-nav__item:has-text(\"Sign-in and devices\")" },
+        { "click": "button:has-text(\"Invite a device\")" },
+        { "wait": ".invite__qr" }
+      ],
+      "selector": "dialog[open]"
+    },
+    {
+      "id": "invite-new-device",
+      "route": "/invite?signIn&invite=waiting&content=en#fake",
+      "steps": [{ "wait": ".sign-in__digits" }],
+      "selector": ".sign-in__card",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "id": "invite-device-digits",
+      "route": "/settings?invites&content=en",
+      "steps": [
+        { "click": ".settings-nav__item:has-text(\"Sign-in and devices\")" },
+        { "click": "button:has-text(\"Invite a device\")" },
+        { "wait": ".invite__digits" }
+      ],
+      "selector": "dialog[open]"
     }
   ]
 }
