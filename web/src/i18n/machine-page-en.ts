@@ -39,6 +39,8 @@ export const machinePageEn: Messages['machinePage'] = {
   colorPalette: "The palette's colour",
   colorPaletteHint: "Drop the own colour: the machine takes the palette's by its place among the hub's machines.",
   colorNear: "Close to one of the accounts' colours: on the chain they are easy to mix up.",
+  ownConfig: 'Own configuration',
+  ownConfigHint: "This machine's CLAUDE.md and Claude Code settings stay its own; skills, agents, commands and hooks keep syncing.",
   swatch: (color) => `Colour ${color}`,
   report: 'On the machine',
   reportNone: 'The machine has not reported yet: it does when it comes online.',

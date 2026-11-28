@@ -28,6 +28,11 @@ export interface ConfigCopyDeps {
   pushed?(): void
   /** Its conflicts file was written: `conflicts` may say otherwise now. */
   conflictsSaved?(): void
+  /**
+   * The machine's "Own configuration" now (BTN-1745): its `CLAUDE.md` and `settings.json` stay out of the sync, the
+   * rest syncs. Read at every sync; `syncNow` after a change applies it at once.
+   */
+  apart?(): boolean
 }
 
 /**
@@ -43,7 +48,8 @@ export class ConfigCopy {
 
   constructor(private readonly deps: ConfigCopyDeps) {
     this.folder = configStore(deps.globalDir)
-    const files = new ConfigFiles({ globalDir: deps.globalDir, folder: this.folder, log: deps.log })
+    const apart = () => deps.apart?.() === true
+    const files = new ConfigFiles({ globalDir: deps.globalDir, folder: this.folder, log: deps.log, apart })
     this.sync = new MemorySync({
       kind: 'config',
       folder: this.folder,
@@ -58,6 +64,8 @@ export class ConfigCopy {
         files.takeIn()
         this.linkSkills()
       },
+      meetings: () => files.meetings(),
+      apart: () => (apart() ? CONFIG_FILES : []),
       afterSync: () => {
         files.giveOut()
         this.linkSkills()

@@ -155,6 +155,8 @@ export class FakeNetwork {
   private readonly moving = new Map<string, string>()
   /** The folders bound to other projects' memory (BTN-1648), by machine; the laptop starts with one. */
   private readonly memory = new Map<string, NonNullable<MachinePage['memory']>>()
+  /** The machines with "Own configuration" on (BTN-1745). */
+  private readonly ownConfigs = new Set<string>()
   /** With `?machines=taken` (BTN-1262), the laptop's first project's folder is held by a gone machine's mark until taken over. */
   private held: boolean
   /** What the row menus of the machines' views changed there (BTN-1584). */
@@ -301,6 +303,7 @@ export class FakeNetwork {
       taken: id === 'machine-1' && this.held && pooled[0] !== undefined ? [{ project: pooled[0], machine: 'machine-0', name: 'Example old laptop' }] : [],
       ...(!own && this.buildOf(report, view?.online === true, id)),
       ...(!own && { memory: this.memory.get(id) ?? (id === 'machine-1' && state.projects.length > 0 ? [{ project: state.projects.at(-1)!, folder: '/home/example/hand/notes' }] : []) }),
+      ownConfig: this.ownConfigs.has(id),
     }
   }
 
@@ -347,6 +350,12 @@ export class FakeNetwork {
     }
     if (name === 'machines/memory') {
       this.memory.set(String(body.machine), body.folders as NonNullable<MachinePage['memory']>)
+      this.changed()
+      return true
+    }
+    if (name === 'machines/ownConfig') {
+      if (body.on === true) this.ownConfigs.add(String(body.machine))
+      else this.ownConfigs.delete(String(body.machine))
       this.changed()
       return true
     }

@@ -13,7 +13,8 @@ import type { Queryable } from './database.js'
  * `machines.certificate` — the hub's certificate and key for machines (`HubCertificate`, BTN-988, `hubIdentity`);
  * `machines.own` — the id of the machine this installation itself is (BTN-1216, `ownMachine`);
  * `memory.transferred` — the projects whose `memory_records` went into their memory folder on the hub (`string[]`, BTN-1646);
- * `memory.folders` — by machine, its folders outside the projects' pools bound to their memory (`MemoryFolder[]`, BTN-1648).
+ * `memory.folders` — by machine, its folders outside the projects' pools bound to their memory (`MemoryFolder[]`, BTN-1648);
+ * `config.own` — the machines whose `settings.json` and `CLAUDE.md` stay out of the configuration's sync (`string[]`, BTN-1745).
  */
 export type StateName =
   | 'updates.dismissed'
@@ -29,6 +30,7 @@ export type StateName =
   | 'machines.own'
   | 'memory.transferred'
   | 'memory.folders'
+  | 'config.own'
 
 /** `undefined` — never written. */
 export async function stateValue(db: Queryable, name: StateName): Promise<unknown> {

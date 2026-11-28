@@ -312,6 +312,8 @@ export interface MachinePage {
   build?: MachineBuildView
   /** A machine elsewhere's folders bound to projects' memory beyond its pool (BTN-1648); none on the own machine. */
   memory?: MemoryFolderView[]
+  /** "Own configuration" (BTN-1745): its `settings.json` and `CLAUDE.md` stay out of the sync; none — no such switch. */
+  ownConfig?: boolean
 }
 
 /** A folder on a machine bound to a project's memory (BTN-1648): the project's id and the folder's path there. */

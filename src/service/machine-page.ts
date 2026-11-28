@@ -93,6 +93,12 @@ export interface MachinePageDeps {
     projects: () => string[]
     set: (machine: string, folders: MemoryFolderView[]) => Promise<void>
   }
+  /** "Own configuration" of any machine, the own one too (BTN-1745); absent — the page has no such switch. */
+  ownConfig?: {
+    has: (machine: string) => boolean
+    /** Kept on the hub, then applied on the machine at once: its next sync leaves or meets the network's files. */
+    set: (machine: string, on: boolean) => Promise<void>
+  }
   log: (line: string) => void
 }
 
@@ -179,6 +185,7 @@ export function machinePageControl(deps: MachinePageDeps) {
         ...(tooLarge !== undefined && { stateTooLarge: tooLarge }),
         ...(build !== undefined && { build }),
         ...(!own && deps.memory !== undefined && { memory: deps.memory.of(record.id) }),
+        ...(deps.ownConfig !== undefined && { ownConfig: deps.ownConfig.has(record.id) }),
       }
     },
     /**
@@ -215,6 +222,13 @@ export function machinePageControl(deps: MachinePageDeps) {
       if (record.id === deps.own() || deps.memory === undefined) throw fail('machines.memoryOwn', {})
       if (!Array.isArray(folders)) throw fail('request.required', { field: 'folders' })
       await deps.memory.set(record.id, checkedFolders(folders, deps.memory.projects()))
+    },
+    /** "Own configuration" (BTN-1745): the machine's `settings.json` and `CLAUDE.md` stay out of the sync while on. */
+    async ownConfig(machine: string, on: boolean): Promise<void> {
+      const record = await known(machine)
+      if (deps.ownConfig === undefined) throw fail('request.required', { field: 'ownConfig' })
+      if (deps.ownConfig.has(record.id) === on) return
+      await deps.ownConfig.set(record.id, on)
     },
   }
 }

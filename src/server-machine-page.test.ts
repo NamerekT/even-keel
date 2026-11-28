@@ -15,6 +15,7 @@ describe('the routes of a machine page (BTN-1272)', () => {
         color: async (machine, color) => void calls.push(['color', machine, color]),
         gitIdentity: async (machine, name, email) => void calls.push(['git', machine, name, email]),
         update: async (machine) => void calls.push(['update', machine]),
+        ownConfig: async (machine, on) => void calls.push(['ownConfig', machine, on]),
       },
     })
     const post = (path: string, body: unknown) => fetch(`${base}/api/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
@@ -29,6 +30,9 @@ describe('the routes of a machine page (BTN-1272)', () => {
       // "Update" to the hub's build (BTN-1609).
       expect((await post('machines/update', { machine: 'srv' })).status).toBe(200)
       expect((await post('machines/update', {})).status).toBe(400)
+      // "Own configuration" (BTN-1745).
+      expect((await post('machines/ownConfig', { machine: 'srv', on: true })).status).toBe(200)
+      expect((await post('machines/ownConfig', { machine: 'srv', on: 'yes' })).status).toBe(400)
       expect(calls).toEqual([
         ['view', 'srv'],
         ['capacity', 'srv', 3],
@@ -36,6 +40,7 @@ describe('the routes of a machine page (BTN-1272)', () => {
         ['color', 'srv', null],
         ['git', 'srv', 'John Doe', 'john@example.com'],
         ['update', 'srv'],
+        ['ownConfig', 'srv', true],
       ])
     } finally {
       await close()

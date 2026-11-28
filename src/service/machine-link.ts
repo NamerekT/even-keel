@@ -28,6 +28,7 @@ import { sessionTranscripts } from './session-transcripts.js'
 import { historyReads } from './task-history.js'
 import { folderGitCredentials, hubGitCredentials } from './git-credentials.js'
 import { MemoryFolders } from '../memory/git/folders.js'
+import { OwnConfigs } from '../memory/git/own-config.js'
 import { hubMemoryGit } from '../memory/git/hub-git.js'
 import { placedIn } from '../machine/assignments.js'
 import { withCredentials } from '../git/credentials.js'
@@ -141,6 +142,8 @@ export interface LinkedMachine {
   network: MachineNetwork
   /** The folders of machines elsewhere bound to a project's memory beyond their pools (BTN-1648); read at `start`. */
   memoryFolders: MemoryFolders
+  /** The machines, this one too, with "Own configuration" on (BTN-1745); read at `start`. */
+  ownConfigs: OwnConfigs
   /** The machines asking at that door to join by the address (BTN-1620), waiting for the page. */
   requests: JoinRequests
   /**
@@ -163,6 +166,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
   const log = (line: string): void => console.log(line)
   const { machineDb } = ctx
   const memoryFolders = new MemoryFolders(ctx.db)
+  const ownConfigs = new OwnConfigs(ctx.db)
   const hubStore = new DatabaseHubStore(ctx.db)
   const machineStore = new DatabaseMachineStore(machineDb)
   let own = ''
@@ -258,7 +262,7 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
         const server = adapter?.mcpServer
         return server === undefined ? undefined : { server, required: !ctx.briefOn(project), ...(server !== TASKS_SERVER && servesTasks(adapter) ? { also: TASKS_SERVER } : {}) }
       },
-      ...(elsewhere !== undefined ? { catalog: (projects: string[]) => ctx.packages.catalogFor(projects, routes), memory: () => memoryFolders.of(elsewhere) } : {}),
+      ...(elsewhere !== undefined ? { catalog: (projects: string[]) => ctx.packages.catalogFor(projects, routes), memory: () => memoryFolders.of(elsewhere), ownConfig: () => ownConfigs.has(elsewhere) } : {}),
       accounts: () => briefAccounts(foldersHere(ctx, hubIdentities)),
     })
   }
@@ -636,12 +640,15 @@ export async function wireLinkedMachine(ctx: ChainContext & Pick<ServiceContext,
     transcripts,
     network,
     memoryFolders,
+    ownConfigs,
     requests,
     start: async () => {
       // Before the own machine's replayed records: the messages kept before rows knew their machine are its own.
       await adoptMail(ctx.db, own)
       // Before the first brief of a machine elsewhere: one without its bound folders would stop their copies there.
       await memoryFolders.load()
+      // Before the first brief and the hub's own configuration sync: either without it would carry the machine's files.
+      await ownConfigs.load()
       await network.apply()
       await end.start()
       let waited: ReturnType<typeof setTimeout> | undefined

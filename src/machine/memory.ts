@@ -49,6 +49,7 @@ export class MachineMemory {
   private config: ConfigCopy | undefined
   private pulling: ReturnType<typeof setInterval> | undefined
   private started = false
+  private wasApart = false
 
   constructor(private readonly deps: MachineMemoryDeps) {
     this.relay = new MemoryRelay({ send: deps.send, log: deps.log })
@@ -72,8 +73,10 @@ export class MachineMemory {
       remote: this.relay.originOf(CONFIG_REPOSITORY),
       author: this.deps.author,
       log: this.deps.log,
+      apart: () => this.apart(),
       ...(this.deps.git !== undefined && { git: this.deps.git }),
     })
+    this.wasApart = this.apart()
     void this.config.start()
     await this.copies.apply()
     this.pulling = setInterval(() => void (this.deps.linked() && this.online()), PULL_EVERY_MS)
@@ -82,7 +85,17 @@ export class MachineMemory {
 
   /** Before `start` nothing: the copies need the relay's address. */
   apply(): Promise<void> {
-    return this.started ? this.copies.apply() : Promise.resolve()
+    if (!this.started) return Promise.resolve()
+    if (this.apart() !== this.wasApart) {
+      this.wasApart = this.apart()
+      void this.config?.syncNow()
+    }
+    return this.copies.apply()
+  }
+
+  /** "Own configuration" of the machine's page (BTN-1745), as the brief says it now. */
+  private apart(): boolean {
+    return this.deps.brief()?.ownConfig === true
   }
 
   /** The link is back: every copy syncs now. */

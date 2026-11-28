@@ -5,6 +5,7 @@ import type { Git, GitResult } from '../../git/types.js'
 import { fileHash, MEMORY_INDEX, MIRROR_MARK, parseMemoryFile, type MemoryFact } from '../record.js'
 import { conflictTrailer, openConflicts, pendingConflicts, SAVED_FILE, saveConflicts, savedMarks } from './conflicts.js'
 import { flavorOf, MEMORY_FLAVOR, type SyncFlavor, type SyncKind } from './flavor.js'
+import type { Meeting } from './config-files.js'
 import { settleTexts, type Settled, type Sides } from './merge.js'
 import { reindex } from './reindex.js'
 import { findSecrets } from './secrets.js'
@@ -44,6 +45,13 @@ export interface MemorySyncDeps {
   pushed?(): void
   /** Runs inside each sync before its commit of local edits: files laid into the folder from elsewhere (`ConfigFiles`). */
   beforeCommit?(): void
+  /**
+   * After that commit: files from elsewhere that meet the folder's own with no common version (`ConfigFiles.meetings`,
+   * BTN-1745), each settled as two copies' first meeting is.
+   */
+  meetings?(): Meeting[]
+  /** Files the folder keeps apart from its source now (BTN-1745): their open conflicts met here end. */
+  apart?(): readonly string[]
   /** Runs inside each sync once it is done with the remote, reached or not. */
   afterSync?(): void
   /** After each sync and each `settle`, once `CONFLICTS_FILE` is written: the page's view of them (BTN-1692). */
@@ -179,10 +187,12 @@ export class MemorySync {
       this.deps.beforeCommit?.()
       await this.commitEdits(outcome)
       await this.commitSaved()
-      for (let round = 0; round < PUSH_ROUNDS && !outcome.reached; round++) {
-        const step = await this.exchange(outcome)
-        if (step === 'failed') break
-        outcome.reached = step === 'pushed'
+      await this.commitApart()
+      await this.exchangeAll(outcome)
+      // Against the remote's version as it is now, so the meeting is not met again by the rebase.
+      if (outcome.reached && (await this.commitMeetings(outcome))) {
+        outcome.reached = false
+        await this.exchangeAll(outcome)
       }
       this.deps.afterSync?.()
       saveConflicts(this.deps.folder, await openConflicts((...args) => this.run(...args), this.deps.folder, this.flavor))
@@ -195,6 +205,14 @@ export class MemorySync {
       if (!outcome.reached) this.arm(RETRY_MS, true)
     }
     return outcome
+  }
+
+  private async exchangeAll(outcome: SyncOutcome): Promise<void> {
+    for (let round = 0; round < PUSH_ROUNDS && !outcome.reached; round++) {
+      const step = await this.exchange(outcome)
+      if (step === 'failed') break
+      outcome.reached = step === 'pushed'
+    }
   }
 
   private run(...args: string[]): Promise<GitResult> {
@@ -297,6 +315,61 @@ export class MemorySync {
       this.deps.log(`${this.label}: ${folder} ${ended.join(', ')} saved unchanged by a session: the newer version is kept, the conflict ends`)
     }
     if (readFileSync(path, 'utf8') === read) rmSync(path, { force: true })
+  }
+
+  /**
+   * The files of `meetings` settle as a first meeting (BTN-1745): the newer version stays in the file under the conflict
+   * trailer and the other is its parent's, so a person or a session chooses, and nothing is replaced silently. Newer is
+   * the own file's time against its last commit's here. One that looks like it holds a key waits, as an edit would.
+   * `true` — a meeting was committed.
+   */
+  private async commitMeetings(outcome: SyncOutcome): Promise<boolean> {
+    const { folder, author } = this.deps
+    let met = false
+    for (const meeting of this.deps.meetings?.() ?? []) {
+      const { file, text } = meeting
+      const path = join(folder, file)
+      const copy = readText(path)
+      if (copy === null) continue
+      const hits = findSecrets(text)
+      if (hits.length > 0) {
+        outcome.withheld.push(file)
+        const told = `${file}\0${fileHash(text)}`
+        if (!this.told.has(told)) {
+          this.told.add(told)
+          this.deps.log(`${this.label}: ${folder} ${file} of this machine is not committed: it looks like it holds a key (${hits.map((hit) => `${hit.kind} on line ${hit.line}`).join(', ')}); remove it from the file`)
+        }
+        continue
+      }
+      const ownNewer = meeting.time.getTime() >= (await this.authored('HEAD', file))
+      if (!ownNewer) {
+        writeFileSync(path, text)
+        await this.must('add', '--', file)
+        await this.must('commit', '-q', '--no-verify', '-m', `${this.label}: other version of ${file} from ${author}`)
+      }
+      writeFileSync(path, ownNewer ? text : copy)
+      await this.must('add', '--', file)
+      await this.must('commit', '-q', '--no-verify', '--allow-empty', '-m', `${this.label}: conflict in ${file} from ${author}`, '-m', conflictTrailer(file, this.flavor.trailer))
+      outcome.conflicts.push(file)
+      const who = this.flavor.human(file) ? 'a person settles the other, it is in the history' : 'sessions are asked to merge the other'
+      this.deps.log(`${this.label}: ${folder} ${file} of this machine met the network's, with no common version: the newer is kept (${ownNewer ? "this machine's" : "the network's"}), ${who}`)
+      meeting.joined()
+      met = true
+    }
+    return met
+  }
+
+  /** The open conflicts met here in files the folder keeps apart now (`apart`, BTN-1745) end by one `settled` commit. */
+  private async commitApart(): Promise<void> {
+    const files = this.deps.apart?.() ?? []
+    if (files.length === 0) return
+    const { folder, author } = this.deps
+    const open = await openConflicts((...args) => this.run(...args), folder, this.flavor)
+    const ended = open.filter((conflict) => conflict.by === author && files.includes(conflict.file)).map((conflict) => conflict.file)
+    if (ended.length === 0) return
+    const title = `${this.label}: ${ended.join(', ')} kept apart on ${author}, the conflict ends`
+    await this.must('commit', '-q', '--no-verify', '--allow-empty', '-m', title, '-m', ended.map((file) => `${this.flavor.settled}: ${file}`).join('\n'))
+    this.deps.log(`${this.label}: ${folder} ${ended.join(', ')} kept apart from the network on this machine: the conflict met here ends`)
   }
 
   /** One round with the remote: fetch, take its history, tidy, push; `rejected` — someone pushed in between. */
