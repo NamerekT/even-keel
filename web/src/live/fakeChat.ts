@@ -233,10 +233,11 @@ export function fakeShare(at: (minutes: number) => string): FeedLine[] {
   ]
 }
 
-export function fakeSharedUrl(tool: string, index: number): string {
-  if (index === 0) return `data:text/markdown;charset=utf-8,${encodeURIComponent(SHARED_AUDIT)}`
+/** `gone` — the last file is one the cleaned-up worktree took with it: its address fails to load. */
+export function fakeSharedUrl(tool: string, index: number, gone = true): string {
   if (index === 1) return SHOTS.toolu_fake_dark!
   if (index === 2) return `data:application/zip;base64,UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==`
+  if (index === 0 || !gone) return `data:text/markdown;charset=utf-8,${encodeURIComponent(SHARED_AUDIT)}`
   return `http://127.0.0.1:9/${tool}/${index}`
 }
 

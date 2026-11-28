@@ -66,6 +66,12 @@
       "route": "/status?trackers=problems&content=en",
       "steps": [{ "wait": ".status-connections" }],
       "height": 940
+    },
+    {
+      "id": "chat-window",
+      "route": "/p/ABC?chain=ask&content=en",
+      "steps": [{ "click": ".panel__chat--waiting" }, { "wait": "dialog[open]" }],
+      "selector": "dialog[open]"
     }
   ]
 }
