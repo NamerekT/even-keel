@@ -36,7 +36,8 @@ const prefixOf = (state: EvenKeelState, body: Record<string, unknown>) => (state
  * What the service's `outside/tasks` answers on `dev:fake` (BTN-1428), by `?outside=`: by default seven tasks with an
  * excluding label (two labels) over two milestones in four statuses, 31 in old milestones the rules leave out and two in
  * a status they count as closed; `many` — 140 in the old milestones, for the group's "Show more"; `none` — nothing, the
- * archive too; `error` — the read fails.
+ * archive too; `error` — the read fails; `waiting` — the default ones and the chain's waiting blockers by their label,
+ * as the service gives them (BTN-1768).
  */
 export async function fakeOutside(state: EvenKeelState, body: Record<string, unknown>, mode: string | null): Promise<OutsideTask[]> {
   await new Promise((resolve) => setTimeout(resolve, READ_MS))
@@ -54,7 +55,10 @@ export async function fakeOutside(state: EvenKeelState, body: Record<string, unk
   // Chain tasks that hold tasks of the view (BTN-1714): the chain's first one holds two of them, the next two hold one.
   const order = state.chain.projects[String(body.project)]?.order ?? []
   const held = (each: OutsideTask, ...by: (string | undefined)[]): OutsideTask => ({ ...each, task: { ...each.task, blockedBy: by.filter((id) => id !== undefined) } })
+  const waitingIds = mode === 'waiting' ? (state.chain.projects[String(body.project)]?.waiting ?? []) : []
+  const waiting = state.tasks.filter((each) => waitingIds.includes(each.id) && each.labels.length > 0).map((each): OutsideTask => ({ task: each, reason: 'label', label: each.labels[0]! }))
   return [
+    ...waiting,
     task('label', 'Check the Linear import live on the bench', IN_REVIEW, 'v0.3', 'Manual', 'high'),
     task('label', 'Move the bench to the server: Docker, VPN, backup', IN_PROGRESS, 'v0.3', second),
     held(task('label', 'Backup encryption: pick the key and where it lives', TODO, 'v0.4', second, 'urgent'), order[1], order[2]),

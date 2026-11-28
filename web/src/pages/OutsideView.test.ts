@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ArchivePage, OutsideTask } from '../../../src/state.js'
 import type { Task, TaskStatus } from '../../../src/tracker/model.js'
 import { MemoryRouter } from 'react-router'
+import { t } from '../i18n/index.js'
 import type { ChainBlock } from '../state.js'
 import { OutsideView } from './OutsideView.js'
 
@@ -17,11 +18,14 @@ const live = vi.hoisted(() => ({
   readAt: null as number | null,
   /** `outside/tasks` fails after this many milliseconds; `null` — it answers at once. */
   failAfter: null as number | null,
+  /** The chain's order and its waiting blockers in the live state. */
+  order: [] as string[],
+  waiting: [] as string[],
 }))
 vi.mock('../live/context.js', () => ({
   useLive: () => ({
     state: {
-      chain: { projects: { p1: { order: [], waiting: [], backlog: [] } } },
+      chain: { projects: { p1: { order: live.order, waiting: live.waiting, backlog: [] } } },
       trackers: live.readAt === null ? [] : [{ projects: ['p1'], readAt: { p1: live.readAt } }],
     },
     read: async (name: string) => {
@@ -78,6 +82,8 @@ afterEach(async () => {
   live.archive = { tasks: [], next: null }
   live.readAt = null
   live.failAfter = null
+  live.order = []
+  live.waiting = []
   chain = []
 })
 
@@ -149,7 +155,7 @@ describe('OutsideView', () => {
 
   it('puts the open chain tasks that block a task before it, with their status, out of the counts', async () => {
     const blocker = (id: string, lamp: ChainBlock['lamp'], status: string, stage: ChainBlock['stage']) =>
-      ({ id, title: `Title of ${id}`, status, stage, lamp, locked: false, current: false }) as ChainBlock
+      ({ id, title: `Title of ${id}`, status, stage, lamp, locked: false, current: false, blockedBy: [] as string[] }) as ChainBlock
     chain = [blocker('C-1', 'working', 'In Progress', 'Active'), blocker('C-2', 'ahead', 'Todo', 'ToDo'), blocker('C-3', 'done', 'Done', 'Won')]
     const held = (id: string, by: string[]): OutsideTask => ({ ...out(id, TODO), task: { ...task(id, TODO), blockedBy: by } })
     live.tasks = [held('A-1', ['C-1', 'C-3']), held('A-2', ['C-2', 'C-1'])]
@@ -160,6 +166,20 @@ describe('OutsideView', () => {
     expect(first.querySelector('.outside__holder-status')?.textContent).toBe('In Progress')
     expect(first.querySelector('a.block__key')?.getAttribute('href')).toBe('/p/p1#C-1')
     expect(host.querySelector('.bracket')).not.toBeNull()
+  })
+
+  it("shows the chain's waiting blockers with a lock that names the chain tasks they hold (BTN-1768)", async () => {
+    const block = (id: string, locked: boolean, blockedBy: string[]) =>
+      ({ id, title: `Title of ${id}`, status: 'Todo', stage: 'ToDo', lamp: 'ahead', locked, current: false, blockedBy }) as ChainBlock
+    chain = [block('W-1', true, []), block('C-1', false, ['W-1']), block('C-2', false, [])]
+    live.order = ['C-1', 'C-2']
+    live.waiting = ['W-1']
+    live.tasks = [out('W-1', TODO), out('A-1', TODO), out('C-2', TODO)]
+    await open()
+    expect(sections()).toEqual([['Todo', ['W-1', 'A-1']]])
+    const marks = [...host.querySelectorAll('.outside__holds')]
+    expect(marks.map((mark) => mark.closest('.block')?.getAttribute('data-block'))).toEqual(['W-1'])
+    expect(marks[0]!.textContent).toContain(t.chain.outside.holds(['C-1']))
   })
 
   it('shows the order switch only over rows', async () => {

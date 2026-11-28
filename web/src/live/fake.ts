@@ -426,6 +426,18 @@ export function createFakeSource(search: string): LiveSource {
     const order = chain.projects['ABC']!
     chain.projects['ABC'] = { ...order, waiting: ['ABC-16', 'ABC-22', 'DEMO-31'], outside: [other], landing: { ...order.landing, 'ABC-16': 'ABC-10' } }
   }
+  if (params.get('outside') === 'waiting' && current.state !== null) {
+    // Waiting blockers an excluding label keeps out (BTN-1768): ABC-22 holds ABC-10, ABC-24 holds ABC-14 through ABC-23.
+    const { tasks, chain } = current.state
+    const blockers: Record<string, string> = { 'ABC-10': 'ABC-22', 'ABC-14': 'ABC-23' }
+    current.state.tasks = [
+      ...tasks.map((each) => (blockers[each.id] === undefined ? each : { ...each, blockedBy: [...each.blockedBy, blockers[each.id]!] })),
+      task('ABC-22', 'Проверить импорт на стенде', 'In Progress', 'Active', [], 'v0.2 — удобство', { labels: ['Manual'] }),
+      task('ABC-23', 'Записать видео установки', 'Todo', 'ToDo', ['ABC-24'], 'v0.3 — служба', { labels: ['Manual'] }),
+      task('ABC-24', 'Снять стенд с сервера', 'In Progress', 'Active', [], 'v0.3 — служба', { labels: ['Manual'] }),
+    ]
+    chain.projects['ABC'] = { ...chain.projects['ABC']!, waiting: ['ABC-22', 'ABC-23', 'ABC-24'] }
+  }
   if (params.get('chain') === 'later' && current.state !== null) {
     const { tasks, chain } = current.state
     current.state.tasks = [

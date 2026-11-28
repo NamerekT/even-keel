@@ -69,6 +69,7 @@ The switch above the chain has a third view, the crossed-out eye: the open tasks
 
 - **What is there:** tasks with an excluding label (such as `Manual`), tasks in a milestone the project's rules leave out, and tasks in a status the rules count as closed while the tracker still has it open.
 - **Grouping:** by that reason, inside a group by milestone and inside a milestone by status, from In Review down to Backlog; a task with several reasons goes under the first in that order. A row's dot is its status's colour, its name in the tip.
+- **Held chain tasks:** a task here that blocks a chain task also stands dim with a lock in the chain over the task it holds; here it has a small lock after its key, and its tip names the chain tasks it holds.
 - **Order:** the switch next to the view switch sorts the tasks of each status newest first, oldest first or by priority; this view keeps its own choice, apart from the backlog's.
 - **Closed tasks** the label or the milestone kept out go into the folded **Archive** at the top, the last closed first, with **older** for more; it is shown only when there are any.
 - **Folding:** the milestone group starts folded, since it is mostly old milestones' leftovers, and the page remembers which groups you folded, per project on this device. A group shows 50 tasks and then **Show more**.

@@ -398,6 +398,7 @@ export const chainRU = {
       archiveCount: (count: number, more: boolean) => (more ? `${count}+ задач` : tasks(count)),
       archiveOlder: 'старше',
       archiveOlderTip: 'Прочитать более старые закрытые задачи',
+      holds: (tasks: readonly string[]) => `Держит ${tasks.join(', ')} в цепочке`,
     },
     subtasksClosed: (closed: number, total: number) => `Закрыто подзадач: ${closed} из ${total}`,
     shapes: {

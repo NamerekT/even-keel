@@ -112,6 +112,32 @@ export function chainHolders<B extends { id: string; lamp: BlockLamp; locked: bo
   return chain.filter((block) => wanted.has(block.id) && !block.locked && !isClosedLamp(block.lamp))
 }
 
+/**
+ * The tasks the chain or the backlog already shows, which the view leaves out: the chain's order and the backlog. Its
+ * waiting blockers stay in the view, since the rules keep them out of the chain for good (BTN-1768).
+ */
+export function outsideShown(order: { order: readonly string[]; backlog: readonly string[] } | undefined): Set<string> {
+  return new Set([...(order?.order ?? []), ...(order?.backlog ?? [])])
+}
+
+/**
+ * The chain's open tasks a waiting blocker holds (BTN-1768), in the chain's order: those it blocks, directly or through
+ * other waiting blockers (the chain's locked rows), the way `waitingBlockers` found it.
+ */
+export function heldInChain<B extends { id: string; lamp: BlockLamp; locked: boolean; blockedBy: readonly string[] }>(blocker: string, chain: readonly B[]): B[] {
+  const through = new Set([blocker])
+  const held = new Set<string>()
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const block of chain) {
+      if (through.has(block.id) || held.has(block.id) || isClosedLamp(block.lamp) || !block.blockedBy.some((id) => through.has(id))) continue
+      ;(block.locked ? through : held).add(block.id)
+      grew = true
+    }
+  }
+  return chain.filter((block) => held.has(block.id))
+}
+
 /** The groups open on this device, from their saved text; nothing saved — the default ones. */
 export function parseOpen(text: string | null): OutsideReason[] {
   if (text === null) return [...OPEN_BY_DEFAULT]
