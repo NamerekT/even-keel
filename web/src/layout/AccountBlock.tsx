@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { Link } from 'react-router'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import type { AccountLevel } from '../../../src/account/header-levels.js'
 import { limitSpans, type LimitWindow, type RateLimits } from '../../../src/limits/model.js'
@@ -9,6 +10,7 @@ import { AccountPanel, ViewAccountPanel } from './Account.js'
 import { useMachineFilter } from './MachineFilter.js'
 import { spendsByKey, spendText, useSpend, useTokens, type Spend, type Tokens } from './accountParts.js'
 import { seriesStyle } from '../ui/series.js'
+import { Tipped } from '../ui/Tipped.js'
 import { FULL_PERCENT, WARM_PERCENT, windowValue } from './Limits.js'
 import { useLimitsGone } from './limitsFix.js'
 import { usePopover } from './usePopover.js'
@@ -25,10 +27,12 @@ interface BlockProps {
   levels?: AccountLevel[]
   /** A machine elsewhere's view (BTN-1570): `account` is its accounts, the colours the hub's of the same e-mail. */
   machine?: MachineRows
+  /** "All machines" (BTN-1805): the machines where the shown account is signed out — a warning lamp leading to `/accounts`. */
+  out?: string[]
 }
 
 /** The server's launch choice in the header; pointing shows its inheritance and pressing opens the accounts drawer. */
-export function AccountBlock({ account, now, levels = [{ account: account.active, source: 'shared' }], machine }: BlockProps) {
+export function AccountBlock({ account, now, levels = [{ account: account.active, source: 'shared' }], machine, out = [] }: BlockProps) {
   const { open, setOpen, rootRef } = usePopover()
   const hubSpend = useSpend(account)
   const hubTokens = useTokens(account)
@@ -50,6 +54,9 @@ export function AccountBlock({ account, now, levels = [{ account: account.active
         <BlockLimits entry={active} now={now} spend={spend} tokens={tokens} />
       </span>
     </button>
+    {out.length > 0 && <Tipped tip={t.account.outOnMachines(out.join(', '))} className="account-block__out">
+      <Link to="/accounts" className="account-block__out-lamp" aria-label={t.account.outOnMachines(out.join(', '))} />
+    </Tipped>}
     {!open && <AccountLevels account={account} levels={levels} now={now} spend={spend} tokens={tokens} machine={machine} />}
     {open && <AccountPanel account={account} spend={spend} tokens={tokens} onClose={() => setOpen(false)} machine={machine} />}
   </div>

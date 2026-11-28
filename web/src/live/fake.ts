@@ -1,5 +1,5 @@
 import { fail, notice, textNotice } from '../../../src/notice/notice.js'
-import { prepareHeaderLevels, withHeaderLevels } from './fakeHeaderLevels.js'
+import { prepareHeaderLevels, withDivergedAccounts, withHeaderLevels } from './fakeHeaderLevels.js'
 import { fixName } from '../../../src/chain/fix.js'
 import type { TrackerLinkState } from '../../../src/tracker/health.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
@@ -360,6 +360,7 @@ export function createFakeSource(search: string): LiveSource {
     state.chain.active = [{ ...active, machine: 'pc' }, { project: active.project, machine: 'srv', current: { task: 'ABC-6', sessionId: view.sessionId, since: ago(1.5) }, paused: false, error: null }, ...state.chain.active.slice(1)]
     state.taskSessions['ABC-6'] = [{ sessionId: view.sessionId, at: ago(1.5), how: 'launch', resumed: 0, answers: 0, machine: 'srv' }]
   }
+  if (current.state !== null) current.state = withDivergedAccounts(current.state, params.get('chain'))
   // The home server is gone (BTN-1270): one task of its pushed its branch and can move, the other did not.
   if (params.get('chain') === 'stranded' && active) {
     const state = current.state!

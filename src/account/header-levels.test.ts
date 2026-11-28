@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { headerLevels, type HeaderContext } from './header-levels.js'
+import { headerLevels, inheritedLevels, type HeaderContext } from './header-levels.js'
 import type { Task } from '../tracker/model.js'
 import type { RunSettings } from '../sessions/launch.js'
 
@@ -33,6 +33,11 @@ describe('header account levels', () => {
   it('keeps only the upper occurrence of an account', () => {
     expect(headerLevels(context({ provider: 'claude' }, [task('ABC-1', 'codex')]))).toEqual([level('shared', 'task', 'ABC-1'), level('claude', 'project')])
     expect(headerLevels(context({}, [task('ABC-1', 'codex')]))).toEqual([level('shared', 'task', 'ABC-1')])
+  })
+  it('gives the inherited levels alone, which a task of the same account would absorb', () => {
+    expect(inheritedLevels(context({}, [task('ABC-1', 'codex')]))).toEqual([level('shared', 'shared')])
+    const own = { provider: 'claude', accounts: { ...shared.accounts, claude: 'project' } }
+    expect(inheritedLevels(context(own, [task('ABC-1', 'claude')]))).toEqual([level('project', 'project'), level('shared', 'shared')])
   })
   it('uses launch fallback, and a run of an effort alone is no level of its own', () => {
     const ctx = context({}, [task('ABC-1', 'opencode')])

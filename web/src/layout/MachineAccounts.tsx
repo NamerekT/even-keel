@@ -1,34 +1,27 @@
+import { useLocation } from 'react-router'
 import type { MachineCard, MachineSignIn } from '../../../src/state.js'
-import { entrySlot } from '../accounts.js'
-import { headerAccounts, type HeaderAccount } from '../headerAccounts.js'
+import { accountOutOn, allMachinesLevels } from '../allMachinesHeader.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { machineAccountsEmpty } from '../machineAdd.js'
 import { machineAccountView, machineLevels, machineUses } from '../machineAccountView.js'
 import { gapCommand, machineLogin } from '../machineSignIn.js'
-import { MachineLabels } from '../ui/MachineLabel.js'
-import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
-import { ViewAccountPanel } from './Account.js'
 import { AccountBlock } from './AccountBlock.js'
 import { agentLabel } from '../accountName.js'
-import { AgentIcon } from './accountParts.js'
-import { Limits } from './Limits.js'
 import { FolderSignIn } from './MachineFolderSignIn.js'
 import { useMachineFilter } from './MachineFilter.js'
 import { machineSend, machineSwitchOff, type MachineRows } from './machineRows.js'
-import { usePopover } from './usePopover.js'
 import './machineAccounts.css'
 
 /**
  * The header's accounts block in a machine's view: a machine elsewhere's is the hub's own block over its accounts
- * (BTN-1570). In "All machines" a lamp per account Even Keel uses, its window a block per account with the machines it
- * is signed in on as labels (BTN-1309). The own machine's view keeps the hub's own block (`AccountBlock`).
+ * (BTN-1570); "All machines" the hub's block too (BTN-1805). The own machine's view keeps the hub's own block (`AccountBlock`).
  */
 export function MachineAccountsBlock({ now, project }: { now: Date; project?: string }) {
   const { selected } = useMachineFilter()
-  return selected === null ? <AllMachines now={now} /> : <MachineBlock card={selected} now={now} project={project} />
+  return selected === null ? <AllMachines now={now} project={project} /> : <MachineBlock card={selected} now={now} project={project} />
 }
 
 /** The hub's block over the machine's accounts: the hub's launch levels as the machine takes them, its accounts' drawer. */
@@ -40,62 +33,18 @@ function MachineBlock({ card, now, project }: { card: MachineCard; now: Date; pr
   return <AccountBlock account={rows.view} limits={null} now={now} levels={levels.length > 0 ? levels : [{ account: rows.view.active, source: 'shared' }]} machine={rows} />
 }
 
-/** "All machines": pointing shows a block per account, pressing opens the hub's narrow accounts drawer (BTN-1669). */
-function AllMachines({ now }: { now: Date }) {
+/**
+ * "All machines" (BTN-1805): the hub's block, its levels as the hub's view has them unless the machines run the project
+ * on different accounts (`allMachinesLevels`), with a lamp where the shown account is signed out on a machine.
+ */
+function AllMachines({ now, project }: { now: Date; project?: string }) {
   const { cards } = useMachineFilter()
   const { state } = useLive()
-  const { open, setOpen, rootRef } = usePopover()
-  const blocks = state === null ? [] : headerAccounts(cards, state.account)
-  const label = t.machinePanel.view.accountsAll(blocks.length)
-  return (
-    <div className="queue-menu machine-accounts" ref={rootRef}>
-      <button type="button" className="hblock account-block__toggle" aria-expanded={open} aria-controls="account-panel" aria-label={label}
-        aria-describedby={open ? undefined : 'machine-accounts'} onClick={() => setOpen(!open)}>
-        <AllToggle blocks={blocks} />
-      </button>
-      {!open && <div id="machine-accounts" className="account-card machine-accounts__card" role="tooltip"><AccountBlocks blocks={blocks} now={now} /></div>}
-      {open && state !== null && <ViewAccountPanel account={state.account} card={null} onClose={() => setOpen(false)} />}
-    </div>
-  )
-}
-
-function AllToggle({ blocks }: { blocks: HeaderAccount[] }) {
-  const { state } = useLive()
-  return (
-    <span className="hblock__seg machine-accounts__all">
-      {t.machinePanel.view.accounts}
-      <span className="machine-accounts__marks" aria-hidden="true">
-        {blocks.map((block) => (
-          <span key={block.id} className="machine-accounts__lamp" style={seriesStyle(block.entry === undefined || state === null ? null : entrySlot(state.account, block.entry))} />
-        ))}
-      </span>
-    </span>
-  )
-}
-
-/** "All machines": an account a block — its e-mail, its limits once, the machines it is signed in on. */
-function AccountBlocks({ blocks, now }: { blocks: HeaderAccount[]; now: Date }) {
-  const { state } = useLive()
-  const view = t.machinePanel.view
-  if (blocks.length === 0) return <p className="queue__empty">{view.accountsUnused}</p>
-  return (
-    <ul className="machine-accounts__list">
-      {blocks.map((block) => (
-        <li key={block.id} className="machine-accounts__row" style={seriesStyle(block.entry === undefined || state === null ? null : entrySlot(state.account, block.entry))}>
-          <span className="machine-accounts__who">
-            <AgentIcon agent={block.agent} />
-            <span className="machine-accounts__dot" aria-hidden="true" />
-            <span className="machine-accounts__email">{block.email ?? block.entry?.name ?? block.key}</span>
-          </span>
-          {block.limits !== null && <Limits limits={block.limits} now={now} bare />}
-          <MachineLabels items={block.machines.map((machine) => ({
-            id: machine.id, name: machine.name, color: machine.color, kind: machine.token ? 'token' : 'in',
-            ...(machine.token && { tip: t.account.machineOnTokenTip(machine.name) }),
-          }))} />
-        </li>
-      ))}
-    </ul>
-  )
+  const focus = decodeURIComponent(useLocation().hash.slice(1))
+  if (state === null) return null
+  const levels = allMachinesLevels(state, project, focus)
+  const out = accountOutOn(state, cards, project, levels?.[0]?.account ?? state.account.active)
+  return <AccountBlock account={state.account} limits={state.limits} now={now} levels={levels} out={out} />
 }
 
 /** Why a machine lists no account: none yet before its first snapshot, else none at all. */

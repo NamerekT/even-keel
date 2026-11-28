@@ -218,6 +218,34 @@
   display: block;
 }
 
+/* "All machines": the shown account is signed out on a machine of the project (BTN-1805), a lamp on the block's corner leading to Accounts. */
+.account-block > .account-block__out {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  z-index: 1;
+  display: flex;
+}
+
+.account-block__out-lamp {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--bg);
+  border-radius: var(--radius-pill);
+  background: var(--lamp-waiting);
+}
+
+.account-block__out-lamp::after {
+  position: absolute;
+  inset: -7px;
+  content: '';
+}
+
+.account-block:has(.account-block__out:hover) .account-card {
+  display: none;
+}
+
 .account-card__head {
   display: flex;
   align-items: center;
