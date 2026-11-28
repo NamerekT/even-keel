@@ -398,6 +398,8 @@ export const chainEN: Messages['chain'] = {
       archiveCount: (count: number, more: boolean) => (more ? `${count}+ tasks` : tasks(count)),
       archiveOlder: 'older',
       archiveOlderTip: 'Read the older closed tasks',
+      /** A waiting blocker's mark (BTN-1768): the chain's tasks it holds. */
+      holds: (tasks: readonly string[]) => `Holds ${tasks.join(', ')} in the chain`,
     },
     subtasksClosed: (closed: number, total: number) => `Subtasks closed: ${closed} of ${total}`,
     shapes: {

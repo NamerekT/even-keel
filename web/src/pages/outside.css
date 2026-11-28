@@ -72,8 +72,10 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The status's dot stands where a chain row has its lamp. */
+/* The status's dot stands where a chain row has its lamp; above the row's stretched key, so its tip opens. */
 .outside__lamp {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -85,6 +87,11 @@
   margin-left: var(--blocker-indent);
   border-style: dashed;
   background: transparent;
+}
+
+/* A waiting blocker's lock for the lamp, as in the chain (BTN-1768): the chain's tasks it holds are in its tip. */
+.outside__holds {
+  color: var(--fg-muted);
 }
 
 .outside__holder-status {

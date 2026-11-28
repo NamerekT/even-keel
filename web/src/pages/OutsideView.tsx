@@ -12,10 +12,11 @@ import { ChevronIcon, FlagIcon } from '../ui/icons.js'
 import { FoldBody } from '../ui/Fold.js'
 import { Lamp } from '../ui/Lamp.js'
 import { Loading } from '../ui/Loader.js'
-import { chainHolders, openText, outsideGroups, outsidePage, parseOpen, type OutsideGroup } from '../ui/outside.js'
+import { chainHolders, heldInChain, openText, outsideGroups, outsidePage, outsideShown, parseOpen, type OutsideGroup } from '../ui/outside.js'
 import { Tipped } from '../ui/Tipped.js'
 import { compareTasks, OUTSIDE_ORDER_KEY, useBacklogOrder } from './backlogOrder.js'
 import { Divider } from './ChainDivider.js'
+import { LockIcon } from './ChainRow.js'
 import { OrderSwitch } from './OrderSwitch.js'
 import { StatusDot } from './StatusDot.js'
 import './chain.css'
@@ -109,8 +110,8 @@ export function OutsideView({ project, switcher, chain: blocks, edits = 0, onCar
   }
 
   const chain = state?.chain.projects[project]
-  // What the chain shows (its order and its locked blockers) and the backlog stay theirs, whatever the read said.
-  const shown = new Set([...(chain?.order ?? []), ...(chain?.waiting ?? []), ...(chain?.backlog ?? [])])
+  // What the chain orders and the backlog stay theirs, whatever the read said; a waiting blocker stands in both (BTN-1768).
+  const shown = outsideShown(chain)
   const groups = loaded.tasks === null ? [] : outsideGroups(loaded.tasks, shown, compareTasks(order))
   const keyChars = Math.max(0, ...[...(loaded.tasks ?? []).map((each) => each.task), ...(archive?.tasks ?? []), ...(loaded.tasks ?? []).flatMap((each) => chainHolders(each.task.blockedBy, blocks))].map((task) => task.id.length))
   const retry = () => {
@@ -289,7 +290,7 @@ function GroupRows({ group, chain, more, onMore, onCard }: Omit<GroupProps, 'ope
                       {holders.map((holder) => (
                         <HolderRow key={`${each.task.id}:${holder.id}`} block={holder} search={toChain} onCard={onCard} />
                       ))}
-                      <Row task={each.task} onCard={onCard} />
+                      <Row task={each.task} holds={heldInChain(each.task.id, chain).map((held) => held.id)} onCard={onCard} />
                     </Fragment>
                   )
                 })}
@@ -311,16 +312,26 @@ function GroupRows({ group, chain, more, onMore, onCard }: Omit<GroupProps, 'ope
 
 /**
  * A task's row as the chain draws a far one, without a number or a milestone: its status's dot for the lamp, the name in
- * its tip, the right side empty (BTN-1673); a press on its key opens the card.
+ * its tip, the right side empty (BTN-1673); a press on its key opens the card. A waiting blocker has the lock for the lamp,
+ * as its row in the chain has, its tip naming the chain's tasks it holds (`holds`) under the status (BTN-1768).
  */
-function Row({ task, onCard }: { task: Task; onCard: (task: string) => void }) {
+function Row({ task, holds, onCard }: { task: Task; holds: readonly string[]; onCard: (task: string) => void }) {
   const lamp = taskLamp(task, null)
+  const held = holds.length > 0
+  const tip = held ? (
+    <>
+      <span className="tip__head">{task.status.name}</span>
+      <span>{t.chain.outside.holds(holds)}</span>
+    </>
+  ) : (
+    task.status.name
+  )
   return (
     <li className={`block block--${lamp} block--far block--priority-${task.priority}`} data-block={task.id} onDoubleClick={() => onCard(task.id)}>
       <span className="block__number" />
       <div className="block__head">
-        <Tipped tip={task.status.name} inline className="outside__lamp">
-          <StatusDot status={task.status} />
+        <Tipped tip={tip} inline className={held ? 'outside__lamp outside__holds' : 'outside__lamp'}>
+          {held ? <LockIcon /> : <StatusDot status={task.status} />}
         </Tipped>
         <button type="button" className="block__key" title={t.chain.openCard} onClick={() => onCard(task.id)}>
           {task.id}

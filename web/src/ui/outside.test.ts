@@ -3,7 +3,7 @@ import type { OutsideTask } from '../../../src/state.js'
 import type { Task, TaskMilestone, TaskStatus } from '../../../src/tracker/model.js'
 import { compareTasks } from '../pages/backlogOrder.js'
 import { CHAIN_MORE, CHAIN_PAGE } from './chainPage.js'
-import { chainHolders, outsideGroups, outsidePage, parseOpen, openText, type OutsideSection } from './outside.js'
+import { chainHolders, heldInChain, outsideGroups, outsidePage, outsideShown, parseOpen, openText, type OutsideSection } from './outside.js'
 
 const milestone = (label: string, targetDate: number | null = null): TaskMilestone => ({ label, targetDate })
 const task = (id: string, at: TaskMilestone | null = null): Task => ({
@@ -143,5 +143,39 @@ describe('chainHolders', () => {
 
   it('gives none for a task without blockers', () => {
     expect(chainHolders([], chain)).toEqual([])
+  })
+})
+
+describe('outsideShown', () => {
+  it('takes the chain order and the backlog, not the waiting blockers, which the view shows too (BTN-1768)', () => {
+    const order = { order: ['A-1'], waiting: ['A-2'], backlog: ['A-3'] }
+    const shown = outsideShown(order)
+    expect([...shown].sort()).toEqual(['A-1', 'A-3'])
+    const groups = outsideGroups([out('A-1', 'label', null, 'Manual'), out('A-2', 'label', null, 'Manual'), out('A-3', 'status')], shown, newest)
+    expect(groups.map((group) => [group.reason, group.milestones.flatMap((section) => section.statuses.flatMap((status) => status.tasks.map((each) => each.task.id)))])).toEqual([['label', ['A-2']]])
+  })
+
+  it('leaves nothing out of a project the chain has not ordered', () => {
+    expect(outsideShown(undefined).size).toBe(0)
+  })
+})
+
+describe('heldInChain', () => {
+  const block = (id: string, blockedBy: string[], locked = false, lamp: 'ahead' | 'done' = 'ahead') => ({ id, blockedBy, locked, lamp })
+
+  it("gives the chain's tasks a waiting blocker holds, in the chain order", () => {
+    const chain = [block('A-1', []), block('A-9', [], true), block('A-17', ['A-9']), block('A-13', ['A-9', 'A-5'])]
+    expect(heldInChain('A-9', chain).map((each) => each.id)).toEqual(['A-17', 'A-13'])
+  })
+
+  it('goes through a waiting blocker it holds to the chain task behind it', () => {
+    const chain = [block('A-8', [], true), block('A-9', ['A-8'], true), block('A-17', ['A-9'])]
+    expect(heldInChain('A-8', chain).map((each) => each.id)).toEqual(['A-17'])
+  })
+
+  it('gives none for a task that holds no open chain task, a loop of blockers included', () => {
+    const chain = [block('A-8', ['A-9'], true), block('A-9', ['A-8'], true), block('A-17', ['A-7'], false, 'done'), block('A-18', [])]
+    expect(heldInChain('A-7', chain)).toEqual([])
+    expect(heldInChain('A-8', chain)).toEqual([])
   })
 })
