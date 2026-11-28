@@ -34,6 +34,8 @@ const about = (host: string, patch: Partial<MachineAbout> = {}): MachineAbout =>
 export class FakeNetwork {
   private machines: MachineView[] = []
   private readonly listeners = new Set<() => void>()
+  /** The folders whose missing remotes "Add remotes" added (BTN-1806). */
+  private readonly completed = new Set<string>()
   /** The pools of the projects (BTN-1271), by project: the own machine's row comes in on the first read. */
   private readonly pools = new Map<string, PoolMachine[]>()
 
@@ -75,7 +77,7 @@ export class FakeNetwork {
   query(name: string, body: Record<string, unknown>): unknown {
     if (name === 'machines/list') return this.machines.map((machine) => ({ ...machine }))
     if (name === 'machines/pool') return this.poolOf(String(body.project))
-    if (name === 'machines/folder') return folderProbe(String(body.folder), String(body.remote ?? body.project ?? ''))
+    if (name === 'machines/folder') return folderProbe(String(body.folder), String(body.remote ?? body.project ?? ''), this.completed.has(String(body.folder)))
     if (name !== 'machines/invite') return undefined
     const id = `machine-${this.machines.length + 1}`
     const given = String(body.name ?? '').trim()
@@ -377,6 +379,10 @@ export class FakeNetwork {
       this.changed()
       return true
     }
+    if (name === 'machines/remotes') {
+      this.completed.add(String(body.folder))
+      return true
+    }
     if (name === 'machines/connect') {
       const project = String(body.project)
       const machine = this.machines.find((each) => each.id === body.machine)
@@ -438,10 +444,13 @@ export const fakeMachineNames = (mode: string | null): Record<string, string> =>
 /**
  * The wizard's probe of a folder on a machine (BTN-1297): a name with `clone` holds the project's clone, one with `taken`
  * another repository, any other is free. As if the hub had no repository of the project (BTN-1554): `moved-clone` a
- * clone taken as it is, with its note, `moved` any other name, refused with nothing to clone from.
+ * clone taken as it is, with its note, `moved` any other name, refused with nothing to clone from. `partial-clone` — a
+ * clone without the hub's `github` remote until "Add remotes" (BTN-1806) adds it.
  */
-const folderProbe = (folder: string, remote: string): FolderProbe =>
-  folder.includes('moved-clone') ? { state: 'clone', notice: notice('pool.hubNoRepositoryTaken', { folder }) }
+const folderProbe = (folder: string, remote: string, completed: boolean): FolderProbe =>
+  folder.includes('partial-clone') && !completed
+    ? { state: 'clone', notice: notice('pool.remotesMissing', { folder, names: 'github' }), missing: [{ name: 'github', url: 'https://github.com/example/abc.git' }] }
+  : folder.includes('moved-clone') ? { state: 'clone', notice: notice('pool.hubNoRepositoryTaken', { folder }) }
   : folder.includes('moved') ? { state: 'taken', notice: notice('pool.hubNoRepository', { repo: 'C:/Projects/abc' }) }
   : folder.includes('clone') ? { state: 'clone' } : folder.includes('taken') ? { state: 'taken', notice: notice('pool.foreignRepo', { folder, remote }) } : { state: 'free' }
 

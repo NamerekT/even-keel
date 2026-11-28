@@ -6,7 +6,7 @@ import type { FolderProbe, FolderSpec, FolderStep } from '../machine/folder-chec
 import { fail, notice, type Notice } from '../notice/notice.js'
 import type { PoolTarget } from './machine-network.js'
 import { JOIN_KIND, stepOf } from '../jobs/model.js'
-import { connectPlan, joinPlan, onMachines, probeOn, probeProject, type ConnectDeps, type PoolNetwork } from './machine-pool.js'
+import { addRemotesOn, connectPlan, joinPlan, onMachines, probeOn, probeProject, type ConnectDeps, type PoolNetwork } from './machine-pool.js'
 
 const PROJECT = '11111111-1111-4111-8111-111111111111'
 const LAPTOP = '99999999-9999-4999-8999-999999999999'
@@ -14,6 +14,8 @@ const OWN = '88888888-8888-4888-8888-888888888888'
 const TARGET: PoolTarget = { id: LAPTOP, name: 'Example laptop', root: '/home/example/projects' }
 const MINI = '77777777-7777-4777-8777-777777777777'
 const MINI_TARGET: PoolTarget = { id: MINI, name: 'Example mini', root: '/Users/example/projects' }
+
+const named = (remotes: Remote[] | null): string => remotes?.map((remote) => `${remote.name}=${remote.url}`).join(' ') ?? 'unknown'
 
 /** The hub's network as the job sees it: each call recorded, the checks answered from `refusals`. */
 function fakeNetwork() {
@@ -28,9 +30,10 @@ function fakeNetwork() {
     },
     folders: () => ({
       probe: async (spec) => {
-        calls.push(`probe ${spec.project} ${spec.folder} ${spec.remotes?.join(' ') ?? 'unknown'}`)
+        calls.push(`probe ${spec.project} ${spec.folder} ${named(spec.remotes)}`)
         return probes[spec.folder] ?? { state: 'free' }
       },
+      addRemotes: async (spec) => void calls.push(`addRemotes ${spec.project} ${spec.folder} ${named(spec.remotes)}`),
       check: async (step: FolderStep, spec: FolderSpec) => {
         calls.push(`check ${step} ${spec.folder}${spec.remotes === null ? ' unknown' : ''}`)
         return refusals[step] ?? null
@@ -155,7 +158,7 @@ describe("the wizard's machines (BTN-1297)", () => {
     const { view } = await run(plan)
     expect(view()).toMatchObject({ kind: 'project', done: true, result: PROJECT })
     expect(view().steps.map((step) => step.id).slice(0, 3)).toEqual(['project', `machine-clone@${LAPTOP}`, `machine-place@${LAPTOP}`])
-    expect(calls).toContain(`probe ${PROJECT} /home/example/projects/apps/abc https://forge.example.com/other/abc.git https://forge.example.com/team/abc.git`)
+    expect(calls).toContain(`probe ${PROJECT} /home/example/projects/apps/abc ${HUB_REMOTES}`)
     expect(calls).toContain('clone origin=https://forge.example.com/team/abc.git /home/example/projects/apps/abc +upstream=https://forge.example.com/other/abc.git')
     expect(calls.filter((call) => call.startsWith('clone'))).toHaveLength(1)
     expect(calls).toContain(`place ${PROJECT} /Users/example/projects/abc`)
@@ -183,7 +186,7 @@ describe("the wizard's machines (BTN-1297)", () => {
   it('probes a folder inside the machine folder of projects only, for a project not made yet', async () => {
     const { network, calls } = fakeNetwork()
     expect(await probeOn(network, LAPTOP, '/home/example/projects/abc', 'https://forge.example.com/team/abc.git')).toEqual({ state: 'free' })
-    expect(calls).toEqual(['probe draft /home/example/projects/abc https://forge.example.com/team/abc.git'])
+    expect(calls).toEqual(['probe draft /home/example/projects/abc origin=https://forge.example.com/team/abc.git'])
     expect(await probeOn(network, LAPTOP, '/srv/abc', 'https://forge.example.com/team/abc.git')).toEqual({
       state: 'taken',
       notice: { code: 'pool.outside', params: { folder: '/srv/abc', root: '/home/example/projects' } },
@@ -193,9 +196,21 @@ describe("the wizard's machines (BTN-1297)", () => {
   it('probes a folder for a project already made against its remotes', async () => {
     const { network, calls } = fakeNetwork()
     expect(await probeProject(depsOf(network), PROJECT, LAPTOP, '/home/example/projects/abc')).toEqual({ state: 'free' })
-    expect(calls).toEqual([`probe ${PROJECT} /home/example/projects/abc https://forge.example.com/other/abc.git https://forge.example.com/team/abc.git`])
+    expect(calls).toEqual([`probe ${PROJECT} /home/example/projects/abc ${HUB_REMOTES}`])
+  })
+
+  it("adds the hub folder's remotes to a clone there by their names, never outside the machine's folder of projects (BTN-1806)", async () => {
+    const { network, calls } = fakeNetwork()
+    await addRemotesOn(depsOf(network), PROJECT, LAPTOP, '/home/example/projects/abc')
+    expect(calls).toEqual([`addRemotes ${PROJECT} /home/example/projects/abc ${HUB_REMOTES}`])
+    await expect(addRemotesOn(depsOf(network), PROJECT, LAPTOP, '/srv/abc')).rejects.toMatchObject({ notice: { code: 'pool.outside' } })
+    const unknown: ConnectDeps = { ...depsOf(network), factsOf: async () => ({ repo: 'D:\\repos\\moved', remotes: null, branch: 'trunk', claude: true }) }
+    await expect(addRemotesOn(unknown, PROJECT, LAPTOP, '/home/example/projects/abc')).rejects.toMatchObject({ notice: { code: 'pool.hubNoRepository' } })
+    expect(calls).toHaveLength(1)
   })
 })
+
+const HUB_REMOTES = 'upstream=https://forge.example.com/other/abc.git origin=https://forge.example.com/team/abc.git'
 
 describe('a project with no repository of its own on the hub (BTN-1554)', () => {
   const MOVED = 'D:\\repos\\moved'

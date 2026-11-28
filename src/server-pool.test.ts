@@ -20,6 +20,7 @@ describe('the routes of a project pool', () => {
         settings: async (project, machine, values) => void calls.push(['settings', project, machine, values]),
         join: async (machine, requests) => void calls.push(['join', machine, requests]),
         probe: async (machine, folder, of) => (calls.push(['probe', machine, folder, of]), { state: 'free' }),
+        addRemotes: async (project, machine, folder) => void calls.push(['addRemotes', project, machine, folder]),
       },
     })
     const post = (path: string, body: unknown) => fetch(`${base}/api/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
@@ -41,6 +42,8 @@ describe('the routes of a project pool', () => {
       expect(await (await post('machines/folder', { machine: 'srv', folder: '/srv/abc', remote: 'https://forge.example.com/abc.git' })).json()).toEqual({ state: 'free' })
       expect((await post('machines/folder', { machine: 'srv', folder: '/srv/abc', project: 'ABC' })).status).toBe(200)
       expect((await post('machines/folder', { machine: 'srv', folder: '/srv/abc' })).status).toBe(400)
+      expect((await post('machines/remotes', { project: 'ABC', machine: 'srv', folder: '/srv/abc' })).status).toBe(200)
+      expect((await post('machines/remotes', { project: 'ABC', machine: 'srv' })).status).toBe(400)
       expect(calls).toEqual([
         ['view', 'ABC'],
         ['connect', 'ABC', { machine: 'srv', clone: true, folder: '/srv/abc' }],
@@ -51,6 +54,7 @@ describe('the routes of a project pool', () => {
         ['join', 'srv', [{ project: 'ABC', clone: true }, { project: 'DEF', clone: false, folder: '/srv/def' }, { project: 'GHI', clone: 'auto' }]],
         ['probe', 'srv', '/srv/abc', { remote: 'https://forge.example.com/abc.git' }],
         ['probe', 'srv', '/srv/abc', { project: 'ABC' }],
+        ['addRemotes', 'ABC', 'srv', '/srv/abc'],
       ])
     } finally {
       await close()

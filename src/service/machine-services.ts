@@ -10,7 +10,7 @@ import { readGitSetup, saveIdentity } from '../git/setup.js'
 import type { Git } from '../git/types.js'
 import { isPlain } from '../config.js'
 import { branchHere } from '../machine/branch-here.js'
-import { addRemotes, checkFolderStep, cloneTarget, probeFolder } from '../machine/folder-check.js'
+import { addRemotes, checkFolderStep, cloneTarget, completeRemotes, probeFolder } from '../machine/folder-check.js'
 import { taskSessionsHere } from '../machine/scope.js'
 import { fail } from '../notice/notice.js'
 import { readJson } from '../packages/plugins.js'
@@ -162,6 +162,7 @@ export function wireMachineServices(ctx: MachineServicesContext, deps: MachineSe
         // A folder Even Keel made is trusted by it, as a project the wizard clones.
         if (spec.claude) for (const file of ctx.claudeConfigs()) trustFolder(file, spec.folder)
       },
+      addRemotes: (spec) => completeRemotes(deps.git ?? runGit, spec.folder, spec.remotes),
       probe: (spec) => probeFolder(deps.git ?? runGit, spec.folder, spec.remotes),
     },
     chats: deps.chats ?? noChats,

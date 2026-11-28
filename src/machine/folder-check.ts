@@ -21,10 +21,10 @@ export interface FolderSpec {
   project: string
   folder: string
   /**
-   * The addresses of the project's remotes in the hub's folder; `null` — the hub has no repository of the project to
-   * read them from (BTN-1554), so the folder's own remote, `origin` first, is taken as the project's.
+   * The project's remotes in the hub's folder, by their names there (BTN-1806); `null` — the hub has no repository of the
+   * project to read them from (BTN-1554), so the folder's own remote, `origin` first, is taken as the project's.
    */
-  remotes: string[] | null
+  remotes: Remote[] | null
   /** The project's main branch (`branch`). */
   branch: string
   /** Claude Code runs the project's sessions: the folder has to be trusted. */
@@ -54,11 +54,14 @@ export const mainRemote = (remotes: Remote[]): Remote | undefined => remotes.fin
  * on the hub, the folder's `mainRemote`.
  */
 async function projectRemote(git: Git, spec: Pick<FolderSpec, 'folder' | 'remotes'>): Promise<Remote | undefined> {
-  const urls = await remoteUrls(git, spec.folder)
-  if (urls.code !== 0) return undefined
-  const own = remotesOf(urls.out)
+  const own = await folderRemotes(git, spec.folder)
   const { remotes } = spec
-  return remotes === null ? mainRemote(own) : own.find((remote) => remotes.some((url) => sameRemote(url, remote.url)))
+  return remotes === null ? mainRemote(own) : own.find((remote) => remotes.some((hub) => sameRemote(hub.url, remote.url)))
+}
+
+async function folderRemotes(git: Git, folder: string): Promise<Remote[]> {
+  const urls = await remoteUrls(git, folder)
+  return urls.code === 0 ? remotesOf(urls.out) : []
 }
 
 /** Why the folder has no remote of the project: the folder has none, the hub has none, or it is another one. */
@@ -66,7 +69,7 @@ function noProjectRemote(spec: Pick<FolderSpec, 'folder' | 'remotes'>): Notice {
   const { folder, remotes } = spec
   if (remotes === null) return notice('pool.folderNoRemote', { folder })
   const [remote] = remotes
-  return remote === undefined ? notice('pool.hubNoRemote', {}) : notice('pool.otherRemote', { folder, remote })
+  return remote === undefined ? notice('pool.hubNoRemote', {}) : notice('pool.otherRemote', { folder, remote: remote.url })
 }
 
 /** One check of the folder; `null` — it passed, else what the person does about it. */
@@ -146,20 +149,53 @@ function behindOnly(out: string): boolean {
   return refused.length > 0 && refused.every((line) => /\t\[rejected\] \((fetch first|non-fast-forward)\)\s*$/.test(line))
 }
 
+/** A remote this machine can reach: a server's, or a local one whose folder is here. */
+function reachable(url: string, folder: string, exists: (path: string) => boolean): boolean {
+  const local = localRemotePath(url, folder)
+  return local === null || exists(local)
+}
+
+/** A remote git refused to add, and git's words why. */
+export interface RemoteRefused {
+  name: string
+  reason: string
+}
+
 /**
- * Adds the rest of the hub's remotes to a fresh clone by their names (BTN-1766). A local one with no folder here is
- * left out with a log line, as is one git refuses: the clone stays, and its push goes to the remotes it has.
+ * Adds the hub's remotes to a folder by their names: the rest of them to a fresh clone (BTN-1766), the missing ones to a
+ * clone already there (BTN-1806). A local one with no folder here is left out with a log line, as is one git refuses:
+ * the clone stays, and its push goes to the remotes it has. Answers the refused ones.
  */
-export async function addRemotes(git: Git, folder: string, remotes: readonly Remote[], exists: (path: string) => boolean = existsSync): Promise<void> {
+export async function addRemotes(git: Git, folder: string, remotes: readonly Remote[], exists: (path: string) => boolean = existsSync): Promise<RemoteRefused[]> {
+  const refused: RemoteRefused[] = []
   for (const { name, url } of remotes) {
-    const local = localRemotePath(url, folder)
-    if (local !== null && !exists(local)) {
+    if (!reachable(url, folder, exists)) {
       console.warn(`machine folder: ${folder} gets no remote ${name}: its address ${url} is a folder this machine does not have`)
       continue
     }
     const added = await git(folder, ['remote', 'add', '--', name, url])
-    if (added.code !== 0) console.warn(`machine folder: ${folder} gets no remote ${name} (${url}): ${added.out.trim()}`)
+    if (added.code === 0) {
+      console.log(`machine folder: ${folder} got the remote ${name} (${url})`)
+      continue
+    }
+    console.warn(`machine folder: ${folder} gets no remote ${name} (${url}): ${added.out.trim()}`)
+    refused.push({ name, reason: added.out.trim() })
   }
+  return refused
+}
+
+/**
+ * Adds to a clone of the project already on the machine the hub's remotes it lacks (BTN-1806). A folder that is not
+ * the project's clone is refused with its probe's notice; a remote git refuses fails the whole with its name.
+ */
+export async function completeRemotes(git: Git, folder: string, remotes: Remote[] | null, exists: (path: string) => boolean = existsSync): Promise<void> {
+  const probe = await probeFolder(git, folder, remotes, exists)
+  if (probe.state === 'taken') throw new NoticeError(probe.notice)
+  if (probe.state === 'free') throw fail('pool.notRepository', { folder })
+  const refused = await addRemotes(git, folder, probe.missing ?? [], exists)
+  if (refused.length === 0) return
+  const names = refused.map((each) => each.name).join(', ')
+  throw fail('pool.remotesRefused', { folder, names }, { detail: refused.map((each) => `${each.name}: ${each.reason}`).join('\n') })
 }
 
 /** The folder a clone goes into: absent, or empty. */
@@ -179,16 +215,28 @@ function folderFree(folder: string): boolean {
  * What the folder is to a project with these remotes (`FolderProbe`, BTN-1297); `null` — none known on the hub
  * (BTN-1554): a repository with a remote is taken as the project's, with a note saying so.
  */
-export async function probeFolder(git: Git, folder: string, remotes: string[] | null): Promise<FolderProbe> {
+export async function probeFolder(git: Git, folder: string, remotes: Remote[] | null, exists: (path: string) => boolean = existsSync): Promise<FolderProbe> {
   if (folderFree(folder)) return { state: 'free' }
   const top = await git(folder, ['rev-parse', '--is-inside-work-tree'])
   if (top.missing === true) return { state: 'taken', notice: notice('pool.noGit', {}) }
   if (top.code !== 0 || top.out.trim() !== 'true') return { state: 'taken', notice: notice('pool.folderNotEmpty', { folder }) }
   if ((await projectRemote(git, { folder, remotes })) !== undefined) {
-    return remotes === null ? { state: 'clone', notice: notice('pool.hubNoRepositoryTaken', { folder }) } : { state: 'clone' }
+    if (remotes === null) return { state: 'clone', notice: notice('pool.hubNoRepositoryTaken', { folder }) }
+    const missing = await missingRemotes(git, folder, remotes, exists)
+    if (missing.length === 0) return { state: 'clone' }
+    return { state: 'clone', notice: notice('pool.remotesMissing', { folder, names: missing.map((each) => each.name).join(', ') }), missing }
   }
   const [remote] = remotes ?? []
-  return { state: 'taken', notice: remote === undefined ? noProjectRemote({ folder, remotes }) : notice('pool.foreignRepo', { folder, remote }) }
+  return { state: 'taken', notice: remote === undefined ? noProjectRemote({ folder, remotes }) : notice('pool.foreignRepo', { folder, remote: remote.url }) }
+}
+
+/**
+ * The hub's remotes the folder has under no name (BTN-1806): `git sync` there pushes to the folder's own remotes alone.
+ * A local one whose folder this machine lacks is left out: it cannot be added.
+ */
+async function missingRemotes(git: Git, folder: string, remotes: Remote[], exists: (path: string) => boolean): Promise<Remote[]> {
+  const own = await folderRemotes(git, folder)
+  return remotes.filter((hub) => !own.some((remote) => sameRemote(hub.url, remote.url)) && reachable(hub.url, folder, exists))
 }
 
 /** A check's refusal as the error a job's step fails with. */

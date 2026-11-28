@@ -56,7 +56,8 @@ export function ConnectMachineDialog({
   const [place, setPlace] = useState<FolderPick>(NEW_FOLDER)
   const hubName = lastFolder(chosen?.folder ?? '')
   const folder = chosen === undefined || own ? null : machineFolder(place, chosen, hubName)
-  const probe = useFolderAnswers(folder === null ? [] : [{ id: machine, machine, folder, project }])[machine]
+  const folders = useFolderAnswers(folder === null ? [] : [{ id: machine, machine, folder, project }])
+  const probe = folders.answers[machine]
   // The folder decides between a clone and a clone already there (BTN-1298): one taken holds "Connect".
   const blocked = chosen === undefined || (!own && folderBlocked(place, chosen, probe))
   const backdrop = useBackdropClose(dialog, onClose)
@@ -76,6 +77,10 @@ export function ConnectMachineDialog({
       ? await send('machines/enable', { project, machine, enabled: true })
       : await send('machines/connect', { project, machine, ...(folder !== null && { folder }), ...(copyFrom !== '' && { copyFrom }) })
     if (started) onStarted()
+  }
+  const addRemotes = async () => {
+    if (folder === null || sending) return
+    if (await send('machines/remotes', { project, machine, folder })) folders.again(machine)
   }
 
   // Out of the settings' form: a form inside a form is invalid, and its submit would save the settings.
@@ -130,7 +135,9 @@ export function ConnectMachineDialog({
                       pick={place}
                       hubName={hubName}
                       probe={probe}
+                      disabled={sending}
                       onChange={(patch) => setPlace({ ...place, ...patch })}
+                      onAddRemotes={() => void addRemotes()}
                     />
                   </div>
                 )}

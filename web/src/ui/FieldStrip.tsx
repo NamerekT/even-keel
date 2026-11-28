@@ -16,7 +16,8 @@ interface FieldStripProps {
 
 /**
  * A field with a line glued under it: as wide as the field, tucked under its rounded bottom, sliding out from under it.
- * The text that does not fit drops to its short form, then is cut with the whole of it in a tip; an error wraps instead.
+ * The text that does not fit drops to its short form, then is cut with the whole of it in a tip; an error or a warning
+ * wraps instead.
  */
 export function FieldStrip({ line, fold = false, wide = false, children }: FieldStripProps) {
   const className = ['field-strip', fold && 'field-strip--fold', wide && 'field-strip--wide'].filter(Boolean).join(' ')
@@ -24,17 +25,22 @@ export function FieldStrip({ line, fold = false, wide = false, children }: Field
     <div className={className}>
       {children}
       <div className="field-strip__room" role={line?.tone === 'error' ? 'alert' : undefined}>
-        {line !== null && (line.tone === 'error' ? <ErrorText text={line.text} /> : <StripText key={line.tone} line={line} />)}
+        {line !== null && (line.tone === 'error' || line.tone === 'warn' ? <WholeText line={line} /> : <StripText key={line.tone} line={line} />)}
       </div>
     </div>
   )
 }
 
-/** An error is read whole: it takes as many lines as it needs. */
-function ErrorText({ text }: { text: string }) {
+/** An error or a warning is read whole: it takes as many lines as it needs. */
+function WholeText({ line }: { line: StripLine }) {
   return (
-    <span className="field-strip__line field-strip__line--error">
-      <span className="field-strip__text">{text}</span>
+    <span className={`field-strip__line field-strip__line--${line.tone}`}>
+      {line.tone === 'warn' && (
+        <span className="field-strip__mark field-strip__mark--warn" aria-hidden="true">
+          !
+        </span>
+      )}
+      <span className="field-strip__text">{line.text}</span>
     </span>
   )
 }

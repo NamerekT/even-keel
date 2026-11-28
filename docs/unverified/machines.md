@@ -484,3 +484,11 @@ To check, on the benches: run a bench task on machine-1, see its session's accou
 Assumed: the hub's remote names and addresses reach the machine as they are, and an address that is a folder on the hub's disk is left out on a machine without that folder. If not, `git remote -v` on the machine differs from the hub's and `git sync` there pushes to fewer forges; the machine's log has `machine folder: … gets no remote …`. Add the missing remote by hand with `git remote add`.
 
 To check, on the benches: give the bench project's hub checkout a second remote, connect machine-1 into a free folder, and compare `git remote -v` on both.
+
+## "Add remotes" for a clone already on a machine (BTN-1806)
+
+`docs/machines/page.md`, "The folder's state", "A clone lacking remotes". The probe answers the hub remotes a clone lacks and "Add remotes" adds them by name (`completeRemotes`, `src/machine/folder-check.ts`). Covered by `src/machine/folder-check.test.ts` with real git on disk, `src/machine/services.test.ts` over the link and `src/service/machine-pool.test.ts`; the field's amber strip and the button were seen only in `dev:fake`, and no real machine elsewhere has had a remote added.
+
+Assumed: the hub's remotes reach the machine by name and address as they are, the addresses compare the scheme and `.git` apart, and the field asks the folder again after the button. If not, the strip stays amber after a press that said nothing, or a remote the clone has under another address is offered again and refused with "rename it there"; add it by hand with `git remote add` and say so in an issue with the machine's `machine folder:` log lines.
+
+To check, on the benches: give the bench project's hub checkout a second remote, clone the project by hand into a folder on machine-1 with `origin` alone, open "Connect a machine" with that folder, press "Add remotes", and compare `git remote -v` on both; then point that remote on the machine at another address (`git remote set-url`) and press again for the refusal.

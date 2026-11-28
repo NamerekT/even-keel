@@ -61,6 +61,7 @@ export const poolEn: Messages['pool'] = {
     pathOf: (name: string) => `Full path on ${name}`,
     pathPlaceholder: 'full path on the machine',
     rootFolder: "into the machine's projects folder",
+    addRemotes: 'Add remotes',
     states: {
       free: 'free — the project will be cloned here',
       clone: 'a clone of this repository is already there — it will be taken',

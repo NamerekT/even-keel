@@ -6,9 +6,10 @@ import type { Notice } from '../notice/notice.js'
 /**
  * What a folder on a machine is to a project before the machine is connected (BTN-1297): `free` — absent or empty, a
  * clone goes there; `clone` — a repository with one of the project's remotes, taken as it is, with a `notice` when the
- * hub had no remotes to compare (BTN-1554); `taken` — anything else, with what to do about it.
+ * hub had no remotes to compare (BTN-1554) or when it lacks some of the hub's, `missing` (BTN-1806); `taken` — anything
+ * else, with what to do about it.
  */
-export type FolderProbe = { state: 'free' } | { state: 'clone'; notice?: Notice } | { state: 'taken'; notice: Notice }
+export type FolderProbe = { state: 'free' } | { state: 'clone'; notice?: Notice; missing?: Array<{ name: string; url: string }> } | { state: 'taken'; notice: Notice }
 
 /** What a machine tells about itself when it joins and at every handshake: for the hub's page (BTN-1056, BTN-993). */
 export interface MachineAbout {

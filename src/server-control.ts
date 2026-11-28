@@ -327,6 +327,8 @@ export interface ServerDeps {
     join(machine: string, requests: JoinRequest[]): Promise<void>
     /** What a folder on a machine elsewhere is to a project with the remote, before it is made (BTN-1297), or to a project made (BTN-1298). */
     probe(machine: string, folder: string, of: import('./service/machine-pool.js').ProbeOf): Promise<import('./machine/folder-check.js').FolderProbe>
+    /** "Add remotes" of a project's clone already on a machine elsewhere (BTN-1806): the hub folder's remotes it lacks. */
+    addRemotes(project: string, machine: string, folder: string): Promise<void>
   }
   /** The page of one machine (BTN-1272): its view, its capacity (the own one's is `parallel`), its colour and git's name and e-mail there (BTN-1503). */
   machinePage?: {

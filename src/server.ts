@@ -127,6 +127,7 @@ const COMMANDS: Record<string, Command> = {
       ...(typeof body.copyFrom === 'string' && body.copyFrom !== '' && { copyFrom: body.copyFrom }),
     }),
   'machines/enable': ({ pool }, body) => pool?.enable(projectOf(body), textOf(body.machine, 'machine'), switchOf(body.enabled, 'enabled')),
+  'machines/remotes': ({ pool }, body) => pool?.addRemotes(projectOf(body), textOf(body.machine, 'machine'), textOf(body.folder, 'folder')),
   'machines/settings': ({ pool }, body) => pool?.settings(projectOf(body), textOf(body.machine, 'machine'), cleanMachineSettings(body.settings)),
   'machines/capacity': ({ machinePage }, body) => machinePage?.capacity(textOf(body.machine, 'machine'), body.capacity as number),
   'machines/color': ({ machinePage }, body) => machinePage?.color(textOf(body.machine, 'machine'), body.color === null ? null : textOf(body.color, 'color')),
