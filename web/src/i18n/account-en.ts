@@ -126,6 +126,7 @@ export const accountEn = {
     machineOnToken: 'long token',
     sessionsOnly: 'limits from sessions only',
     signInFully: 'Sign in fully',
+    outOnMachines: (machines: string) => `Signed out on ${machines}. Open Accounts to sign in there again.`,
     machineOnTokenTip: (machine: string) => `${machine} runs this account on a long token: no Remote Control there, answer its sessions from the chat here or in the tracker.`,
     loggingIn: 'Signing in…',
     loginFailed: 'Sign-in failed',

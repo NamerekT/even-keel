@@ -1,7 +1,11 @@
-import { headerLevels } from '../../../src/account/header-levels.js'
-import type { EvenKeelState, ProjectForm, SharedForm } from '../../../src/state.js'
+import { headerLevels, inheritedLevels } from '../../../src/account/header-levels.js'
+import type { EvenKeelState, MachineSignIn, ProjectForm, SharedForm } from '../../../src/state.js'
 import type { RunSettings } from '../../../src/sessions/launch.js'
 import { fakeAccount, FAKE_LIMITS } from './fakeAccounts.js'
+import { fakeMachineColors } from './fakeMachines.js'
+import { ago, session } from './fakeSessions.js'
+
+const FAKE_EMAIL = 'john.doe@example.com'
 
 /** Read-only header fixtures exercise the server's selector too; the rendered page never chooses accounts. */
 export function prepareHeaderLevels(state: EvenKeelState, mode: string | null): EvenKeelState {
@@ -30,15 +34,43 @@ export function prepareHeaderLevels(state: EvenKeelState, mode: string | null): 
   return { ...state, account, runs, sessions, config: { ...state.config, shared, projects: { ...state.config.projects, ABC: project } } }
 }
 
+/**
+ * `?chain=accounts|accountsOut` (BTN-1805): ABC's two lanes on two machines and two accounts — ABC-5 on the workstation
+ * as the global account, ABC-6 on the home server as jane.roe; `accountsOut` also signs the global account out there.
+ */
+export function withDivergedAccounts(state: EvenKeelState, mode: string | null): EvenKeelState {
+  if (mode !== 'accounts' && mode !== 'accountsOut') return state
+  const active = state.chain.active.find((lane) => lane.project === 'ABC')
+  if (active?.current == null) return state
+  const machineNames = { pc: 'Workstation', srv: 'Home server' }
+  const since = ago(1.5)
+  const first = state.sessions.find((each) => each.task === active.current!.task)
+  const second = { ...session('ABC-6', 41_000, 'working'), startedAt: since, account: 'jane.roe@example.com' }
+  const sessions = [...state.sessions.filter((each) => each.task !== 'ABC-6').map((each) => each === first ? { ...each, account: FAKE_EMAIL } : each), second]
+  const lanes = [{ ...active, machine: 'pc' }, { project: 'ABC', machine: 'srv', current: { task: 'ABC-6', sessionId: second.sessionId, since }, paused: false, error: null }]
+  const out: MachineSignIn = { machine: 'srv', name: machineNames.srv, online: true, login: null, missing: [],
+    accounts: [{ key: 'global', agent: 'claude', email: FAKE_EMAIL, signedIn: false }, { key: 'jane.roe', agent: 'claude', email: 'jane.roe@example.com', signedIn: true }] }
+  return {
+    ...state, ...fakeMachineColors(machineNames), machineNames, sessions,
+    chain: { ...state.chain, active: [...lanes, ...state.chain.active.filter((lane) => lane !== active)] },
+    taskSessions: { ...state.taskSessions, 'ABC-6': [{ sessionId: second.sessionId, at: since, how: 'launch', resumed: 0, answers: 0, machine: 'srv' }] },
+    ...(mode === 'accountsOut' && { machineSignIns: [out] }),
+  }
+}
+
 export function withHeaderLevels(state: EvenKeelState): EvenKeelState {
   const shared = state.config.shared
   const sharedRun: RunSettings = { provider: shared.provider, accounts: shared.accounts, models: shared.models }
   const hasAccount = (provider: string, key: string) => state.account.accounts.some((entry) => entry.key === key && entry.agent === provider)
-  const levels = Object.fromEntries(state.projects.map((project) => {
+  const projectRun = (project: string): RunSettings => {
     const own = state.config.projects[project]
+    return { provider: own?.provider ?? shared.provider, accounts: { ...shared.accounts, ...own?.accounts }, models: { ...shared.models, ...own?.models } }
+  }
+  const inherited = Object.fromEntries(state.projects.map((project) => [project, inheritedLevels({ shared: sharedRun, project: projectRun(project), hasAccount })]))
+  const levels = Object.fromEntries(state.projects.map((project) => {
     return [project, headerLevels({
       shared: sharedRun,
-      project: { provider: own?.provider ?? shared.provider, accounts: { ...shared.accounts, ...own?.accounts }, models: { ...shared.models, ...own?.models } },
+      project: projectRun(project),
       runOf: (task) => state.runs[project]?.[task],
       tasks: state.tasks.filter((task) => task.project === project),
       order: state.chain.projects[project]?.order ?? [],
@@ -51,5 +83,5 @@ export function withHeaderLevels(state: EvenKeelState): EvenKeelState {
       hasAccount,
     })]
   }))
-  return { ...state, account: { ...state.account, headerLevels: levels } }
+  return { ...state, account: { ...state.account, headerLevels: levels, inheritedLevels: inherited } }
 }

@@ -36,9 +36,6 @@ export const machinePanelEn: Messages['machinePanel'] = {
     all: '"All machines" is the project\'s whole chain, unfiltered.',
   },
   view: {
-    accounts: 'Accounts',
-    accountsAll: (count) => `Accounts Even Keel uses: ${count}. Their limits and the machines they are signed in on`,
-    accountsUnused: 'Even Keel uses no account yet',
     accountsNone: 'The machine has not sent its accounts yet',
     accountsEmpty: (name) => `"${name}" has no account`,
     hubOnly: 'signed in on the hub, not here',

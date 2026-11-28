@@ -1,4 +1,4 @@
-import { headerLevels } from '../account/header-levels.js'
+import { headerLevels, inheritedLevels } from '../account/header-levels.js'
 import type { AccountView } from '../account/model.js'
 import { AGENTS } from '../agent/adapters.js'
 import { outdatedDaemonView } from '../agent/versions.js'
@@ -85,6 +85,11 @@ export function wireGetState(ctx: HostingContext): () => EvenKeelState {
         current: ctx.dispatcher.state.active.find((chain) => chain.project === project)?.current ?? null,
         holding: [...(ctx.dispatcher.state.skipped[project] ?? []), ...(orders[project]?.waiting ?? [])],
         sessionAccount: (sessionId) => machine.ownerOf(sessionId),
+        hasAccount: (provider, key) => machine.hasAccount(provider, key),
+      })])),
+      inheritedLevels: Object.fromEntries(Object.keys(ctx.configStore.current.projects).map((project) => [project, inheritedLevels({
+        shared: runSettings(ctx.configStore.current, undefined),
+        project: runOf(ctx, project),
         hasAccount: (provider, key) => machine.hasAccount(provider, key),
       })])),
     },

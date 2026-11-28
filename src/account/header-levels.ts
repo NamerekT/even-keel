@@ -23,10 +23,21 @@ export interface HeaderContext {
   hasAccount: (provider: string, account: string) => boolean
 }
 
-/** The same launch choice as a session, with its inherited accounts underneath. No liveness or pause changes the choice. */
-export function headerLevels(ctx: HeaderContext): AccountLevel[] {
+/**
+ * The project's and Even Keel's levels without a task: `headerLevels` drops one whose account a task level above takes,
+ * and "All machines" with diverging machines needs them whole (BTN-1805).
+ */
+export function inheritedLevels(ctx: Pick<HeaderContext, 'shared' | 'project' | 'hasAccount'>): AccountLevel[] {
   const shared = runChoice(undefined, ctx.shared, ctx.hasAccount).account
   const project = runChoice(undefined, ctx.project, ctx.hasAccount).account
+  const levels: AccountLevel[] = project === shared ? [] : [{ account: project, source: 'project' }]
+  return [...levels, { account: shared, source: 'shared' }]
+}
+
+/** The same launch choice as a session, with its inherited accounts underneath. No liveness or pause changes the choice. */
+export function headerLevels(ctx: HeaderContext): AccountLevel[] {
+  const inherited = inheritedLevels(ctx)
+  const project = inherited[0]!.account
   const open = (task: Task) => task.status.category !== 'Won' && task.status.category !== 'Lost'
   const current = ctx.tasks.find((task) => task.id === ctx.current?.task && open(task))
   const next = nextTask(ctx.tasks, ctx.order.filter((id) => ctx.tasks.some((task) => task.id === id && open(task))), ctx.holding ?? [])
@@ -36,9 +47,7 @@ export function headerLevels(ctx: HeaderContext): AccountLevel[] {
   const pinned = current && ctx.current?.sessionId ? ctx.sessionAccount(ctx.current.sessionId) : undefined
   const account = pinned ?? choice.account
   const labelled = (run?.provider ?? null) !== null && choice.fallback === null
-  const levels: AccountLevel[] = []
-  if (task && (labelled || account !== project)) levels.push({ account, source: 'task', task: task.id })
-  if (project !== shared) levels.push({ account: project, source: 'project' })
-  levels.push({ account: shared, source: 'shared' })
+  const levels: AccountLevel[] = task && (labelled || account !== project) ? [{ account, source: 'task', task: task.id }] : []
+  levels.push(...inherited)
   return levels.filter((each, index) => levels.findIndex((other) => other.account === each.account) === index)
 }

@@ -126,6 +126,7 @@ export const accountRu = {
     machineOnToken: 'долгий токен',
     sessionsOnly: 'лимиты только из сессий',
     signInFully: 'Войти полностью',
+    outOnMachines: (machines: string) => `Вышел на машинах: ${machines}. Войти там снова — на странице «Аккаунты».`,
     machineOnTokenTip: (machine: string) => `${machine} работает с этим аккаунтом на долгом токене: Remote Control там нет, отвечайте её сессиям из чата здесь или в трекере.`,
     loggingIn: 'Вход…',
     loginFailed: 'Вход не удался',

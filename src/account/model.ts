@@ -164,6 +164,8 @@ export interface GlobalSignIn {
 export interface AccountView {
   /** Launch choices by project for the header; other pages show only `active`, the Even Keel account. */
   headerLevels?: Record<string, AccountLevel[]>
+  /** By project, its and Even Keel's levels alone (`inheritedLevels`): "All machines" when machines diverge (BTN-1805). */
+  inheritedLevels?: Record<string, AccountLevel[]>
   /** Result of an explicit Add account check; hidden folders are never polled as accounts. */
   globalCheck?: { agent: string; account: { key: string; status: AccountStatus } | null }
   /** A machine elsewhere's CLI folders not added, signed in (`AccountWatcher.offerGlobals`, BTN-1568). */
