@@ -170,6 +170,21 @@
       "selector": "dialog[open]"
     },
     {
+      "id": "tracker-profile",
+      "route": "/settings?profiles=none&content=en",
+      "steps": [
+        { "click": ".settings-nav >> text=Trackers and CI" },
+        { "click": "button:has-text(\"Add profile\")" },
+        { "click": ".add-package__kind:has-text(\"Forgejo\")" },
+        { "fill": ":nth-match(dialog .add-package__input, 1)=https://forgejo.example.com" },
+        { "fill": ":nth-match(dialog .add-package__input, 2)=example-token-0000" },
+        { "click": "dialog button:has-text(\"Check\") >> nth=0" },
+        { "wait": "dialog >> text=Signed in as johndoe" }
+      ],
+      "height": 1000,
+      "selector": "dialog[open]"
+    },
+    {
       "id": "packages",
       "route": "/settings?content=en",
       "steps": [{ "click": ".settings-nav__item:has-text(\"Packages\")" }, { "wait": ".packages" }],

@@ -17,6 +17,8 @@ You add a **tracker profile** on `/settings` → **Trackers and CI** → **Add p
 - **Check** alone shows whom the profile signs in as, without saving.
 - A warning that another profile has the same account stops the save; press **Check and save** again to accept it.
 
+![The "Add Forgejo profile" dialog after "Check": the token's rights for the tracker, the CI and pull requests, the server address and the hidden token filled in, "Signed in as johndoe" under the token, the profile name taken from the account, and "Back", "Cancel", "Check" and "Check and save" at the foot](images/tracker-profile.webp)
+
 The page never shows a saved token or password again. Profiles live in Even Keel's state database on your machine, not in git.
 
 Each project then names its place in that tracker in the wizard or on its **Tracker** tab. What each tracker's profile and project ask for:
