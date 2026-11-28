@@ -464,6 +464,11 @@ export function wireVscode(ctx: MachineContext): VsCodeAccount {
 }
 
 export function wireAccount(ctx: MachineContext): AccountWatcher {
+  // A chat's session by its chat (BTN-1777): the title its card last read, else its id.
+  const chatName = (sessionId: string) => {
+    const chat = ctx.chatSessions.chatOf(sessionId)
+    return chat === undefined ? undefined : (ctx.chatTitles.last(sessionId) ?? chat)
+  }
   return new AccountWatcher({
     homes: ctx.homes,
     agentOf: ctx.agentOf,
@@ -483,8 +488,8 @@ export function wireAccount(ctx: MachineContext): AccountWatcher {
     signedInAs: (key) => ({ last: ctx.ledger.accounts[key]?.email ?? null, former: formerOwner(ctx.ledger, key) }),
     name: (key, name) => ctx.saveAccounts(nameAccount(ctx.ledger, key, name)),
     transportOf: (home, apiKey) => transportOf(home.agent, ctx.configStore.current.execution[CLAUDE], apiKey),
-    loginBlock: (): LoginBlock | null => loginBlock(ctx.brief.active(), ctx.agents, ctx.activeAccount()),
-    sessionsIn: (key) => liveSessions(ctx.agents, key),
+    loginBlock: (): LoginBlock | null => loginBlock(ctx.brief.active(), ctx.agents, ctx.activeAccount(), chatName),
+    sessionsIn: (key) => liveSessions(ctx.agents, key, chatName),
     workingIn: (key) => ctx.agents.some((agent) => (agent.account ?? 'global') === key && !agent.resting && isLive(agent) && lampOf(agent, null) === 'working'),
     projectsOn: (key) => projectsByAccount(ctx.configStore.current, Object.keys(ctx.configStore.current.projects))[key] ?? [],
     pool: () => poolEntries(ctx.configStore.current, Object.keys(ctx.configStore.current.projects)),

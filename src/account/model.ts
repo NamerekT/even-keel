@@ -347,20 +347,31 @@ export function removeProblem(view: AccountView, key: string): Notice | undefine
   return undefined
 }
 
-export function liveSessions(agents: AgentEntry[], key: string): string[] {
-  return agents
-    .filter((agent) => (agent.account ?? GLOBAL_ACCOUNT) === key && isLive(agent))
-    .map((agent) => agent.name ?? agent.sessionId.slice(0, 8))
+/** The name of the project chat a session is bound to, its title or else its id; `undefined` — no chat's. */
+export type ChatName = (sessionId: string) => string | undefined
+
+/**
+ * A session as a list names it: by its chat (`chatName`), as a Claude chat's name the CLI lists floats — its prompt,
+ * then a kebab form of its title (BTN-1777); else by its name, else by its id's start.
+ */
+export function sessionLabel(agent: AgentEntry, chatName: ChatName = () => undefined): string {
+  return chatName(agent.sessionId) ?? agent.name ?? agent.sessionId.slice(0, 8)
 }
 
-export function loginBlock(chains: Pick<ActiveChain, 'project' | 'paused'>[], agents: AgentEntry[], active: string): LoginBlock | null {
+export function liveSessions(agents: AgentEntry[], key: string, chatName?: ChatName): string[] {
+  return agents
+    .filter((agent) => (agent.account ?? GLOBAL_ACCOUNT) === key && isLive(agent))
+    .map((agent) => sessionLabel(agent, chatName))
+}
+
+export function loginBlock(chains: Pick<ActiveChain, 'project' | 'paused'>[], agents: AgentEntry[], active: string, chatName?: ChatName): LoginBlock | null {
   const running = chains.filter((chain) => !chain.paused).map((chain) => chain.project)
   const busy = agents.flatMap((agent): LoginBlocker[] => {
     if ((agent.account ?? GLOBAL_ACCOUNT) !== active) return []
     if (agent.state === 'done' || agent.state === 'stopped' || agent.state === 'failed') return []
     if (agent.status !== 'busy' && agent.status !== 'shell' && agent.status !== 'waiting') return []
     const status = agent.status === 'waiting' ? 'waiting' : 'busy'
-    return [{ name: agent.name ?? agent.sessionId.slice(0, 8), status, waitingFor: agent.waitingFor ?? null }]
+    return [{ name: sessionLabel(agent, chatName), status, waitingFor: agent.waitingFor ?? null }]
   })
   return running.length === 0 && busy.length === 0 ? null : { chains: running, sessions: busy }
 }
