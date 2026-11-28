@@ -26,7 +26,7 @@ BTN-1271: the tab "Machines" of a project's settings (`web/src/pages/ProjectMach
 
 | Step | What it does or checks | Refusal |
 | --- | --- | --- |
-| `machine-clone` | with `auto` probes the folder first: a clone of the project there is taken, a free folder gets a clone from the hub's `origin`, else its first remote, its progress in the window. The clone stands on the project's `branch`, not the remote's default one (BTN-1566) | a taken folder's notice; `git.noRemoteBranch` — the remote lacks the branch |
+| `machine-clone` | with `auto` probes the folder first: a clone of the project there is taken, a free folder gets a clone from the hub's `origin`, else its first remote, its progress in the window. The clone stands on the project's `branch`, not the remote's default one (BTN-1566). It keeps the remote's name in the hub's folder (`git clone --origin`), and the hub's other remotes are added by their names and addresses (BTN-1766, `addRemotes`): `git sync` pushes to every remote of a checkout, so a machine with fewer would leave commits off a forge. A local remote with no folder on the machine, and one git refuses, is left out with a log line, the clone kept. A folder already there is taken with its own set of remotes, unchanged | a taken folder's notice; `git.noRemoteBranch` — the remote lacks the branch |
 | `machine-place` | puts the folder into the pool turned off and briefs the machine, so its packages start installing | `pool.outside` — a folder outside the machine's folder of projects |
 | `machine-repo` | a git repository | `pool.noGit`, `pool.notRepository` |
 | `machine-remote` | one of its remotes is one of the hub's, the scheme and `.git` apart | `pool.otherRemote`, `pool.hubNoRemote` |

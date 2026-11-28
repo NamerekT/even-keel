@@ -84,8 +84,10 @@ describe('the services of the machine over the link', () => {
     const spec = { project: PROJECT, folder: REPO, remotes: ['https://forge.example.com/team/abc.git'], branch: 'main', claude: true }
     answers['folders.check'] = { code: 'pool.noBranch', params: { folder: REPO, branch: 'main' } }
     expect(await remote.folders.check('branch', spec)).toEqual({ code: 'pool.noBranch', params: { folder: REPO, branch: 'main' } })
-    await remote.folders.clone(spec, 'https://forge.example.com/team/abc.git')
-    expect(calls).toEqual([['folders.check', ['branch', spec]], ['folders.clone', [spec, 'https://forge.example.com/team/abc.git']]])
+    const source = { name: 'origin', url: 'https://forge.example.com/team/abc.git' }
+    const others = [{ name: 'github', url: 'https://github.example.com/team/abc.git' }]
+    await remote.folders.clone(spec, source, others)
+    expect(calls).toEqual([['folders.check', ['branch', spec]], ['folders.clone', [spec, source, others]]])
     expect(ran.map((command) => [command.type, command.project, command.folder])).toEqual([['folders.check', PROJECT, REPO], ['folders.clone', PROJECT, REPO]])
     const outside = remote.folders.check('repo', { ...spec, folder: 'C:/elsewhere' }).catch((error: unknown) => error)
     await tick()

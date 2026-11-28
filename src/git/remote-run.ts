@@ -137,6 +137,8 @@ export const sharedRemoteReader = remoteReader()
 
 export interface CloneRequest {
   remote: string
+  /** The clone's name of the remote; absent — git's `origin`. */
+  name?: string
   path: string
   /** `null` — the remote's default branch. */
   branch: string | null
@@ -148,8 +150,8 @@ export type Clone = (request: CloneRequest) => Promise<void>
 
 /** `git clone --progress` into the folder; no timeout — a large repository takes as long as it takes, its window has Cancel. */
 export function cloner(git: RemoteGit = runRemoteGit): Clone {
-  return async ({ remote, path, branch, signal, onProgress }) => {
-    const args = ['clone', '--progress', ...(branch === null ? [] : ['--branch', branch]), '--', remote, path]
+  return async ({ remote, name, path, branch, signal, onProgress }) => {
+    const args = ['clone', '--progress', ...(name === undefined ? [] : ['--origin', name]), ...(branch === null ? [] : ['--branch', branch]), '--', remote, path]
     const reach: CloneReach = { answered: false }
     const run = await git(args, {
       signal,

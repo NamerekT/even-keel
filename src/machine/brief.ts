@@ -58,6 +58,8 @@ export interface HubBrief {
   reports: Record<string, Record<string, CheckReport>>
   /** For a machine elsewhere, its folders outside the pools bound to their projects' memory (BTN-1648). */
   memory?: MemoryFolder[]
+  /** For a machine elsewhere, "Own configuration" is on: its `settings.json` and `CLAUDE.md` stay out of the sync (BTN-1745). */
+  ownConfig?: true
 }
 
 /** A brief with nothing in it: what the machine holds until the hub's first one comes. */

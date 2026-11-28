@@ -115,14 +115,32 @@ describe('folders.clone (BTN-1566)', () => {
   it("clones onto the project's main branch, not the remote's default one", async () => {
     const { root, source } = upstream()
     const folder = join(root, 'clone')
-    await folders().clone({ project: 'p1', folder, remotes: [source], branch: 'dev', claude: false }, source)
+    await folders().clone({ project: 'p1', folder, remotes: [source], branch: 'dev', claude: false }, { name: 'origin', url: source }, [])
     expect(sh(folder, 'symbolic-ref', '--short', 'HEAD')).toBe('dev')
   })
 
   it('refuses a main branch the remote has no copy of', async () => {
     const { root, source } = upstream()
     const folder = join(root, 'clone')
-    await expect(folders().clone({ project: 'p1', folder, remotes: [source], branch: 'trunk', claude: false }, source))
+    await expect(folders().clone({ project: 'p1', folder, remotes: [source], branch: 'trunk', claude: false }, { name: 'origin', url: source }, []))
       .rejects.toMatchObject({ notice: { code: 'git.noRemoteBranch', params: { branch: 'trunk', remote: source } } })
+  })
+
+  it("adds every other remote of the hub's folder under its own name (BTN-1766)", async () => {
+    const { root, source } = upstream()
+    const folder = join(root, 'clone')
+    const github = 'https://github.example.com/team/abc.git'
+    const others = [{ name: 'github', url: github }]
+    await folders().clone({ project: 'p1', folder, remotes: [source, github], branch: 'main', claude: false }, { name: 'forge', url: source }, others)
+    expect(sh(folder, 'config', '--get-regexp', '^remote\\..*\\.url$').split('\n')).toEqual([`remote.forge.url ${source}`, `remote.github.url ${github}`])
+    expect(sh(folder, 'rev-parse', '--abbrev-ref', 'main@{upstream}')).toBe('forge/main')
+  })
+
+  it('leaves out a local remote with no folder on the machine', async () => {
+    const { root, source } = upstream()
+    const folder = join(root, 'clone')
+    const others = [{ name: 'backup', url: join(root, 'missing.git') }, { name: 'mirror', url: source }]
+    await folders().clone({ project: 'p1', folder, remotes: [source], branch: 'main', claude: false }, { name: 'origin', url: source }, others)
+    expect(sh(folder, 'config', '--get-regexp', '^remote\\..*\\.url$').split('\n')).toEqual([`remote.origin.url ${source}`, `remote.mirror.url ${source}`])
   })
 })

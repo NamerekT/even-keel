@@ -517,7 +517,7 @@ describe("the hub's door for machines", { timeout: 60_000 }, () => {
     const shown: unknown[] = []
     const stop = network.watchClone(laptop, ABC, (progress) => shown.push(progress))
     const spec = { project: ABC, folder: '/home/example/projects/abc-work', remotes: [], branch: 'main', claude: false }
-    await network.folders(target).clone(spec, 'https://forge.example.com/abc.git')
+    await network.folders(target).clone(spec, { name: 'origin', url: 'https://forge.example.com/abc.git' }, [])
     await until(() => shown.length > 0, 'the progress of the clone')
     stop()
     expect(shown).toEqual([{ stage: 'receiving', percent: 40 }])

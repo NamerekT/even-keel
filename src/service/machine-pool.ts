@@ -81,7 +81,7 @@ export function connectSteps(deps: ConnectDeps, project: () => string, target: P
       if (remote === undefined) throw fail('pool.hubNoRemote', {})
       const stop = deps.network.watchClone(target.id, each.project, progress)
       try {
-        await folders.clone(each, remote.url)
+        await folders.clone(each, remote, facts!.remotes.filter((other) => other !== remote))
       } finally {
         stop()
         progress(undefined)

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { Remote } from '../ci/remote.js'
 import type { CloneProgress } from '../git/clone-progress.js'
 import { StepJobs, type JobPlan } from '../jobs/runner.js'
 import type { FolderProbe, FolderSpec, FolderStep } from '../machine/folder-check.js'
@@ -34,8 +35,8 @@ function fakeNetwork() {
         calls.push(`check ${step} ${spec.folder}${spec.remotes === null ? ' unknown' : ''}`)
         return refusals[step] ?? null
       },
-      clone: async (spec: FolderSpec, remote: string) => {
-        calls.push(`clone ${remote} ${spec.folder}`)
+      clone: async (spec: FolderSpec, source: Remote, others: Remote[]) => {
+        calls.push(`clone ${source.name}=${source.url} ${spec.folder}${others.map((other) => ` +${other.name}=${other.url}`).join('')}`)
         shown?.({ stage: 'receiving', percent: 50 })
       },
     }),
@@ -86,7 +87,7 @@ describe('connecting a machine to a project', () => {
     ])
   })
 
-  it('clones from origin into the hub folder name by default, with the progress on the clone step', async () => {
+  it("clones from origin into the hub folder name by default, the hub's other remotes added, with the progress on the clone step", async () => {
     const { network, calls } = fakeNetwork()
     const plan = await connectPlan(depsOf(network), PROJECT, { machine: LAPTOP, clone: true })
     const jobs = new StepJobs()
@@ -97,7 +98,10 @@ describe('connecting a machine to a project', () => {
     }
     const id = jobs.start(plan)
     await jobs.settled(id)
-    expect(calls.slice(0, 2)).toEqual(['clone https://forge.example.com/team/abc.git /home/example/projects/abc', `place ${PROJECT} /home/example/projects/abc`])
+    expect(calls.slice(0, 2)).toEqual([
+      'clone origin=https://forge.example.com/team/abc.git /home/example/projects/abc +upstream=https://forge.example.com/other/abc.git',
+      `place ${PROJECT} /home/example/projects/abc`,
+    ])
     expect(progress).toContainEqual({ stage: 'receiving', percent: 50 })
   })
 
@@ -152,7 +156,7 @@ describe("the wizard's machines (BTN-1297)", () => {
     expect(view()).toMatchObject({ kind: 'project', done: true, result: PROJECT })
     expect(view().steps.map((step) => step.id).slice(0, 3)).toEqual(['project', `machine-clone@${LAPTOP}`, `machine-place@${LAPTOP}`])
     expect(calls).toContain(`probe ${PROJECT} /home/example/projects/apps/abc https://forge.example.com/other/abc.git https://forge.example.com/team/abc.git`)
-    expect(calls).toContain('clone https://forge.example.com/team/abc.git /home/example/projects/apps/abc')
+    expect(calls).toContain('clone origin=https://forge.example.com/team/abc.git /home/example/projects/apps/abc +upstream=https://forge.example.com/other/abc.git')
     expect(calls.filter((call) => call.startsWith('clone'))).toHaveLength(1)
     expect(calls).toContain(`place ${PROJECT} /Users/example/projects/abc`)
     // The hub stays in the pool: only an unticked hub is turned off.

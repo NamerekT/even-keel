@@ -21,7 +21,7 @@ import type { Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
 import { BlockTail } from './BlockTail.js'
-import { PinWaitChip } from './PinWaitChip.js'
+import { PinWaitChip, tagWait } from './PinWaitChip.js'
 import { useNarrow } from '../layout/useNarrow.js'
 import { SubtasksChip } from './ChainDivider.js'
 import { Forge } from './Forge.js'
@@ -196,7 +196,7 @@ export function Block(props: BlockProps) {
         )}
       </div>
       {narrow && (
-        <BlockTail run={block.run} machines={block.machines} pinned={block.pinned === true} links={links} onCard={onCard}>
+        <BlockTail run={block.run} machines={block.machines} pinned={block.pinned === true} wait={tagWait(block.pinWait)} links={links} onCard={onCard}>
           {readyButton ?? unreadyButton}
         </BlockTail>
       )}
@@ -217,7 +217,7 @@ export function Block(props: BlockProps) {
       )}
       <div className="block__side">
         {block.subtasks !== undefined && <SubtasksChip family={block.id} subtasks={block.subtasks} />}
-        {!narrow && block.machines !== undefined && <MachineTag machines={block.machines} pinned={block.pinned === true} />}
+        {!narrow && block.machines !== undefined && <MachineTag machines={block.machines} pinned={block.pinned === true} wait={tagWait(block.pinWait)} />}
         {!narrow && block.run !== null && <RunLabelTag run={block.run} />}
         {block.pinWait !== undefined && <PinWaitChip wait={block.pinWait} onOpen={() => onCard(block.id)} />}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}

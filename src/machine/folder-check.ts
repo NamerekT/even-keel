@@ -8,6 +8,7 @@ import type { FolderProbe } from '../link/view.js'
 import { fail, NoticeError, notice, type Notice } from '../notice/notice.js'
 import { missingCommands, type StdioServer } from '../packages/stdio.js'
 import { isTrusted } from '../projects/check.js'
+import { localRemotePath } from '../projects/remotes.js'
 
 export type { FolderProbe }
 
@@ -143,6 +144,22 @@ async function onBranch(git: Git, folder: string, branch: string, track: string 
 function behindOnly(out: string): boolean {
   const refused = out.split('\n').filter((line) => line.startsWith('!'))
   return refused.length > 0 && refused.every((line) => /\t\[rejected\] \((fetch first|non-fast-forward)\)\s*$/.test(line))
+}
+
+/**
+ * Adds the rest of the hub's remotes to a fresh clone by their names (BTN-1766). A local one with no folder here is
+ * left out with a log line, as is one git refuses: the clone stays, and its push goes to the remotes it has.
+ */
+export async function addRemotes(git: Git, folder: string, remotes: readonly Remote[], exists: (path: string) => boolean = existsSync): Promise<void> {
+  for (const { name, url } of remotes) {
+    const local = localRemotePath(url, folder)
+    if (local !== null && !exists(local)) {
+      console.warn(`machine folder: ${folder} gets no remote ${name}: its address ${url} is a folder this machine does not have`)
+      continue
+    }
+    const added = await git(folder, ['remote', 'add', '--', name, url])
+    if (added.code !== 0) console.warn(`machine folder: ${folder} gets no remote ${name} (${url}): ${added.out.trim()}`)
+  }
 }
 
 /** The folder a clone goes into: absent, or empty. */

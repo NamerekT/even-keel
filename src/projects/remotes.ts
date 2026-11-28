@@ -34,6 +34,20 @@ export function remoteRef(url: string, repo: string, platform: NodeJS.Platform =
   return { id: `${host}/${parts.join('/')}`.toLowerCase(), path: parts.slice(-2).join('/') }
 }
 
+/** The folder a remote's address names on this computer, a path or a `file:` URL, resolved from `repo`; `null` — a server's. */
+export function localRemotePath(url: string, repo: string, platform: NodeJS.Platform = process.platform): string | null {
+  const paths = pathsOf(platform)
+  if (url.includes('://')) {
+    try {
+      const parsed = new URL(url)
+      return parsed.protocol === 'file:' ? paths.resolve(repo, fileURLToPath(parsed, { windows: platform === 'win32' })) : null
+    } catch {
+      return null
+    }
+  }
+  return url.trim() === '' || SERVER.test(url) ? null : paths.resolve(repo, url)
+}
+
 function localRef(path: string, repo: string, platform: NodeJS.Platform): RemoteRef {
   const paths = pathsOf(platform)
   const resolved = paths.resolve(repo, path)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Git, GitResult } from '../git/types.js'
-import { checkoutRemotes, ProjectRemotes, remotePeers, remoteRef, repositoryIds, repositoryRemotes, sameRepository } from './remotes.js'
+import { checkoutRemotes, localRemotePath, ProjectRemotes, remotePeers, remoteRef, repositoryIds, repositoryRemotes, sameRepository } from './remotes.js'
 
 describe('remotePeers', () => {
   const ref = (id: string) => ({ id, path: id.split('/').slice(-2).join('/') })
@@ -52,6 +52,17 @@ describe('remoteRef', () => {
   it('refuses an empty url', () => {
     expect(ref('')).toBeNull()
     expect(ref('https://')).toBeNull()
+  })
+})
+
+describe('localRemotePath', () => {
+  it('resolves a path and a file URL from the checkout, and names no folder for a server', () => {
+    expect(localRemotePath('../bare/abc.git', '/home/example/repo', 'linux')).toBe('/home/example/bare/abc.git')
+    expect(localRemotePath('file:///srv/git/abc.git', '/home/example/repo', 'linux')).toBe('/srv/git/abc.git')
+    expect(localRemotePath('D:/git/abc.git', 'D:\\repo', 'win32')).toBe('D:\\git\\abc.git')
+    for (const url of ['git@forge.example.com:team/abc.git', 'https://forge.example.com/team/abc.git', 'ssh://git@forge.example.com:2222/team/abc.git', ' ']) {
+      expect(localRemotePath(url, '/home/example/repo', 'linux')).toBeNull()
+    }
   })
 })
 
