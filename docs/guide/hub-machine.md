@@ -6,6 +6,8 @@ The first installation is the hub: it has the page, the trackers and the chains,
 
 ## Joining a machine
 
+![The machines panel open from the header's machines block: "All machines" picked, then the hub "Workstation" at work on a task, "Example laptop" with the project's packages not ready and "Example desktop" with its next task, and "+ Machine" at the foot](images/machines-panel.webp)
+
 1. On the hub, press **+ Machine**: at the foot of the machines panel, which opens from the machines block in the header, or, while the hub is the only machine and there is no panel yet, in **Settings → Machines** under **Hub address for machines**.
 2. In the window, pick the **Hub address for machines** — the name or IP the other computer reaches the hub by: one of the page's names, an address of a network adapter, or one you type. Give the machine a name if you like (without one it is named by its host name) and a colour (the next free one is offered). **Issue the command** remembers the address for the next machines; the hub then listens for machines on port 4749 (`EVEN_KEEL_MACHINES_PORT`). The window shows the command with the hub's address first, and under **Or with the connection string** the same command with a string instead: good for 30 minutes and one machine; **Issue again** takes back the one not used yet.
 3. On the other computer, with Node.js 24 and git installed, run the command the window gave, the same on Windows, Linux and macOS:
@@ -16,6 +18,8 @@ The first installation is the hub: it has the page, the trackers and the chains,
 
    The machine asks the hub to let it in and prints a code, such as `K7Q-4M2`.
 4. On the hub, every open tab of the page shows the window **A new machine wants to join**: what the machine told about itself (its name, system, Docker or not, the folder of projects, the address it came from) and the code. Compare the code with the terminal: the same code means nothing stands between the machine and the hub, so press **Admit**; another code, or a machine you did not start, **Decline**. A request waits 10 minutes; declined or expired, the command says so and stops.
+
+![The "Add a machine" window after "Issue the command": the hub address for machines filled in, the name and colour, the npx command with the hub's address under "Run on the machine", the same command with a connection string that works once until a time with "Issue again", and the line that it waits for the machine](images/add-machine.webp)
 
 The command installs the package globally, joins the hub and installs the service the same way as for a hub: on Windows the start at sign-in with its tray icon (add `--service` for the Windows service `EvenKeel`, from PowerShell 7 as administrator, as in [Windows: without a sign-in](service.md#windows-without-a-sign-in)), on Linux and macOS the user service. It then waits up to 30 seconds for the machine to reach the hub and says whether it did. Without Node.js 24 or git it installs nothing and says what is missing. Run it again (an update, a failed install) with the same address or string: the machine stays joined and only the service is installed again.
 
