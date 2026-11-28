@@ -10,6 +10,7 @@ import { mergeCheck } from '../chain/mainci.js'
 import { pullReadiness } from '../review/open.js'
 import { guardedFiles, outsiderHold } from '../review/outsider.js'
 import { ConfigStore } from '../config-store.js'
+import { CONFIG_REPOSITORY } from '../memory/git/config-copy.js'
 import { DEFAULT_BRANCH, isPlain, listenOf, projectLabel, projectsByAccount, RULE_KEYS, runSettings } from '../config.js'
 import { runGit } from '../git/run.js'
 import { gitSetup } from '../git/setup.js'
@@ -311,6 +312,17 @@ export function wireServer(ctx: HostingContext): import("http").Server<typeof im
         await ctx.machineLink.memoryFolders.set(machine, folders)
         console.log(`memory: machine ${machine} has ${folders.length} folder(s) bound to projects' memory beyond its pool`)
         void network.catchUp()
+        ctx.hub.broadcast('machines', { changedAt: Date.now() })
+      },
+    },
+    ownConfig: {
+      has: (machine) => ctx.machineLink.ownConfigs.has(machine),
+      set: async (machine, on) => {
+        await ctx.machineLink.ownConfigs.set(machine, on)
+        console.log(`config: machine ${machine} ${on ? 'keeps its own' : 'syncs its'} settings.json and CLAUDE.md`)
+        // The own machine's copy is the hub's; one elsewhere reads the switch in its next brief, sent now.
+        if (machine === ctx.machineLink.machines.own()) void ctx.memory.syncAll(CONFIG_REPOSITORY)
+        else void network.catchUp()
         ctx.hub.broadcast('machines', { changedAt: Date.now() })
       },
     },

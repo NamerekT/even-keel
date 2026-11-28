@@ -25,7 +25,7 @@ import { Tipped } from '../ui/Tipped.js'
 import { IdentityButton } from './IdentityDialog.js'
 import { MachineMemoryCard } from './MachineMemoryCard.js'
 import { BranchDriftBand } from './BranchField.js'
-import { Field } from './settingsParts.js'
+import { Field, SwitchField } from './settingsParts.js'
 import { TakeOverButton } from './TakeOverButton.js'
 import './settings.css'
 import './machinePage.css'
@@ -307,6 +307,16 @@ function SettingsCard({ page, reload, show }: { page: MachinePageView; reload: (
       >
         {near && <p className="machine-page__state">{text.colorNear}</p>}
       </Field>
+      {page.ownConfig !== undefined && (
+        <SwitchField
+          className="settings__field"
+          label={text.ownConfig}
+          hint={text.ownConfigHint}
+          checked={page.ownConfig}
+          disabled={sending}
+          onChange={(on) => void send('machines/ownConfig', { machine: page.id, on }).then((done) => (done ? reload() : undefined))}
+        />
+      )}
       {failure !== null && (
         <p role="alert" className="notice notice--error">
           {say(failure)}

@@ -79,6 +79,7 @@ One row a name, the value JSON:
 - `machines.own` — the id of the machine this installation itself is (`ownMachine`).
 - `memory.transferred` — the projects whose `memory_records` went into their memory repository (`transferRecords`).
 - `memory.folders` — by machine elsewhere, its folders bound to a project's memory beyond its pool, `{project, folder}[]` (`MemoryFolders`, `docs/sessions/memory.md`).
+- `config.own` — the machines, the hub's own one too, whose `settings.json` and `CLAUDE.md` stay out of the global configuration's sync, ids (`OwnConfigs`, `docs/sessions/memory.md`).
 - `cliCheck.history`, `cli.downloaded`, `accounts.adoptLegacy` — kept in the machine's database now and read here no more (`docs/sessions/cli-versions.md`, `docs/releases.md`).
 
 ### Tables the machine's database took over

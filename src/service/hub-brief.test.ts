@@ -40,6 +40,12 @@ describe('the hub brief', () => {
     expect(hubBrief(sources())).not.toHaveProperty('memory')
   })
 
+  it('says "Own configuration" of a machine elsewhere only while it is on (BTN-1745)', () => {
+    expect(hubBrief(sources({ ownConfig: () => true })).ownConfig).toBe(true)
+    expect(hubBrief(sources({ ownConfig: () => false }))).not.toHaveProperty('ownConfig')
+    expect(hubBrief(sources())).not.toHaveProperty('ownConfig')
+  })
+
   it("runs the machine's own commands and server commands in its projects, the rest the project's (BTN-994)", () => {
     const own = { 'project-1': { check: ['make check'], servers: { files: { files: { command: '/opt/example/files-mcp' } } } }, 'project-2': { check: ['never'] } }
     const brief = hubBrief(sources({ machineSettings: () => own }))

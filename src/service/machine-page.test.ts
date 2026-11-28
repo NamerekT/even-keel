@@ -188,6 +188,31 @@ describe("a machine's folders bound to other projects' memory (BTN-1648)", () =>
   })
 })
 
+describe('"Own configuration" of a machine (BTN-1745)', () => {
+  const switched = () => {
+    const on = new Set(['srv'])
+    const ownConfig = { has: (machine: string) => on.has(machine), set: vi.fn(async (machine: string, value: boolean) => void (value ? on.add(machine) : on.delete(machine))) }
+    return { ownConfig, control: machinePageControl(deps({ ownConfig })) }
+  }
+
+  it('shows the switch of a machine elsewhere and of the own one, and none without the store', async () => {
+    const { control } = switched()
+    expect((await control.view('srv')).ownConfig).toBe(true)
+    expect((await control.view('own')).ownConfig).toBe(false)
+    expect((await machinePageControl(deps()).view('srv')).ownConfig).toBeUndefined()
+  })
+
+  it('saves a change for the own machine too, nothing when it holds already, and refuses a revoked machine', async () => {
+    const { control, ownConfig } = switched()
+    await control.ownConfig('own', true)
+    await control.ownConfig('srv', true)
+    expect(ownConfig.set.mock.calls).toEqual([['own', true]])
+    await control.ownConfig('srv', false)
+    expect(ownConfig.set).toHaveBeenLastCalledWith('srv', false)
+    await expect(control.ownConfig('gone', true)).rejects.toMatchObject({ notice: { code: 'machines.unknown' } })
+  })
+})
+
 describe("a machine's account as the hub names it, for its sign-ins (machineAccountOf)", () => {
   type Entry = AccountView['accounts'][number]
   const entries = (list: object[]) => list as unknown as Entry[]

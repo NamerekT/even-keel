@@ -33,6 +33,8 @@ export interface MemoryHubDeps {
   globalDir?: string
   /** The configuration copy wrote its conflicts: the page's banner may change (BTN-1692). */
   conflictsSaved?(): void
+  /** The hub's own machine has "Own configuration" on (BTN-1745); after a change `syncAll(CONFIG_REPOSITORY)` applies it. */
+  configApart?(): boolean
 }
 
 /**
@@ -104,6 +106,7 @@ export class MemoryHub {
           log: deps.log,
           pushed: () => this.pushed(CONFIG_REPOSITORY),
           ...(deps.conflictsSaved !== undefined && { conflictsSaved: deps.conflictsSaved }),
+          ...(deps.configApart !== undefined && { apart: deps.configApart }),
           ...(deps.git !== undefined && { git: deps.git }),
           ...(deps.schedule !== undefined && { schedule: deps.schedule }),
           ...(deps.watch !== undefined && { watch: deps.watch }),

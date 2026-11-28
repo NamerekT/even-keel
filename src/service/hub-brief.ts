@@ -34,6 +34,8 @@ export interface BriefSources {
   accounts?: () => Record<string, BriefAccount>
   /** The machine's folders bound to projects' memory beyond its pool (BTN-1648); a machine elsewhere only. */
   memory?: () => MemoryFolder[]
+  /** The machine's "Own configuration" (BTN-1745); a machine elsewhere only, the own one reads the hub's store. */
+  ownConfig?: () => boolean
 }
 
 /** What the machine's assembly reads of the hub now (`docs/machines/seam.md`, "The brief"). */
@@ -68,6 +70,7 @@ export function hubBrief(sources: BriefSources): HubBrief {
     warm: warmTasks(state),
     reports: byProject((project) => sources.reports.ofProject(project)),
     ...(sources.memory === undefined ? {} : { memory: sources.memory().filter((each) => Object.hasOwn(config.projects, each.project)) }),
+    ...(sources.ownConfig?.() === true ? { ownConfig: true as const } : {}),
   }
 }
 

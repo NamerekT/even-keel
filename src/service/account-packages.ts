@@ -25,7 +25,7 @@ import type { AccountsContext } from './accounts.js'
 import { pinnable } from '../machine/pins.js'
 
 /** The hub's memory repositories and its folders as their working copies (BTN-1646): one folder a project for now. */
-export function wireMemory(ctx: Pick<AccountsContext, 'db' | 'configStore' | 'homes' | 'stateDir' | 'hub' | 'getState'>): MemoryHub {
+export function wireMemory(ctx: Pick<AccountsContext, 'db' | 'configStore' | 'homes' | 'stateDir' | 'hub' | 'getState' | 'machineLink'>): MemoryHub {
   return new MemoryHub({
     db: ctx.db,
     dir: memoryDirOf(databaseDirOf(ctx.stateDir)),
@@ -35,6 +35,8 @@ export function wireMemory(ctx: Pick<AccountsContext, 'db' | 'configStore' | 'ho
     mirror: () => ctx.configStore.current.memoryMirror,
     globalDir: ctx.homes.global.dir,
     conflictsSaved: () => ctx.hub.broadcastSoon('state', ctx.getState),
+    // Read only from the first sync on, which `start` begins after the link is wired and its store loaded.
+    configApart: () => ctx.machineLink.ownConfigs.has(ctx.machineLink.own()),
   })
 }
 

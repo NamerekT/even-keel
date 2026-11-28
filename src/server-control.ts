@@ -338,6 +338,8 @@ export interface ServerDeps {
     update(machine: string): Promise<void>
     /** The card "Other projects' memory" (BTN-1648): the machine's whole list of folders bound to projects' memory. */
     memoryFolders(machine: string, folders: import('./link/view.js').MemoryFolderView[]): Promise<void>
+    /** "Own configuration" (BTN-1745): the machine's `settings.json` and `CLAUDE.md` out of the sync, or back in. */
+    ownConfig(machine: string, on: boolean): Promise<void>
   }
   /** The header's machines panel (BTN-1051): every machine with what only the hub knows of it. */
   machineCards?: () => Promise<MachineCard[]>
