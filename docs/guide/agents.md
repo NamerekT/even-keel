@@ -2,173 +2,137 @@
 
 Even Keel runs sessions on four agent CLIs: Claude Code and, in preview, Codex, OpenCode and GitHub Copilot. This page says which CLI version sessions use, how each agent is run and what it lacks next to Claude Code. Signing in and limits are in [Accounts and limits](accounts.md); what each agent reads of a project's rules is in [Sessions](sessions.md#the-projects-instructions-and-skills).
 
+- [What each agent has](#what-each-agent-has)
 - [CLI copies](#cli-copies)
 - [Claude Code](#claude-code)
 - [Codex (preview)](#codex-preview)
 - [OpenCode (preview)](#opencode-preview)
 - [GitHub Copilot (preview)](#github-copilot-preview)
-- [A turn's process](#a-turns-process)
+
+## What each agent has
+
+An agent is picked in **Settings** → **Providers and models** → **Provider**, for every project or in a project's own settings, or for one task on its card. Click a provider's block or its corner circle to pick it; the arrow keys move between the circles. The model, account and window fields of every block stay editable without picking it. A provider on **Checked** whose copy is missing asks to download it first; cancelling keeps the choice, and the chain waits.
+
+| | Claude Code | Codex | OpenCode | Copilot |
+| --- | --- | --- | --- | --- |
+| Asks you a question with answer buttons | yes | no | no | no |
+| Handoff on a full context | yes | yes | yes | never seen working |
+| Your global `~/.claude/CLAUDE.md` and skills | yes | no | no | no |
+| Checked as a chain under the service | yes | on short test tasks | on Windows, free models only | no, from a terminal only |
+
+An agent without a question tool ends its turn with the question in its text, and the task waits for your reply in the chat window. Run the preview agents on test tasks first; what was never checked live is in [What has not been verified](../unverified.md).
 
 ## CLI copies
 
-Each agent's sessions run either on the CLI you installed or on Even Keel's own copy of the version it was checked against. The choice is per provider; the list of what Even Keel relies on in each CLI is in [setup](clis.md#the-clis-it-depends-on).
+Each agent's sessions run either on the CLI you installed or on Even Keel's own copy of a version. The choice is **CLI version** in **Settings** → **Providers and models**, per provider; the list of what Even Keel relies on in each CLI and where the copies come from is in [The CLIs it depends on](clis.md#the-clis-it-depends-on).
 
-**CLI version → Yours**, the default, uses the CLI you manage; nothing is downloaded.
+| CLI version | Runs on | Downloads | Pick it when |
+| --- | --- | --- | --- |
+| **Yours** (the default) | the CLI you installed and update | nothing | you keep the CLI current yourself |
+| **Checked** | Even Keel's copy of the version it was checked against | once you agree; later checked versions by themselves | you want the version Even Keel was tested on |
+| **Latest** | Even Keel's copy of the agent's newest release, looked for every 15 minutes | once you agree; then each new release, next to the current copy | you cannot install the CLI yourself |
 
-**Checked** runs sessions on Even Keel's own copy of the version it was checked against: choosing it in the setup or in settings (the log's entry of an unchecked version opens them) asks for consent with the version and approximate size — Cancel keeps Yours — and the chain waits for the copy. A provider already on Checked whose copy is missing asks the same when you select it or add its account; closing the dialog keeps the choice and leaves the chain waiting. Consent is asked once per provider: once a copy has been downloaded, a newer checked version (after an Even Keel update) downloads by itself while the provider stays on Checked, and the chain waits only for the download. Apart from that and Latest below, no startup, sign-in or version check downloads a copy by itself.
+- Choosing **Checked** or **Latest** asks for consent with the version and the approximate size; **Cancel** keeps **Yours**. The consent is asked once per provider, and the chain waits for the copy. Nothing else — no start, sign-in or version check — downloads a copy.
+- **Latest** appears only where you cannot install the CLI: in [Docker](docker.md#the-agents-clis), or when `npm install -g` cannot write npm's global folder. Claude Code installs into your home folder, so on a host it is always **Yours** or **Checked**. Sessions keep running on the old copy until the new one is complete.
+- Blue bands under the header and on the agent card show the download; in the setup, adding an account opens by itself once it ends, since the sign-in goes through the CLI.
+- A failed download switches that provider to **Yours** and offers **Try downloading again** — except Claude on the `Agent SDK`, which needs the checked CLI and stays on **Checked** until the retry.
 
-**Latest** appears only where you cannot install the CLI yourself: in [Docker](docker.md#the-agents-clis), or when `npm install -g` cannot write npm's global folder (Claude Code installs into your home folder, so on a host it is always Yours or Checked). It runs sessions on Even Keel's own copy of the agent's newest release, downloaded from the same place as the checked one. Choosing it asks for consent once. After that, Even Keel looks for a newer release every 15 minutes and downloads it next to the current copy. Sessions keep running on the old copy until the new one is complete. A Claude account on Latest runs on `claude --bg`, since the Agent SDK needs the checked CLI.
+Without a CLI, the agent's card shows the installation command to copy, **Install**, which runs the agent's official installer as the user Even Keel runs as and shows its output, and **Check again**, which looks for a CLI you installed in a terminal. Even Keel never installs a CLI without that press. Where installing is impossible, it offers **Switch to checked** and **Download the latest** instead.
 
-In settings the CLI version is saved with the rest of the form, Execution included, and the consent comes after the save.
-
-Blue progress bands under the header and on the agent card show downloaded bytes; in the setup, adding an account opens by itself once the download ends, since the sign-in goes through the CLI. Old copies are removed after a download and at each version check, retrying folders still held by a process.
-
-A failed download switches that provider to Yours and offers **Try downloading again**, except Claude under the `Agent SDK` way of running, which needs the checked CLI and stays on Checked until the retry. Without a CLI, the agent shows a copyable installation command, **Install**, which runs it with the agent's official installer as the user Even Keel runs as and shows its output, and **Check again**, which looks for a CLI you installed in a terminal yourself. Even Keel never installs a CLI without that press. Where installing is impossible, it offers **Switch to checked** and **Download the latest** instead.
-
-What each CLI's copy is and where it is downloaded from is in [The CLIs it depends on](clis.md#the-clis-it-depends-on).
-
-During first-run setup, CLI downloads and sign-in state appear on the agent cards. Usage limit warnings appear after setup; a CLI on a version Even Keel was not checked against is an entry of the event log (**Log** in the header), not a banner.
+A CLI on a version Even Keel was not checked against is an entry of the event log (**Log** in the header), not a banner; the entry opens the setting.
 
 ### Checking a new CLI version
 
-**Check new CLI versions on this machine** (Settings → Providers and models, off by default) lets Even Keel try a new CLI version itself before you move to it.
+**Check new CLI versions on this machine** (**Settings** → **Providers and models**, off by default) lets Even Keel try a new CLI version itself before you move to it.
 
-When a provider releases a newer CLI than the checked one, and once a week on the checked one, it runs a short live session on a cheap model in the account folder your projects use: launch, a question and its answer, a file written, the hooks, the limits and the stop.
+When a provider releases a newer CLI than the checked one, and once a week on the checked one, it runs a short live session on a cheap model in the account folder your projects use: launch, a question and its answer, a file written, the hooks, the limits and the stop. It waits until that folder has no live session, and the chains on that account wait while it runs, a few minutes. Each run spends the account's limits.
 
-It waits until that folder has no live session, and the chains on that account wait while it runs, a few minutes.
-
-A banner says whether the version passed or at which step it failed; the service log has the whole run.
-
-A pass means that version works on this machine, a reason to switch that provider to Yours if you want it before the next Even Keel release.
-
-Each run spends the account's limits.
+A banner says whether the version passed or at which step it failed; the service log has the whole run. A pass means that version works on this machine: if your CLI has already updated to it, you can switch that provider to **Yours** before the next Even Keel release checks it.
 
 ## Claude Code
 
 ### Two ways to run a session
 
-Claude sessions run one of two ways: `CLI --bg`, the CLI's own background sessions, or `Agent SDK`, where Even Keel holds each session's CLI in a small process of its own.
+Claude sessions run one of two ways: `CLI --bg`, the CLI's own background sessions, or `Agent SDK`, where Even Keel holds each session's CLI in a small process of its own. Through the SDK:
 
-Through the SDK a session outlives a restart of the service with its question still open, and an answer or a chat message goes straight into the running session instead of stopping and resuming it.
+- a session outlives a restart of the service with its question still open;
+- an answer or a chat message goes straight into the running session instead of stopping and resuming it;
+- a tool call the auto mode would put to you comes to the page as a question with **Allow** and **Deny**, or is refused at once in unattended mode.
 
-A tool call the auto mode would put to you comes to the page as a question with "Allow" and "Deny" and waits for your answer, or is refused at once in unattended mode.
+The choice is **Execution** of Claude Code in **Settings** → **Providers and models**: `Auto`, the default, runs an API key account through the SDK and a subscription on `--bg`; `CLI --bg` or `Agent SDK` runs every Claude account that way. Each account's **Runs through** column says which way its sessions go. A change applies to new sessions; running ones keep their way.
 
-Which one is Claude Code's "Execution" in Settings → Providers and models: `Auto`, the default, runs an API key account through the SDK and a subscription on `--bg`; `CLI --bg` or `Agent SDK` runs every Claude account that way.
+The SDK on a subscription is your call, for two reasons:
 
-Each account's Runs through column says which way its sessions go.
+- Anthropic asks products built on the Agent SDK to sign in with an API key rather than a claude.ai subscription.
+- For the same work, the SDK spends the 5-hour limit about twice as fast as `--bg` and the weekly one about a quarter faster, measured by Even Keel over several days of the chain on both ways ([anthropics/claude-code#97074](https://github.com/anthropics/claude-code/issues/97074) is open). An API key account has no such penalty.
 
-If you had picked the way per account before the update, the setting takes it over when every account agrees with `Auto` or every one was on the SDK; otherwise it is `Auto`, and the service log names each account whose way changed.
-
-Anthropic asks products built on the Agent SDK to sign in with an API key rather than a claude.ai subscription, so the SDK on a subscription is your call.
-
-It also costs more of the subscription's limits: for the same work the SDK spends the 5-hour limit about twice as fast as `--bg` and the weekly one about a quarter faster, measured by Even Keel over several days of the chain on both ways ([anthropics/claude-code#97074](https://github.com/anthropics/claude-code/issues/97074) is open); an API key account has no such penalty ([docs/sessions/sdk.md](../sessions/sdk.md#agent-sdk-against---bg-measured-btn-286-btn-388)).
-
-The SDK needs the checked CLI (the "CLI version" next to it): picking `Agent SDK` switches the CLI version to Checked and locks it there, and with `EVEN_KEEL_CLAUDE_BIN` set sessions go on `--bg`. Even Keel downloads the SDK alongside that CLI only after you approve the download; Checked sessions wait until both copies are ready.
-
-A change applies to new sessions, running ones keep their way ([docs/sessions/sdk.md](../sessions/sdk.md#the-agent-sdk-transport-btn-239-srcclaudesdk)).
+The SDK needs the checked CLI: picking `Agent SDK` switches **CLI version** to **Checked** and locks it there. Even Keel downloads the SDK alongside that CLI only after you approve the download, and sessions wait until both copies are ready. With `EVEN_KEEL_CLAUDE_BIN` set, sessions run on `--bg` whatever you pick. How the SDK transport is built is in [docs/sessions/sdk.md](../sessions/sdk.md).
 
 ### Settings shared by all accounts
 
 Claude Code settings shared by all accounts live in `~/.claude/settings.json`: change them there. Before each launch in an account folder, Even Keel copies them into that folder's `settings.json`.
 
-A change made right in an account folder's file — by hand or by a CLI command such as `/model` — is kept, not overwritten: when a transfer would otherwise replace it, the account shows a band in **Accounts** with a row per changed setting — what it was and what it is now — and **Make shared**, **This account only** and **Discard** for each; with several changed settings, the band's head does the same for all of them at once. Settings that the transfer already preserves, such as notification flags added by Remote Control, stay in the folder without a prompt.
+A change made right in an account folder's file — by hand or by a CLI command such as `/model` — is not overwritten by the next copy. The account shows a band in **Accounts** with a row per changed setting, what it was and what it is now, and three buttons:
 
-An account's own settings are listed with it in **Accounts**, where × brings the shared value back, and survive later transfers. Choosing **Make shared** for an edited account setting also removes its account override. The folder then follows the shared value.
+- **Make shared** — the value goes into `~/.claude/settings.json`, and the account follows the shared value again;
+- **This account only** — it stays the account's own setting, listed with it in **Accounts**, where × brings the shared value back;
+- **Discard** — the shared value comes back.
 
-An agent that tries to edit an account folder's `settings.json` is refused by a hook Even Keel adds there, and the refusal points it to the global file.
+With several changed settings, the band's head does the same for all of them at once. What Claude Code itself writes into the folder, such as the notification flags of Remote Control, stays there without a band.
 
-The hook preserves your other hooks and applies only in managed Claude account folders. Other files and the global settings file remain editable.
-
-When Even Keel is unavailable, the hook lets the edit proceed; the settings-change band can handle it later.
-
-Removing Even Keel removes its hook and keeps your settings and hooks. [Real CLI and platform checks are still pending](../unverified/accounts.md#account-settings-edit-hook-btn-902).
+An agent that tries to edit an account folder's `settings.json` is refused by a hook Even Keel adds there, and the refusal points it to the global file. The hook keeps your other hooks and applies only in Even Keel's account folders; when Even Keel is unavailable, it lets the edit through and the band picks it up later. Removing Even Keel removes the hook and keeps your settings and hooks.
 
 ### Folder trust
 
-Even Keel automatically marks the project's checkout as trusted in Claude Code before each background launch or resume, using the selected account. On Windows it writes the forward-slash path Claude reads, copying an older backslash entry when needed and preserving the original. Its task worktrees inherit that trust. This also enables repository hooks; the chain disables repository MCP servers. The Agent SDK and other agents do not write Claude trust.
+Before each background launch or resume, Even Keel marks the project's checkout as trusted in Claude Code for the account the session uses, and its task worktrees inherit that trust. Trust means Claude Code runs the repository's own hooks in chain sessions; the repository's MCP servers stay off, since the chain gives sessions MCP only as [packages](packages.md). The Agent SDK does not write Claude trust.
 
-If saving trust fails, the chain pauses without replacing a damaged configuration file; the pause names the file. Fix it or its write access, then press **Check again and resume**.
+If saving trust fails, the chain pauses without touching a damaged configuration file, and the pause names the file. Fix it or its write access, then press **Check again and resume**.
 
-If the CLI still refuses folder trust, the pause gives one command that opens the same Claude CLI and account in the checkout — as the service user when Even Keel runs as a service (on Windows through `runas`), otherwise as you — in the shell named over it. Accept the trust dialog, then press **Check again and resume**; the retry saves trust again.
-
-On a Windows service the command runs a short PowerShell script Even Keel writes into its state folder, under `trust/`, so you can open it and read what it does.
-
-Codex applies a folder's Protection rules only in a project its account trusts, so before each Codex turn Even Keel adds the project's folder as trusted (`trust_level = "trusted"`) to that account's `config.toml`; task worktrees inside it inherit the trust. This also enables the project's own `.codex` configuration and hooks. A folder you marked `untrusted` there is left as it is: its sessions then run without those rules, and the service log says so. If the file cannot be read or written, the task does not start and the message names the file.
-
-Saved pauses from older versions retain their original commands using `claude` from PATH, both of them when the pause does not know whether Even Keel runs as a service; check the CLI and account yourself or retry to get fresh commands.
-
-### Stale session records
-
-For Claude background sessions, Even Keel checks process creation times to discard stale session records and leave another process that reused a session's or saved child's process number running. If the operating system cannot report a creation time, it keeps the previous process-number check.
+If the CLI still refuses folder trust, the pause gives one command that opens the same Claude CLI and account in the checkout, in the shell named over it: as the service user when Even Keel runs as a service (on Windows through `runas`), otherwise as you. Accept the trust dialog, then press **Check again and resume**. On a Windows service the command runs a short PowerShell script Even Keel writes into its state folder, under `trust/`, so you can read what it does first.
 
 ## Codex (preview)
 
-The shared or a project's `provider` key (the shared one is also moved by giving the Even Keel role to the Codex account on the accounts page), or Codex picked on a task's card, runs the task's sessions on the OpenAI Codex CLI instead: one `codex exec --json` per turn, the transcript and context fill read from Codex's own session files, the project's packages passed on every turn.
+**Provider** set to Codex, for the projects or one task, runs the task's sessions on the OpenAI Codex CLI: one `codex exec --json` per turn, the transcript and the context fill read from Codex's own session files, the project's packages passed on every turn.
 
-Limits (5-hour and weekly, or the free plan's 30-day one) are read from ChatGPT every five minutes, sharing a request with OpenCode on the same subscription; if the request fails, the latest limits in Codex's session files stand in. While a Codex session works, the page follows the limits its session file writes every few seconds, so a heavy model does not run past what the page shows ([not verified yet](../unverified/codex.md#codex-limits-from-a-live-sessions-rollout-btn-1320)). A seat in a workspace (Team, Business, Edu, Enterprise) also shows the month's credits against the cap its owner set; while the cap is spent, the account is held and its card says so, until the owner raises the cap or the month turns. This was never seen on a real seat ([What has not been verified](../unverified/accounts.md#a-chatgpt-workspace-seats-monthly-credit-cap-ekr-132)).
+On Windows, run Codex chains only with **Execution** of Codex set to **Without the sandbox**: from the Windows service the Codex sandbox does not start (a Codex bug), and a session can neither edit files nor run commands. Without the sandbox a session does everything without limits on the machine.
 
-If ChatGPT revokes the sign-in before it expires (for example after a plan change), Even Keel asks Codex to renew it once and reads the limits again, without a model turn or spending the allowance.
+### Folder trust in Codex
 
-This waits until the folder has no live Even Keel sessions, including those between turns. A failed renewal is not repeated on every poll; renew the account's sign-in if needed.
+Codex applies a folder's [Protection](protection.md) rules only in a project its account trusts, so before each Codex turn Even Keel adds the project's folder as trusted to that account's `config.toml`; task worktrees inside it inherit the trust. This also turns on the project's own `.codex` configuration and hooks. A folder you marked `untrusted` there is left as it is: its sessions then run without those rules, and the service log says so. If the file cannot be read or written, the task does not start and the message names the file.
 
-A ChatGPT sign-in runs only the models of its plan, so a model it does not list (the free plan has fewer) is not launched: the chain pauses with a message and a button to the session settings, and goes on by itself once you pick a model the account has. If ChatGPT still refuses a model in a turn, the chain pauses the same way: choose another **Model** or **Account**, change the model on the task's card if it set one, use **New session**, then resume the chain. An API-key account is not checked: it reaches models its list does not name.
+### Limits and models
 
-Codex has no question tool, so a turn that ends without the task done waits for your reply in the chat window.
+Limits — 5-hour and weekly, or the free plan's 30-day one — are read from ChatGPT every five minutes; while a Codex session works, the page follows the limits its session file writes every few seconds, so a heavy model does not run past what the page shows. A seat in a workspace (Team, Business, Edu, Enterprise) also shows the month's credits against the cap its owner set; while the cap is spent, the account is held and its card says so, until the owner raises the cap or the month turns.
 
-Run it as a chain only on short test tasks. From the Windows service the Codex sandbox does not start (a Codex bug), so on Windows it needs `execution.codex` set to `bypass`, which runs Codex sessions with no sandbox at all ([What has not been verified](../unverified/codex.md)).
+If ChatGPT revokes the sign-in before it expires (for example after a plan change), Even Keel asks Codex to renew it once, when the folder has no live session, and reads the limits again without spending the allowance. A failed renewal is not repeated: sign the account in again.
 
-Pictures Codex opens with `view_image`, including several returned by one tool call, appear as thumbnails in the session's chat and whole transcript. Click one to open the viewer and browse the session's pictures. They remain available from the transcript after the original files are removed.
+A ChatGPT sign-in runs only the models of its plan, so a model it does not list (the free plan has fewer) is not launched: the chain pauses with a message and a button to the session settings, and goes on by itself once you pick a model the account has. If ChatGPT still refuses a model in a turn, the chain pauses the same way: choose another **Model** or **Account**, change the model on the task's card if it set one, press **New session**, then resume the chain. An API-key account is not checked: it reaches models its list does not name.
+
+Pictures Codex opens show as thumbnails in the session's chat and transcript; click one to browse the session's pictures. They stay there after the files are removed.
 
 ## OpenCode (preview)
 
-`provider` set to `opencode`, or a task's run such as OpenCode with the model `opencode/big-pickle`, runs the task's sessions on [OpenCode](https://opencode.ai): one `opencode run` per turn, the transcript and context fill read from OpenCode's own database, the project's packages passed on every turn.
+**Provider** set to OpenCode, or a task's run such as OpenCode with the model `opencode/big-pickle`, runs the task's sessions on [OpenCode](https://opencode.ai): one `opencode run` per turn, the transcript and the context fill read from OpenCode's own database, the project's packages passed on every turn.
 
-The model is OpenCode's `<provider>/<model>` (`opencode/big-pickle`, `anthropic/claude-sonnet-4-5`, `openai/gpt-6.1-sol`); without one, OpenCode's default.
+The model is OpenCode's `<provider>/<model>` (`opencode/big-pickle`, `anthropic/claude-sonnet-4-5`, `openai/gpt-6.1-sol`); without one, OpenCode's default. A model the account's `opencode models` does not list is not launched: the chain pauses with a message and a button to the session settings, and goes on by itself once you pick a model the account has. For a ChatGPT sign-in, the OpenAI models are also checked against the subscription's own list, and a later refusal pauses the chain as [on Codex](#limits-and-models).
 
-A model the account's `opencode models` does not list is not launched: the chain pauses with a message and a button to the session settings, and goes on by itself once you pick a model the account has.
+The session reads the project's `AGENTS.md`, else its `CLAUDE.md`, and its skills ([the project's instructions and skills](sessions.md#the-projects-instructions-and-skills)). Even Keel's [agent-bridge](../../plugins/agent-bridge) plugin reaches it through an OpenCode plugin of its own: the handoff on a full context, chat messages delivered after the session's next tool call, and the check before the merge. An error a turn ends on (a provider refusing, a server error) shows as an error line in the chat.
 
-An error a turn ends on (a provider refusing, a server error) shows as an error line in the chat.
+Limits come from what you sign it in with:
 
-The session reads the project's `AGENTS.md`, else its `CLAUDE.md`, and its skills ([the project's instructions and skills](sessions.md#the-projects-instructions-and-skills)), but not your global `~/.claude/CLAUDE.md` or skills.
+- a ChatGPT sign-in — its 5-hour and weekly windows, shared with a Codex account on the same subscription (the cards say so);
+- a Copilot sign-in — its monthly allowance;
+- an OpenCode Go subscription key — its three windows;
+- the free models and other API keys — none, and the card says why. It shows instead the tokens the account used today and over 30 days (with Tally on) and when it was last refused. When the chain hits a limit with no known reset, it tries again in 15 minutes, then waits longer each time, up to 4 hours.
 
-Like Codex, it has no question tool: a turn that ends without the task done waits for your reply in the chat window.
-
-A turn that has written nothing for 30 minutes while its process lives on is taken for hung: the session shows as waiting with a note, and a message to it or "New session" stops the turn first; nothing stops it on its own.
-
-The [agent-bridge](../../plugins/agent-bridge) plugin reaches it through an OpenCode plugin of its own: the handoff on a full context, chat messages delivered mid-turn, after the session's next tool call, and the check before the merge.
-
-Limits come from the provider you sign it in with: a ChatGPT sign-in shows its 5-hour and weekly windows (shared with a Codex account on the same ChatGPT subscription, and the cards say so), a Copilot one its monthly allowance, and a Go key its three windows.
-
-The free models and other API keys have none, and the card says why.
-
-An account on the free models shows instead the tokens it used today and over 30 days (with Tally on) and when it was last refused by its limit; when the chain hits a limit with no known reset, it tries again in 15 minutes, then waits longer each time it is refused again, up to 4 hours.
-
-It was checked as a chain under the Windows service on the free models only; a Go, ChatGPT, Copilot or API-key account and Linux or macOS were never run ([What has not been verified](../unverified/opencode.md)): run them on test tasks first.
-
-### Models of a ChatGPT sign-in
-
-For ChatGPT sign-ins, the offered OpenAI models are also checked against the subscription's visible model list. Models absent from OpenCode stay unavailable even if ChatGPT lists them. If that check cannot be read, the ordinary OpenCode catalogue remains available.
-
-A later ChatGPT model refusal pauses the chain as it does [on Codex](#codex-preview). Other providers and API-key accounts keep their ordinary lists.
-
-Pictures returned by OpenCode tools, including images read from a file, appear as thumbnails beside the tool call in the session's chat and whole transcript. Click one to browse the transcript's pictures. They are read from OpenCode's database and remain available after the original files or worktree are removed.
+Pictures OpenCode tools return, images read from a file included, show as thumbnails beside the tool call in the chat and the transcript, and stay there after the files or the worktree are removed.
 
 ## GitHub Copilot (preview)
 
-`provider` set to `copilot`, or a task's run such as Copilot with the model `gpt-6-luna` (Copilot with no model leaves it to Copilot's `auto`), runs the task's sessions on the [GitHub Copilot CLI](https://github.com/github/copilot-cli): one `copilot -p` per turn, the transcript and context fill read from Copilot's own session files, the project's packages passed on every turn.
+**Provider** set to Copilot, or a task's run such as Copilot with the model `gpt-6-luna` (no model leaves it to Copilot's `auto`), runs the task's sessions on the [GitHub Copilot CLI](https://github.com/github/copilot-cli): one `copilot -p` per turn, the transcript and the context fill read from Copilot's own session files, the project's packages passed on every turn.
 
-The session reads the project's `CLAUDE.md` and `AGENTS.md`, both when both are there, and its skills ([the project's instructions and skills](sessions.md#the-projects-instructions-and-skills)), not your global `~/.claude/CLAUDE.md` or skills.
+The session reads the project's `CLAUDE.md` and `AGENTS.md`, both when both are there, and its skills ([the project's instructions and skills](sessions.md#the-projects-instructions-and-skills)).
 
-Like Codex, it has no question tool: a turn that ends without the task done waits for your reply in the chat window.
+Do not count on the handoff on a full context or on chat messages reaching a Copilot session mid-turn: both need Copilot to run Claude Code hooks, which was never seen working. Without them, your message waits for the turn's end.
 
-What it does not have yet: the handoff on a full context and chat messages delivered mid-turn rest on Copilot running Claude Code hooks, which was never seen.
-
-It was checked from a terminal only, never as a chain under the service ([What has not been verified](../unverified/copilot.md)): run it on test tasks first.
-
-If Copilot rejects an unavailable model before starting a normal transcript, the session shows the reason and a button to the project's session settings. Choose an available Model there (or change the model on the task's card), then choose **New session**. Even Keel does not switch models automatically.
-
-## A turn's process
-
-For Codex, OpenCode and Copilot, Even Keel checks whether a turn's process number was reused by a newer process. The session then waits for your reply, and stopping it leaves the newer process running.
-
-A completed turn is also recognised when the CLI prints diagnostic lines after its final event. If the operating system cannot report the process creation time, process checks follow the previous behaviour.
+If Copilot rejects an unavailable model before the session starts, the session shows the reason and a button to the project's session settings. Choose an available **Model** there (or change the model on the task's card), then press **New session**; Even Keel does not switch models by itself.

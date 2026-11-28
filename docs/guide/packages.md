@@ -1,10 +1,8 @@
 # Packages
 
-Plugins and MCP servers are a set per project, kept by Even Keel and given to chain sessions and the page's [project chats](chat.md#project-chats) by flags at every launch: a pinned version installed with one button, updated with another, while a running task stays on the version it started with.
+A package is a plugin or an MCP server. Even Keel keeps a set of them per project and gives it to chain sessions and the page's [project chats](chat.md#project-chats) at every launch: a pinned version, installed with one button and updated with another, while a running task stays on the version it started with. A package you turn on or off for the project reaches the next session of every task, a postponed one too.
 
-A package you turn on or off for the project reaches the next session of every task, a postponed one too.
-
-MCP servers run behind a local gateway, so the keys stay in Even Keel's `.env`.
+The keys of packages, entered in the catalog, are kept in Even Keel's `.env`. MCP servers run behind a local gateway of Even Keel, so the keys never reach a session.
 
 Installing a tracker's package for the first time is in [setup](tracker-connect.md#with-the-plugin).
 
@@ -19,9 +17,13 @@ Installing a tracker's package for the first time is in [setup](tracker-connect.
 
 Packages live in two places.
 
-**Settings → Packages** is the catalog: adding a package, install, update, check (one or all), remove, whether it is on by default, the shared values of its settings and its keys.
+**Settings** → **Packages** is the catalog: adding a package, install, update, check (one or all), remove, whether it is on by default, the shared values of its settings and its keys.
 
-A project's own packages open from **Project packages**, the wide button at the top of the **Sessions** tab of its settings, which lists the packages turned on or, in amber, the first problem among them: a switch per package, with ↺ beside it when the project chose for itself (it puts back the catalog's default), its problems in this project, and its settings for this project.
+**Project packages**, the wide button at the top of the **Sessions** tab of a project's settings, lists the packages turned on in it, or in amber the first problem among them. It opens the project's own set:
+
+- a switch per package, with ↺ beside it when the project chose for itself — it puts back the catalog's default;
+- the package's problems in this project;
+- its settings for this project.
 
 Packages are grouped by source — Even Keel's, other marketplaces, MCP servers — and the plugins of trackers the project does not use fold under "N more".
 
@@ -29,13 +31,21 @@ Package settings can be changed for every project (in the catalog) or for one pr
 
 ### The built-in `agent-bridge` plugin
 
-The `agent-bridge` plugin is built in: every project has it from the first start, and its row shows a "built in" tag instead of the switches and Remove.
+The `agent-bridge` plugin is built in: every project has it from the first start, and its row shows a "built in" tag instead of the switches and **Remove**.
 
-Handoffs, chat messages mid-turn, the check before a merge, standards and the badge's status line all run on its hooks; it puts nothing into a session's context until a hook has something to say, so each of these features is turned off by its own setting, not by the package.
+Handoffs, chat messages mid-turn, the check before a merge, standards and the badge's status line all run on its hooks. It puts nothing into a session's context until a hook has something to say, so each of these features is turned off by its own setting, not by the package.
 
-The project memory is Claude Code's memory folder of the project, `~/.claude-memory/<project>`. Claude Code chain sessions use it as Claude Code's own memory, as the sessions you start yourself do. For agents without that memory (Codex and others) the plugin brings the `memory` MCP server: it reads and writes the same folder's files, on this computer and on every machine, and each such session's prompt lists what the memory holds; a fact one session changed while another was working is not overwritten, the second session gets the new text and writes its change over it. Even Keel keeps the folder in a git repository of its own, one per project in `state/even-keel/memory/`, and commits every change there; the first start of this version puts the memory the database held into it. A machine of a hub keeps the same folders as copies of the hub's repositories, over the link: each project of its pool, and any other folder there once you bind it to a project under **Other projects' memory** on the machine's page (a clone you work in by hand, say). Edits made while the machine is offline are committed there and go to the hub when it is back; a folder neither in the pool nor bound is left alone.
+**Update**, **Check** and its version work as for any package; after an update of Even Keel it needs no **Update**, as none of Even Keel's own plugins does ([Plugins](updating.md#plugins)).
 
-Update, Check and its version work as for any package; after an update of Even Keel it needs no Update, as none of Even Keel's own plugins does ([Plugins](updating.md#plugins)).
+### Project memory
+
+A project's memory is the facts sessions save for later sessions of it. It lives in Claude Code's memory folder of the project, `~/.claude-memory/<project>`:
+
+- Claude Code chain sessions use it as Claude Code's own memory, as the sessions you start yourself do.
+- Codex and the other agents get it through the plugin's `memory` MCP server, which reads and writes the same files, and each session's prompt lists what the memory holds.
+- A fact one session changed while another was working is not overwritten: the second session gets the new text and writes its change over it.
+- Even Keel commits every change to a git repository of its own per project, in `state/even-keel/memory/`, so an old version can be brought back.
+- A machine of a hub keeps copies of these folders over the link: each project of its pool, and any other folder there once you bind it to a project under **Other projects' memory** on the machine's page (a clone you work in by hand, say). Edits made while the machine is offline go to the hub when it is back; a folder neither in the pool nor bound is left alone.
 
 ## Pinned versions
 
@@ -47,52 +57,31 @@ A server started any other way (`uvx`, `docker run`, `npx` without `-y`) fetches
 
 ## Tracker servers and their profiles
 
-A tracker's MCP server uses the project's chosen profile, or the last task feed's profile for another tracker, otherwise that tracker's default profile.
+A tracker's MCP server connects with a tracker profile: the one the project picked, or, for a tracker that is only one of the project's [several task sources](tracker-several.md), the profile of its last source on that tracker; otherwise that tracker's default profile.
 
-The chosen profile supplies its whole set of connection fields: an optional address left blank uses the server's default, such as GitLab.com, even if the default profile points to a self-managed server.
-
-The GitHub, Linear and GitLab MCP servers use the profile's own token.
+The profile supplies its whole set of connection fields: an optional address left blank uses the server's default, such as GitLab.com, even if the default profile points to a self-managed server. The GitHub, Linear and GitLab MCP servers use the profile's own token.
 
 A Jira profile can connect Atlassian's MCP server through OAuth with one button instead of a separate MCP token; Even Keel keeps and refreshes that access, and the sessions never see it ([MCP through OAuth or a token](tracker-connect.md#jira-mcp-through-oauth-or-a-token)).
 
 ## The `tasks` package
 
-The `tasks` package lets sessions create and edit tasks through Even Keel.
+The `tasks` package gives sessions Even Keel's own task tools, the same for every tracker: read a task and its comments, create tasks with their links, change fields and status, comment, and leave the handoff note. The project's statuses, labels and milestones come to the session from Even Keel, so it uses the right ones on any tracker.
 
-A repeated creation batch can use the same `retry` key to recover progress after a service restart.
-
-On GitHub, GitLab and Forgejo, new tasks carry a recovery marker in an HTML comment at the end of the description: it is hidden in the rendered task and visible when editing its source. Jira keeps it in an issue property.
-
-Recovery on those four trackers checks the newest 25 tasks, so check the tracker before repeating an interrupted batch after many newer tasks, or after removing the marker.
-
-A task found by its marker gets every field of the batch written again — labels, priority, milestone, parent, component, estimate and status — so a field changed by hand between the interruption and the repeat goes back to the batch's value.
-
-On Jira, removing a link that is absent in the requested direction and type is refused, including when the same removal is repeated; read the task's current links before retrying.
-
-Details and remaining limits are in the [adapter reference](../trackers/tasks-server.md#the-tasks-server-btn-768-srctaskmcp).
+A batch of tasks interrupted by a restart of the service can be repeated by the session without making duplicates. On GitHub, GitLab and Forgejo such a task carries a hidden marker at the end of its description, visible only when you edit its source; leave it there.
 
 ## What other agents get
 
-Codex sessions get the same set: the MCP servers, and of a plugin its skills and hooks (not its commands and agents), installed into each Codex folder on its first turn there and kept off for your own Codex sessions.
-
-OpenCode sessions get the MCP servers and a plugin's skills, plus hooks from plugins that bring OpenCode support: checkpoint and Huly do.
-
-Huly refuses descriptions and comments whose inline code is inside another formatting mark, and shows the estimate calibration when setting an estimate, with one refusal and a retry when the estimate disagrees with the data.
+- **Codex** sessions get the same set: the MCP servers, and of a plugin its skills and hooks (not its commands and agents), installed into each Codex folder on its first turn there and kept off for your own Codex sessions.
+- **OpenCode** sessions get the MCP servers and a plugin's skills, plus the hooks of the plugins that bring OpenCode support: `agent-bridge` and Huly's do.
 
 The chain does not start a task while a package of its project is not installed, lacks a key or does not answer. A server that does not answer is asked again by itself: while the project's chain runs, at least once a minute, and at once when you start or resume the chain.
 
-Nor does it start a Codex task when Codex would not run a plugin's hooks (it checks that it trusts them first, and a new Codex version may change how): the session would go without the check before a merge and the context reminders.
-
-The page names the package; update Even Keel, or for now run the task on another provider.
+Nor does it start a Codex task when Codex would not run a plugin's hooks (it checks that it trusts them first, and a new Codex version may change how): the session would go without the check before a merge and the context reminders. The page names the package; update Even Keel, or for now run the task on another provider.
 
 ## Your own skills
 
-Your own skills need no package. Claude Code reads them from `~/.claude/skills`; Even Keel keeps them in `~/.claude-config/skills` (the same on every machine, [your Claude Code configuration](hub-machine.md)) and links each one into `~/.agents/skills`, where Codex, OpenCode and Copilot read them, so an edit of a skill reaches every agent at once. A skill of your own in `~/.agents/skills` stays as it is, and a link you made there to somewhere else too.
+Your own skills need no package. Claude Code reads them from `~/.claude/skills`; Even Keel keeps them in `~/.claude-config/skills` (the same on every machine, [your Claude Code configuration](hub-machine.md#your-claude-code-configuration-on-every-machine)) and links each one into `~/.agents/skills`, where Codex, OpenCode and Copilot read them, so an edit of a skill reaches every agent at once. A skill of your own in `~/.agents/skills` stays as it is, and a link you made there to somewhere else too.
 
 To delete a skill, delete it from `~/.claude/skills`, where you see it. Even Keel notices within seconds while it runs (or at its next start) and deletes the skill from `~/.claude-config/skills`: Codex, OpenCode and Copilot lose it at once, your other Claude accounts at their next launch, your other machines after their next sync. A skill deleted from `~/.claude-config/skills` goes the same way. The configuration's history keeps a deleted skill, so it can be brought back with git. Replacing the link in `~/.claude/skills` with a folder or a link of your own keeps the skill where it is.
 
-Skills you turned off for the chain in `skillOverrides` stay off only in Claude Code sessions: Codex, OpenCode and Copilot chain sessions still see them.
-
-Until v0.4 your skills were wrapped by **Add a package → My skills** into the package `my-skills@even-keel-skills`; Even Keel removes that package from every project by itself.
-
-A skill that leans on Claude Code's own tools (Edit, `/rewind`, subagents) works poorly on another agent.
+A skill hidden from chain sessions — by **Hidden skills** under [Trim the tools](sessions.md#lean-sessions), or by `skillOverrides` in the project's `.claude/settings.json` — is hidden only in Claude Code sessions: Codex, OpenCode and Copilot chain sessions still see it. A skill that leans on Claude Code's own tools (Edit, `/rewind`, subagents) works poorly on another agent.

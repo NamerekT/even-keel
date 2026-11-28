@@ -2,13 +2,19 @@
 
 The [README](../../README.md) says what Even Keel is and has the quick start. This guide is everything else, a page per area. Each page starts with what it covers and a list of its sections, and puts the rare cases last.
 
+In every page `main` stands for the project's main branch, the one its **Main branch** setting names.
+
 ## Start here
+
+The pages in the order a new installation meets them.
 
 | Page | What is there |
 | --- | --- |
-| [Setting up](setup.md) | installing and the first start; the next pages follow in the order a new installation meets them |
+| [Setting up](setup.md) | installing and the first start |
 | [Projects](projects.md) | the wizard, the repository's folder or address, what a project needs, removing a project |
-| [Connecting a tracker](tracker-builtin.md) | the built-in tracker with no account, then [an adapter and a plugin](tracker-connect.md), [several trackers, CI and token permissions](tracker-several.md) |
+| [The built-in tracker](tracker-builtin.md) | tasks with no account, moving them to a real tracker and back |
+| [Connecting a tracker](tracker-connect.md) | a tracker profile, what a session gets with and without the tracker's plugin |
+| [Several trackers](tracker-several.md) | one project reading several trackers, CI, token permissions |
 | [The page on other devices](remote.md) | answering from the phone, reaching the page from another machine, signing in |
 | [The service](service.md) | npm, a clone, Windows, Linux and macOS; [a machine of a hub](hub-machine.md) |
 | [Updating](updating.md) | from the page or by hand, plugins, stored state, going back; [uninstalling](uninstall.md) |
@@ -45,6 +51,4 @@ The [README](../../README.md) says what Even Keel is and has the quick start. Th
 
 | Page | What is there |
 | --- | --- |
-| [Reference](reference.md) | every environment variable and every setting with its default, the `protection` key, the task labels API |
-
-In every page `main` stands for the project's main branch, the one its `branch` setting names.
+| [Reference](reference.md) | every environment variable and every setting with its default, the `protection` key, the task labels API for scripts |

@@ -1,29 +1,38 @@
 # Installing with Docker
 
-The Even Keel image runs on Linux amd64 and arm64. Docker Compose starts the service and its agents as the `node` user (UID 1000).
+The Even Keel image runs on Linux amd64 and arm64. Docker Compose starts the service and its agents as the `node` user (UID 1000). The commands on this page are for a Linux or macOS shell on the Docker host.
 
 ## First start
 
-Save [compose.yaml](../../compose.yaml) in an empty folder on the Docker host. Run the following commands in that folder. On Linux or macOS, this creates a private `.env` with a fresh owner key.
+1. Save [compose.yaml](../../compose.yaml) in an empty folder on the Docker host, and run the commands in that folder.
+2. Create a private `.env` with a fresh owner key, the key the page asks for:
 
-```sh
-(umask 077 && printf 'EVEN_KEEL_TOKEN=%s\n' "$(openssl rand -hex 32)" > .env)
-```
+   ```sh
+   (umask 077 && printf 'EVEN_KEEL_TOKEN=%s\n' "$(openssl rand -hex 32)" > .env)
+   ```
 
-Start Even Keel and open `http://localhost:4747` on the host. Enter the owner key, `EVEN_KEEL_TOKEN` from `.env`, when prompted, then follow the [setup wizard](setup.md#the-first-start). `even-keel install` and `npx even-keel` inside the container refuse with "Docker manages the service. Run docker compose up -d on the host to start Even Keel."
+3. Start Even Keel and watch it come up:
 
-```sh
-docker compose up -d
-docker compose logs -f even-keel
-```
+   ```sh
+   docker compose up -d
+   docker compose logs -f even-keel
+   ```
 
-The page listens on all interfaces **inside** the container. Compose publishes it on the host's loopback address. For a server or NAS, forward that port through SSH, or configure the proxy name under **Other names of the page** (**Settings** → **Sign-in and devices**) before exposing the page through an HTTPS proxy. See [the page on other devices](remote.md#reaching-the-page-from-another-machine). Compose publishes the port for [machines](#machines), 4749, on loopback too.
+4. Open `http://localhost:4747` on the host, enter the owner key (`EVEN_KEEL_TOKEN` from `.env`) and follow the [setup wizard](setup.md#the-first-start).
+
+Docker manages the service: `even-keel install` inside the container refuses and points to `docker compose up -d`.
+
+The page listens on all interfaces inside the container, and Compose publishes it on the host's loopback address only. For a server or NAS, forward the port through SSH, or put the page behind an HTTPS proxy and enter the proxy's name in **Other names of the page** (**Settings** → **Sign-in and devices**) first ([Reaching the page from another machine](remote.md#reaching-the-page-from-another-machine)).
 
 ## Data, accounts and repositories
 
-The named volume `home` holds `/home/node`. This includes the service data in `/home/node/.local/share/even-keel` (database, logs and checked CLIs), agent account folders and Git configuration. Sign in to agent accounts on the page. A repository cloned under `/home/node` also survives container replacement. Use the same Compose folder and project name each time to reuse the volume. `docker compose down` keeps it, while `docker compose down -v` deletes it.
+The named volume `home` holds `/home/node`: the service data in `/home/node/.local/share/even-keel` (database, logs and checked CLIs), the agents' account folders and git's configuration. A repository cloned under `/home/node` survives replacing the container too. Use the same Compose folder and project name each time to reuse the volume: `docker compose down` keeps it, `docker compose down -v` deletes it.
 
-To use a host checkout, add a `compose.override.yaml` beside `compose.yaml` and run `docker compose up -d` again. For example:
+Sign in to the agents' accounts on the page, and enter tracker credentials in **Settings** → **Trackers and CI**.
+
+### A checkout on the host
+
+To use a checkout on the host, add a `compose.override.yaml` beside `compose.yaml` and run `docker compose up -d` again:
 
 ```yaml
 services:
@@ -32,29 +41,31 @@ services:
       - /srv/even-keel/projects:/projects
 ```
 
-Mount the whole checkout, including its Git directory and worktrees. Give UID 1000 write access, then enter the container path (for example `/projects/demo`) when adding the project. Agents can modify the host files mounted there.
+Mount the whole checkout, with its git folder and worktrees, and give UID 1000 write access. When adding the project, enter the container's path, such as `/projects/demo`. Agents can change the host files mounted there.
 
-Set the Git author in the setup wizard. For SSH remotes, provision a dedicated key and verified `known_hosts` in a private host directory and mount it read-only at `/home/node/.ssh` (for example `/srv/even-keel/ssh:/home/node/.ssh:ro`). The key must be readable by UID 1000 with mode 0600.
+### Git author and remotes
 
-For HTTPS remotes on GitHub, GitLab or Forgejo, no credential file is needed: the forge's profile in **Settings → Trackers and CI** is enough, as [Token permissions](tracker-several.md#token-permissions) describes. The token never lands in git's config, a file or a session's environment, and the image's git is new enough for it.
+- **The author** is set in the setup wizard.
+- **SSH remotes:** put a dedicated key and a verified `known_hosts` into a private host folder and mount it read-only at `/home/node/.ssh` (`/srv/even-keel/ssh:/home/node/.ssh:ro`). The key must be readable by UID 1000, with mode 0600.
+- **HTTPS remotes on GitHub, GitLab or Forgejo** need no credential file: the forge's profile in **Settings** → **Trackers and CI** is enough ([Token permissions](tracker-several.md#token-permissions)). The token never lands in git's config, a file or a session's environment.
+- **Another HTTPS remote**, or one you would rather keep apart, works with a git credential helper of your own. With a credential file mounted read-only at `/run/secrets/git-credentials`, run:
 
-A remote with no such profile (another host, or one you would rather keep apart) still works with a Git credential helper of your own in the container. For example, with a dedicated Git credential file mounted read-only at `/run/secrets/git-credentials`, run:
+  ```sh
+  docker compose exec even-keel git config --global credential.helper 'store --file=/run/secrets/git-credentials'
+  ```
 
-```sh
-docker compose exec even-keel git config --global credential.helper 'store --file=/run/secrets/git-credentials'
-```
-
-Keep these files on the host, outside the repository and image. The token in Compose's `.env` grants access to the Even Keel page. Tracker credentials are entered separately in **Settings → Trackers and CI**.
+Keep keys and credential files on the host, outside the repository and the image. The key in Compose's `.env` opens the Even Keel page: keep it as private.
 
 ## The agents' CLIs
 
-The image carries no agent CLI, and `npm install -g` cannot install one inside it: the container runs as `node`, and npm's global folder belongs to root. So in Docker the page never offers an installation command. Under **Settings → Providers and models → CLI version** (also in the setup's Agent step and in an agent's window on the accounts page), pick one of Even Keel's own copies, **Checked** or **Latest** ([CLI copies](agents.md#cli-copies)); nothing has to be run in the container. The copies live in the `home` volume and survive an update, roughly 80–340 MB per agent.
+The image carries no agent CLI, and none can be installed inside it with `npm install -g`: the container runs as `node`, and npm's global folder belongs to root. So in Docker the page offers no installation command. Pick one of Even Keel's own copies instead, **Checked** or **Latest**, in **Settings** → **Providers and models** → **CLI version** (also in the setup's Agent step and in an agent's window on the accounts page) ([CLI copies](agents.md#cli-copies)). Nothing has to be run in the container. The copies live in the `home` volume and survive an update, roughly 80–340 MB per agent.
 
-An `EVEN_KEEL_<PROVIDER>_BIN` variable in `compose.yaml` overrides this choice, which then has no effect. Remove the variable to go back to the page's choice. A CLI built into [your own image](#your-own-tools) and set as **Yours** works as well.
+- A CLI built into [your own image](#your-own-tools) and set as **Yours** works as well.
+- An `EVEN_KEEL_<PROVIDER>_BIN` variable in `compose.yaml` wins over the page's choice, which then does nothing. Remove the variable to go back to the page's choice.
 
 ## Your own tools
 
-The image carries Node.js, git, SSH and curl, nothing a project may need besides: Python, a compiler, system libraries. They cannot be installed from inside, since the container runs as `node`, without sudo and with `no-new-privileges`. A `docker compose exec -u root even-keel apt-get install …` does work, but it changes only that container: the next update replaces it with a fresh one, and the tools are gone.
+The image carries Node.js, git, SSH and curl, nothing else a project may need: Python, a compiler, system libraries. They cannot be installed from inside, since the container runs as `node`, without sudo and with `no-new-privileges`. A `docker compose exec -u root even-keel apt-get install …` does work, but only in that container: the next update replaces it, and the tools are gone.
 
 Build an image of your own over ours instead. Put a `Dockerfile` beside `compose.yaml`:
 
@@ -80,67 +91,19 @@ services:
         EVEN_KEEL_IMAGE_TAG: ${EVEN_KEEL_IMAGE_TAG:-latest}
 ```
 
-The build argument passes the tag from `.env` to the `FROM` line, so a pinned version or `next` holds for your image too. The image gets a name of its own so that a `docker compose pull` does not put ours in its place. Build and start it:
+The build argument passes the tag from `.env` to the `FROM` line, so a pinned version or `next` holds for your image too. The image gets a name of its own so that `docker compose pull` does not put ours in its place. Build and start it:
 
 ```sh
 docker compose build --pull && docker compose up -d
 ```
 
-Everything under `/home/node` survives an update, as it lives in the volume: the database, the account folders, the checked CLIs and the clones. Tools that install into the home folder may go there instead of into an image, for example mise, uv or rustup. Their folder must be on the service's `PATH` for the agents to find them, for example `ENV PATH=/home/node/.local/bin:$PATH` in your `Dockerfile`, or the image's whole `PATH` with that folder in front under `environment` in `compose.override.yaml`.
-
-## Stopping and backing up
-
-`docker compose stop`, `down` and the `up -d` of an update give Even Keel 30 seconds to close (`stop_grace_period` in the Compose files), while it needs up to 15. Without that setting, Docker kills the container after 10 seconds, so a Compose file of your own needs it too.
-
-The [automatic copies](updating.md#stored-state) of the database lie in the same volume as the database, so losing the volume loses them as well. To keep them elsewhere, mount a host folder that UID 1000 can write, for example `/srv/even-keel/backups:/backups`, and set **Settings** → **Backups** → **Copies folder** to `/backups`. Those copies hold the database only. The account sign-ins, the machine's own folder and cloned repositories stay in the volume.
-
-To copy the whole volume, stop the service and pack `/home/node` into an archive in the Compose folder:
-
-```sh
-docker compose stop
-docker compose run --rm --no-deps --user root -v "$PWD:/backup" even-keel \
-  sh -c "tar czf /backup/even-keel-home.tgz -C /home/node . && chmod 600 /backup/even-keel-home.tgz && chown $(id -u):$(id -g) /backup/even-keel-home.tgz"
-docker compose start
-```
-
-The archive holds the sign-ins, the tracker credentials and the page's settings in the clear, so keep it as private as `.env`. To put it back, for example on a new host or after `down -v`, run the following in the Compose folder with the archive in it:
-
-```sh
-docker compose down
-docker compose run --rm --no-deps --user root -v "$PWD:/backup:ro" even-keel \
-  sh -c 'find /home/node -mindepth 1 -delete && tar xzpf /backup/even-keel-home.tgz -C /home/node'
-docker compose up -d
-```
-
-This replaces everything in the volume. For a machine's folder, use the service name `machine` instead of `even-keel`. With `compose.hub-machine.yaml`, copy each service into an archive of its own name.
-
-## Machines
-
-A [machine of a hub](hub-machine.md#a-machine-of-a-hub-preview) runs the hub's tasks and has no page of its own. Either side may be a container.
-
-- **Hub and machines on hosts.** As in [the setup guide](hub-machine.md#a-machine-of-a-hub-preview).
-- **Hub in Docker, a machine on a host.** Inside its container the hub sees only the container's network. **+ Machine** therefore offers no network card's address: type the Docker host's name or address. Compose publishes the machines' port on loopback only. For machines on other hosts, add `EVEN_KEEL_MACHINES_PUBLISH=0.0.0.0` (or one of the host's addresses) to `.env` and run `docker compose up -d`. Alternatively, forward the port through a proxy ([Behind a proxy](hub-machine.md#a-machine-of-a-hub-preview)). Open it only to the network the machines are on. Install the machine from npm with the window's command. A hub in an image has no git commit, so a machine from a clone cannot follow it. Instead, its page on the hub tells you to install the hub's version by hand.
-- **A machine in Docker, the hub anywhere.** Save [compose.machine.yaml](../../compose.machine.yaml) as `compose.yaml` in an empty folder on the machine's host. In **+ Machine**, pick **Docker** and run the window's three steps in that folder:
-
-  ```sh
-  echo 'EVEN_KEEL_IMAGE_TAG=<the hub version>' > .env
-  docker compose run --rm machine even-keel join <the hub's address>
-  docker compose up -d
-  ```
-
-  The join prints a code: compare it with the window **A new machine wants to join** on the hub's page and press **Admit**, as in [the setup guide](hub-machine.md#a-machine-of-a-hub-preview). The window's **Or with the connection string** gives the same join with a string instead, which joins with no window. The tag is required: a machine runs the hub's version, never `latest`. The join keeps the connection in the volume `machine-home`, and a string goes into no file. The `machine` service sets `EVEN_KEEL_MACHINE=1`. If it starts before the join, it waits for one instead of starting as a hub. `docker compose logs -f machine` shows it reach the hub. With **Machine name** left empty, the hub names the machine by its host name, which the file sets to `even-keel-machine`, so the name survives a recreated container. Type a name in the window, or change `hostname:` before the join, to tell machines on several hosts apart. The image carries Node.js and git, not the agents' CLIs, and the machine downloads one only for a provider on **Checked** or **Latest**: on **Yours**, the default, it has none. In the machine's **Add account** window, the tile of an agent with no CLI opens a step with **Use the checked copy**, which switches that provider to **Checked** with your consent. A provider on **Checked** at the hub: once the hub's own copy is downloaded with your consent, the machine downloads its own copy of the same version by itself, and its chain waits only for the bytes. If the hub has no copy yet, the pause names the machine: download the copy on the hub, and the machine follows. **Latest** works the same way, except that each machine asks for the newest release itself, so for up to 15 minutes after a release it may run a different version from the hub. A provider on **Yours** needs its CLI installed in the container, or in an image of your own. Set its Git author from the hub: **Set name and e-mail** on the machine's page (under **On the machine**), or **Commit author** in the project's settings of that machine, opens the window of name and e-mail filled with the hub's own, and the machine's facts show it at once. Mount SSH keys as for the hub above, and sign in to accounts from the hub's page.
-- **Hub and machine in Docker on one host.** Use [compose.hub-machine.yaml](../../compose.hub-machine.yaml) as the `compose.yaml` of the hub's folder: the hub keeps its volume `home`, and the machine gets its own. Start the hub, then type `even-keel` as the address in **+ Machine**. The machine reaches the hub by its Compose service name, and the code (or the connection string) checks the hub's certificate, so the name needs no certificate of its own and port 4749 stays closed to other hosts. Then run the window's join and `docker compose up -d` in the same folder. Both services take one `EVEN_KEEL_IMAGE_TAG`. The address `even-keel` is remembered for the next strings: for a machine on another host, type the host's address again. For one more machine on this host, copy the `machine` service under another name with a volume and a `hostname:` of its own, and run the join with that name. The hub's host name is `even-keel` in both Compose files, so its own machine is named so as well.
-- **Hub and machines in Docker on several hosts.** The hub's host as in the second case, each machine's host as in the third.
-
-### Updating machines
-
-Every Compose folder has one version: `EVEN_KEEL_IMAGE_TAG` in its `.env`. A machine's agent sessions run inside its container, so a `stop`, `down` or the `up -d` of an update ends them. Wait for the sessions of the machines you update to finish, as for the hub. A session cut off this way stays its task's current session, and an answer from the page's chat continues it. Update the hub first. Change the number in its `.env` and run `docker compose pull && docker compose up -d` in its folder. With `compose.hub-machine.yaml` this one command updates the hub and its machines on that host. Then run the same in each other host's machine folder, after changing the number there. Until then, a machine of another version finishes its tasks and takes no new ones. Its page on the hub gives the `.env` line and the commands. A container never updates itself, not even when the hub refuses its version. For an image of your own built over ours, run `docker compose build --pull && docker compose up -d` instead.
+Tools that install into the home folder, such as mise, uv or rustup, may go into the volume instead of an image, since everything under `/home/node` survives an update. Their folder must be on the service's `PATH` for the agents to find them: `ENV PATH=/home/node/.local/bin:$PATH` in your `Dockerfile`, or the image's whole `PATH` with that folder in front under `environment` in `compose.override.yaml`.
 
 ## Updating
 
-The default image tag is `latest`. To follow release candidates, put `EVEN_KEEL_IMAGE_TAG=next` in `.env`. To pin a version, use its number without the leading `v`. When updating a pinned install, change that number first.
+The default image tag is `latest`. To follow release candidates, put `EVEN_KEEL_IMAGE_TAG=next` in `.env`; to pin a version, its number without the leading `v`. To update a pinned install, change that number first.
 
-Wait for active sessions to finish, then run one of the two commands shown in the page's update window from the Compose folder on the host. With our image:
+Wait for active sessions to finish, then run the command the page's update window shows, in the Compose folder on the host. With our image:
 
 ```sh
 docker compose pull && docker compose up -d
@@ -152,11 +115,93 @@ With [your own image](#your-own-tools) over ours, rebuild it on the new version 
 docker compose build --pull && docker compose up -d
 ```
 
-From inside the container the two images look alike, so the window shows both. Compose replaces the container and reattaches the home volume and any mounted repositories. The new service runs its usual storage migrations at startup.
+From inside the container the two images look alike, so the window shows both commands. Compose replaces the container and attaches the home volume and the mounted repositories again; the new version updates its database at start by itself.
+
+## Stopping and backing up
+
+Even Keel needs up to 15 seconds to stop. The Compose files give it 30 (`stop_grace_period`) for `docker compose stop`, `down` and the `up -d` of an update; without that setting Docker kills the container after 10 seconds, so a Compose file of your own needs it too.
+
+The [automatic copies](updating.md#backups) of the database lie in the same volume as the database, so losing the volume loses them as well. To keep them elsewhere, mount a host folder UID 1000 can write, such as `/srv/even-keel/backups:/backups`, and set **Settings** → **Backups** → **Copies folder** to `/backups`. Those copies hold the database only; the sign-ins, the machine's own folder and the cloned repositories stay in the volume.
+
+To copy the whole volume, stop the service and pack `/home/node` into an archive in the Compose folder:
+
+```sh
+docker compose stop
+docker compose run --rm --no-deps --user root -v "$PWD:/backup" even-keel \
+  sh -c "tar czf /backup/even-keel-home.tgz -C /home/node . && chmod 600 /backup/even-keel-home.tgz && chown $(id -u):$(id -g) /backup/even-keel-home.tgz"
+docker compose start
+```
+
+The archive holds the sign-ins, the tracker credentials and the page's settings in the clear: keep it as private as `.env`. To put it back, on a new host or after `down -v`, run in the Compose folder with the archive in it:
+
+```sh
+docker compose down
+docker compose run --rm --no-deps --user root -v "$PWD:/backup:ro" even-keel \
+  sh -c 'find /home/node -mindepth 1 -delete && tar xzpf /backup/even-keel-home.tgz -C /home/node'
+docker compose up -d
+```
+
+This replaces everything in the volume. For a machine's folder, use the service name `machine` instead of `even-keel`; with `compose.hub-machine.yaml`, copy each service into an archive of its own name.
+
+## Machines
+
+A [machine of a hub](hub-machine.md#a-machine-of-a-hub-preview) runs the hub's tasks and has no page of its own. Either side may be a container:
+
+- **Hub and machines on hosts** — as in [the setup guide](hub-machine.md#a-machine-of-a-hub-preview).
+- **Hub in Docker, a machine on a host** — [below](#a-hub-in-docker).
+- **A machine in Docker, the hub anywhere** — [below](#a-machine-in-docker).
+- **Hub and machine in Docker on one host** — [below](#hub-and-machine-on-one-host).
+- **Hub and machines in Docker on several hosts** — the hub's host as a hub in Docker, each machine's host as a machine in Docker.
+
+### A hub in Docker
+
+- **The address.** Inside its container the hub sees only the container's network, so **+ Machine** offers no address of a network card: type the Docker host's name or address.
+- **The port.** Compose publishes the machines' port, 4749, on loopback only. For machines on other hosts, add `EVEN_KEEL_MACHINES_PUBLISH=0.0.0.0` (or one of the host's addresses) to `.env` and run `docker compose up -d`, or forward the port through a proxy ([Behind a proxy](hub-machine.md#a-machine-of-a-hub-preview)). Open it only to the network the machines are on.
+- **The machine** is installed from npm with the window's command. A machine from a clone cannot follow a hub in an image: its page on the hub tells you to install the hub's version by hand.
+
+### A machine in Docker
+
+1. Save [compose.machine.yaml](../../compose.machine.yaml) as `compose.yaml` in an empty folder on the machine's host.
+2. In **+ Machine** on the hub, pick **Docker**. Leave **Machine name** empty to name the machine `even-keel-machine`, the host name the file gives the container, so the name survives a recreated container; type a name, or change `hostname:` before the join, to tell machines on several hosts apart.
+3. Run the window's three steps in that folder:
+
+   ```sh
+   echo 'EVEN_KEEL_IMAGE_TAG=<the hub version>' > .env
+   docker compose run --rm machine even-keel join <the hub's address>
+   docker compose up -d
+   ```
+
+   The tag is required: a machine runs the hub's version, never `latest`.
+4. The join prints a code: compare it with the window **A new machine wants to join** on the hub's page and press **Admit** ([the setup guide](hub-machine.md#a-machine-of-a-hub-preview)). **Or with the connection string** in the window gives the same join with a string instead, which needs no admitting. The join keeps the connection in the volume `machine-home`; a string goes into no file.
+5. `docker compose logs -f machine` shows it reach the hub. Started before the join, the `machine` service waits for one instead of starting as a hub.
+
+Then, from the hub's page:
+
+- **The agents' CLIs.** The image carries none, and on **Yours**, the default, the machine has none. A provider on **Checked** downloads its copy on the machine by itself once the hub's own copy is downloaded; until then the pause names the machine — download the copy on the hub, and the machine follows. **Latest** works the same way, except that each machine asks for the newest release itself, so for up to 15 minutes after a release it may run another version than the hub. In the machine's **Add account** window, the tile of an agent with no CLI offers **Use the checked copy**. A provider on **Yours** needs its CLI in an image of your own.
+- **The git author.** **Set name and e-mail** on the machine's page (under **On the machine**), or **Commit author** in the project's settings of that machine, opens a window filled with the hub's own.
+- **SSH keys** are mounted as for the hub [above](#git-author-and-remotes); accounts are signed in to from the hub's page.
+
+### Hub and machine on one host
+
+1. Use [compose.hub-machine.yaml](../../compose.hub-machine.yaml) as the `compose.yaml` of the hub's folder: the hub keeps its volume `home`, and the machine gets its own. Both services take one `EVEN_KEEL_IMAGE_TAG`.
+2. Start the hub, then type `even-keel` as the address in **+ Machine**. The machine reaches the hub by its Compose service name, and the code (or the connection string) checks the hub's certificate, so port 4749 stays closed to other hosts. The window keeps that address for the next machine: for one on another host, type the host's address again.
+3. Run the window's join and `docker compose up -d` in the same folder. The hub's host name is `even-keel` in both Compose files, so its own machine is named so as well.
+
+For one more machine on this host, copy the `machine` service under another name with a volume and a `hostname:` of its own, and run the join with that name.
+
+### Updating machines
+
+Every Compose folder has one version, `EVEN_KEEL_IMAGE_TAG` in its `.env`, and a container never updates itself, even when the hub refuses its version.
+
+1. Wait for the sessions of the machines you update to finish: a machine's sessions run inside its container, so `stop`, `down` or the `up -d` of an update ends them. A session cut off this way stays its task's current session, and an answer in the page's chat continues it.
+2. Update the hub first: change the number in its `.env` and run `docker compose pull && docker compose up -d` in its folder. With `compose.hub-machine.yaml` this also updates the machine on that host.
+3. Then do the same in each other machine's folder. Until then, a machine of another version finishes its tasks and takes no new ones; its page on the hub gives the `.env` line and the commands.
+
+For an image of your own, run `docker compose build --pull && docker compose up -d` instead of `pull`.
 
 ## Moving a host installation into Docker
 
-The data folder of an installation on the host cannot be copied into the volume as is. Its database stores the host's paths: project checkouts, agent account folders, task worktrees and the folders of running sessions. On Windows, these are Windows paths. Only the settings and projects move. Everything else starts afresh in the container:
+The data folder of an installation on the host cannot be copied into the volume as is: its database stores the host's paths — project checkouts, account folders, task worktrees, the folders of running sessions; on Windows, Windows paths. Only the settings and projects move. Everything else starts afresh in the container:
 
 - tracker profiles and their credentials, the OpenRouter management keys and the agents' sign-ins;
 - tasks of a project on the built-in tracker (keep such a project on the host for now);
@@ -170,8 +215,8 @@ The data folder of an installation on the host cannot be copied into the volume 
    ```
 
    The data folder is `%LOCALAPPDATA%\even-keel` on Windows (in PowerShell, set `$env:EVEN_KEEL_DATA` first) and `~/Library/Application Support/even-keel` on macOS. In a clone installed by itself, run the command without `EVEN_KEEL_DATA`.
-3. In the file, change each project's `repo` to its path inside the container: a mounted checkout (see [Data, accounts and repositories](#data-accounts-and-repositories)) or a clone under `/home/node`. If the file sets `backup.dir`, change it the same way or remove it.
-4. Create the Compose folder as in [First start](#first-start), but do not start Even Keel yet. The file is read only once, at the first start on an empty volume. Copy the file into the volume from the folder that holds it:
+3. In the file, change each project's `repo` to its path inside the container: a [mounted checkout](#a-checkout-on-the-host) or a clone under `/home/node`. If the file sets `backup.dir`, change it the same way or remove it.
+4. Create the Compose folder as in [First start](#first-start), but do not start Even Keel yet: the file is read only once, at the first start on an empty volume. Copy the file into the volume from the folder that holds it, then start:
 
    ```sh
    docker compose run --rm --no-deps -v "$PWD/even-keel.config.json:/import.json:ro" even-keel \
@@ -179,6 +224,6 @@ The data folder of an installation on the host cannot be copied into the volume 
    docker compose up -d
    ```
 
-5. On the page, add the tracker profiles in **Settings → Trackers and CI** and choose each project's profile again. Sign in to the agent accounts, then check each project's account.
+5. On the page, add the tracker profiles in **Settings** → **Trackers and CI** and choose each project's profile again. Sign in to the agents' accounts, then check each project's account.
 
-The volume should then keep the installation. A full move with the database is not available yet.
+A full move with the database is not available yet.

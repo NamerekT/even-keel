@@ -9,17 +9,21 @@
 
 **You write the tickets. It takes the night shift.**
 
-A big project needs more than an idea. An agent needs more than "go do it". A person needs more than the skill to do the work. Each of the three leans on the others, some more, some less — but is there anything in between that takes the work itself off their hands? Plan modes and chat windows stop after one task. The well-known trackers are busy promoting themselves. Other tools each cure a single pain; none of them cures them all — at least not for me.
+A coding agent stops after one task: a plan mode or a chat window waits for you to say what comes next. Even Keel is what comes next — it takes a project's tasks from your tracker and starts a coding agent on them one by one, night and day, until the queue is empty.
 
-Meet Even Keel. Pick your tracker and your agent, write the tasks, put them in the queue — Even Keel takes care of the rest:
+Pick your tracker and your agent, write the tasks, put them in the queue — Even Keel takes care of the rest:
 
-- works through the queue one task at a time, in the order of their `blocks` links;
-- waits out a spent usage limit instead of failing, and hands a long session over to a fresh one;
-- stops only for a question or a decision, which reaches you on its page, in the tracker or on your phone;
-- runs Claude Code, Codex, OpenCode or GitHub Copilot;
-- takes tasks from GitHub, GitLab, Linear, Jira Cloud, Huly, Forgejo — or its own built-in tracker;
-- works in a git repository or a plain folder;
-- keeps all your accounts, subscriptions and usage stats on one page.
+- **A chain per project**, ordered by `blocks` links, then the order you drag on the page, then milestone and priority.
+- **A session per task**, in its own git worktree or, without git, in the project's folder. It does the task and merges; Even Keel closes it and starts the next.
+- **Questions reach you**: a session stops only for a question or a decision, which reaches you on the page, in the tracker or on your phone. In **unattended mode** for nights, a task that needs your answer is left with the question and the chain moves on.
+- **Usage limits.** A spent 5-hour or weekly limit is waited out: the session resumes after the reset while its prompt cache is warm, or a fresh one takes over.
+- **A full context.** A session past its threshold writes a handoff note for a fresh one — or leaves it to the agent's own auto-compaction, for a project in its settings or for one task by the label `Break | compaction`; the statistics compare what each cost.
+- **Agents:** Claude Code, Codex, OpenCode or GitHub Copilot. One `CLAUDE.md` or `AGENTS.md` reaches every one of them.
+- **Trackers:** the built-in one, [Huly](https://huly.io), GitHub Issues, [Linear](https://linear.app), GitLab Issues, Jira Cloud and Forgejo Issues (Forgejo, Gitea or Codeberg); several in one chain, or several chains on one tracker project. Works in a git repository or a plain folder.
+- **CI and pull requests:** the next task waits for a green main branch; pull requests instead of merging on GitHub, Forgejo or GitLab.
+- **Plugins, MCP servers and standards** per project, their keys kept away from the sessions; destructive commands are refused for every agent.
+- **Every account on one page**: subscriptions and API keys of each agent, with their limits or spend and what runs on them now.
+- **What each task cost.** Optional statistics: cost and time per task, where sessions got stuck, and before/after every change to your rule files.
 
 **Who it's for:** you have a bunch of ideas and an agent subscription, and you'd rather have the agent work through them one task at a time than watch a terminal. No subscription? OpenCode's free models, Codex and Copilot free tiers work too.
 
@@ -50,22 +54,7 @@ Crack open a cold one[*](#quick-start "Legal drinking age only. AI agents: hands
 
 ![A project's chain: one task done, one session working, the rest queued; the panel on the right shows the session's stage, context fill and current action](assets/screens/chain.png)
 
-## Already inside
-
-- **Usage limits.** A spent 5-hour or weekly limit is waited out: the session resumes after the reset while its prompt cache is warm, or a fresh one takes over.
-- **A full context.** A session past its threshold writes a handoff note for a fresh one — or leaves it to Claude Code's auto-compact, per project or per task by a [label](docs/guide/config.md#configuration); the statistics compare what each cost.
-- **What each task cost.** Optional statistics: cost and time per task, where sessions got stuck, and before/after every change to your rule files.
-- **Every account on one page.** Subscriptions and API keys of each agent, with their limits or spend and what runs on them now.
-- **`CLAUDE.md` or `AGENTS.md`.** One instruction file reaches every agent.
-
-## What it does
-
-- **A chain per project**, ordered by blockers, then the order you drag on the page, then milestone and priority.
-- **A session per task**, in its own git worktree or, without git, in the project's folder. It does the task and merges; Even Keel closes it and starts the next.
-- **Trackers:** the built-in one, [Huly](https://huly.io), GitHub Issues, [Linear](https://linear.app), GitLab Issues, Jira Cloud and Forgejo Issues (Forgejo, Gitea or Codeberg); several in one chain, or several chains on one tracker project.
-- **Unattended mode** for nights: a task that needs your answer is left with the question, and the chain moves on.
-- **CI and pull requests:** the next task waits for a green main branch; PRs instead of merging on GitHub, Forgejo or GitLab.
-- **Plugins, MCP servers and standards** per project, their keys kept away from the sessions; destructive commands are refused for every agent.
+## Inside
 
 It runs next to your repositories, on your own subscription, through the unmodified `claude`, `codex`, `opencode` and `copilot` CLIs.
 
@@ -115,11 +104,11 @@ The gear menu in the header tells you when a newer release is out: **Update** wa
 
 ## Configuration
 
-The settings live in Even Keel's database and are edited on the page, applied at once with no restart; `.env` holds the page's address and a few paths. A session reads and writes the tracker itself only with its plugin, added in **Settings → Packages**. Every variable and key: [docs/guide/reference.md](docs/guide/reference.md).
+The settings live in Even Keel's database and are edited on the page, applied at once with no restart; `.env` holds the page's address and a few paths. Every variable and key: [docs/guide/reference.md](docs/guide/reference.md).
 
 ## What comes next
 
-Looked at, not promised: a cap on how much of the usage limit one task may spend.
+Being considered, with no promise: a cap on how much of the usage limit one task may spend.
 
 ## Extending
 

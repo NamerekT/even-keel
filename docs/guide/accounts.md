@@ -13,237 +13,166 @@ An account is one sign-in of one agent: a subscription, an API key or a cloud. E
 
 ## Adding an account
 
-Accounts appear only after you add them: installing a CLI or signing in to it does not add one. **Add account** is on the setup's Agent step, the accounts page and in the project wizard.
+What each agent can sign in with:
 
-Choose a provider (a provider's own **Add**, or **Add account** at the top, which also offers providers with no accounts, whose empty blocks are omitted). If its CLI — a global Claude Code or Codex folder — already has a sign-in on this machine, the dialog offers **Use this sign-in** or **Sign in with another account**, which keeps a separate folder; otherwise it opens the usual sign-in choices.
+| Agent | Sign-ins |
+| --- | --- |
+| Claude Code | a Claude subscription, an Anthropic API key, a cloud (Amazon Bedrock, Google Vertex AI, Microsoft Foundry) |
+| Codex | a ChatGPT subscription, an OpenAI API key |
+| OpenCode | ChatGPT, an OpenCode Go key, an Anthropic, OpenAI or OpenRouter API key, OpenCode's free models |
+| Copilot | the machine's GitHub sign-in, a token |
 
-Until a provider has a registered shared account, the first account added for it takes that role, its unused shared pool entry.
+Accounts appear only after you add them: installing a CLI or signing in to it does not add one. **Add account** is on the setup's Agent step, on the accounts page (at the top, or a provider's own **Add**) and in the project wizard. A provider whose CLI is missing is greyed, with help to install it.
 
-Removing an added global CLI account from Even Keel keeps its folder and CLI sign-in. An update keeps global accounts that were already visible; a new installation starts without them.
+1. Choose the provider.
+2. If its CLI — Claude Code or Codex in its usual folder — already has a sign-in on this machine, pick **Use this sign-in**, or **Sign in with another account** to keep a separate folder.
+3. Follow the sign-in steps. The dialog closes on success and highlights the added row.
 
-Claude Code offers a subscription, an API key or a cloud (Amazon Bedrock, Google Vertex AI, Microsoft Foundry); Codex a ChatGPT subscription or API key; OpenCode ChatGPT, GitHub Copilot, free models or API key; Copilot this machine's sign-in or a token.
+The first account you add for a provider is the one Even Keel runs that provider's sessions on, until you pick another. Removing an account that uses the CLI's own sign-in keeps that folder and its sign-in.
 
-The dialog walks the sign-in steps, closes on success and highlights the added row. It opens over the current page, including setup and the project wizard.
-
-A missing CLI disables its provider with installation help.
-
-An account uses its given name, else e-mail, else provider (numbered for duplicates); Rename in the row menu changes only that name, and an empty name restores the default.
+An account goes by its given name, else its e-mail, else the provider (numbered for duplicates); **Rename** in the row's menu changes only that name, and an empty name brings the default back.
 
 ## Subscriptions
 
-Your own Claude and Codex subscriptions — a personal and a work one, say — one config folder each.
+Your own subscriptions — a personal and a work one, say — one folder each.
 
 ### Claude: a full sign-in or a long token
 
 A Claude subscription signs in one of two ways, picked in the add dialog:
 
-- **Full sign-in** — Claude Code's own: a link, the sign-in and a code. In a browser of the computer Even Keel runs on, **On this computer** signs in with no code; **From another device** is the link and the code, as on a phone. A sign-in on another machine of a hub has only the second. Even Keel reads the limits every five minutes, each model's week too, sees an early reset at once, knows the account by its e-mail, and its sessions have Remote Control. The sign-in lives about 30 days and using the account does not extend it: it may end any moment in its last three days, so the page counts the days left to the start of that window, offers **Renew** in the week before and warns a day before it. It has also dropped on its own after a reboot or a night with Even Keel off: the account then asks you to sign in again.
-- **Long token** — the token `claude setup-token` issues for a year. Run the command in a terminal on any machine with Claude Code, sign in with the account you need and paste the token into the dialog; one short turn checks it before the account is added. It is not renewed, so it does not drop the way a full sign-in can, but it only runs sessions: no Remote Control, limits only while a session of the account runs and without a model's own week, no e-mail on the page, and a new token in a year. An early reset is not seen either: a chain that hit the limit waits until the reset time it was told.
+| | Full sign-in | Long token |
+| --- | --- | --- |
+| How | Claude Code's own: a link, the sign-in and a code | the token `claude setup-token` issues, pasted into the dialog |
+| Lives | about 30 days, not extended by use | a year |
+| Limits | read every five minutes, each model's week too; an early reset is seen at once | only while a session of the account runs, without a model's own week; a chain waits for the reset time it was told |
+| E-mail on the page | yes | no |
+| Remote Control | yes | no |
 
-Take the full sign-in when you watch the limits or use Remote Control; take the token for a machine left alone for weeks, where a dropped sign-in would stop the chain with nobody there. When the token belongs to an account that is already added with a full sign-in, say so in "The same account as": the token account then shows that account's limits and resets, and only Remote Control is missing.
+**Full sign-in.** In a browser of the computer Even Keel runs on, **On this computer** signs in with no code; **From another device** is the link and the code, as on a phone. The sign-in may end any moment in its last three days, so the page counts the days left to the start of that window, offers **Renew** in the week before and warns a day before it. It has also dropped on its own after a reboot or a night with Even Keel off: the account then asks you to sign in again.
 
-A machine of a hub can run an account on a long token too: **Add account** with the machine picked in "Where it signs in", then Claude Code, offers the same two cards as on the hub. Under **Long token**, each hub account already on a long token comes first as **The same token as …**: one press hands the machine the token the hub keeps, with nothing to issue or paste. Below it, **A new token** has the same command and field and a pick of the hub's account the token belongs to (so does step 3 of **Add a machine**). The token goes to that machine, which checks it and keeps it in its own account folder; the hub then knows the token is that account's, gives the machine the limits it reads from its own full sign-in, and the account's **Machines** column shows the machine's label with a key. One full sign-in of the account — on the hub — is enough for the limits of every machine on a token; the machines on a token still have no Remote Control, so answer their sessions from the page's chat or in the tracker. While no full sign-in of the account is left — on the hub or on a machine — the account says "limits from sessions only" (on the hub's row, or in the tip of the machine's label): sign in to it fully on the hub again ("Sign in fully" on a long-token row and under the folder's row on the machine's accounts page, the account's own "Sign in" when its folder on the hub was signed out).
+**Long token.** Run `claude setup-token` in a terminal on any machine with Claude Code, sign in with the account you need and paste the token; one short turn checks it before the account is added. The account's row says "long token" and its last day; a month before it, the row says the token ends soon. A refused or outdated token asks for a new one: **Issue a new token** puts it into the same folder, with the account's name and uses kept. Whether a token really lasts its year has not been checked yet.
 
-The **Machines** column names every machine elsewhere the account is on, each label opening the machine's page; a label in amber with a dashed edge is a machine whose folder of the account was signed out — press it to sign in there again. Under "All machines" the header shows the same account as on the hub. When the machines run a project's tasks on different accounts, it shows the project's account, and the account of the task you opened in the session panel while that task runs. An amber lamp on its corner means the account was signed out on one of the project's machines: point at it for the machine's name and press it to open the accounts page.
+Take the full sign-in when you watch the limits or use Remote Control; take the token for a machine left alone for weeks, where a dropped sign-in would stop the chain with nobody there. When the token belongs to an account already added with a full sign-in, pick it in **The same account as**: the token account then shows that account's limits and resets, and only Remote Control is missing. How a machine of a hub gets the hub's token is in [Accounts on a machine](hub-machine.md#a-long-token-on-a-machine).
 
-The account's row says "long token" and its last day. A month before it the row says the token ends soon; a refused or outdated token asks for a new one — "Issue a new token" puts it into the same folder, with the account's name and uses kept. Whether a token really lasts its year has not been checked yet.
+### Codex and OpenCode on ChatGPT
 
-At most one ChatGPT account may be on the free plan across Codex and OpenCode: Even Keel refuses a different second free account and holds any already added. The same e-mail may be used in both agents, sharing its allowance.
-
-Paid plans have no limit on the number of accounts. An unreadable plan remains unknown; Even Keel does not guess that it is free ([docs/accounts.md](../accounts/other-agents.md#the-codex-folders-btn-168-btn-176)).
+At most one ChatGPT account may be on the free plan across Codex and OpenCode: Even Keel refuses a different second free account and holds any already added. The same e-mail may be used in both agents, sharing its allowance. Paid plans have no limit on the number of accounts. A plan Even Keel cannot read stays unknown; it is never taken for free.
 
 ### OpenCode
 
-OpenCode accounts are folders of their own too, signed in with ChatGPT or GitHub Copilot (a link and a one-time code), on an Anthropic or OpenAI API key, or with no sign-in for OpenCode's free models. There is no Claude subscription for OpenCode: Anthropic allows it only in Claude Code, so Claude in OpenCode is an API key ([docs/accounts.md](../accounts/other-agents.md#the-opencode-folders-btn-214)).
+OpenCode accounts are folders of their own too: signed in with ChatGPT (a link and a one-time code), on an API key, on an OpenCode Go key, or with no sign-in for OpenCode's free models. There is no Claude subscription for OpenCode: Anthropic allows it only in Claude Code, so Claude in OpenCode is an Anthropic API key.
 
-An API key may be Anthropic's (`sk-ant-…`), OpenAI's or OpenRouter's (`sk-or-…`): whose it is, is told by its start, and it is checked with that provider when added and hourly.
+**An API key** may be Anthropic's (`sk-ant-…`), OpenAI's or OpenRouter's (`sk-or-…`), told apart by its start, and is checked with that provider when added and then hourly. On an OpenRouter key, a project's or a task's model can be any of OpenRouter's, like `openrouter/minimax/minimax-m3.1-flash`. The account's row shows **Balance**, and **Key limit left** if you set a spending limit on the key in OpenRouter. Should OpenRouter stop telling the balance to an ordinary key, the tip says so: create a management key in OpenRouter's settings and add it with **Management key** in the row's menu. Even Keel keeps it in its own state, never in the account folder, so sessions never see it, and uses it only for **Balance**.
 
-On an OpenRouter key a task's run or the run profile names any of OpenRouter's models, like `openrouter/minimax/minimax-m3.1-flash`; a session that runs out of money there is held until the key can pay again, as on other keys.
+**OpenCode Go.** Choose **Add account** → **OpenCode** → **OpenCode Go** and enter the key from OpenCode Console. The page shows its 5-hour, weekly and monthly windows, refreshed every five minutes, and when a refusal names a reset such as "in 5 days 10 hours", the chain waits for that time. A Console key without Go runs on OpenCode Zen, OpenCode's pay-as-you-go models. If the key expires or is revoked, create a new one in OpenCode Console and choose **Replace key** beside the warning or in the row's menu; signing in again does not renew it.
 
-If you set a spending limit on the key itself in OpenRouter, the account's row shows what is left of it ("Key limit left") next to the spend.
+**GitHub Copilot through OpenCode is not supported yet**: use the [Copilot CLI](#github-copilot) instead. If a saved model or a task's run picks Copilot in OpenCode, the chain pauses with a link to the session settings: choose another **Model** or **Account**, and change the run on the task's card, before resuming.
 
-The row shows the account's balance ("Balance"), read with the account's own key. OpenRouter documents the balance for management keys only, so if it ever stops telling it to the account's key, the key limit's tip says so: create a management key in OpenRouter's settings and add it with "Management key" in the account row's menu.
-
-A management key is checked before it is saved, kept in Even Keel's own state rather than in the account folder, so sessions never see it, and used only to show "Balance" on the row; the same item replaces or removes it.
-
-The balance read [has not yet been checked live](../unverified/opencode.md#the-openrouter-balance-by-a-management-key-btn-868). Sessions on an OpenRouter key have [not yet been checked live](../unverified/opencode.md#opencode-on-an-openrouter-key-btn-843).
-
-**OpenCode on GitHub Copilot is not supported yet:** this combination has not passed a live session check, and Copilot Free's automatic model selection does not work with OpenCode's named-model calls. Existing Copilot sign-ins and credits remain visible, but a folder with only Copilot is unavailable for sessions. A folder with other providers can still use those providers; Copilot models are not offered.
-
-If a saved model or a task's run selects Copilot, the chain pauses and links to session settings: choose another Model or Account and change the run on the task's card before resuming.
-
-Adding Copilot sign-ins through OpenCode is unavailable. The separate GitHub Copilot CLI remains available.
-
-To add a Go subscription, choose **Accounts → Add account → OpenCode → OpenCode Go** and enter its key from OpenCode Console. The page shows its 5-hour, weekly and monthly windows, refreshed every five minutes.
-
-A Console key without Go keeps working as Zen. If the key expires or is revoked, create a new key in OpenCode Console and choose **Replace key** beside the warning or in the account menu; signing in again does not renew it.
-
-When a Go refusal names a reset such as “in 5 days 10 hours”, the chain waits for that time instead of retrying blindly. The Go endpoint and percentage scale still need a [check with a real subscription](../unverified/opencode.md#opencode-go-limits-btn-803).
+An OpenRouter key, its balance and the Go windows have [not been checked live yet](../unverified/opencode.md).
 
 ### GitHub Copilot
 
-GitHub Copilot accounts are folders too.
+GitHub Copilot accounts are folders too. One runs on the GitHub sign-in already on the machine (`copilot login`, which Copilot keeps for the whole machine, not per folder); for several GitHub accounts, add each with a fine-grained token that has the **Copilot Requests** permission. GitHub's terms allow one free account per person: several tokens are for several paid seats, not to stretch a free budget.
 
-One runs on the GitHub sign-in already on the machine (`copilot login`, which Copilot keeps for the whole machine, not per folder); for several GitHub accounts, add each with a fine-grained token that has the "Copilot Requests" permission.
+The card shows the monthly allowance, "N left, resets on the 1st", and a spent one waits for the 1st:
 
-GitHub's terms allow one free account per person: several tokens are for several paid seats, not to stretch a free budget ([docs/accounts.md](../accounts/other-agents.md#the-copilot-folders-btn-215)).
+- an account on a token shows it when the token also has the **Plan** read permission; without it, the card can count only what was spent, or nothing;
+- the machine's sign-in shows it when Copilot uses GitHub CLI's sign-in; otherwise add an account with its own token to read it.
 
-An account added with a token shows its monthly allowance, "N left, resets on the 1st", and a spent one waits for the 1st; give the token the "Plan" read permission too, or the card can only count what was spent, or nothing.
-
-A machine sign-in shows its monthly allowance when Copilot confirms that it uses GitHub CLI's sign-in; otherwise add an account with its own token to read its allowance. This fallback was checked in Windows session 0; Copilot's own saved OAuth sign-in and Linux/macOS remain [unverified](../unverified/copilot.md#copilots-machine-token-and-model-availability-btn-516).
-
-The monthly allowance can count premium requests or AI credits. When GitHub provides credits used and the allowance, the card shows what is left.
-
-A token's billing report can show only what was spent, without a remaining allowance; Even Keel also checks the AI credit report when the premium request report is empty or unavailable.
-
-Give a fine-grained token the **Plan** read permission to allow these reports.
-
-If GitHub supplies no quota or no usage rows, the card explains that no data is available; check GitHub's billing page. Paid-plan readings remain [unverified live](../unverified/copilot.md#a-copilot-tokens-monthly-allowance-btn-341).
+When GitHub gives no numbers, the card says no data is available: look at GitHub's billing page. Paid-plan readings have [not been checked live yet](../unverified/copilot.md).
 
 ## API keys
 
-An account can also be an Anthropic API key, checked with Anthropic when added and then hourly: its sessions pay from the key, the page shows its spend today instead of usage windows (with statistics on), and it has no Remote Control.
+An account can be an Anthropic API key for Claude Code or an OpenAI API key for Codex, checked with the provider when added and then hourly. Its sessions pay from the key, the page shows its spend today instead of usage windows (with statistics on), and it has no Remote Control.
 
-A session whose key runs out of credit is held, the key is checked every 5 minutes, and the chain goes on once it is topped up ([account details](../accounts/claude-kinds.md#api-accounts-btn-99)).
-
-A spending cap also holds the current task, in OpenCode on an Anthropic key too: the account problem band and session panel show the reset date from the error (UTC), and the chain retries then, or sooner if a five-minute check succeeds after you raise the cap. You can switch accounts to continue immediately. Automatic recovery from a real spending cap and the workspace variant have [not yet been checked live](../unverified/sessions.md#api-spending-cap-recovery).
-
-A Codex account can be an OpenAI API key the same way, checked with OpenAI; a Codex session whose key runs out of money is held the same way.
-
-When a key is revoked or expires, the card says it isn't accepted: "Replace key" there or in its ⋯ menu takes a new one into the same account, so its name, roles and history stay.
-
-The new key is checked first and the old one stays if it is refused; a key of another organization is refused too, as it is another account to add on its own. For OpenAI keys this refusal has [not yet been checked live](../unverified/sessions.md#an-api-keys-organization-header), and a restricted OpenAI key that may not read its own profile keeps no organization, so any key replaces it.
-
-Sessions already running finish on the old key, new ones start on the new one. A Copilot token is replaced the same way.
+- **Out of credit.** A session whose key runs out of money is held, the key is checked every 5 minutes, and the chain goes on once it is topped up.
+- **A spending cap** holds the current task too, OpenCode on an Anthropic key included. The account's problem band and the session panel show the reset date from the error (UTC); the chain retries then, or sooner once you raise the cap. To go on at once, switch the account.
+- **A revoked or expired key.** The card says it is not accepted: **Replace key** there or in the row's ⋯ menu takes a new one into the same account, so its name, roles and history stay. The new key is checked first and the old one stays if it is refused; a key of another organization is refused too, since it is another account to add on its own. Sessions already running finish on the old key, new ones start on the new one. A Copilot token is replaced the same way.
 
 ## Claude on a cloud
 
-A Claude Code account can run on Claude models in your own cloud account instead of a subscription or an Anthropic key: Amazon Bedrock, Google Vertex AI or Microsoft Foundry. The cloud bills it, and none of the three has run a live session yet.
+A Claude Code account can run on Claude models in your own cloud account instead of a subscription or an Anthropic key: **Add account** → **Cloud**, then the cloud. The cloud bills it. None of the three has run a live session yet ([What has not been verified](../unverified/accounts.md)): try them on test tasks first.
+
+What the three have in common:
+
+- One short turn checks the connection before the account is added; a refusal says why and adds nothing.
+- Like an API key, the account has no usage windows (the page shows its spend and region), runs through the Agent SDK under `Auto` and has no Remote Control.
+- The cloud's throttling or quota refusal stops a session like any error, not like a limit.
+- Credentials that expire within hours stop a chain left alone overnight; the dialog warns about them.
+- Credentials taken from the user Even Keel runs as: under a Windows service that may not be you, so sign in to the cloud's CLI as that user.
 
 ### Amazon Bedrock
 
-A Claude Code account can also run on Claude models in your Amazon Bedrock account, billed by AWS: **Add account** → **Cloud** → **Amazon Bedrock**.
+The credentials, one of:
 
-Pick how Even Keel finds the AWS credentials — an AWS profile (suggested from the AWS files of the user Even Keel runs as, which under a Windows service may not be you: sign in to AWS as that user, with `aws sso login` or `aws configure`), a Bedrock API key, an access key pair, or the environment Even Keel already runs with — and optionally the region, the models (an inference profile id like `us.anthropic.…` or its ARN) and the inference profile prefix.
+- an AWS profile, suggested from the AWS files of the user Even Keel runs as (`aws sso login` or `aws configure` as that user);
+- a Bedrock API key;
+- an access key pair;
+- the environment Even Keel already runs with.
 
-One short turn checks the connection before the account is added; a refusal says why (no credentials, no model access, no payment method, a region that does not serve the model on demand) and adds nothing.
-
-SSO profiles, short-term Bedrock API keys and keys with a session token expire within hours and are renewed in a browser, so the dialog warns: a chain left alone overnight stops on them, while a profile with a long-lived key or a long-term API key keeps going.
-
-Like an API key, a Bedrock account has no usage windows (the page shows its spend and region), runs through the Agent SDK under `Auto`, and has no Remote Control; Bedrock also has no web search, so WebSearch does not work in its sessions. Bedrock throttling stops a session like any error rather than holding it as a limit.
-
-A Bedrock account has [not yet run a live session](../unverified/accounts.md#claude-on-amazon-bedrock-btn-822); details are in [account details](../accounts/claude-kinds.md#cloud-accounts-btn-822).
+Optionally the region, the models (an inference profile id like `us.anthropic.…` or its ARN) and the inference profile prefix. SSO profiles, short-term Bedrock API keys and keys with a session token expire within hours; a profile with a long-lived key or a long-term API key keeps going. Bedrock has no web search, so WebSearch does not work in its sessions.
 
 ### Google Vertex AI
 
-It can run on Claude models in a Google Cloud project the same way, billed by Google: **Add account** → **Cloud** → **Google Vertex AI**.
+Before you start: enable the models in Model Garden, and give the Google Cloud project a paid billing account, since trial credits do not pay for Claude. A new project's Claude quota is often zero: raise it in Cloud Quotas.
 
-Enable the models in Model Garden first; the project needs a paid billing account, since trial credits do not pay for Claude.
+The credentials, one of:
 
-Pick how Even Keel finds the Google Cloud credentials — the sign-in that `gcloud auth application-default login` leaves for the user Even Keel runs as (the dialog says whether that user has it, and gives the command if not), the path to a service account's JSON key (or a Workload Identity Federation config), or the environment Even Keel already runs with — then the project ID (suggested from that user's gcloud configurations) and optionally the region (`us-east5` by default; `global`, `us` or `eu` recommended), the models (a Vertex id like `claude-sonnet-4-5@20250929`) and a region of its own for a model the account's region does not serve.
+- the sign-in `gcloud auth application-default login` leaves for the user Even Keel runs as (the dialog says whether that user has it, and gives the command if not);
+- the path to a service account's JSON key, or a Workload Identity Federation config;
+- the environment Even Keel already runs with.
 
-One short turn checks the connection; a refusal says why (no credentials, billing or the Vertex AI API not enabled, a model not enabled or not in the region, quota, a missing permission) and adds nothing.
-
-A new project's Claude quota is often zero: raise it in Cloud Quotas. A user's gcloud sign-in may ask for a new sign-in under the organization's session policy, so the dialog warns; for unattended work use a service account's key file.
-
-A Vertex quota refusal stops a session like any error. Otherwise a Vertex account behaves like a Bedrock one, and it has [not yet run a live session](../unverified/accounts.md#claude-on-google-vertex-ai-btn-823) either.
+Then the project ID (suggested from that user's gcloud configurations) and optionally the region (`us-east5` by default; `global`, `us` or `eu` recommended), the models (a Vertex id like `claude-sonnet-4-5@20250929`) and a region of its own for a model the account's region does not serve. A user's gcloud sign-in may ask for a new sign-in under the organization's session policy: for unattended work, use a service account's key.
 
 ### Microsoft Foundry
 
-Or on Claude models deployed in a Microsoft Foundry resource, billed by Azure: **Add account** → **Cloud** → **Microsoft Foundry**.
+Before you start: deploy the models in the Foundry portal. Claude needs a pay-as-you-go Azure subscription with Marketplace access (not a free trial, student, credit or CSP one) and a resource in a region that serves it, such as East US 2 or Sweden Central.
 
-Deploy the models in the Foundry portal first; Claude needs a pay-as-you-go Azure subscription with Marketplace access (not a free trial, student, credit or CSP one) and a resource in a region that serves it, such as East US 2 or Sweden Central.
+The resource, as its name (`my-resource`) or its full address (`https://my-resource.services.ai.azure.com/anthropic`), and the sign-in, one of:
 
-Give the resource as its name (`my-resource`) or its full address (`https://my-resource.services.ai.azure.com/anthropic`), then how Even Keel signs in: the resource's API key, Microsoft Entra ID (`az login` of the user Even Keel runs as, a service principal in Even Keel's environment, or the machine's managed identity — the dialog says whether that user is signed in, and gives the command if not), or a Bearer token.
+- the resource's API key;
+- Microsoft Entra ID: `az login` of the user Even Keel runs as, a service principal in Even Keel's environment or the machine's managed identity (the dialog says whether that user is signed in, and gives the command if not);
+- a Bearer token, which lives about an hour and is not renewed: for unattended work, use a key or Entra ID.
 
 Then the deployment names for Opus, Sonnet and Haiku, at least one, exactly as the portal shows them.
 
-One short turn checks the connection; a refusal says why (no Entra ID sign-in, a resource that does not answer, no such deployment, a subscription that cannot use Claude, a refused key or token, throttling) and adds nothing.
-
-A token lives about an hour and is not renewed, so the dialog warns: for unattended work use a key or Entra ID.
-
-Foundry throttling stops a session like any error. Otherwise a Foundry account behaves like a Bedrock one, and it has [not yet run a live session](../unverified/accounts.md#claude-on-microsoft-foundry-btn-824) either.
-
 ## The accounts page
 
-The `/accounts` page and the header's Accounts panel group accounts in bordered provider blocks, with accounts at work first.
+**Accounts** in the header opens a panel; the `/accounts` page shows the same in full. Accounts are grouped by provider, those at work first. Each row has the account's name, its roles, its limits and its live sessions, and problems appear above the list with their fix; tips tell where a limit is shared and how old a reading is.
 
-Each account is a row: its name, role chips and limits; the page also shows sessions (VS Code chats by tab title) and how they run.
+A role is an app that runs on the account: **Even Keel** for the chain's sessions of that provider, **VS Code** for the Claude Code extension in VS Code. Click the row (or focus it and press Enter) for its menu: move Even Keel or VS Code onto the account, rename it or remove it; an action that cannot be done says why. VS Code picks up the new account after **Developer: Reload Window**, and the move waits while a Claude chat is open there. The Claude desktop app is pointed at an account folder by hand.
 
-Click the row, or focus it and press Enter/Space, to move Even Keel or VS Code onto it, rename it or remove it. Unavailable actions say why.
+The **Machines** column names every other machine of a [hub](hub-machine.md#accounts-on-a-machine) the account is on, each label opening that machine's page; an amber label with a dashed edge is a machine where the account was signed out — press it to sign in there again.
 
-The Claude desktop app can be launched on a folder by hand ([account details](../accounts/page.md#the-claude-desktop-app)).
-
-Problems appear above the list with their fix. Shared limits and the source and age of readings are in tips.
-
-OpenCode and Copilot without a readable allowance share token counts for today and 30 days.
-
-At phone widths a row keeps the name, role and the tightest used percentage of the plan's windows, with the model's name beside it when the account also has a model's own week (Fable); tapping the row opens its menu, whose head shows all the windows with their resets, the model's week and how old the reading is. The burger has one Accounts button with that percentage and an error dot.
-
-The account row's menu opens at the horizontal position you click, below the row (above it when space is short), and stays inside the window. Enter/Space opens it at the row's default position.
+On a phone, a row keeps the name, the role and the tightest used percentage of the plan's windows (with the model's name when the account also has a model's own week); tapping the row opens its menu, whose head shows every window with its reset. The menu button of the header has one **Accounts** button with that percentage and an error dot.
 
 ### The account chip in the header
 
-On a project's chain page, the header chip shows the account of its current session, or of the next task before it starts, including while the chain is paused or stopped.
+On a project's chain page, the header chip shows the account of its current session, or of the next task before it starts, also while the chain is paused or stopped. Other pages show Even Keel's shared account. Pressing the chip opens the Accounts panel.
 
-Hover or focus shows up to three distinct accounts in order: the task, the project's default and Even Keel's default. A coloured border and stack count mark a cascade; on phones the chip keeps the tightest usage window.
-
-Other pages show only Even Keel's account. Pressing the chip opens the full Accounts panel. Accounts without readable limits show token counts instead of empty limit rows.
+Pointing at it shows the accounts that decide the next task's account, up to three: the task's own, the project's and the shared one. When the task or the project has an account of its own over the shared one, the chip gets a coloured border and the number of accounts in play. On a phone, the header shows the account's windows as thin bars along its bottom edge.
 
 ## Limits
 
-The windows of every subscription account are read every 5 minutes: Claude Code's 5-hour and weekly windows with its own `/usage` command (no quota spent; a plan with only one of them, such as a verified Ultra without the 5-hour one, shows the one it has), Codex and OpenCode's ChatGPT windows from ChatGPT, and Copilot's monthly allowance from GitHub.
+The windows of every subscription account are read every 5 minutes:
 
-Between those reads a Claude session running through the Agent SDK keeps its windows fresh with the limits the CLI reports at each response.
+- Claude Code's 5-hour and weekly windows, with its own `/usage` command (no quota spent); a plan with only one of them shows the one it has. Between reads, a Claude session through the Agent SDK keeps them fresh with what the CLI reports at each response.
+- A Claude plan's weekly limit of its own for one model (Max, Ultra and Team have one for Fable) — one more meter in the row, named by the model. While that week is used up, a task on that model waits for it, and a task on another model goes on.
+- Codex's and OpenCode's ChatGPT windows, from ChatGPT; Copilot's monthly allowance, from GitHub.
 
-Even Keel stays inside them: while a window is exhausted the next task waits for its reset.
-
-A Claude plan with a weekly limit of its own for one model (Max, Ultra and Team have one for Fable) shows it as one more meter in the account's row, named by the model; while that week is used up, a task on that model waits for it to open, and a task on another model of the plan goes on.
-
-Usage warnings name each affected account in a shared or project account pool, including accounts of other providers; accounts that need sign-in show that on their card instead.
-
-What happens to a session that hits a limit is in [Handoffs](sessions.md#on-a-usage-limit).
+Even Keel stays inside them: while a window is used up, the next task waits for its reset. A usage warning names each account it touches, those of other providers included; an account that needs a sign-in says so on its card instead. What happens to a session that hits a limit is in [Handoffs](sessions.md#on-a-usage-limit).
 
 ## Subscription credits and extra usage
 
 Some plans let work go on past the included limit for money: usage credits, extra usage, paid requests. Even Keel shows what the provider reports and stops a chain session once it sees paid usage, so a chain does not spend money you did not mean to spend.
 
-On the wide Accounts page, **Extra usage** shows the provider's reported credit balance, additional-usage permission or paid Copilot usage.
+- **Extra usage**, a column of the wide accounts page, shows the provider's credit balance, whether extra usage is allowed, or Copilot's paid usage; a dash means the provider does not say. ChatGPT balances are usage credits, not dollars.
+- An amber **on credits** chip beside an account's name means a working session seems to be spending paid usage; its tip says why Even Keel thinks so.
+- The chain session on such an account is stopped, mid-turn or on a paused chain too. The task keeps its folder, branch and context and goes on when the allowance resets or another account is free. Detection can lag by up to five minutes, so some spending can happen before the stop.
+- An account that may spend shows a warning with **Provider spending settings**.
 
-A dash means the provider has not supplied it. Point at or focus a value for its source, age and limitations.
-
-ChatGPT balances are usage credits, not dollars; automatic reload settings and spending caps are not reported.
-
-An amber **on credits** chip beside an account's name, including in the header and account panel, means a working session recently reported extra usage (Claude SDK), or is working with available ChatGPT credits and an exhausted included window.
-
-The latter is an inference, explained in the tip.
-
-The narrow page and panel keep this chip and their usual usage figure. OpenCode Zen has no readable balance here.
-
-Even Keel stops the current chain session on fresh paid-usage evidence or an exhausted Claude allowance, including during a turn and on a paused chain.
-
-Claude SDK reports paid usage directly. An exhausted Claude `/usage` window means paid usage is possible, not confirmed; the log and policy tip say so. Other supported subscription connections require an exhausted included window with available ChatGPT credits or Copilot paid-usage permission.
-
-The chain retains its folder, branch and context, waits for allowance to reset or a usable account, then resumes a warm session or starts one with a handoff.
-
-A shared ChatGPT allowance also holds after switching between Codex and OpenCode.
-
-An unknown reset stays unknown; historical paid totals alone never trigger a stop. API-key recovery stays as before.
-
-An account with known paid usage available shows a warning and **Provider spending settings** link. Point at, focus or press the warning to read the policy and advice.
-
-Detection follows a request or a usage poll, which may lag by five minutes: spending can happen before the stop.
-
-Set a hard cap with the provider; for a chain account, disable extra usage or automatic credit reload, or set its monthly limit where supported. Credit availability is not consent to spend.
-
-Actual paid stops and positive-balance sources still need [live checks](../unverified/accounts.md#paid-subscription-usage-stops).
+Availability of credits is not consent to spend: for a chain account, turn off extra usage or automatic credit reload at the provider, or set a monthly limit where it has one. Real paid stops have [not been checked live yet](../unverified/accounts.md#paid-subscription-usage-stops).
 
 ## When Claude Code asks to sign in again
 
-If Claude Code unexpectedly asks you to sign in again, `logs/even-keel.log` records observed changes of its credential file: tokens emptied, renewed or restored, with the file's write time.
-
-An emptying also includes expiry dates, the selected CLI version, live session PIDs and nearby changes in other account folders. Token values are never logged.
-
-The first check after a service restart establishes a baseline and reports already empty tokens once.
-
-Preserve the log before signing in again; it helps investigation but does not determine the cause. See [account diagnostics](../accounts/folders.md#oauth-token-diagnostics-btn-763).
+If Claude Code unexpectedly asks you to sign in again, save `logs/even-keel.log` before signing in and attach it to a [bug report](https://github.com/NamerekT/even-keel/issues): it records the changes of the account's credential file, never the tokens themselves.

@@ -44,7 +44,7 @@ At ≤760 px (`useNarrow`) the header is one row: the brand with the project key
 
 ## Updates
 
-`src/updates/`. What a person sees and does is the guide's [Updating from the page](../guide/page.md#updating-from-the-page); this is how it is built.
+`src/updates/`. What a person sees and does is the guide's [Updating from the page](../guide/updating.md#from-the-page); this is how it is built.
 
 - **The check.** The service reads its version from `package.json` and, while `updates.check` is on, asks `api.github.com/repos/<repository>/releases?per_page=30` (no token) at start and every 12 h (`UpdateWatcher`, `releasesOf`). Not during the first run (`firstRun`): the setup asks whether to, and the first ask comes once the run ends (a config change calls `configChanged`). Drafts, prereleases and tags that are no version are ignored; a failed request is one log line.
 - **The version row.** `EvenKeelState.updates` (`updatesView` for the releases, `Updater.view()` for the rest) makes the last row of the gear menu and the burger's sheet "Even Keel <version>", with "<version> available" when a release is newer or "back to <version>" when this version came by an update (`VersionRow`, `web/src/layout/Updates.tsx`). Both open the update window (`UpdateWindow`).
