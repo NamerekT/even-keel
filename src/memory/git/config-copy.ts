@@ -1,4 +1,4 @@
-import { type FSWatcher, readFileSync, watch as watchFolder } from 'node:fs'
+import { type FSWatcher, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { linkAgentSkills } from '../../account/agent-skills.js'
 import { configStore, settleStores } from '../../account/share.js'
@@ -7,6 +7,7 @@ import type { ConfigConflictView } from '../../state.js'
 import { CONFIG_FILES, ConfigFiles } from './config-files.js'
 import { pendingConflicts } from './conflicts.js'
 import { MemorySync, type MemorySyncDeps, type SyncOutcome } from './sync.js'
+import { watchWhileThere } from './watch.js'
 
 /** The repository id of the global configuration among the projects' memory repositories (BTN-1690). */
 export const CONFIG_REPOSITORY = 'config'
@@ -139,14 +140,12 @@ function cut(text: string): string {
 /** The global folder's own files and its `skills` (a skill deleted there, BTN-1736): everything else in it is the CLI's. */
 function watchGlobal(folder: string, changed: () => void): () => void {
   const names = new Set<string>(CONFIG_FILES)
-  const watcher = watchFolder(folder, (_event, name) => {
+  const watcher = watchWhileThere(folder, {}, (name) => {
     if (name !== null && names.has(name)) changed()
   })
-  watcher.on('error', () => watcher.close())
   let skills: FSWatcher | undefined
   try {
-    skills = watchFolder(join(folder, 'skills'), () => changed())
-    skills.on('error', () => skills?.close())
+    skills = watchWhileThere(join(folder, 'skills'), {}, () => changed())
   } catch {
     // no skills folder yet: the next sync lays it
   }

@@ -400,6 +400,9 @@ export class Harness {
     this.signals = []
     await this.agent.settled()
     await service.monitor.stop()
+    // As `shutdown` does: its folder watchers outlive the halt otherwise, and their touches arm timers on the next
+    // test's fake clock (BTN-1822).
+    service.memory.stop()
     await service.writes.settled()
     vi.clearAllTimers()
     await Promise.allSettled([service.packages.close(), service.packageHub.close(), new Promise((resolve) => service.server.close(resolve)), service.tally.stop()])

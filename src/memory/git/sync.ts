@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, watch as watchFolder, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runGit } from '../../git/run.js'
 import type { Git, GitResult } from '../../git/types.js'
@@ -9,6 +9,7 @@ import type { Meeting } from './config-files.js'
 import { settleTexts, type Settled, type Sides } from './merge.js'
 import { reindex } from './reindex.js'
 import { findSecrets } from './secrets.js'
+import { watchWhileThere } from './watch.js'
 
 /** A change is committed this long after the last edit in the folder. */
 export const SETTLE_MS = 30_000
@@ -591,10 +592,9 @@ function defaultSchedule(run: () => void, ms: number): () => void {
 }
 
 function defaultWatch(folder: string, changed: () => void, nested: boolean): () => void {
-  const watcher = watchFolder(folder, { recursive: nested }, (_event, name) => {
+  const watcher = watchWhileThere(folder, { recursive: nested }, (name) => {
     if (name?.split(/[\\/]/)[0] !== '.git') changed()
   })
-  watcher.on('error', () => watcher.close())
   return () => watcher.close()
 }
 
